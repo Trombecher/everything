@@ -1,0 +1,14 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.43.0", features = ["full"] }
+axum = { version = "0.8.1", features = ["ws"] }
+futures = "0.3.31"
+tracing = "0.1.41"
+rusqlite = { version = "0.32.1", features = ["bundled-full"] }
+deadpool = "0.12.1"
+deadpool-sqlite = "0.9.0"
+num_enum = "0.7.3"
