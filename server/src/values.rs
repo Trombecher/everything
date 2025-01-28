@@ -2,10 +2,11 @@ use std::mem::transmute;
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::ToSql;
 use rusqlite::types::ToSqlOutput;
-use crate::objects::{GroupID, ObjectID, UserID};
+use crate::objects::ObjectId;
 
-pub enum GenericValue<'a> {
-    ObjectID(ObjectID),
+#[derive(Copy, Clone, PartialEq)]
+pub enum Value<'a> {
+    Object(ObjectId),
     Decimal(f64),
     Integer(i64),
     String(&'a str),
@@ -17,32 +18,29 @@ pub enum GenericValue<'a> {
     Binary(&'a [u8]),
     Color(Color<'a>),
     Email(Email<'a>),
-    UserID(UserID),
-    GroupID(GroupID),
 }
 
-impl<'a> ToSql for GenericValue<'a> {
+impl<'a> ToSql for Value<'a> {
     fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
         match self {
-            GenericValue::ObjectID(x) => x.to_sql(),
-            GenericValue::Decimal(x) => x.to_sql(),
-            GenericValue::Integer(x) => x.to_sql(),
-            GenericValue::String(x) => x.to_sql(),
-            GenericValue::Duration(x) => x.to_sql(),
-            GenericValue::DateTime(x) => x.to_sql(),
-            GenericValue::Boolean(x) => x.to_sql(),
-            GenericValue::Character(x) => (unsafe { transmute::<_, &u32>(x) }).to_sql(),
-            GenericValue::URL(x) => x.to_sql(),
-            GenericValue::Binary(x) => x.to_sql(),
-            GenericValue::Color(x) => x.to_sql(),
-            GenericValue::Email(x) => x.to_sql(),
-            GenericValue::UserID(x) => x.to_sql(),
-            GenericValue::GroupID(x) => x.to_sql(),
+            Value::Object(x) => x.to_sql(),
+            Value::Decimal(x) => x.to_sql(),
+            Value::Integer(x) => x.to_sql(),
+            Value::String(x) => x.to_sql(),
+            Value::Duration(x) => x.to_sql(),
+            Value::DateTime(x) => x.to_sql(),
+            Value::Boolean(x) => x.to_sql(),
+            Value::Character(x) => (unsafe { transmute::<_, &u32>(x) }).to_sql(),
+            Value::URL(x) => x.to_sql(),
+            Value::Binary(x) => x.to_sql(),
+            Value::Color(x) => x.to_sql(),
+            Value::Email(x) => x.to_sql(),
         }
     }
 }
 
 /// A timestamp, represented as the number of seconds since January 1st, 1970.
+#[derive(Copy, Clone, PartialEq)]
 pub struct DateTime(pub i64);
 
 impl DateTime {
@@ -52,10 +50,13 @@ impl DateTime {
     }
 }
 
+#[derive(Copy, Clone, PartialEq)]
 pub struct Duration(pub u64);
 
+#[derive(Copy, Clone, PartialEq)]
 pub struct Color<'a>(&'a str);
 
+#[derive(Copy, Clone, PartialEq)]
 pub struct Email<'a>(&'a str);
 
 impl<'a> Email<'a> {
@@ -70,6 +71,7 @@ impl<'a> Email<'a> {
     }
 }
 
+#[derive(Copy, Clone, PartialEq)]
 pub struct URL<'a>(&'a str);
 
 macro_rules! impl_trivial_to_sql {

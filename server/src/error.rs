@@ -1,6 +1,7 @@
 //! This module contains error enum definitions.
 
 /// The crate-level error enum.
+#[derive(Debug)]
 pub enum Error {
     Internal(InternalError),
     Interface(InterfaceError),
@@ -10,6 +11,7 @@ pub enum Error {
 /// Any occurrence of this error is a bug in the server.
 ///
 /// A 500 internal server should be returned to the client.
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum InternalError {
     /// An error occurred in the database library.
@@ -58,6 +60,7 @@ impl From<rusqlite::Error> for Error {
 /// The errors from this enum commonly arise from interfacing with users.
 /// This includes errors like validation errors, non-existing objects,
 /// message format errors, bounds errors, login errors, etc.
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum InterfaceError {
     ObjectDoesNotExist,

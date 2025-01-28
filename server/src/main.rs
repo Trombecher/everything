@@ -14,6 +14,8 @@ mod query;
 mod cache;
 mod values;
 mod permissions;
+mod tags;
+mod constraints;
 
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{State, WebSocketUpgrade};
@@ -24,14 +26,17 @@ use deadpool::Runtime;
 use deadpool_sqlite::{Config, Pool};
 use futures::{SinkExt, StreamExt};
 use std::collections::HashMap;
+use byte_reader::Cursor;
 use tokio::spawn;
 use tokio::sync::{mpsc, Mutex};
-use crate::cache::IAC;
-use crate::proto::{Decoder, MessageBuffer};
+use crate::constraints::Constraint;
+use crate::tags::{BuiltInTagId, TagId};
+use crate::values::{DateTime, Value};
+use crate::proto::{Decode, IncomingMessage};
+
 
 struct AppState {
     active_sessions: Mutex<HashMap<i64, [u8; 32]>>,
-    inferred_association_cache: IAC,
 }
 
 #[tokio::main]
@@ -39,6 +44,31 @@ async fn main() {
     let pool = Config::new("../dev.db")
         .create_pool(Runtime::Tokio1)
         .unwrap();
+
+    /*
+    {
+        let conn = pool.get().await.unwrap();
+        let locked = conn.lock().unwrap();
+        
+        // Created + Favourite
+        let q = db::objects::query(
+            locked.as_ref(),
+            Some(Constraint::And(
+                Box::new(Constraint::Tag {
+                    id: TagId::BuiltIn(BuiltInTagId::Created),
+                    match_value: None,
+                }),
+                Box::new(Constraint::Tag {
+                    id: TagId::BuiltIn(BuiltInTagId::Favourite),
+                    match_value: None,
+                })
+            )),
+            100,
+            0,
+        );
+        
+        println!("{q:?}");
+    }*/
 
     // let (send_channel, _receive_channel) = tokio::sync::broadcast::channel::<String>(10);
 
@@ -62,6 +92,10 @@ async fn main() {
         .unwrap();
 }
 
+fn transform(slice: &[u8]) -> Vec<u8> {
+    
+}
+
 async fn ws_channel(ws: WebSocket, pool: Pool) {
     let (mut sender, mut receiver) = ws.split();
     let (message_out, mut message_collect) = mpsc::channel::<Vec<u8>>(128); // Magic number
@@ -81,37 +115,11 @@ async fn ws_channel(ws: WebSocket, pool: Pool) {
                 let pool = pool.clone();
 
                 spawn(async move {
-                    let mut decoder = Decoder::new(payload.as_ref());
-                    let call_id = decoder.decode::<u64>();
-                    let procedure_id = decoder.decode::<u64>();
-
-                    let mut rb = MessageBuffer::new();
-                    rb.encode(&call_id);
+                    let mut cursor = Cursor::new(payload.as_ref());
                     
-                    let status_code = rb.reserve::<u8>();
-
-                    match procedure_id {
-                        0 => {
-                            let limit = decoder.decode::<u64>();
-                            let offset = decoder.decode::<u64>();
-
-                            let conn = pool.get().await.unwrap();
-                            match db::objects::all(
-                                conn.lock().unwrap().as_ref(),
-                                limit as usize,
-                                offset as usize,
-                                &mut rb,
-                            ) {
-                                Ok(_) => rb.encode_reserved(status_code, &0),
-                                Err(e) => {
-                                    rb.clear();
-                                    rb.encode(&e);
-                                },
-                            }
-                        }
-                        _ => {}
-                    }
-
+                    let in_msg = Decode::<IncomingMessage>::next(&mut cursor)
+                        .await
+                    
                     println!("sent: {:?}", rb.as_slice());
                     
                     message_out.send(rb.into()).await.unwrap();

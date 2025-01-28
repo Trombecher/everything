@@ -1,27 +1,26 @@
-import {Adapter__new, Adapter__objects__iter} from "./adapter/adapter.ts";
-import {createSignal} from "solid-js";
-import {Object} from "./adapter/model.ts";
+import {Accessor, createSignal, Setter} from "solid-js";
 
 export default () => {
-    const [objects, setObjects] = createSignal<Object[]>([]);
+    const [query, setQuery] = createSignal("");
 
     return (
-        <div>
-            <button
-                onclick={() => {
-                    Adapter__new("admin", new TextEncoder().encode("password"))
-                        .then(async adapter => {
-                            for await(const object of Adapter__objects__iter(adapter)) {
-                                setObjects([...objects(), object]);
-                            }
-                        })
-                }}
-            >
-                click
-            </button>
-            {objects().map(object => (
-                <div>{object.id} {object.type}</div>
-            ))}
-        </div>
+        <>
+            <QueryComponent query={query} setQuery={setQuery}/>
+        </>
+    )
+}
+
+const QueryComponent = ({
+    query,
+    setQuery,
+}: {
+    query: Accessor<string>,
+    setQuery: Setter<string>
+}) => {
+    return (
+        <div
+            onInput={e => setQuery(e.target.value)}
+            class={"bg-shade-100 text-xl rounded-full px-4 py-1 mt-4 mx-auto"}
+        ></div>
     )
 }

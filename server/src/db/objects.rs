@@ -1,49 +1,48 @@
 //! This module defines atomic object operations on the database.
 
-use crate::proto::MessageBuffer;
-use crate::types::{BuiltInTypeID, TypeID};
-use rusqlite::{Connection, params};
+use crate::constraints::Constraint;
 use crate::error::Error;
-use crate::objects::{ExistingObjectID, ObjectID};
+use crate::objects::{ObjectId, ValidatedObjectId};
+use rusqlite::{Connection, params, params_from_iter};
 
-pub fn exists(
-    conn: &Connection,
-    object_id: ObjectID
-) -> Result<Option<ExistingObjectID>, rusqlite::Error> {
-    conn.prepare_cached("SELECT 1 FROM objects WHERE id = ?")?
-        .exists(params![object_id])
-        .map(|exists| exists.then_some(unsafe { ExistingObjectID::new(object_id) }))
+pub fn create(conn: &Connection) -> Result<ValidatedObjectId, Error> {
+    conn.prepare_cached("INSERT INTO objects VALUES ()")
+        .map_err(Error::from)?
+        .insert([])
+        .map_err(Error::from)
+        .map(|id| unsafe { ValidatedObjectId::new(ObjectId(id)) })
 }
 
-pub fn delete(connection: &Connection, object_id: ObjectID) -> rusqlite::Result<()> {
-    connection.prepare_cached("DELETE FROM objects WHERE id = ?")?
+pub fn validate(
+    conn: &Connection,
+    object_id: ObjectId,
+) -> Result<Option<ValidatedObjectId>, rusqlite::Error> {
+    conn.prepare_cached("SELECT 1 FROM objects WHERE id = ?")?
+        .exists(params![object_id])
+        .map(|exists| exists.then_some(unsafe { ValidatedObjectId::new(object_id) }))
+}
+
+pub fn delete(connection: &Connection, object_id: ObjectId) -> rusqlite::Result<()> {
+    connection
+        .prepare_cached("DELETE FROM objects WHERE id = ?")?
         .execute(params![object_id])
         .map(|_| ())
 }
 
-pub fn all(
-    connection: &Connection,
-    limit: usize,
-    offset: usize,
-    rb: &mut MessageBuffer,
-) -> Result<(), Error> {
-    let reserved = rb.reserve::<u64>();
-    let mut i = 0_u64;
+/// Collects all objects ids into a [Vec].
+fn all(connection: &Connection, limit: u16, offset: u64) -> Result<Vec<ValidatedObjectId>, Error> {
+    let mut object_ids = Vec::with_capacity(limit.max(1024) as usize);
 
-    connection
-        .prepare("SELECT id, type FROM objects LIMIT ? OFFSET ?")
+    for id in connection
+        .prepare("SELECT id FROM objects LIMIT ? OFFSET ?")
         .map_err(Error::from)?
-        .query_map(rusqlite::params![limit, offset], |row| {
-            rb.encode(&row.get::<_, i64>(0)?); // id
-            rb.encode(&row.get::<_, u8>(1)?); // type
-            i += 1;
-            Ok(())
-        })
+        .query_map(rusqlite::params![limit, offset], |row| row.get::<_, i64>(0))
         .map_err(Error::from)?
-        .for_each(|_| {});
+    {
+        object_ids.push(unsafe { ValidatedObjectId::new(ObjectId(id?)) });
+    }
 
-    rb.encode_reserved(reserved, &i);
-    Ok(())
+    Ok(object_ids)
 }
 
 pub fn query_types_of_object(
@@ -51,7 +50,6 @@ pub fn query_types_of_object(
     object_id: i64,
     limit: usize,
     offset: usize,
-    mb: &mut MessageBuffer,
 ) -> rusqlite::Result<()> {
     let mut selected_ids = Vec::with_capacity(limit.max(128)); // TODO: magic number
 
@@ -63,36 +61,34 @@ pub fn query_types_of_object(
     Ok(())
 }
 
-pub fn query_by_type(
-    connection: &Connection,
-    type_id: TypeID,
-    limit: usize,
-    offset: usize,
-    mb: &mut MessageBuffer,
-) -> rusqlite::Result<()> {
-    let reserved = mb.reserve::<u64>();
-    let mut count = 0;
+pub fn query(
+    conn: &Connection,
+    constraint: Option<Constraint>,
+    limit: u16,
+    offset: u64,
+) -> Result<Vec<ValidatedObjectId>, Error> {
+    let constraint = match constraint {
+        Some(c) => c,
+        None => return all(conn, limit, offset),
+    };
 
-    match type_id {
-        TypeID::BuiltIn(BuiltInTypeID::File) => {
-            for id in connection
-                .prepare_cached("SELECT id FROM objects WHERE type = 1 LIMIT ? OFFSET ?")?
-                .query_map(params![limit, offset], |row| row.get::<_, i64>(0))?
-            {
-                mb.encode(&id?);
-                count += 1
-            }
+    let mut p = Vec::new();
+    let mut s = String::new();
+
+    let mut ids = Vec::new();
+
+    constraint.build_query(conn, &mut s, &mut p)?;
+
+    for id in conn
+        .prepare(&s)
+        .map_err(Error::from)?
+        .query_map(params_from_iter(p.iter()), |row| row.get::<_, i64>(0))
+        .map_err(Error::from)?
+    {
+        unsafe {
+            ids.push(ValidatedObjectId::new(ObjectId(id?)));
         }
-        TypeID::BuiltIn(_) => todo!(),
-        TypeID::UserDefined(_) => todo!(),
     }
 
-    mb.encode_reserved(reserved, &count);
-
-    Ok(())
+    Ok(ids)
 }
-
-// 49   32
-// File LastRead(_ < NOW - 10d)
-
-// -> 49 && 32 && (!
