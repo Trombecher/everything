@@ -15,7 +15,7 @@ export type Constraint = {
     r: Constraint
 } | {
     _: typeof CS_NOT,
-    v: Constraint
+    i: Constraint
 } | {
     _: typeof CS_LEAF,
     i: ObjectId,
@@ -28,7 +28,7 @@ export const matchesConstraint = (obj: Record<number, any>, c?: Constraint): boo
     switch(c._) {
         case CS_AND: return matchesConstraint(obj, c.l) && matchesConstraint(obj, c.r);
         case CS_OR: return matchesConstraint(obj, c.l) || matchesConstraint(obj, c.r);
-        case CS_NOT: return matchesConstraint(obj, c.v);
+        case CS_NOT: return matchesConstraint(obj, c.i);
     }
 
     return c.i in obj && (!c.v || obj[c.i] === c.v.v);

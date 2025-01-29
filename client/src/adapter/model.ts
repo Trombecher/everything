@@ -1,3 +1,5 @@
+import {Language} from "./lang.ts";
+
 export const EVENT_OBJECT_DELETE = 1;
 
 export const RPC_OBJECTS_QUERY = 1;
@@ -30,6 +32,7 @@ export const VL_URL = 9;
 export const VL_BINARY = 10;
 export const VL_COLOR = 11;
 export const VL_EMAIL = 12;
+export const VL_LANGUAGE = 13;
 
 export type EventId = typeof EVENT_OBJECT_DELETE;
 export type RPCId = typeof RPC_OBJECTS_EXISTS
@@ -49,6 +52,9 @@ export type Value = {_: typeof VL_OBJECT_ID, v: ObjectId}
     | {_: typeof VL_BOOLEAN, v: boolean}
     | {_: typeof VL_CHARACTER, v: number}
     | {_: typeof VL_URL, v: string}
-    | {_: typeof VL_BINARY, v: Uint8Array}
+    | {_: typeof VL_BINARY, v: Uint8Array | Blob | ArrayBuffer}
     | {_: typeof VL_COLOR, v: string}
-    | {_: typeof VL_EMAIL, v: string};
+    | {_: typeof VL_EMAIL, v: string}
+    | {_: typeof VL_LANGUAGE, v: Language};
+
+export type RawValue = number | string | boolean | Uint8Array | Blob | ArrayBuffer;

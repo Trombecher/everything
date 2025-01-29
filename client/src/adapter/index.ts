@@ -6,10 +6,13 @@ import {
     MIN_TEMP_PENDING_ID,
     ObjectId,
     PermissionLevel,
-    PL_ADMIN, RPC_OBJECTS_CREATE, RPC_OBJECTS_EXISTS, RPC_OBJECTS_QUERY,
+    PL_ADMIN, RawValue, RPC_OBJECTS_CREATE, RPC_OBJECTS_EXISTS, RPC_OBJECTS_QUERY,
     RPCId,
-    SESSION_ID_LENGTH, Value,
+    SESSION_ID_LENGTH,
 } from "./model.ts";
+import {BUILT_IN_TAG_ID_CREATED, isBuiltInTagId, MIN_OBJECT_ID} from "./objects.ts";
+import {Language} from "./lang.ts";
+import {BUILT_IN_NAMES_MAP} from "../translations.ts";
 
 const QUERY_BATCH_SIZE = 16;
 
@@ -23,20 +26,30 @@ export class Client {
      *
      * @private
      */
-    private readonly cache: Map<number, Record<number, any>> = new Map();
+    private readonly cache: Map<number, Record<number, RawValue | undefined>> = new Map();
     private nextPendingId: number = MIN_TEMP_PENDING_ID;
 
+    /**
+     * The next object id, relevant for local object creation.
+     * @private
+     */
+    private nextObjectId: number = MIN_OBJECT_ID;
+
     // Handlers
-    public onObjectCreated: (oid: ObjectId) => any | undefined;
-    public onAssociation: (oid: ObjectId, tag: ObjectId, optionalValue: any) => any | undefined;
-    public onObjectDeleted: (oid: ObjectId) => any | undefined;
-    public onClose: () => any | undefined;
+    public onObjectCreated: ((oid: ObjectId) => any) | undefined;
+    public onAssociation: ((oid: ObjectId, tag: ObjectId, optionalValue: any) => any) | undefined;
+    public onObjectDeleted: ((oid: ObjectId) => any) | undefined;
+    public onClose: (() => any) | undefined;
 
     private constructor(
-        private readonly ws: WebSocket,
+        private readonly ws: WebSocket | undefined,
         private readonly pl: PermissionLevel,
         private readonly pending: Map<number, (decoder: Decoder) => void>,
     ) {
+    }
+
+    isLocal(): boolean {
+        return !this.ws;
     }
 
     /**
@@ -45,7 +58,7 @@ export class Client {
      * @param passkey
      * @param pl The maximum permission level for this session
      */
-    async create(
+    static async create(
         userName: string,
         passkey: Uint8Array,
         pl: PermissionLevel = PL_ADMIN,
@@ -103,11 +116,11 @@ export class Client {
 
             if(msgId >= MIN_TEMP_PENDING_ID) {
                 // This is an answer from the server.
-                const callback = this.pending.get(msgId);
+                const callback = pending.get(msgId);
 
                 if(callback) {
                     callback(decoder);
-                    this.pending.delete(msgId);
+                    pending.delete(msgId);
                 } else {
                     // TODO: Diagnostic, received an answer for no question.
                 }
@@ -123,6 +136,8 @@ export class Client {
      * Invokes an RPC. Returns with the payload. Must have 16 unused bytes preallocated at the beginning of the encoder.
      */
     private async invokeRPC(id: RPCId, encoder: Encoder): Promise<Decoder> {
+        if(!this.ws) throw new Error("called `invokeRPC(...)` on a local client");
+
         const commId = this.nextPendingId++;
 
         encoder.goTo(0);
@@ -131,11 +146,13 @@ export class Client {
 
         return new Promise(res => {
             this.pending.set(commId, res);
-            this.ws.send(encoder.buffer);
+            this.ws!.send(encoder.buffer);
         });
     }
 
     private sendEvent(eventId: EventId, encoder: Encoder) {
+        if(!this.ws) throw new Error("called `sendEvent(...)` on a local client");
+
         encoder.goTo(0);
         encoder.writeI64LE(eventId);
         this.ws.send(encoder.buffer);
@@ -144,15 +161,30 @@ export class Client {
     async createObject(): Promise<ObjectId | undefined> {
         // TODO: perms
 
-        const decoder = await this.invokeRPC(RPC_OBJECTS_CREATE, new Encoder(16));
-        const oid = decoder.readI64LE();
-        if(oid === undefined) return; // TODO: Error
+        const now = new Date().valueOf();
 
-        if(!decoder.isAtEnd()) return;
+        let oid;
 
-        this.cache.set(oid, {});
+        if(this.ws) {
+            const decoder = await this.invokeRPC(RPC_OBJECTS_CREATE, new Encoder(16));
+            oid = decoder.readI64LE();
+            if(oid === undefined) return; // TODO: Error
+
+            if(!decoder.isAtEnd()) return;
+        } else {
+            oid = this.nextObjectId++;
+        }
+
+        this.cache.set(oid, {[BUILT_IN_TAG_ID_CREATED]: now});
+        this.onObjectCreated?.(oid);
 
         return oid;
+    }
+
+    async getTagName(tagId: ObjectId, language: Language): Promise<string | undefined> {
+        if(isBuiltInTagId(tagId)) return BUILT_IN_NAMES_MAP[language][tagId];
+
+        throw new Error("TODO");
     }
 
     deleteObject(objectId: number) {
@@ -183,35 +215,95 @@ export class Client {
         return bool == 1;
     }
 
-    async* query(c?: Constraint, batch_size = QUERY_BATCH_SIZE): AsyncGenerator<ObjectId> {
-        if(batch_size < 1) throw new Error("`batch_size` must be positive");
+    async* queryBatched(c: Constraint | undefined, batchSize: number) {
+        if(batchSize < 1) throw new Error("`batch_size` must be positive");
+
+        let batch: ObjectId[] = [];
 
         for(const [id, obj] of this.cache.entries()) {
-            if(matchesConstraint(obj, c)) yield id;
+            if(batch.length === batchSize) {
+                yield batch;
+                batch = [];
+            }
+
+            if(matchesConstraint(obj, c)) batch.push(id);
         }
 
-        for(let offset = 0;; offset += batch_size) {
+        // Yield the remaining local objects.
+        if(batch.length) yield batch;
+
+        if(!this.ws) return;
+
+        for(let offset = 0; ; offset += batchSize) {
             const encoder = new Encoder(26);
             encoder.skip(16);
-            encoder.writeU16LE(batch_size); // Limit
+            encoder.writeU16LE(batchSize); // Limit
             encoder.writeU64LE(offset); // Offset
 
             const decoder = await this.invokeRPC(RPC_OBJECTS_QUERY, encoder);
 
-            let n = 0;
+            batch = [];
 
             for(const id of decoder.iterI64Array()) {
-                yield id;
+                batch.push(id);
                 this.cache.set(id, {});
-                ++n;
             }
 
-            if(n < batch_size) break;
+            yield batch;
+
+            if(batch.length < batchSize) break;
         }
     }
 
-    get(objectId: ObjectId, tagId: ObjectId): Value | undefined {
+    async* query(c?: Constraint, batchSize = QUERY_BATCH_SIZE): AsyncGenerator<ObjectId> {
+        for await(const batch of this.queryBatched(c, batchSize)) {
+            for(const id of batch) yield id;
+        }
+    }
 
+    async* tags(id: ObjectId) {
+        if(this.ws) throw new Error("NOT IMPL");
+
+        const o = this.cache.get(id);
+        if(!o) return;
+
+        for(const x in o) yield +x;
+    }
+
+    async has(objectId: ObjectId, tag: ObjectId): Promise<boolean> {
+        // TODO: tag validation
+
+        if(this.ws) throw new Error("NOT IMPL"); // TODO: impl
+
+        const obj = this.cache.get(objectId);
+        if(!obj) return false;
+
+        return tag in obj;
+    }
+
+    async associate(objectId: ObjectId, tag: ObjectId, value: RawValue | undefined) {
+        if(this.ws) throw new Error("TODO NOT IMPL"); // TODO
+
+        // TODO: check tag constraint
+
+        const object = this.cache.get(objectId);
+        if(!object) return;
+
+        object[tag] = value;
+
+        this.onAssociation?.(objectId, tag, value);
+    }
+
+    /**
+     * Gets the associated value of the tagId with the objectId.
+     */
+    async get(objectId: ObjectId, tagId: ObjectId): Promise<RawValue | undefined> {
+        if(this.ws) throw new Error("TODO"); // TODO
+
+        const obj = this.cache.get(objectId);
+        if(!obj) return;
+
+        return obj[tagId];
     }
 
     clearCache() {
@@ -221,5 +313,16 @@ export class Client {
     async terminateEverySession() {
         // TODO: must be admin
         if(this.pl != PL_ADMIN) return;
+    }
+
+    /**
+     * Creates a local client environment.
+     */
+    static local() {
+        return new Client(
+            undefined,
+            PL_ADMIN,
+            new Map(),
+        );
     }
 }
