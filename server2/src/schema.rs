@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{constraints::Constraint, ff};
+use crate::{constraints::{Constraint, EncodedConstraint}, decode::{Decodable, PartiallyDecodable}, ff};
 
 /// Describes the schema of the value of a tag association.
 #[derive(Debug, PartialEq, Clone)]
@@ -26,25 +26,44 @@ pub enum Schema {
     // TODO: encrypted values in schema definition
 }
 
+/// An encoded schema.
+#[derive(Debug, PartialEq)]
 pub struct EncodedSchema([u8]);
 
-#[derive(PartialEq, Copy, Clone)]
-pub struct SchemaRef<'a>(&'a [u8]);
+/// A partially decoded schema.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[repr(u8)]
+pub enum PartiallyDecodedSchema<'a> {
+    None = ff::schema::NONE,
+    Integer = ff::value::INTEGER,
+    Float = ff::value::FLOAT,
+    Character = ff::value::CHARACTER,
+    Duration = ff::value::DURATION,
+    DateTime = ff::value::DATE_TIME,
+    Object(&'a EncodedConstraint) = ff::value::OBJECT,
+    OptionalObject(&'a EncodedConstraint) = ff::schema::OPT_OBJECT,
+    Language = ff::value::LANGUAGE,
+    Url = ff::value::URL,
+    Color = ff::value::COLOR,
+    Schema = ff::value::SCHEMA,
+    Contraint(&'a EncodedConstraint) = ff::value::CONSTRAINT,
+    Email = ff::value::EMAIL,
+    Text = ff::value::TEXT,
+    Binary = ff::value::BINARY,
+}
 
-impl<'a> SchemaRef<'a> {
-    pub fn new(_source: &'a [u8]) -> Result<Self, ()> {
-        todo!()
-    }
+impl<'a> PartiallyDecodable for &'a EncodedSchema {
+    type PartialOutput = PartiallyDecodedSchema<'a>;
 
-    pub fn parse(self) -> Schema {
+    fn decode_partial(&self) -> Self::PartialOutput {
         todo!()
     }
 }
 
-impl fmt::Debug for SchemaRef<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("SchemaRef")
-            .field(&self.0)
-            .finish()
+impl<'a> Decodable for PartiallyDecodedSchema<'a> {
+    type Output = Schema;
+
+    fn decode(&self) -> Self::Output {
+        todo!()
     }
 }

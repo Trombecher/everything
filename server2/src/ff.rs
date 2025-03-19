@@ -31,7 +31,6 @@ pub mod value {
     pub const FLOAT: u8 = 5;
     pub const DURATION: u8 = 6;
     pub const DATE_TIME: u8 = 7;
-    pub const NO_OBJECT: u8 = 8;
     pub const OBJECT: u8 = 9;
     pub const LANGUAGE: u8 = 10;
     pub const URL: u8 = 11;
