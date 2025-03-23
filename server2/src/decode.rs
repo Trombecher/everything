@@ -21,3 +21,8 @@ impl<T: PartiallyDecodable + ?Sized> Decodable for T {
         self.decode_partial().decode()
     }
 }
+
+#[inline]
+pub(crate) unsafe fn read_bytes<const N: usize>(slice: &[u8], offset: usize) -> [u8; N] {
+    unsafe { *(&slice[offset..]).first_chunk::<N>().unwrap_unchecked() }
+}

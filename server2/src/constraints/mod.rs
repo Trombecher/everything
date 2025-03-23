@@ -1,6 +1,10 @@
 mod expr;
 
+use std::mem::transmute;
+
 pub use expr::*;
+
+use crate::decode::{Decodable, PartiallyDecodable};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Constraint {
@@ -12,12 +16,21 @@ pub struct Constraint {
 pub struct EncodedConstraint([u8]);
 
 impl EncodedConstraint {
-    pub fn decode_partial(&self) -> PartiallyDecodedConstraint {
-        todo!()
+    #[inline]
+    #[must_use]
+    pub const unsafe fn new_unchecked(slice: &[u8]) -> &Self {
+        unsafe { transmute(slice) }
     }
 
-    pub fn decode(&self) -> Constraint {
-        self.decode_partial().decode()
+    #[inline]
+    #[must_use]
+    pub fn new(slice: &[u8]) -> Option<&Self> {
+        Self::validate(slice)
+            .then_some(unsafe { Self::new_unchecked(slice) })
+    }
+
+    pub(crate) fn validate(slice: &[u8]) -> bool {
+        todo!()
     }
 }
 
@@ -27,8 +40,18 @@ pub struct PartiallyDecodedConstraint<'a> {
     root: PartiallyDecodedExpression<'a>
 }
 
-impl<'a> PartiallyDecodedConstraint<'a> {
-    pub fn decode(self) -> Constraint {
+impl<'a> PartiallyDecodable for &'a EncodedConstraint {
+    type PartialOutput = PartiallyDecodedConstraint<'a>;
+
+    fn decode_partial(&self) -> Self::PartialOutput {
+        todo!()
+    }
+}
+
+impl<'a> Decodable for PartiallyDecodedConstraint<'a> {
+    type Output = Constraint;
+
+    fn decode(&self) -> Self::Output {
         todo!()
     }
 }
