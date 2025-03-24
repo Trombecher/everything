@@ -1,9 +1,19 @@
+mod row;
 mod tests;
+
+pub use row::*;
 
 use std::{hint::unreachable_unchecked, mem::transmute};
 
 use crate::{
-    constraints::{Constraint, EncodedConstraint}, decode::{read_bytes, Decodable, PartiallyDecodable}, email::Email, ff, lang::Language, schema::{EncodedSchema, Schema}, time::{DateTime, Duration}, ObjectId
+    ObjectId,
+    constraints::{Constraint, EncodedConstraint},
+    decode::{Decodable, PartiallyDecodable, read_bytes},
+    email::Email,
+    ff,
+    lang::Language,
+    schema::{EncodedSchema, Schema},
+    time::{DateTime, Duration},
 };
 
 /// A value, encoded into a slice.
@@ -26,18 +36,15 @@ impl EncodedValue {
 
     fn validate(slice: &[u8]) -> bool {
         match slice.get(0).copied() {
-            Some(ff::value::TRUE | ff::value::FALSE) => true,
-            Some(ff::value::INTEGER | ff::value::FLOAT | ff::value::OBJECT) if slice.len() >= 9 => {
-                true
-            }
-            Some(ff::value::DURATION | ff::value::DATE_TIME) if slice.len() >= 17 => true,
-            Some(ff::value::CHARACTER) if slice.len() >= 5 => unsafe {
+            Some(ff::INTEGER | ff::FLOAT | ff::OBJECT) if slice.len() >= 9 => true,
+            Some(ff::DURATION | ff::DATE_TIME) if slice.len() >= 17 => true,
+            Some(ff::CHARACTER) if slice.len() >= 5 => unsafe {
                 char::from_u32(u32::from_le_bytes(read_bytes::<4>(slice, 1))).is_some()
             },
-            Some(ff::value::LANGUAGE) if slice.len() >= 3 => unsafe {
+            Some(ff::LANGUAGE) if slice.len() >= 3 => unsafe {
                 Language::try_from(u16::from_le_bytes(read_bytes::<2>(slice, 1))).is_ok()
             },
-            Some(ff::value::SCHEMA) if EncodedSchema::new(&slice[1..]).is_some() => true,
+            Some(ff::SCHEMA) if EncodedSchema::new(&slice[1..]).is_some() => true,
             // TODO: more
             _ => false,
         }
@@ -49,25 +56,23 @@ impl<'a> PartiallyDecodable for &'a EncodedValue {
 
     fn decode_partial(&self) -> Self::PartialOutput {
         match self.0.get(0).copied() {
-            Some(ff::value::TRUE) => PartiallyDecodedValue::True,
-            Some(ff::value::FALSE) => PartiallyDecodedValue::False,
-            Some(ff::value::INTEGER) => unsafe {
+            Some(ff::INTEGER) => unsafe {
                 PartiallyDecodedValue::Integer(i64::from_le_bytes(read_bytes::<8>(&self.0, 1)))
             },
-            Some(ff::value::FLOAT) => unsafe {
+            Some(ff::FLOAT) => unsafe {
                 PartiallyDecodedValue::Float(f64::from_le_bytes(read_bytes::<8>(&self.0, 1)))
             },
-            Some(ff::value::CHARACTER) => unsafe {
+            Some(ff::CHARACTER) => unsafe {
                 PartiallyDecodedValue::Character(char::from_u32_unchecked(u32::from_le_bytes(
                     read_bytes::<4>(&self.0, 1),
                 )))
             },
-            Some(ff::value::DURATION) => unsafe {
+            Some(ff::DURATION) => unsafe {
                 PartiallyDecodedValue::Duration(Duration::from_nanos(i128::from_le_bytes(
                     read_bytes::<16>(&self.0, 1),
                 )))
             },
-            Some(ff::value::DATE_TIME) => unsafe {
+            Some(ff::DATE_TIME) => unsafe {
                 PartiallyDecodedValue::DateTime(DateTime::from(i128::from_le_bytes(
                     read_bytes::<16>(&self.0, 1),
                 )))
@@ -82,28 +87,26 @@ impl<'a> PartiallyDecodable for &'a EncodedValue {
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(u8)]
 pub enum PartiallyDecodedValue<'a> {
-    True = ff::value::TRUE,
-    False = ff::value::FALSE,
-    Integer(i64) = ff::value::INTEGER,
-    Float(f64) = ff::value::FLOAT,
-    Character(char) = ff::value::CHARACTER,
-    Duration(Duration) = ff::value::DURATION,
-    DateTime(DateTime) = ff::value::DATE_TIME,
-    Object(Option<ObjectId>) = ff::value::OBJECT,
-    Language(u32) = ff::value::LANGUAGE,
+    Integer(i64) = ff::INTEGER,
+    Float(f64) = ff::FLOAT,
+    Character(char) = ff::CHARACTER,
+    Duration(Duration) = ff::DURATION,
+    DateTime(DateTime) = ff::DATE_TIME,
+    Object(Option<ObjectId>) = ff::OBJECT,
+    Language(u32) = ff::LANGUAGE,
 
-    Url(&'a str) = ff::value::URL,
-    Color(&'a str) = ff::value::COLOR,
-    Schema(&'a EncodedSchema) = ff::value::SCHEMA,
-    Contraint(&'a EncodedConstraint) = ff::value::CONSTRAINT,
+    Url(&'a str) = ff::URL,
+    Color(&'a str) = ff::COLOR,
+    Schema(&'a EncodedSchema) = ff::SCHEMA,
+    Contraint(&'a EncodedConstraint) = ff::CONSTRAINT,
 
-    Email(&'a Email) = ff::value::EMAIL,
-    Text(&'a str) = ff::value::TEXT,
-    Binary(&'a [u8]) = ff::value::BINARY,
+    Email(&'a Email) = ff::EMAIL,
+    Text(&'a str) = ff::TEXT,
+    Binary(&'a [u8]) = ff::BINARY,
 
-    EncryptedEmail(&'a [u8]) = ff::value::ENC_EMAIL,
-    EncryptedText(&'a [u8]) = ff::value::ENC_TEXT,
-    EncryptedBinary(&'a [u8]) = ff::value::ENC_BINARY,
+    EncryptedEmail(&'a [u8]) = ff::ENC_EMAIL,
+    EncryptedText(&'a [u8]) = ff::ENC_TEXT,
+    EncryptedBinary(&'a [u8]) = ff::ENC_BINARY,
 }
 
 impl<'a> Decodable for PartiallyDecodedValue<'a> {
@@ -111,8 +114,6 @@ impl<'a> Decodable for PartiallyDecodedValue<'a> {
 
     fn decode(&self) -> Self::Output {
         match *self {
-            PartiallyDecodedValue::True => Value::True,
-            PartiallyDecodedValue::False => Value::False,
             PartiallyDecodedValue::Integer(i) => Value::Integer(i),
             PartiallyDecodedValue::Float(f) => Value::Float(f),
             PartiallyDecodedValue::Character(c) => Value::Character(c),
@@ -138,26 +139,24 @@ impl<'a> Decodable for PartiallyDecodedValue<'a> {
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u8)]
 pub enum Value {
-    True = ff::value::TRUE,
-    False = ff::value::FALSE,
-    Integer(i64) = ff::value::INTEGER,
-    Float(f64) = ff::value::FLOAT,
-    Character(char) = ff::value::CHARACTER,
-    Duration(Duration) = ff::value::DURATION,
-    DateTime(DateTime) = ff::value::DATE_TIME,
-    Object(Option<ObjectId>) = ff::value::OBJECT,
-    Language(u32) = ff::value::LANGUAGE,
+    Integer(i64) = ff::INTEGER,
+    Float(f64) = ff::FLOAT,
+    Character(char) = ff::CHARACTER,
+    Duration(Duration) = ff::DURATION,
+    DateTime(DateTime) = ff::DATE_TIME,
+    Object(Option<ObjectId>) = ff::OBJECT,
+    Language(u32) = ff::LANGUAGE,
 
-    Url(String) = ff::value::URL,
-    Color(String) = ff::value::COLOR,
-    Schema(Box<Schema>) = ff::value::SCHEMA,
-    Contraint(Box<Constraint>) = ff::value::CONSTRAINT,
+    Url(String) = ff::URL,
+    Color(String) = ff::COLOR,
+    Schema(Box<Schema>) = ff::SCHEMA,
+    Contraint(Box<Constraint>) = ff::CONSTRAINT,
 
-    Email(Box<Email>) = ff::value::EMAIL,
-    Text(String) = ff::value::TEXT,
-    Binary(Vec<u8>) = ff::value::BINARY,
+    Email(Box<Email>) = ff::EMAIL,
+    Text(String) = ff::TEXT,
+    Binary(Vec<u8>) = ff::BINARY,
 
-    EncryptedEmail(Vec<u8>) = ff::value::ENC_EMAIL,
-    EncryptedText(Vec<u8>) = ff::value::ENC_TEXT,
-    EncryptedBinary(Vec<u8>) = ff::value::ENC_BINARY,
+    EncryptedEmail(Vec<u8>) = ff::ENC_EMAIL,
+    EncryptedText(Vec<u8>) = ff::ENC_TEXT,
+    EncryptedBinary(Vec<u8>) = ff::ENC_BINARY,
 }

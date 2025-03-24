@@ -1,3 +1,5 @@
+//! This module exposes a [Meta] struct, that can be used to get/set metadata of the database.
+
 use std::{
     fs::{File, OpenOptions},
     path::{Path, PathBuf},
@@ -38,9 +40,7 @@ impl Meta {
 
         file.set_len(FILE_LEN);
 
-        let mut map = unsafe {
-            MmapMut::map_mut(&file).map_err(|_| ())?
-        };
+        let mut map = unsafe { MmapMut::map_mut(&file).map_err(|_| ())? };
 
         // Ensure magic bytes
         if map[0..10] != MAGIC_BYTES {
@@ -63,7 +63,7 @@ impl Meta {
         if offset % align_of::<T>() != 0 {
             panic!("Unaligned read at offset {}", offset);
         }
-        
+
         let lock = self.map.lock().unwrap();
         unsafe { *(lock.get_unchecked(offset) as *const u8).cast::<T>() }
     }
@@ -84,7 +84,8 @@ impl Meta {
         }
 
         if flush {
-            lock.flush_async_range(offset, size_of::<T>()).map_err(|_| ())?;
+            lock.flush_async_range(offset, size_of::<T>())
+                .map_err(|_| ())?;
         }
 
         Ok(())
@@ -94,7 +95,7 @@ impl Meta {
     pub fn sequence(&self) -> u64 {
         unsafe { self.read(offsets::SEQUENCE) }
     }
-    
+
     #[inline]
     pub fn set_sequence(&self, value: u64) -> Result<(), ()> {
         // TODO: `false` for `flush` ?

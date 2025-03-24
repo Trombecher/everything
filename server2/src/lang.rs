@@ -14,6 +14,12 @@ impl TryFrom<u16> for Language {
     }
 }
 
+impl Default for Language {
+    fn default() -> Self {
+        Self::English
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[repr(u16)]
 pub enum Language {

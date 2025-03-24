@@ -1,7 +1,15 @@
+//! This module declares the representations of [Duration] and [DateTime].
+//!
+//! ## Why not use std?
+//!
+//! * std's implementation of time does not allow for negative durations.
+//! * A moment in time's representation is system-dependent and therefore
+//! not suitable for a system-independant DBMS.
+
 use std::time::SystemTime;
 
 /// Represents a particular moment in time.
-/// 
+///
 /// Represented as the number of nanoseconds after January 1st, 1970 (UNIX epoch).
 #[derive(Copy, Clone, Debug, PartialEq, Hash, Eq, PartialOrd, Ord)]
 pub struct DateTime(i128);
@@ -15,8 +23,12 @@ impl DateTime {
 
 impl From<SystemTime> for DateTime {
     fn from(value: SystemTime) -> Self {
-        Self(value.duration_since(SystemTime::UNIX_EPOCH).unwrap()
-            .as_nanos() as i128)
+        Self(
+            value
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos() as i128,
+        )
     }
 }
 
