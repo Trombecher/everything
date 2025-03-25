@@ -6,7 +6,6 @@ pub use row::*;
 use std::{hint::unreachable_unchecked, mem::transmute};
 
 use crate::{
-    ObjectId,
     constraints::{Constraint, EncodedConstraint},
     decode::{Decodable, PartiallyDecodable, read_bytes},
     email::Email,
@@ -15,6 +14,7 @@ use crate::{
     schema::{EncodedSchema, Schema},
     time::{DateTime, Duration},
 };
+use crate::objects::ObjectId;
 
 /// A value, encoded into a slice.
 #[derive(Debug, PartialEq)]
@@ -98,7 +98,7 @@ pub enum PartiallyDecodedValue<'a> {
     Url(&'a str) = ff::URL,
     Color(&'a str) = ff::COLOR,
     Schema(&'a EncodedSchema) = ff::SCHEMA,
-    Contraint(&'a EncodedConstraint) = ff::CONSTRAINT,
+    Constraint(&'a EncodedConstraint) = ff::CONSTRAINT,
 
     Email(&'a Email) = ff::EMAIL,
     Text(&'a str) = ff::TEXT,
@@ -124,7 +124,7 @@ impl<'a> Decodable for PartiallyDecodedValue<'a> {
             PartiallyDecodedValue::Url(_) => todo!(),
             PartiallyDecodedValue::Color(_) => todo!(),
             PartiallyDecodedValue::Schema(schema) => Value::Schema(Box::new(schema.decode())),
-            PartiallyDecodedValue::Contraint(con) => Value::Contraint(Box::new(con.decode())),
+            PartiallyDecodedValue::Constraint(con) => Value::Contraint(Box::new(con.decode())),
             PartiallyDecodedValue::Email(email) => Value::Email(email.into_boxed()),
             PartiallyDecodedValue::Text(text) => Value::Text(text.into()),
             PartiallyDecodedValue::Binary(bytes) => Value::Binary(bytes.into()),
