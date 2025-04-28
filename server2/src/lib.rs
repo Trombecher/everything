@@ -1,3 +1,4 @@
+#![feature(file_lock)]
 #![allow(uncommon_codepoints)]
 
 mod ff;

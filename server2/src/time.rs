@@ -4,7 +4,7 @@
 //!
 //! * std's implementation of time does not allow for negative durations.
 //! * A moment in time's representation is system-dependent and therefore
-//! not suitable for a system-independant DBMS.
+//! not suitable for a system-independent DBMS.
 
 use std::time::SystemTime;
 

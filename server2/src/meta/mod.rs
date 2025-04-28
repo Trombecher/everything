@@ -6,7 +6,7 @@ use crate::meta::raw::{MetaContent, RawMeta};
 use crate::objects::CustomObjectId;
 use std::{fs::OpenOptions, io, path::{Path, PathBuf}};
 
-const MAGIC_BYTES: [u8; 12] = *b"EVERYTHINGDB";
+const MAGIC_BYTES: [u8; 12] = *b"EVERYTHINGKB";
 
 #[repr(C, align(4096))]
 struct MetaData {

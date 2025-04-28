@@ -124,7 +124,7 @@ impl<'a> Decodable for PartiallyDecodedValue<'a> {
             PartiallyDecodedValue::Url(_) => todo!(),
             PartiallyDecodedValue::Color(_) => todo!(),
             PartiallyDecodedValue::Schema(schema) => Value::Schema(Box::new(schema.decode())),
-            PartiallyDecodedValue::Constraint(con) => Value::Contraint(Box::new(con.decode())),
+            PartiallyDecodedValue::Constraint(con) => Value::Constraint(Box::new(con.decode())),
             PartiallyDecodedValue::Email(email) => Value::Email(email.into_boxed()),
             PartiallyDecodedValue::Text(text) => Value::Text(text.into()),
             PartiallyDecodedValue::Binary(bytes) => Value::Binary(bytes.into()),
@@ -150,7 +150,7 @@ pub enum Value {
     Url(String) = ff::URL,
     Color(String) = ff::COLOR,
     Schema(Box<Schema>) = ff::SCHEMA,
-    Contraint(Box<Constraint>) = ff::CONSTRAINT,
+    Constraint(Box<Constraint>) = ff::CONSTRAINT,
 
     Email(Box<Email>) = ff::EMAIL,
     Text(String) = ff::TEXT,

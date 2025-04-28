@@ -65,37 +65,37 @@ pub const GTH: u8 = 32;
 pub const GE: u8 = 33;
 pub const OPT_OBJECT: u8 = 34;
 
-/// 31 bytes of inlined text.
+/// 15 bytes of inlined text.
 pub const TEXT_MAX: u8 = 35;
 
 /// External text resource.
 pub const TEXT_RES: u8 = 36;
 
-/// 31 bytes of inlined binary data.
+/// 15 bytes of inlined binary data.
 pub const BINARY_MAX: u8 = 37;
 
 /// External binary resource.
 pub const BINARY_RES: u8 = 38;
 
-/// 31 bytes of inlined email text.
+/// 15 bytes of inlined email text.
 pub const EMAIL_MAX: u8 = 39;
 
 /// External email text resource (that must be a long email address).
 pub const EMAIL_RES: u8 = 40;
 
-/// 31 bytes of inlined, encrypted text.
+/// 15 bytes of inlined, encrypted text.
 pub const ENC_TEXT_MAX: u8 = 41;
 
 /// External resource containing encrypted text.
 pub const ENC_TEXT_RES: u8 = 42;
 
-/// 31 bytes of inlined, encrypted binary data.
+/// 15 bytes of inlined, encrypted binary data.
 pub const ENC_BINARY_MAX: u8 = 43;
 
 /// External resource containing encrypted binary data.
 pub const ENC_BINARY_RES: u8 = 44;
 
-/// 31 bytes of an encrypted, inlined email address.
+/// 15 bytes of an encrypted, inlined email address.
 pub const ENC_EMAIL_MAX: u8 = 45;
 
 /// External resource containing an encrypted email address.
