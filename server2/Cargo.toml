@@ -8,3 +8,8 @@ tokio = { version = "1.44.1", features = ["full"] }
 num_enum = "0.7.3"
 regex = "1.11.1"
 memmap2 = "0.9.5"
+bitflags = "2.9.0"
+dashmap = "7.0.0-rc2"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+spathbuf = { path = "../spathbuf" }

@@ -100,3 +100,9 @@ pub const ENC_EMAIL_MAX: u8 = 45;
 
 /// External resource containing an encrypted email address.
 pub const ENC_EMAIL_RES: u8 = 46;
+
+/// External resource containing a [crate::time::Duration].
+pub const BIG_DURATION: u8 = 47;
+
+/// External resource containing a [crate::time::DateTime].
+pub const BIG_DATE_TIME: u8 = 48;

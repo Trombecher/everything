@@ -22,4 +22,4 @@ use std::num::NonZeroU64;
 
 pub type ResourceId = NonZeroU64;
 
-const RESOURCE_CHUNK_SIZE: usize = 2_usize.pow(16);
+const RESOURCE_CHUNK_SIZE: usize = 2_usize.pow(16); // Magic number

@@ -12,8 +12,9 @@ Inheritance means requirement.
     * Internationalization
     * _File System_
         * _File Types_
-        * _File Count_
+        * _Node Count_
         * _Images_
 * Favourites
 * Temporary Objects
 * Users
+* References

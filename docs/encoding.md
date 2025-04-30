@@ -51,9 +51,22 @@ The end of the file
 
 When slots (=associations) are deleted, they are linked into a free-list.
 
+## Value Rows
+
+One value row is 16 bytes aligned to eight bytes (two `u64`s).
+**Every 16 bytes is a valid value row.**
+
 ```
-(0: u64, x: u64, any: u64) -> a sentinel, pointing to the next free slot index
-(t: u64, TEXT_MAX: u8, text: [u8; 15]) -> 15 bytes of inlined text
-(t: u64, TEXT_RES: u8, 0: [u8; 7], r: u64) -> external text resource
-(t: u64, TEXT: u8, len: 0..15, text: [u8; len], ...any) -> inlined text
+(ff::INTEGER: u8, any: [u8; 7], int: i64) -> Signed 64-bit integer
+(ff::FLOAT: u8, any: [u8; 7], float: f64) -> IEEE 754 64-bit floating point number
+(ff::CHARACTER: u8, any: [u8; 7], c: u32, any...) -> A Rust `char` encoded in a u32. If this char is not valid, replace with U+FFFD and log found value (with notice to database corruption).
+(ff::DURATION: u8, duration: u120) -> Duration
+(ff::BIG_DURATION: u8, any: [u8; 7], resource_id: u64) -> Duration
+(ff::DATE_TIME: u8, duration: u120) -> DateTime
+(ff::DATE_TIME: u8, any: [u8; 7], resource_id: u64) -> DateTime
+(ff::OBJECT: u8, any: [u8; 7], object_id: u64) -> Object id, optional if 0
+(ff::LANGUAGE: u8, any: u8, language_code: u16, any...) -> Language code. If this value is invalid, log and replace with english.
+(TEXT_MAX: u8, text: [u8; 15]) -> 15 bytes of inlined text
+(TEXT_RES: u8, 0: [u8; 7], r: u64) -> external text resource
+(TEXT: u8, len: 0..15, text: [u8; len], any...) -> inlined text
 ```

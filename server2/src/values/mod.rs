@@ -145,7 +145,7 @@ pub enum Value {
     Duration(Duration) = ff::DURATION,
     DateTime(DateTime) = ff::DATE_TIME,
     Object(Option<ObjectId>) = ff::OBJECT,
-    Language(u32) = ff::LANGUAGE,
+    Language(Language) = ff::LANGUAGE,
 
     Url(String) = ff::URL,
     Color(String) = ff::COLOR,

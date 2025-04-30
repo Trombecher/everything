@@ -39,7 +39,12 @@ impl Meta {
         
         Ok(Self { raw })
     }
-
+    
+    #[inline]
+    pub fn version(&self) -> u32 {
+        self.raw.lock().version
+    }
+    
     /// Returns the current sequence
     #[inline]
     pub fn sequence(&self) -> u64 {
