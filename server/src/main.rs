@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tracing_subscriber::fmt::init;
-use server2::Database;
-use server2::error::Error;
+use everything::Database;
+use everything::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
