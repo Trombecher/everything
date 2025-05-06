@@ -1,6 +1,6 @@
 //! This module handles resources.
 //!
-//! A _resource_ is a seperate file containing content does not fit into a
+//! A _resource_ is a separate file containing content that does not fit into a
 //! single row value (size >= 24 bytes).
 //! Resources are identified using one [NonZeroU64].
 //! The value that references a resource is the owner.

@@ -1,0 +1,14 @@
+{
+    "name": "client-sdk-ts",
+    "module": "src/index.ts",
+    "type": "module",
+    "author": "Tobias Hillemanns",
+    "files": [
+        "src",
+        "README.md",
+        "dist"
+    ],
+    "devDependencies": {
+        "typescript": "^5.8.3"
+    }
+}
