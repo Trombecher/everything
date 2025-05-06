@@ -1,11 +1,9 @@
-use std::mem::transmute;
-
-use crate::{values::ValueRow};
 use crate::objects::ObjectId;
+use crate::values::Value;
 
 pub struct UsedRow {
     tag_object: ObjectId,
-    value: ValueRow,
+    value: Value,
 }
 
 pub struct FreeRow {

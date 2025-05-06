@@ -1,162 +1,154 @@
-mod row;
+mod color;
+mod email;
+mod lang;
 mod tests;
+mod time;
+mod url;
+// TODO: mod schema;
+// TODO: mod constraints;
 
-pub use row::*;
+pub use color::*;
+pub use email::*;
+pub use lang::*;
+pub use time::*;
+pub use url::*;
 
-use std::{hint::unreachable_unchecked, mem::transmute};
-
-use crate::{
-    constraints::{Constraint, EncodedConstraint},
-    decode::{Decodable, PartiallyDecodable, read_bytes},
-    email::Email,
-    ff,
-    lang::Language,
-    schema::{EncodedSchema, Schema},
-    time::{DateTime, Duration},
-};
+use crate::ff;
 use crate::objects::ObjectId;
-
-/// A value, encoded into a slice.
-#[derive(Debug, PartialEq)]
-#[repr(transparent)]
-pub struct EncodedValue([u8]);
-
-impl EncodedValue {
-    #[inline]
-    #[must_use]
-    pub const unsafe fn new_unchecked(slice: &[u8]) -> &Self {
-        unsafe { transmute(slice) }
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn new(slice: &[u8]) -> Option<&Self> {
-        Self::validate(slice).then_some(unsafe { Self::new_unchecked(slice) })
-    }
-
-    fn validate(slice: &[u8]) -> bool {
-        match slice.get(0).copied() {
-            Some(ff::INTEGER | ff::FLOAT | ff::OBJECT) if slice.len() >= 9 => true,
-            Some(ff::DURATION | ff::DATE_TIME) if slice.len() >= 17 => true,
-            Some(ff::CHARACTER) if slice.len() >= 5 => unsafe {
-                char::from_u32(u32::from_le_bytes(read_bytes::<4>(slice, 1))).is_some()
-            },
-            Some(ff::LANGUAGE) if slice.len() >= 3 => unsafe {
-                Language::try_from(u16::from_le_bytes(read_bytes::<2>(slice, 1))).is_ok()
-            },
-            Some(ff::SCHEMA) if EncodedSchema::new(&slice[1..]).is_some() => true,
-            // TODO: more
-            _ => false,
-        }
-    }
-}
-
-impl<'a> PartiallyDecodable for &'a EncodedValue {
-    type PartialOutput = PartiallyDecodedValue<'a>;
-
-    fn decode_partial(&self) -> Self::PartialOutput {
-        match self.0.get(0).copied() {
-            Some(ff::INTEGER) => unsafe {
-                PartiallyDecodedValue::Integer(i64::from_le_bytes(read_bytes::<8>(&self.0, 1)))
-            },
-            Some(ff::FLOAT) => unsafe {
-                PartiallyDecodedValue::Float(f64::from_le_bytes(read_bytes::<8>(&self.0, 1)))
-            },
-            Some(ff::CHARACTER) => unsafe {
-                PartiallyDecodedValue::Character(char::from_u32_unchecked(u32::from_le_bytes(
-                    read_bytes::<4>(&self.0, 1),
-                )))
-            },
-            Some(ff::DURATION) => unsafe {
-                PartiallyDecodedValue::Duration(Duration::from_nanos(i128::from_le_bytes(
-                    read_bytes::<16>(&self.0, 1),
-                )))
-            },
-            Some(ff::DATE_TIME) => unsafe {
-                PartiallyDecodedValue::DateTime(DateTime::from(i128::from_le_bytes(
-                    read_bytes::<16>(&self.0, 1),
-                )))
-            },
-            // TODO: more
-            _ => unsafe { unreachable_unchecked() },
-        }
-    }
-}
-
-/// A value whose top layer has been decoded.
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[repr(u8)]
-pub enum PartiallyDecodedValue<'a> {
-    Integer(i64) = ff::INTEGER,
-    Float(f64) = ff::FLOAT,
-    Character(char) = ff::CHARACTER,
-    Duration(Duration) = ff::DURATION,
-    DateTime(DateTime) = ff::DATE_TIME,
-    Object(Option<ObjectId>) = ff::OBJECT,
-    Language(u32) = ff::LANGUAGE,
-
-    Url(&'a str) = ff::URL,
-    Color(&'a str) = ff::COLOR,
-    Schema(&'a EncodedSchema) = ff::SCHEMA,
-    Constraint(&'a EncodedConstraint) = ff::CONSTRAINT,
-
-    Email(&'a Email) = ff::EMAIL,
-    Text(&'a str) = ff::TEXT,
-    Binary(&'a [u8]) = ff::BINARY,
-
-    EncryptedEmail(&'a [u8]) = ff::ENC_EMAIL,
-    EncryptedText(&'a [u8]) = ff::ENC_TEXT,
-    EncryptedBinary(&'a [u8]) = ff::ENC_BINARY,
-}
-
-impl<'a> Decodable for PartiallyDecodedValue<'a> {
-    type Output = Value;
-
-    fn decode(&self) -> Self::Output {
-        match *self {
-            PartiallyDecodedValue::Integer(i) => Value::Integer(i),
-            PartiallyDecodedValue::Float(f) => Value::Float(f),
-            PartiallyDecodedValue::Character(c) => Value::Character(c),
-            PartiallyDecodedValue::Duration(duration) => Value::Duration(duration),
-            PartiallyDecodedValue::DateTime(date_time) => Value::DateTime(date_time),
-            PartiallyDecodedValue::Object(object_id) => Value::Object(object_id),
-            PartiallyDecodedValue::Language(_) => todo!(),
-            PartiallyDecodedValue::Url(_) => todo!(),
-            PartiallyDecodedValue::Color(_) => todo!(),
-            PartiallyDecodedValue::Schema(schema) => Value::Schema(Box::new(schema.decode())),
-            PartiallyDecodedValue::Constraint(con) => Value::Constraint(Box::new(con.decode())),
-            PartiallyDecodedValue::Email(email) => Value::Email(email.into_boxed()),
-            PartiallyDecodedValue::Text(text) => Value::Text(text.into()),
-            PartiallyDecodedValue::Binary(bytes) => Value::Binary(bytes.into()),
-            PartiallyDecodedValue::EncryptedEmail(enc) => Value::EncryptedEmail(enc.into()),
-            PartiallyDecodedValue::EncryptedText(enc) => Value::EncryptedText(enc.into()),
-            PartiallyDecodedValue::EncryptedBinary(enc) => Value::EncryptedBinary(enc.into()),
-        }
-    }
-}
+use crate::res::ResourceId;
+use std::borrow::Borrow;
+use std::fmt::{Debug, Formatter, Pointer, Write};
+use std::mem::transmute;
+use std::str::from_utf8_unchecked;
+use tracing::warn;
 
 /// An owned value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Value(pub [u64; 2]);
+
+impl Value {
+    pub fn decode(self) -> Option<DecodedValue> {
+        let view: [u8; 16] = unsafe { transmute(self.0) };
+        let slot_u64: u64 = u64::from_le(self.0[1]);
+        let u32s: (u32, u32, u32, u32) = unsafe { transmute(self.0) };
+
+        match view[0] {
+            ff::INTEGER => Some(DecodedValue::Integer(slot_u64 as i64)),
+            ff::FLOAT => Some(DecodedValue::Float(f64::from_bits(slot_u64))),
+            ff::CHARACTER => Some(DecodedValue::Character(
+                if let Ok(x) = char::try_from(u32s.1) {
+                    x
+                } else {
+                    warn!(
+                        "Encountered invalid character {:?} while decoding value. Replacing with U+FFFD.",
+                        u32s.1
+                    );
+                    '\u{FFFD}'
+                },
+            )),
+            _ => {
+                warn!("Encountered invalid value {view:?}. Replacing with `None`.");
+                None
+            }
+        }
+    }
+}
+
+/// A value whose top layer has been decoded. More info at the docs.
+#[derive(Debug, Clone)]
 #[repr(u8)]
-pub enum Value {
+pub enum DecodedValue {
     Integer(i64) = ff::INTEGER,
     Float(f64) = ff::FLOAT,
     Character(char) = ff::CHARACTER,
     Duration(Duration) = ff::DURATION,
     DateTime(DateTime) = ff::DATE_TIME,
-    Object(Option<ObjectId>) = ff::OBJECT,
+    ObjectReference(Option<ObjectId>) = ff::OBJECT,
     Language(Language) = ff::LANGUAGE,
+    Url(ValueContent<Url>) = ff::URL,
+    Color(Color) = ff::COLOR,
+    // TODO: Schema
+    // TODO: Constraint
+    Email(ValueContent<Email>) = ff::EMAIL,
+    Text(ValueContent<str>) = ff::TEXT,
+    Binary(ValueContent<[u8]>) = ff::BINARY,
+    EncryptedEmail(ResourceId) = ff::ENC_EMAIL,
+    EncryptedText(ResourceId) = ff::ENC_TEXT,
+    EncryptedBinary(ResourceId) = ff::ENC_BINARY,
+}
 
-    Url(String) = ff::URL,
-    Color(String) = ff::COLOR,
-    Schema(Box<Schema>) = ff::SCHEMA,
-    Constraint(Box<Constraint>) = ff::CONSTRAINT,
+pub enum ValueContent<T: ResourceDependent + ?Sized> {
+    Resource(ResourceId),
+    InlineMax(T::InlineMax),
+    Inline(T::Inline),
+}
 
-    Email(Box<Email>) = ff::EMAIL,
-    Text(String) = ff::TEXT,
-    Binary(Vec<u8>) = ff::BINARY,
+impl<T: ResourceDependent + ?Sized> Clone for ValueContent<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Resource(r) => Self::Resource(*r),
+            Self::InlineMax(i) => Self::InlineMax(i.clone()),
+            Self::Inline(i) => Self::Inline(i.clone()),
+        }
+    }
+}
 
-    EncryptedEmail(Vec<u8>) = ff::ENC_EMAIL,
-    EncryptedText(Vec<u8>) = ff::ENC_TEXT,
-    EncryptedBinary(Vec<u8>) = ff::ENC_BINARY,
+impl<T: ResourceDependent + ?Sized> Debug for ValueContent<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValueContent::Resource(r) => r.fmt(f),
+            ValueContent::InlineMax(i) => i.borrow().fmt(f),
+            ValueContent::Inline(i) => i.borrow().fmt(f),
+        }
+    }
+}
+
+/// Indicates that the type is too big to fit into the value inline.
+/// [Self::Inline] must be 15 bytes.
+pub(crate) unsafe trait ResourceDependent {
+    type InlineMax: Sized + Clone + Borrow<Self>;
+    type Inline: Sized + Clone + Borrow<Self>;
+}
+
+unsafe impl ResourceDependent for [u8] {
+    type InlineMax = [u8; 15];
+    type Inline = InlineBytes;
+}
+
+#[derive(Clone)]
+pub struct InlineBytes {
+    len: u8,
+    bytes: [u8; 14],
+}
+
+impl Borrow<[u8]> for InlineBytes {
+    fn borrow(&self) -> &[u8] {
+        &self.bytes[..self.len as usize]
+    }
+}
+
+unsafe impl ResourceDependent for str {
+    type InlineMax = InlineStrMax;
+    type Inline = InlineStr;
+}
+
+#[derive(Clone)]
+pub struct InlineStrMax([u8; 15]);
+
+impl Borrow<str> for InlineStrMax {
+    fn borrow(&self) -> &str {
+        unsafe { from_utf8_unchecked(&self.0) }
+    }
+}
+
+#[derive(Clone)]
+pub struct InlineStr {
+    len: u8,
+    text: [u8; 14],
+}
+
+impl Borrow<str> for InlineStr {
+    fn borrow(&self) -> &str {
+        unsafe { from_utf8_unchecked(&self.text[..self.len as usize]) }
+    }
 }

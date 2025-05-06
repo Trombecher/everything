@@ -1,10 +1,10 @@
 use std::{hint::unreachable_unchecked, mem::transmute};
 
 use crate::{
-    constraints::{Constraint, EncodedConstraint},
     decode::{Decodable, PartiallyDecodable},
     ff,
 };
+use crate::values::constraints::{Constraint, EncodedConstraint};
 
 /// Describes the schema of the value of a tag association.
 #[derive(Debug, PartialEq, Clone)]

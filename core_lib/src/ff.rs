@@ -38,16 +38,16 @@ pub const INTEGER: u8 = 4;
 /// Indicates an `f64`.
 pub const FLOAT: u8 = 5;
 
-/// Indicates a [crate::time::Duration].
+/// Indicates a [crate::values::time::Duration].
 pub const DURATION: u8 = 6;
 
-/// Indicates a [crate::time::DateTime].
+/// Indicates a [crate::values::time::DateTime].
 pub const DATE_TIME: u8 = 7;
 
 /// Indicates an object **reference**, [crate::ObjectId].
 pub const OBJECT: u8 = 9;
 
-/// Indicates a [crate::lang::Language].
+/// Indicates a [crate::values::lang::Language].
 pub const LANGUAGE: u8 = 10;
 
 /// Indicates a [crate::url::URL].
@@ -56,13 +56,13 @@ pub const URL: u8 = 11;
 /// Indicates a [crate::color::Color].
 pub const COLOR: u8 = 12;
 
-/// Indicates a [crate::schema::Schema].
+/// Indicates a [crate::values::schema::Schema].
 pub const SCHEMA: u8 = 13;
 
-/// Indicates a [crate::constraints::Constraint].
+/// Indicates a [crate::values::constraints::Constraint].
 pub const CONSTRAINT: u8 = 14;
 
-/// Indicates a [crate::email::Email].
+/// Indicates a [crate::values::email::Email].
 pub const EMAIL: u8 = 15;
 
 /// Indicates text, `str`.
@@ -124,8 +124,8 @@ pub const ENC_EMAIL_MAX: u8 = 45;
 /// External resource containing an encrypted email address.
 pub const ENC_EMAIL_RES: u8 = 46;
 
-/// External resource containing a [crate::time::Duration].
+/// External resource containing a [crate::values::time::Duration].
 pub const BIG_DURATION: u8 = 47;
 
-/// External resource containing a [crate::time::DateTime].
+/// External resource containing a [crate::values::time::DateTime].
 pub const BIG_DATE_TIME: u8 = 48;

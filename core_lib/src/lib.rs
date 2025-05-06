@@ -1,21 +1,13 @@
-#![feature(file_lock)]
 #![allow(uncommon_codepoints)]
+#![allow(non_ascii_idents)]
 
-mod ff;
-
-pub mod constraints;
-pub mod decode;
-pub mod email;
+pub mod ff;
 pub mod error;
 pub mod features;
-pub mod lang;
 pub mod meta;
 pub mod objects;
 pub mod res;
 pub mod rows;
-pub mod schema;
-pub mod stmt;
-pub mod time;
 pub mod values;
 pub mod versioning;
 
@@ -30,7 +22,7 @@ use std::num::NonZeroU64;
 use std::path;
 use std::path::Path;
 use tokio::fs::File;
-use values::EncodedValue;
+use crate::values::Value;
 
 const MAX_PATH: usize = 260;
 
@@ -78,7 +70,7 @@ impl Database {
         }
 
         let meta = Meta::open(root).await?;
-        
+
         Ok(Self {
             root: root.to_path_buf(),
             resources_root: root.join(RESOURCES_PATH).to_path_buf(),
@@ -109,10 +101,12 @@ impl Database {
         }
     }
 
-    pub async fn associate(&self, target: ObjectId, tag: ObjectId, value: Option<&EncodedValue>) {
+    pub fn activate_feature() {}
+
+    pub async fn get_value(&self) -> Result<Option<Value>, Error> {
         todo!()
     }
-    
+
     #[inline]
     pub fn sequence(&self) -> u64 {
         self.meta.sequence()

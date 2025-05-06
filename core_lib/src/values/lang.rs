@@ -1,3 +1,5 @@
+#![allow(non_camel_case_types)]
+
 use std::mem::transmute;
 
 const LANGUAGE_COUNT: u16 = 7922;
