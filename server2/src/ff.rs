@@ -3,6 +3,29 @@
 //! DO NOT CHANGE WITHOUT REASON.
 //! Existing deployments depend on these to match the version.
 
+pub const META_FILE_NAME: &str = "everything";
+pub const RESOURCES_PATH: &str = "r";
+pub const OBJECTS_TAGS_PATH: &str = "o";
+pub const TAGS_OBJECTS_PATH: &str = "t";
+
+pub const MAGIC_BYTES: [u8; 12] = *b"EVERYTHINGKB";
+
+/// Offsets of the feature bits in the features meta field.
+pub mod features {
+    pub const CREATION: u8 = 0;
+    pub const BIN: u8 = 1;
+    pub const NAMING: u8 = 2;
+    pub const INTERNATIONALIZATION: u8 = 3;
+    pub const FILE_SYSTEM: u8 = 4;
+    pub const FILE_TYPES: u8 = 5;
+    pub const NODE_COUNT: u8 = 6;
+    pub const IMAGES: u8 = 7;
+    pub const FAVOURITES: u8 = 8;
+    pub const TEMPORARY_OBJECTS: u8 = 9;
+    pub const USERS: u8 = 10;
+    pub const REFERENCES: u8 = 11;
+}
+
 /// Used to indicate the empty (unit) schema.
 pub const NONE: u8 = 0;
 

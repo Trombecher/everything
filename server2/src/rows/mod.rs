@@ -16,9 +16,3 @@ pub enum Row {
     Used(UsedRow),
     Free(FreeRow),
 }
-
-impl From<[u64; 4]> for Row {
-    fn from(value: [u64; 4]) -> Self {
-        unsafe { transmute(value) }
-    }
-}

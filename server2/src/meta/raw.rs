@@ -1,14 +1,15 @@
+use crate::error::Error;
 use memmap2::MmapMut;
-use std::fs::File;
 use std::io;
 use std::marker::PhantomData;
 use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Mutex, MutexGuard};
+use tokio::fs::File;
 
 /// Any type implementing this trait can be used in [RawMeta]. But it needs to have some
 /// properties:
-/// 
+///
 /// * `repr(C, align(4096))`
 /// * The type must be zero-initializeable.
 pub unsafe trait MetaContent {}
@@ -21,17 +22,21 @@ pub struct RawMeta<T: MetaContent> {
 
 impl<T: MetaContent> RawMeta<T> {
     #[inline]
-    #[must_use]
-    pub fn new(file_handle: File) -> Self {
-        file_handle.set_len(size_of::<T>() as u64).unwrap();
-        
-        Self {
-            map: Mutex::new(unsafe { MmapMut::map_mut(&file_handle).unwrap() }),
+    pub async fn new(file_handle: File) -> Result<Self, Error> {
+        file_handle
+            .set_len(size_of::<T>() as u64)
+            .await
+            .map_err(Error::from)?;
+
+        Ok(Self {
+            map: Mutex::new(unsafe {
+                MmapMut::map_mut(&file_handle).map_err(Error::from)?
+            }),
             file_handle,
             _marker: PhantomData,
-        }
+        })
     }
-    
+
     #[inline]
     pub fn lock(&self) -> MetaGuard<T> {
         MetaGuard {
@@ -39,7 +44,7 @@ impl<T: MetaContent> RawMeta<T> {
             _marker: PhantomData,
         }
     }
-    
+
     #[inline]
     pub fn flush(&self) -> io::Result<()> {
         self.map.lock().unwrap().flush()

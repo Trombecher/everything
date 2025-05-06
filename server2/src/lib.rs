@@ -2,13 +2,12 @@
 #![allow(uncommon_codepoints)]
 
 mod ff;
-mod istr;
 
 pub mod constraints;
 pub mod decode;
 pub mod email;
-mod error;
-mod features;
+pub mod error;
+pub mod features;
 pub mod lang;
 pub mod meta;
 pub mod objects;
@@ -18,26 +17,27 @@ pub mod schema;
 pub mod stmt;
 pub mod time;
 pub mod values;
+pub mod versioning;
 
+use crate::error::{Error, EverythingError};
+use crate::ff::{OBJECTS_TAGS_PATH, RESOURCES_PATH, TAGS_OBJECTS_PATH};
 use crate::objects::ObjectId;
 use crate::res::ResourceId;
 use dashmap::DashMap;
-use meta::Meta;
-use spathbuf::StackPathBuf;
-use std::num::NonZeroU64;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
 use dashmap::mapref::one::Ref;
+use meta::Meta;
+use std::num::NonZeroU64;
+use std::path;
+use std::path::Path;
 use tokio::fs::File;
 use values::EncodedValue;
-use crate::error::Error;
 
 const MAX_PATH: usize = 260;
 
+type PathBuf = path::PathBuf;
+
 #[inline]
-fn encode_id(id: NonZeroU64, path: &mut StackPathBuf<MAX_PATH>) {
+fn encode_id(id: NonZeroU64, path: &mut PathBuf) {
     const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-";
 
     let mut id = id.get();
@@ -45,12 +45,7 @@ fn encode_id(id: NonZeroU64, path: &mut StackPathBuf<MAX_PATH>) {
     while id > 0 {
         let digit = (id % 64) as usize;
 
-        unsafe {
-            #[cfg(windows)]
-            path.unsafe_push_unit(BASE64[digit] as u16);
-
-            // TODO: unix
-        }
+        // path.push(BASE64[digit] as char);
 
         id /= 64;
     }
@@ -58,16 +53,16 @@ fn encode_id(id: NonZeroU64, path: &mut StackPathBuf<MAX_PATH>) {
 
 pub struct Database {
     /// The root of everything.
-    root: StackPathBuf<MAX_PATH>,
+    root: PathBuf,
 
     /// The root of the resources.
-    resources_root: StackPathBuf<MAX_PATH>,
+    resources_root: PathBuf,
 
     /// Object -> (Tag, Value) index files root
-    ot_root: StackPathBuf<MAX_PATH>,
+    ot_root: PathBuf,
 
     /// Tag -> (Object, Value) index files root
-    to_root: StackPathBuf<MAX_PATH>,
+    to_root: PathBuf,
 
     /// The memory-mapped metadata.
     meta: Meta,
@@ -77,37 +72,49 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new(root: &Path) -> Result<Self, ()> {
+    pub async fn open(root: &Path) -> Result<Self, Error> {
         if !root.exists() {
-            return Err(());
+            return EverythingError::RootPathDoesNotExist.into();
         }
 
-        todo!()
+        let meta = Meta::open(root).await?;
+        
+        Ok(Self {
+            root: root.to_path_buf(),
+            resources_root: root.join(RESOURCES_PATH).to_path_buf(),
+            ot_root: root.join(OBJECTS_TAGS_PATH).to_path_buf(),
+            to_root: root.join(TAGS_OBJECTS_PATH).to_path_buf(),
+            meta,
+            object_files: DashMap::new(),
+            resources: DashMap::new(),
+        })
     }
 
-    async fn load_resource(&self, resource_id: ResourceId) -> Result<Option<Ref<ResourceId, File>>, Error> {
+    async fn load_resource(
+        &self,
+        resource_id: ResourceId,
+    ) -> Result<Option<Ref<ResourceId, File>>, Error> {
         if let Some(file) = self.resources.get(&resource_id) {
             Ok(Some(file))
         } else {
             let mut resource_path = self.resources_root.clone();
-            unsafe {
-                resource_path.unsafe_push_unit(0);
-            }
             encode_id(resource_id, &mut resource_path);
 
-            match File::open(resource_path).await {
-                Ok(file) => {
-                    
-                    
-                    Ok(Some(file))
-                },
-                Err(_) => {}
-            }
-            
+            Ok(None)
+
+            // match File::open(resource_path).await {
+            //     Ok(file) => Ok(Some(file)),
+            //     Err(_) => Ok(None)
+            // }
         }
     }
 
     pub async fn associate(&self, target: ObjectId, tag: ObjectId, value: Option<&EncodedValue>) {
         todo!()
+    }
+    
+    #[inline]
+    pub fn sequence(&self) -> u64 {
+        self.meta.sequence()
     }
 }

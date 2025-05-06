@@ -4,7 +4,7 @@ Some tags may need the server to analyze a file, requiring special code to be ru
 These tags need to be built-in but made optional if the user does not need the behavior.
 They are not system-critical. This is why they are behind features.
 
-Inheritance means requirement.
+Features which are indented imply the parent feature.
 
 * Creation
 * Bin
