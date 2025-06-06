@@ -4,16 +4,53 @@
 
 These tags are required because of reflection.
 
-| ID | English Name / Schema              | Constraint (with `x` being the target object)                                                                     | Description                                                                                                                            | Inferred | Inheritable | Uniqueness On The Tag `tag`                                                                  |
-|----|------------------------------------|-------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|----------|-------------|----------------------------------------------------------------------------------------------|
-| 43 | `Tag`                              | `not x has (File or Directory or Group or User) and x has Tag.Schema and x has (Tag.UniqueId or Tag.UniqueValue)` | A tag.                                                                                                                                 | Yes      | -           |                                                                                              |
-| 74 | `Tag.Schema: schema`               | `x has Tag`                                                                                                       | The tag schema.                                                                                                                        | No       | -           | `tag has Tag.UniqueId`                                                                       |
-| 75 | `Tag.Parent: object x: x has Tag`  | `x has Tag`                                                                                                       | The tag's optional scoping parent tag.                                                                                                 | No       | -           | `tag has Tag.UniqueId`                                                                       |
-| 79 | `Tag.Constraint: constraint`       | `x has Tag`                                                                                                       | The tag's constraint. This constraint needs to be fulfilled on the object to be eligible for association.                              | No       | -           | `tag has Tag.UniqueId`                                                                       |
-| 80 | `Tag.Inferred`                     | `x has Tag`                                                                                                       | If this tag is associated, then the tag in question is inferred. Note, that this tag is bound to unit tags for user defined tags.      | No       | -           | `tag has Tag.UniqueId`                                                                       |
-| 81 | `Tag.Inheritable`                  | `x has Tag`                                                                                                       | If the tag, that was tagged with this tag, was associated with an object then this object may inherit this tag from directory parents. | No       | -           | `tag has Tag.UniqueId`                                                                       |
-| 82 | `Tag.UniqueId: optional object`    | `x has Tag and not x has Tag.Inferred`                                                                            | Annotates a tag's associated value as unique, and optionally unique among all tags that share the given object.                        | No       | -           | `tag has Tag.UniqueId with Tag.UniqueId and tag has Tag.UniqueValue with Tag.UniqueId`       |
-| 84 | `Tag.UniqueValue: optional object` | `x has Tag and not x has Tag.Inferred and x has Tag.Schema` (?)                                                   | Annotates a tag's associated object id as unique, and optionally unique among all tags that share the given object.                    | No       | -           | `tag has Tag.UniqueId with Tag.UniqueValue and tag has Tag.UniqueValue with Tag.UniqueValue` |
+| ID   | English Name / Schema              | Constraint (with `x` being the target object)                   | Description                                                                                                                                                                                                          | Inferred | Inheritable | Uniqueness On The Tag `tag`                                                                  |
+|------|------------------------------------|-----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|-------------|----------------------------------------------------------------------------------------------|
+| 43   | `Tag`                              | `x has Tag.Schema`                                              | A tag.                                                                                                                                                                                                               | Yes      | -           |                                                                                              |
+| 74   | `Tag.Schema: schema`               | `x has Tag`                                                     | The tag schema.                                                                                                                                                                                                      | No       | -           | `tag has Tag.UniqueId`                                                                       |
+| 75   | `Tag.Parent: object x: x has Tag`  | `x has Tag`                                                     | The tag's optional scoping parent tag.                                                                                                                                                                               | No       | -           |                                                                                              |
+| 79   | `Tag.Constraint: constraint`       | `x has Tag`                                                     | The tag's constraint. This constraint needs to be fulfilled on the object to be eligible for association.                                                                                                            | No       | -           | `tag has Tag.UniqueId`                                                                       |
+| 80   | `Tag.Inferred`                     | `x has Tag`                                                     | If this tag is associated, then the tag in question is inferred. Note, that this tag is bound to unit tags for user defined tags.                                                                                    | No       | -           | `tag has Tag.UniqueId`                                                                       |
+| (81) | `Tag.Inheritable`                  | `x has Tag`                                                     | If the tag, that was tagged with this tag, was associated with an object then this object may inherit this tag from directory parents.                                                                               | No       | -           | `tag has Tag.UniqueId`                                                                       |
+| 82   | `Tag.UniqueId: optional object`    | `x has Tag and not x has Tag.Inferred`                          | Annotates a tag's associated object id as unique, and optionally unique among all tags that share the given object. Omitting this will enable the user to associate this tag multiple times (with different values). | No       | -           | `tag has Tag.UniqueId with Tag.UniqueId and tag has Tag.UniqueValue with Tag.UniqueId`       |
+| 84   | `Tag.UniqueValue: optional object` | `x has Tag and not x has Tag.Inferred and x has Tag.Schema` (?) | Annotates a tag's associated value as unique, and optionally unique among all tags that share the given object. Omitting this will enable the user to specify any value.                                             | No       | -           | `tag has Tag.UniqueId with Tag.UniqueValue and tag has Tag.UniqueValue with Tag.UniqueValue` |
+
+```
+(Tag, Tag.Schema, schema.unit)
+(Tag, Tag.Constraint, $ has Tag.Schema)
+(Tag, Tag.Inferred, unit)
+
+(Tag.Schema, Tag.Schema, schema.schema)
+(Tag.Schema, Tag.Parent, Tag)
+(Tag.Schema, Tag.Constraint, $ has Tag)
+
+(Tag.Parent, Tag.Schema, object $: $ has Tag)
+(Tag.Parent, Tag.Parent, Tag)
+(Tag.Parent, Tag.Constraint, $ has Tag)
+
+(Tag.Constraint, Tag.Schema, schema.constraint)
+(Tag.Constraint, Tag.Parent, Tag)
+(Tag.Constraint, Tag.Constraint, $ has Tag)
+(Tag.Constraint, Tag.UniqueId, unit)
+
+(Tag.Inferred, Tag.Schema, schema.unit)
+(Tag.Inferred, Tag.Parent, Tag)
+(Tag.Inferred, Tag.Constraint, $ has Tag)
+
+(Tag.UniqueId, Tag.Schema, schema.unit)
+(Tag.UniqueId, Tag.Schema, schema.object)
+(Tag.UniqueId, Tag.Parent, Tag)
+(Tag.UniqueId, Tag.Constraint, $ has Tag and not $ has Tag.Inferred)
+(Tag.UniqueId, Tag.UniqueId, Tag.UniqueId)
+(Tag.UniqueId, Tag.UniqueValue, Tag.UniqueId)
+
+(Tag.UniqueValue, Tag.Schema, schema.unit)
+(Tag.UniqueValue, Tag.Schema, schema.object)
+(Tag.UniqueValue, Tag.Parent, Tag)
+(Tag.UniqueValue, Tag.Constraint, $ has Tag and not $ has Tag.Inferred and $ has Tag.Schema)
+(Tag.UniqueValue, Tag.UniqueId, Tag.UniqueValue)
+(Tag.UniqueValue, Tag.UniqueValue, Tag.UniqueValue)
+```
 
 ## "Feature" Tags
 
