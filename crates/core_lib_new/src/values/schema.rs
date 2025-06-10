@@ -9,7 +9,7 @@ pub enum Schema {
     Duration,
     DateTime,
     
-    /// Object reference, optionally with a constraint object.
+    /// Object reference, optionally with an object with constraint `$CONSTRAINT`.
     ObjectReference(Option<ObjectId>),
     Schema,
     Language,
