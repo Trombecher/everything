@@ -10,21 +10,19 @@ use crate::objects::ObjectId;
 #[derive(PartialEq, Clone)]
 #[repr(u8)]
 pub enum DecodedValue {
-    Integer(i64) = ff::INTEGER,
-    Float(f64) = ff::FLOAT,
-    Character(char) = ff::CHAR,
+    Unit,
+    Integer(i64),
+    Float(f64),
+    Character(char),
     Duration(Duration),
     DateTime(DateTime),
-    ObjectReference(Option<ObjectId>),
+    ObjectReference(ObjectId),
     Schema(Schema),
-    Constraint(),
     Language(),
     Url(),
     Color(),
     Email(),
     Text(),
     Binary(),
-    EncryptedEmail(),
-    EncryptedText(),
-    EncryptedBinary(),
+    Encrypted()
 }

@@ -77,7 +77,7 @@ impl Row {
 
 #[derive(PartialEq, Clone)]
 pub enum DecodedRow {
-    Association(ObjectId, ObjectId, Option<DecodedValue>),
+    Association(ObjectId, ObjectId, DecodedValue),
 
     /// Row matches `[0, index != 0, 0, 0]`
     FreeListNextFreeIndex(NonZeroU64),
