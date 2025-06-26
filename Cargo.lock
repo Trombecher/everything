@@ -72,14 +72,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "core_lib_new"
-version = "0.1.0"
-dependencies = [
- "memmap2",
- "tokio",
-]
-
-[[package]]
 name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -107,6 +99,14 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "everything"
+version = "0.1.0"
+dependencies = [
+ "memmap2",
+ "tokio",
+]
+
+[[package]]
+name = "everything_old"
 version = "0.1.0"
 dependencies = [
  "bitflags",

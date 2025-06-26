@@ -1,14 +1,9 @@
-use std::sync::Arc;
 use tracing_subscriber::fmt::init;
-use everything::Database;
-use everything::error::Error;
+use everything::objects::core::ROWS;
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> () {
     init();
     
-    let db = Arc::new(Database::open("D:\\Everything".as_ref()).await?);
-    println!("Sequence: {}", db.sequence());
-    
-    Ok(())
+    println!("{:#?}", ROWS)
 }

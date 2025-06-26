@@ -1,10 +1,14 @@
-#![feature(if_let_guard)]
+#![feature(const_ops)]
+#![feature(generic_const_exprs)]
+#![feature(const_trait_impl)]
+#![feature(maybe_uninit_write_slice)]
 extern crate core;
 
 pub mod content;
 pub mod objects;
 pub mod values;
 mod ff;
+mod db;
 
 use memmap2::MmapMut;
 use std::path::Path;

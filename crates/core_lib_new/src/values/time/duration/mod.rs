@@ -1,9 +1,26 @@
-use std::ops::{Add, Sub};
+use std::cmp::Ord;
+use std::ops::{Add, AddAssign, Sub};
+
+const fn const_min(a: i128, b: i128) -> i128 {
+    if a < b {
+        a
+    } else {
+        b
+    }
+}
+
+const fn const_max(a: i128, b: i128) -> i128 {
+    if a > b {
+        a
+    } else {
+        b
+    }
+}
 
 mod tests;
 
 /// A duration of time, measured in nanoseconds. **Maybe negative.**.
-/// 
+///
 /// Represented as a `i120`. Values at the boundary will saturate with
 /// [Duration::MIN] and [Duration::MAX].
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
@@ -11,7 +28,7 @@ pub struct Duration(i128);
 
 impl Duration {
     // TODO: check these values
-    pub const MIN: Self = Self(i128::MIN >> 8);
+    pub const MIN: Self = Self(!Self::MAX.0);
     pub const ZERO: Self = Self(0);
     pub const MAX: Self = Self(i128::MAX >> 8);
 
@@ -34,12 +51,12 @@ impl Duration {
     pub const fn as_secs(self) -> i128 {
         self.as_millis() / 1_000
     }
-    
+
     #[inline]
     pub const fn as_mins(self) -> i128 {
         self.as_secs() / 60
     }
-    
+
     #[inline]
     pub const fn as_hours(self) -> i128 {
         self.as_mins() / 60
@@ -100,6 +117,11 @@ impl Duration {
     pub const fn from_weeks(weeks: i128) -> Self {
         Self::from_days(weeks * 7)
     }
+
+    #[inline]
+    pub const fn const_sub(self, other: Duration) -> Self {
+        Self(const_max(const_min(self.0.saturating_sub(other.0), Self::MAX.0), Self::MIN.0))
+    }
 }
 
 impl From<std::time::Duration> for Duration {
@@ -108,32 +130,11 @@ impl From<std::time::Duration> for Duration {
     }
 }
 
-impl From<i128> for Duration {
-    fn from(value: i128) -> Self {
-        Self::from_nanos(value)
-    }
-}
-
-impl Into<i128> for Duration {
-    fn into(self) -> i128 {
-        self.0
-    }
-}
-
-impl From<[u8; 15]> for Duration {
-    fn from(value: [u8; 15]) -> Self {
-        // TODO: there is a bug here
-        let mut bytes = [0_u8; 16];
-        (&mut bytes[..15]).copy_from_slice(&value);
-        Self::from_nanos(i128::from_le_bytes(bytes))
-    }
-}
-
-impl Add for Duration {
+impl const Add for Duration {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        self.0.saturating_add(rhs.0).into()
+        Self(const_min(const_max(self.0.saturating_add(rhs.0), Self::MIN.0), Self::MAX.0))
     }
 }
 
@@ -141,6 +142,6 @@ impl Sub for Duration {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        self.0.saturating_sub(rhs.0).into()
+        Self(self.0.saturating_sub(rhs.0).max(Self::MIN.0))
     }
 }
