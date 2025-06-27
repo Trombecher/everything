@@ -1,6 +1,7 @@
 use crate::ff;
 use crate::objects::ObjectId;
-use crate::values::{ConstValue, Duration, Schema, Value, I120};
+use crate::values::{Color, ConstValue, DateTime, Duration, I120, Language, Schema, Value};
+use std::hint::unreachable_unchecked;
 use std::mem::transmute;
 use std::num::NonZeroU64;
 
@@ -57,7 +58,7 @@ impl Row {
         }
     }
 
-    pub const fn decode(self) -> Result<DecodedRow, ()> {
+    pub fn decode(self) -> Result<DecodedRow, ()> {
         match self.0 {
             [0, 0, 0, 0] => Ok(DecodedRow::FreeListEnd),
             [0, index, 0, 0] => Ok(DecodedRow::FreeListNextFreeIndex(
@@ -72,24 +73,23 @@ impl Row {
                     ([ff::INTEGER, 0, 0, 0, 0, 0, 0, 0], b) => Value::Integer(b as _),
                     ([ff::FLOAT, 0, 0, 0, 0, 0, 0, 0], 0) => Value::Float(f64::from_bits(b)),
                     ([ff::CHARACTER, 0, 0, 0, remaining @ ..], 0) => {
-                        Value::Character(match char::from_u32(u32::from_le_bytes(remaining)) {
-                            Some(char) => char,
-                            None => return Err(()),
-                        })
+                        Value::Character(char::from_u32(u32::from_le_bytes(remaining)).ok_or(())?)
                     }
                     ([ff::DURATION, bytes @ ..], b) => {
                         Value::Duration(Duration::from_nanos(I120::from_le_bytes(unsafe {
                             transmute((bytes, b.to_le_bytes()))
                         })))
                     }
+                    ([ff::DATE_TIME, bytes @ ..], b) => {
+                        Value::DateTime(DateTime::UNIX.const_add(Duration::from_nanos(
+                            I120::from_le_bytes(unsafe { transmute((bytes, b.to_le_bytes())) }),
+                        )))
+                    }
                     ([ff::OBJECT_REFERENCE, 0, 0, 0, 0, 0, 0, 0], b) if b != 0 => {
                         Value::ObjectReference(ObjectId(NonZeroU64::new(b).unwrap()))
                     }
                     ([ff::SCHEMA, ff::OBJECT_REFERENCE, 0, 0, 0, 0, 0, 0], b) => {
-                        Value::Schema(Schema::ObjectReference(match NonZeroU64::new(b) {
-                            Some(x) => Some(ObjectId(x)),
-                            None => None,
-                        }))
+                        Value::Schema(Schema::ObjectReference(NonZeroU64::new(b).map(ObjectId)))
                     }
                     ([ff::SCHEMA, byte, 0, 0, 0, 0, 0, 0], 0) => Value::Schema(match byte {
                         ff::UNIT => Schema::Unit,
@@ -109,6 +109,29 @@ impl Row {
                         ff::OBJECT_REFERENCE => unreachable!(),
                         _ => return Err(()),
                     }),
+                    ([ff::LANGUAGE, 0, lang_bytes @ .., 0, 0, 0, 0], 0) => Value::Language(
+                        Language::try_from(u16::from_le_bytes(lang_bytes)).map_err(|_| ())?,
+                    ),
+                    ([ff::COLOR, 0, 0, 0, bytes_c1 @ ..], b) => {
+                        let l = f32::from_le_bytes(bytes_c1);
+                        let a = f32::from_bits((b & u32::MAX as u64) as u32);
+                        let b = f32::from_bits((b >> u32::BITS as u64) as u32);
+
+                        Value::Color(Color { l, a, b })
+                    }
+                    ([ff::URL, ..], _) => todo!(),
+                    ([ff::URL_MAX, ..], _) => todo!(),
+                    ([ff::URL_REFERENCE, ..], _) => todo!(),
+                    ([ff::EMAIL, ..], _) => todo!(),
+                    ([ff::EMAIL_MAX, ..], _) => todo!(),
+                    ([ff::EMAIL_REFERENCE, ..], _) => todo!(),
+                    ([ff::TEXT, ..], _) => todo!(),
+                    ([ff::TEXT_MAX, ..], _) => todo!(),
+                    ([ff::TEXT_REFERENCE, ..], _) => todo!(),
+                    ([ff::BINARY, ..], _) => todo!(),
+                    ([ff::BINARY_MAX, ..], _) => todo!(),
+                    ([ff::BINARY_REFERENCE, ..], _) => todo!(),
+                    ([ff::ENCRYPTED, ..], _) => todo!(),
                     _ => todo!(),
                 };
 
@@ -128,6 +151,17 @@ pub enum DecodedRow {
 
     /// Row matches `[0, 0, 0, 0]`
     FreeListEnd,
+}
+
+impl DecodedRow {
+    pub unsafe fn assume_association(&self) -> (ObjectId, ObjectId, Value) {
+        match self {
+            DecodedRow::Association(object_id, object_id1, value) => {
+                (*object_id, *object_id1, value.clone())
+            }
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
 }
 
 #[derive(PartialEq, Clone)]

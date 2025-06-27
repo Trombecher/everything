@@ -1,3 +1,4 @@
+use crate::fp::{AtomicInvalidFormatPolicy, InvalidFormatPolicy};
 use crate::rows::Row;
 use memmap2::MmapMut;
 use std::num::NonZeroU64;
@@ -31,12 +32,13 @@ impl DerefMut for ContentsMemMap {
 
 #[repr(C, align(4096))]
 pub struct Contents {
-    /// Magic bytes, EVERYTHINGDB
+    /// Magic bytes "EVERYTHINGDB".
     pub magic_bytes: [u8; 12],
     /// The version of the database.
     pub version: u32,
     /// The root validation ID. Incremented on open.
     pub validation_id: u64,
+    pub ifp: AtomicInvalidFormatPolicy,
 
     pub blocks_list_meta: RwLock<BlockListMeta>,
 

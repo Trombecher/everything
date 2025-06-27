@@ -7,3 +7,4 @@ edition = "2024"
 tokio = "1.44.2"
 everything = { path = "../core" }
 tracing-subscriber = "0.3.19"
+tracing = "0.1.41"

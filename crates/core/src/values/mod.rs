@@ -1,12 +1,15 @@
 mod lang;
 mod schema;
 mod time;
+mod color;
 
 use arrayvec::{ArrayString, ArrayVec};
+use std::num::NonZeroU64;
+
 pub use lang::*;
 pub use schema::*;
-use std::num::NonZeroU64;
 pub use time::*;
+pub use color::*;
 
 use crate::objects::ObjectId;
 
@@ -45,11 +48,12 @@ pub enum Value {
     Schema(Schema),
     Language(Language),
     Url(NonZeroU64), // TODO: fix this
-    Color(NonZeroU64), // TODO: fix this
+    Color(Color),
     Email(NonZeroU64), // TODO: fix this
     Text(SpillableText),
     Binary(SpillableBinary),
-    Encrypted(SpillableBinary),
+    /// There is no inline storage because encrypted data is always big.
+    Encrypted(NonZeroU64),
 }
 
 #[derive(PartialEq, Clone, Debug)]

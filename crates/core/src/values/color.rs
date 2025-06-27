@@ -1,9 +1,9 @@
 //! Color primitive.
 
-/// A color represented in Oklch.
-#[derive(PartialEq, Clone)]
+/// A color represented in Oklab.
+#[derive(PartialEq, Clone, Debug, Copy)]
 pub struct Color {
-    l: f32,
-    c: f32,
-    h: f32
+    pub l: f32,
+    pub a: f32,
+    pub b: f32
 }
