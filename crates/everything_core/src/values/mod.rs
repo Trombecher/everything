@@ -33,7 +33,7 @@ impl Into<Value> for ConstValue {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Value {
     Unit,
     Integer(i64),
@@ -44,21 +44,21 @@ pub enum Value {
     ObjectReference(ObjectId),
     Schema(Schema),
     Language(Language),
-    Url(NonZeroU64),
-    Color(NonZeroU64),
-    Email(NonZeroU64),
+    Url(NonZeroU64), // TODO: fix this
+    Color(NonZeroU64), // TODO: fix this
+    Email(NonZeroU64), // TODO: fix this
     Text(SpillableText),
     Binary(SpillableBinary),
     Encrypted(SpillableBinary),
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum SpillableText {
     InlineMax(ArrayString<15>),
     Allocated(NonZeroU64),
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum SpillableBinary {
     Inline(ArrayVec<u8, 15>),
     Allocated(NonZeroU64),

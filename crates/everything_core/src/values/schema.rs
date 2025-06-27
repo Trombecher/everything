@@ -1,7 +1,7 @@
 use crate::ff;
 use crate::objects::ObjectId;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 #[repr(u8)]
 pub enum Schema {
     Unit = ff::UNIT,

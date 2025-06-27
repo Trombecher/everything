@@ -1,4 +1,4 @@
-use crate::content::{ConstDecodedRow, Row};
+use crate::rows::{ConstDecodedRow, Row};
 use crate::values::{ConstValue, Schema};
 
 pub mod obj;

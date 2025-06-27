@@ -4,6 +4,7 @@ pub mod content;
 mod ff;
 pub mod objects;
 pub mod values;
+mod rows;
 
 use std::num::NonZeroU64;
 use crate::content::{Block, ContentsMemMap};

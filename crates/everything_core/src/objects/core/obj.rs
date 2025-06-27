@@ -4,7 +4,7 @@ use std::num::NonZeroU64;
 macro_rules! define_objects {
     ($($id:ident = $e:expr)+) => {
         $(
-            pub const $id: ObjectId = NonZeroU64::new($e).unwrap();
+            pub const $id: ObjectId = ObjectId(NonZeroU64::new($e).unwrap());
         )+
     };
 }
