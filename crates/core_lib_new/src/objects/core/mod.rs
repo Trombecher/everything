@@ -1,469 +1,469 @@
-use crate::content::{DecodedRow, Row};
-use crate::values::{Value, Schema};
+use crate::content::{ConstDecodedRow, Row};
+use crate::values::{ConstValue, Schema};
 
 pub mod obj;
 
 pub static ROWS: [Row; 88] = [
     // Object "Tag"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Unit),
+        ConstValue::Schema(Schema::Unit),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::TAG_SCHEMA),
+        ConstValue::ObjectReference(obj::TAG_SCHEMA),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG,
         obj::TAG_INFERRED,
-        Value::Unit,
+        ConstValue::Unit,
     )),
     // Object "Tag.Schema"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_SCHEMA,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Schema),
+        ConstValue::Schema(Schema::Schema),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_SCHEMA,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_SCHEMA,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
     // Object "Tag.Parent"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_PARENT,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::ObjectReference(Some(obj::TAG))),
+        ConstValue::Schema(Schema::ObjectReference(Some(obj::TAG))),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_PARENT,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_PARENT,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
     // Object "Tag.Constraint"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_CONSTRAINT,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
+        ConstValue::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_CONSTRAINT,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_CONSTRAINT,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_CONSTRAINT,
         obj::TAG_UNIQUE_ID,
-        Value::Unit,
+        ConstValue::Unit,
     )),
     // Object "Tag.Inferred"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_INFERRED,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Unit),
+        ConstValue::Schema(Schema::Unit),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_INFERRED,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_INFERRED,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
     // Object "Tag.UniqueId"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_UNIQUE_ID,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Unit),
+        ConstValue::Schema(Schema::Unit),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_UNIQUE_ID,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_UNIQUE_ID,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::_CO_HAS_TAG_AND_NOT_INFERRED),
+        ConstValue::ObjectReference(obj::_CO_HAS_TAG_AND_NOT_INFERRED),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_UNIQUE_ID,
         obj::TAG_UNIQUE_ID,
-        Value::Unit,
+        ConstValue::Unit,
     )),
     // Object "Tag.UniqueValue"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_UNIQUE_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Unit),
+        ConstValue::Schema(Schema::Unit),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_UNIQUE_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::ObjectReference(None)),
+        ConstValue::Schema(Schema::ObjectReference(None)),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_UNIQUE_VALUE,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_UNIQUE_VALUE,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::_CO_HAS_TAG_AND_NOT_INFERRED),
+        ConstValue::ObjectReference(obj::_CO_HAS_TAG_AND_NOT_INFERRED),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::TAG_UNIQUE_VALUE,
         obj::TAG_UNIQUE_ID,
-        Value::Unit,
+        ConstValue::Unit,
     )),
     // Object "Tag.Constraint"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Unit),
+        ConstValue::Schema(Schema::Unit),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::_CO_CONSTRAINT),
+        ConstValue::ObjectReference(obj::_CO_CONSTRAINT),
     )),
     // Object "Constraint.Or"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_OR,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
+        ConstValue::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_OR,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_OR,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
     // Object "Constraint.And"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_AND,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
+        ConstValue::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_AND,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_AND,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
     // Object "Constraint.OrNot"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_OR_NOT,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
+        ConstValue::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_OR_NOT,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_OR_NOT,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
     // Object "Constraint.AndNot"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_AND_NOT,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
+        ConstValue::Schema(Schema::ObjectReference(Some(obj::CONSTRAINT))),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_AND_NOT,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_AND_NOT,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
     // Object "Constraint.Tag"
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_TAG,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::ObjectReference(Some(obj::TAG))),
+        ConstValue::Schema(Schema::ObjectReference(Some(obj::TAG))),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_TAG,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_TAG,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_TAG,
         obj::TAG_UNIQUE_ID,
-        Value::Unit,
+        ConstValue::Unit,
     )),
     // Object `CONSTRAINT_WITH_VALUE`
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Unit),
+        ConstValue::Schema(Schema::Unit),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Integer),
+        ConstValue::Schema(Schema::Integer),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Float),
+        ConstValue::Schema(Schema::Float),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Character),
+        ConstValue::Schema(Schema::Character),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Duration),
+        ConstValue::Schema(Schema::Duration),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::DateTime),
+        ConstValue::Schema(Schema::DateTime),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::ObjectReference(None)),
+        ConstValue::Schema(Schema::ObjectReference(None)),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Schema),
+        ConstValue::Schema(Schema::Schema),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Language),
+        ConstValue::Schema(Schema::Language),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Url),
+        ConstValue::Schema(Schema::Url),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Color),
+        ConstValue::Schema(Schema::Color),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Email),
+        ConstValue::Schema(Schema::Email),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Text),
+        ConstValue::Schema(Schema::Text),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Binary),
+        ConstValue::Schema(Schema::Binary),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_SCHEMA,
-        Value::Schema(Schema::Encrypted),
+        ConstValue::Schema(Schema::Encrypted),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_PARENT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_CONSTRAINT,
-        Value::ObjectReference(obj::CONSTRAINT),
+        ConstValue::ObjectReference(obj::CONSTRAINT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::CONSTRAINT_WITH_VALUE,
         obj::TAG_UNIQUE_ID,
-        Value::Unit,
+        ConstValue::Unit,
     )),
     // Object `_CO_HAS_TAG_AND_NOT_INFERRED`
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_HAS_TAG_AND_NOT_INFERRED,
         obj::CONSTRAINT_AND,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_HAS_TAG_AND_NOT_INFERRED,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::TAG_INFERRED),
+        ConstValue::ObjectReference(obj::TAG_INFERRED),
     )),
     // Object `_CO_CONSTRAINT`
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CONSTRAINT,
         obj::CONSTRAINT_OR,
-        Value::ObjectReference(obj::_CO_CV_TAG),
+        ConstValue::ObjectReference(obj::_CO_CV_TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CONSTRAINT,
         obj::CONSTRAINT_OR,
-        Value::ObjectReference(obj::_CO_CV_TAG_WITH_VALUE),
+        ConstValue::ObjectReference(obj::_CO_CV_TAG_WITH_VALUE),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CONSTRAINT,
         obj::CONSTRAINT_OR,
-        Value::ObjectReference(obj::_CO_CV_ORS),
+        ConstValue::ObjectReference(obj::_CO_CV_ORS),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CONSTRAINT,
         obj::CONSTRAINT_OR,
-        Value::ObjectReference(obj::_CO_CV_ANDS),
+        ConstValue::ObjectReference(obj::_CO_CV_ANDS),
     )),
     // Object `_CO_CV_TAG`
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_TAG,
         obj::CONSTRAINT_AND,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_TAG,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::CONSTRAINT_TAG),
+        ConstValue::ObjectReference(obj::CONSTRAINT_TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_TAG,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::_CO_OR_OR_OR_NOT),
+        ConstValue::ObjectReference(obj::_CO_OR_OR_OR_NOT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_TAG,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::_CO_AND_OR_AND_NOT),
+        ConstValue::ObjectReference(obj::_CO_AND_OR_AND_NOT),
     )),
     // Object `_CO_CV_TAG_WITH_VALUE`
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_TAG_WITH_VALUE,
         obj::CONSTRAINT_AND,
-        Value::ObjectReference(obj::CONSTRAINT_TAG),
+        ConstValue::ObjectReference(obj::CONSTRAINT_TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_TAG_WITH_VALUE,
         obj::CONSTRAINT_AND,
-        Value::ObjectReference(obj::CONSTRAINT_WITH_VALUE),
+        ConstValue::ObjectReference(obj::CONSTRAINT_WITH_VALUE),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_TAG_WITH_VALUE,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::CONSTRAINT_TAG),
+        ConstValue::ObjectReference(obj::CONSTRAINT_TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_TAG_WITH_VALUE,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::_CO_OR_OR_OR_NOT),
+        ConstValue::ObjectReference(obj::_CO_OR_OR_OR_NOT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_TAG_WITH_VALUE,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::_CO_AND_OR_AND_NOT),
+        ConstValue::ObjectReference(obj::_CO_AND_OR_AND_NOT),
     )),
     // Object `_CO_CV_ORS`
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_ORS,
         obj::CONSTRAINT_AND,
-        Value::ObjectReference(obj::_CO_OR_OR_OR_NOT),
+        ConstValue::ObjectReference(obj::_CO_OR_OR_OR_NOT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_ORS,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_ORS,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::_CO_AND_OR_AND_NOT),
+        ConstValue::ObjectReference(obj::_CO_AND_OR_AND_NOT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_ORS,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::CONSTRAINT_TAG),
+        ConstValue::ObjectReference(obj::CONSTRAINT_TAG),
     )),
     // Object `_CO_CV_ANDS`
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_ANDS,
         obj::CONSTRAINT_AND,
-        Value::ObjectReference(obj::_CO_AND_OR_AND_NOT),
+        ConstValue::ObjectReference(obj::_CO_AND_OR_AND_NOT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_ANDS,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::TAG),
+        ConstValue::ObjectReference(obj::TAG),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_ANDS,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::_CO_OR_OR_OR_NOT),
+        ConstValue::ObjectReference(obj::_CO_OR_OR_OR_NOT),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_CV_ANDS,
         obj::CONSTRAINT_AND_NOT,
-        Value::ObjectReference(obj::CONSTRAINT_TAG),
+        ConstValue::ObjectReference(obj::CONSTRAINT_TAG),
     )),
     // Object `_CO_OR_OR_OR_NOT`
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_OR_OR_OR_NOT,
         obj::CONSTRAINT_OR,
-        Value::ObjectReference(obj::CONSTRAINT_OR),
+        ConstValue::ObjectReference(obj::CONSTRAINT_OR),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_OR_OR_OR_NOT,
         obj::CONSTRAINT_OR,
-        Value::ObjectReference(obj::CONSTRAINT_OR_NOT),
+        ConstValue::ObjectReference(obj::CONSTRAINT_OR_NOT),
     )),
     // Object `_CO_AND_OR_AND_NOT`
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_AND_OR_AND_NOT,
         obj::CONSTRAINT_OR,
-        Value::ObjectReference(obj::CONSTRAINT_AND),
+        ConstValue::ObjectReference(obj::CONSTRAINT_AND),
     )),
-    Row::encode(DecodedRow::Association(
+    Row::const_encode(ConstDecodedRow::Association(
         obj::_CO_AND_OR_AND_NOT,
         obj::CONSTRAINT_OR,
-        Value::ObjectReference(obj::CONSTRAINT_AND_NOT),
+        ConstValue::ObjectReference(obj::CONSTRAINT_AND_NOT),
     )),
 ];

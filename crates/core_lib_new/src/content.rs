@@ -1,133 +1,185 @@
 use crate::ff;
 use crate::objects::ObjectId;
-use crate::values::inline::InlineContent;
-use crate::values::{DateTime, Duration, Schema, Value, VariableContent};
+use crate::values::{ConstValue, Duration, Schema, Value, I120};
+use memmap2::MmapMut;
+use std::mem::transmute;
 use std::num::NonZeroU64;
+use std::ops::{Deref, DerefMut};
+use tokio::sync::RwLock;
 
-#[repr(C, align(4096))]
-pub struct Content {
-    magic_bytes: [u8; 12],
-    version: u32,
-    entries: [Row],
+/// A wrapper around
+pub struct ContentsMemMap(MmapMut);
+
+impl ContentsMemMap {
+    #[inline]
+    #[must_use]
+    pub const unsafe fn new(mmap: MmapMut) -> Self {
+        Self(mmap)
+    }
 }
 
-impl Content {}
+impl Deref for ContentsMemMap {
+    type Target = Contents;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*(&self.0[..] as *const [u8] as *const Self::Target) }
+    }
+}
+
+impl DerefMut for ContentsMemMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *(&mut self.0[..] as *mut [u8] as *mut Self::Target) }
+    }
+}
+
+#[repr(C, align(4096))]
+pub struct Contents {
+    /// Magic bytes, EVERYTHINGDB
+    pub magic_bytes: [u8; 12],
+    /// The version of the database.
+    pub version: u32,
+    /// The root validation ID. Incremented on open.
+    pub validation_id: u64,
+
+    pub blocks_list_meta: RwLock<BlockListMeta>,
+
+    // /// The metadata for the _associations_ free list.
+    // pub bfl_associations: RwLock<ChainedListMeta>,
+    // /// The metadata for the 2048 bytes slot free list.
+    // pub bfl_2048: RwLock<ChainedListMeta>,
+    /// The blocks.
+    pub blocks: [Block],
+}
+
+pub struct BlockListMeta {
+    pub free_block_count: u64,
+    pub used_block_count: u64,
+    pub free_list_head: NonZeroU64,
+}
+
+pub struct ChainedListMeta {
+    /// The index of the first item in the free list.
+    pub head: u64,
+    /// The index of the last item in the free list. If `Some`, it contains data.
+    pub free_list_head: u64,
+    /// The number of items in the free list.
+    pub len: u64,
+}
+
+/// An (Everything) _Block_, contiguous block of 2^14 = 16,384 bytes (spanning four OS pages
+/// á 4096 bytes), aligned at OS pages.
+#[repr(C, align(4096), u32)]
+pub enum Block {
+    Associations {
+        validation_id: u64,
+        next_block_index: Option<NonZeroU64>,
+        _unused_0: u64,
+        rows: [Row; 511],
+    },
+    VariableBinary {
+        next_block_index: Option<NonZeroU64>,
+        remaining_len: u64,
+        _unused_0: u64,
+        content: [u8; 511 * 32],
+    },
+    /// Indicates that this block is used for variable text (UTF-8).
+    VariableText {
+        next_block_index: Option<NonZeroU64>,
+        remaining_len: u64,
+        _unused_0: u64,
+        content: [u8; 511 * 32],
+    },
+    BinaryStorage64 {
+        /// The number of used slots in this block. When zero, unchain this block from the freelist
+        used_slot_count: NonZeroU64,
+        slots: [(u8, [u8; 63]); 127],
+    },
+    /// Indicates that this block is free. `Some(block)` if there is a next block,
+    /// `None` if this is the end of the free list.
+    FreeList(Option<NonZeroU64>),
+}
+
+impl Contents {}
 
 #[repr(C)]
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq)]
 pub struct Row([u64; 4]);
 
 impl Row {
-    pub const fn encode(row: DecodedRow) -> Self {
+    pub fn encode(row: DecodedRow) -> Self {
+        todo!()
+    }
+
+    pub const fn const_encode(row: ConstDecodedRow) -> Self {
         match row {
-            DecodedRow::Association(target_id, tag_id, value) => {
+            ConstDecodedRow::Association(target_id, tag_id, value) => {
                 let (a, b) = match value {
-                    Value::Unit => (ff::UNIT as u64, 0),
-                    Value::Float(f) => (ff::FLOAT as u64, f.to_bits()),
-                    Value::Integer(i) => (ff::INTEGER as u64, i as _),
-                    Value::ObjectReference(id) => (ff::OBJECT_REFERENCE as u64, id.get()),
-                    Value::Character(c) => (ff::CHARACTER as u64 | (c as u32 as u64) << 32, 0),
-                    Value::Schema(s) => match s {
-                        Schema::Unit => (((ff::UNIT as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::ObjectReference(id) => (
-                            ((ff::OBJECT_REFERENCE as u64) << 8) | ff::SCHEMA as u64,
-                            if let Some(id) = id { id.get() } else { 0 },
-                        ),
-                        Schema::Integer => (((ff::INTEGER as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Float => (((ff::FLOAT as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Character => (((ff::CHARACTER as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Duration => (((ff::DURATION as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::DateTime => (((ff::DATE_TIME as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Schema => (((ff::SCHEMA as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Language => (((ff::LANGUAGE as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Url => (((ff::URL as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Color => (((ff::COLOR as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Email => (((ff::EMAIL as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Text => (((ff::TEXT as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Binary => (((ff::BINARY as u64) << 8) | ff::SCHEMA as u64, 0),
-                        Schema::Encrypted => (((ff::ENCRYPTED as u64) << 8) | ff::SCHEMA as u64, 0),
-                    },
-                    _ => todo!(),
+                    ConstValue::Unit => (ff::UNIT as u64, 0),
+                    ConstValue::ObjectReference(id) => (ff::OBJECT_REFERENCE as u64, id.get()),
+                    ConstValue::Schema(schema) => {
+                        let (byte, other) = match schema {
+                            Schema::Unit => (ff::UNIT, 0),
+                            Schema::Integer => (ff::INTEGER, 0),
+                            Schema::Float => (ff::FLOAT, 0),
+                            Schema::Character => (ff::CHARACTER, 0),
+                            Schema::Duration => (ff::DURATION, 0),
+                            Schema::DateTime => (ff::DATE_TIME, 0),
+                            Schema::ObjectReference(id) => (
+                                ff::OBJECT_REFERENCE,
+                                match id {
+                                    None => 0,
+                                    Some(id) => id.get(),
+                                },
+                            ),
+                            Schema::Schema => (ff::SCHEMA, 0),
+                            Schema::Language => (ff::LANGUAGE, 0),
+                            Schema::Url => (ff::URL, 0),
+                            Schema::Color => (ff::COLOR, 0),
+                            Schema::Email => (ff::EMAIL, 0),
+                            Schema::Text => (ff::TEXT, 0),
+                            Schema::Binary => (ff::BINARY, 0),
+                            Schema::Encrypted => (ff::ENCRYPTED, 0),
+                        };
+
+                        (ff::SCHEMA as u64 | ((byte as u64) << 8), other)
+                    }
                 };
 
                 Self([target_id.get(), tag_id.get(), a, b])
             }
-            DecodedRow::FreeListNextFreeIndex(index) => Self([0, index.get(), 0, 0]),
-            DecodedRow::FreeListEnd => Self([0; 4]),
+            ConstDecodedRow::FreeListNextFreeIndex(index) => Self([0, index.get(), 0, 0]),
+            ConstDecodedRow::FreeListEnd => Self([0; 4]),
         }
     }
 
-    pub fn decode(self) -> Result<DecodedRow, ()> {
+    pub const fn decode(self) -> Result<DecodedRow, ()> {
         match self.0 {
             [0, 0, 0, 0] => Ok(DecodedRow::FreeListEnd),
             [0, index, 0, 0] => Ok(DecodedRow::FreeListNextFreeIndex(
                 NonZeroU64::new(index).unwrap(),
             )),
-            [object_id, tag_id, a, b] if tag_id != 0 => {
-                // These should not zero-check
-                let tag_id = NonZeroU64::new(tag_id).unwrap();
+            [object_id, tag_id, a, b] if let Some(tag_id) = NonZeroU64::new(tag_id) => {
                 let object_id = NonZeroU64::new(object_id).unwrap();
 
                 let value = match a.to_le_bytes() {
                     [ff::UNIT, ..] => Value::Unit,
                     [ff::INTEGER, ..] => Value::Integer(b as _),
                     [ff::FLOAT, ..] => Value::Float(f64::from_bits(b)),
-                    [ff::CHARACTER, .., a, b, c, d] => {
-                        Value::Character(match char::from_u32(u32::from_le_bytes([a, b, c, d])) {
+                    [ff::CHARACTER, _, _, _, remaining @ ..] => {
+                        Value::Character(match char::from_u32(u32::from_le_bytes(remaining)) {
                             Some(char) => char,
                             None => return Err(()),
                         })
                     }
-                    [ff::DURATION, a, b, c, d, e, f, g] => {
-                        let a = u64::from_le_bytes([0, a, b, c, d, e, f, g]) as i128;
-                        Value::Duration(Duration::from_nanos((a << 64) | b as i128))
-                    }
-                    [ff::DATE_TIME, a, b, c, d, e, f, g] => {
-                        let a = u64::from_le_bytes([0, a, b, c, d, e, f, g]) as i128;
-                        Value::DateTime(
-                            DateTime::UNIX + Duration::from_nanos((a << 64) | b as i128),
-                        )
+                    [ff::DURATION, bytes @ ..] => {
+                        Value::Duration(Duration::from_nanos(I120::from_le_bytes(unsafe {
+                            transmute((bytes, b.to_le_bytes()))
+                        })))
                     }
                     [ff::OBJECT_REFERENCE, ..] if b != 0 => {
                         Value::ObjectReference(NonZeroU64::new(b).unwrap())
                     }
-                    [ff::SCHEMA, ff::UNIT, ..] => Value::Schema(Schema::Unit),
-                    [ff::SCHEMA, ff::INTEGER, ..] => Value::Schema(Schema::Integer),
-                    [ff::SCHEMA, ff::FLOAT, ..] => Value::Schema(Schema::Float),
-                    [ff::SCHEMA, ff::CHARACTER, ..] => Value::Schema(Schema::Character),
-                    [ff::SCHEMA, ff::DURATION, ..] => Value::Schema(Schema::Duration),
-                    [ff::SCHEMA, ff::DATE_TIME, ..] => Value::Schema(Schema::DateTime),
-                    [ff::SCHEMA, ff::OBJECT_REFERENCE, ..] => {
-                        Value::Schema(Schema::ObjectReference(NonZeroU64::new(b)))
-                    }
-                    [ff::SCHEMA, ff::SCHEMA, ..] => Value::Schema(Schema::Schema),
-                    [ff::SCHEMA, ff::LANGUAGE, ..] => Value::Schema(Schema::Language),
-                    [ff::SCHEMA, ff::URL, ..] => Value::Schema(Schema::Url),
-                    [ff::SCHEMA, ff::COLOR, ..] => Value::Schema(Schema::Color),
-                    [ff::SCHEMA, ff::EMAIL, ..] => Value::Schema(Schema::Email),
-                    [ff::SCHEMA, ff::TEXT, ..] => Value::Schema(Schema::Text),
-                    [ff::SCHEMA, ff::BINARY, ..] => Value::Schema(Schema::Binary),
-                    [ff::SCHEMA, ff::ENCRYPTED, ..] => Value::Schema(Schema::Encrypted),
-                    [ff::LANGUAGE, _, _, _, a, b, c, d] => {
-                        match char::from_u32(u32::from_le_bytes([a, b, c, d])) {
-                            Some(c) => Value::Character(c),
-                            None => return Err(()),
-                        }
-                    }
-                    [ff::BINARY, len @ 0..15, a, b, c, d, e, f] => {
-                        let mut content = [a, b, c, d, e, f, 0, 0, 0, 0, 0, 0, 0, 0];
-                        (&mut content[6..]).copy_from_slice(&b.to_le_bytes());
-
-                        Value::Binary(VariableContent::Inline(InlineContent::try_from(
-                            &content[..],
-                        )?))
-                    }
-                    [ff::BINARY_MAX, a, b, c, d, e, f, g] => {
-                        let mut content = [a, b, c, d, e, f, g, 0, 0, 0, 0, 0, 0, 0, 0];
-                        (&mut content[7..]).copy_from_slice(&b.to_le_bytes());
-                        Value::Binary(VariableContent::InlineMax(content))
-                    }
-                    _ => return Err(()),
+                    _ => todo!(),
                 };
 
                 Ok(DecodedRow::Association(object_id, tag_id, value))
@@ -146,4 +198,29 @@ pub enum DecodedRow {
 
     /// Row matches `[0, 0, 0, 0]`
     FreeListEnd,
+}
+
+#[derive(PartialEq, Clone)]
+pub enum ConstDecodedRow {
+    Association(ObjectId, ObjectId, ConstValue),
+    FreeListNextFreeIndex(NonZeroU64),
+    FreeListEnd,
+}
+
+impl ConstDecodedRow {
+    pub const fn const_into_decoded_row(self) -> DecodedRow {
+        match self {
+            ConstDecodedRow::Association(o, t, v) => {
+                DecodedRow::Association(o, t, v.const_into_value())
+            }
+            ConstDecodedRow::FreeListNextFreeIndex(i) => DecodedRow::FreeListNextFreeIndex(i),
+            ConstDecodedRow::FreeListEnd => DecodedRow::FreeListEnd,
+        }
+    }
+}
+
+impl Into<DecodedRow> for ConstDecodedRow {
+    fn into(self) -> DecodedRow {
+        self.const_into_decoded_row()
+    }
 }

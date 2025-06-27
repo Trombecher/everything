@@ -8,6 +8,8 @@
 
 mod duration;
 mod datetime;
+mod i120;
 
 pub use duration::*;
 pub use datetime::*;
+pub use i120::*;

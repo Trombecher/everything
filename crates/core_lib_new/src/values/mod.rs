@@ -1,15 +1,37 @@
+mod lang;
 mod schema;
 mod time;
-pub(crate) mod inline;
-mod color;
 
-use std::num::NonZeroU64;
+use arrayvec::{ArrayString, ArrayVec};
+pub use lang::*;
 pub use schema::*;
+use std::num::NonZeroU64;
 pub use time::*;
 
 use crate::objects::ObjectId;
-use crate::values::color::Color;
-use crate::values::inline::InlineContent;
+
+#[derive(PartialEq, Clone)]
+pub enum ConstValue {
+    Unit,
+    Schema(Schema),
+    ObjectReference(ObjectId),
+}
+
+impl ConstValue {
+    pub const fn const_into_value(self) -> Value {
+        match self {
+            ConstValue::Unit => Value::Unit,
+            ConstValue::Schema(schema) => Value::Schema(schema),
+            ConstValue::ObjectReference(object_id) => Value::ObjectReference(object_id),
+        }
+    }
+}
+
+impl Into<Value> for ConstValue {
+    fn into(self) -> Value {
+        self.const_into_value()
+    }
+}
 
 #[derive(PartialEq, Clone)]
 pub enum Value {
@@ -21,18 +43,23 @@ pub enum Value {
     DateTime(DateTime),
     ObjectReference(ObjectId),
     Schema(Schema),
-    Language(),
-    Url(),
-    Color(Color),
-    Email(),
-    Text(),
-    Binary(VariableContent),
-    Encrypted(),
+    Language(Language),
+    Url(NonZeroU64),
+    Color(NonZeroU64),
+    Email(NonZeroU64),
+    Text(SpillableText),
+    Binary(SpillableBinary),
+    Encrypted(SpillableBinary),
 }
 
 #[derive(PartialEq, Clone)]
-pub enum VariableContent {
-    Inline(InlineContent),
-    InlineMax([u8; 15]),
-    Reference(NonZeroU64)
+pub enum SpillableText {
+    InlineMax(ArrayString<15>),
+    Allocated(NonZeroU64),
+}
+
+#[derive(PartialEq, Clone)]
+pub enum SpillableBinary {
+    Inline(ArrayVec<u8, 15>),
+    Allocated(NonZeroU64),
 }
