@@ -6,6 +6,6 @@ async fn main() {
     init();
 
     for row in ROWS.iter() {
-        println!("{:#?}", row.clone().decode());
+        println!("{:?}", row.clone().decode());
     }
 }

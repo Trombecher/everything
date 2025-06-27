@@ -1,14 +1,6 @@
-#![feature(if_let_guard)]
-
-pub mod content;
-mod ff;
-pub mod objects;
-pub mod values;
-mod rows;
-
-use std::num::NonZeroU64;
 use crate::content::{Block, ContentsMemMap};
 use memmap2::MmapMut;
+use std::num::NonZeroU64;
 use std::path::Path;
 use tokio::fs::{File, OpenOptions};
 
@@ -70,17 +62,20 @@ impl Database {
 
         free_list.free_block_count = free_list.free_block_count.saturating_sub(1);
         free_list.used_block_count = free_list.used_block_count.saturating_add(1);
-        
+
         let block_id = free_list.free_list_head;
-        
+
         let block = &self.data.blocks[block_id.get() as usize];
-        
+
         let next_free_block = match block {
             Block::FreeList(Some(next)) => *next,
             Block::FreeList(None) => panic!("Free list is empty."),
-            _ => panic!("Head of free list is not a free list block (block_id = {}).", block_id.get()),
+            _ => panic!(
+                "Head of free list is not a free list block (block_id = {}).",
+                block_id.get()
+            ),
         };
-        
+
         block_id
     }
 }
