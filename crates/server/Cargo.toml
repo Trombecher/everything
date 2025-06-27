@@ -5,5 +5,5 @@ edition = "2024"
 
 [dependencies]
 tokio = "1.44.2"
-everything = { path = "../core_lib_new" }
+everything = { path = "../everything_core" }
 tracing-subscriber = "0.3.19"
