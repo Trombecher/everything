@@ -1,15 +1,21 @@
 #![feature(if_let_guard)]
+#![feature(new_zeroed_alloc)]
+extern crate core;
 
 mod error;
 mod ff;
 
 pub use error::*;
 
-pub mod content;
 pub mod db;
-pub mod fp;
 pub mod objects;
-mod pages;
 pub mod query;
 pub mod rows;
+pub mod sp;
 pub mod values;
+
+mod alloc;
+mod btree;
+mod pages;
+mod validation;
+mod wal;

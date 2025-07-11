@@ -6,13 +6,13 @@
 //! This is a sealed type which has been implemented for a limited set of triple.
 //! Each implementation will yield a different output type. These output types are either
 //! booleans (the input tuple exists) or iterators (over all occurances of the demanded parameters).
-//! 
+//!
 //! Keep in mind that an association triple has the shape `(<object_id>, <tag_id>, <value>)`.
-//! 
+//!
 //! ## Implementations
-//! 
+//!
 //! All bullet points have the shape `InputTuple -> OutputType`.
-//! 
+//!
 //! * `(ObjectId, ObjectId, Value) -> bool`
 //! * `(ObjectId, ObjectId, Demanded) -> VFromOT`
 //! * `(ObjectId, Demanded, Value) -> TFromOV`
@@ -21,17 +21,18 @@
 //! * `(Demanded, ObjectId, Demanded) -> OVFromT`
 //! * `(Demanded, Demanded, ObjectId) -> OTFromV`
 //! * `(Demanded, Demanded, Demanded) -> OTVIter`
-//! 
+//!
 //! ## Examples
-//! 
+//!
 //! Iterate over all values of the assocation of object #20 with tag #30.
-//! 
+//!
 //! ```no_run
 //! for value in db.query((20.into(), 30.into(), Demanded)) {
 //!     println("{:?}", value);
 //! }
 //! ```
 
+use crate::sp::StorageProvider;
 use crate::{
     db::Database,
     objects::{ObjectId, core::ROWS},
@@ -45,18 +46,18 @@ trait Sealed {}
 
 /// This trait allows flexible querying of the database.
 #[allow(private_bounds)]
-pub trait Query<'a>: Sealed {
+pub trait Query<'a, P: StorageProvider>: Sealed {
     type Output: 'a;
 
-    fn query(self, db: &'a Database) -> Self::Output;
+    fn query(self, db: &'a Database<P>) -> Self::Output;
 }
 
 impl Sealed for (ObjectId, ObjectId, Demanded) {}
 
-impl<'a> Query<'a> for (ObjectId, ObjectId, Demanded) {
-    type Output = VFromOT<'a>;
+impl<'a, P: StorageProvider + 'a> Query<'a, P> for (ObjectId, ObjectId, Demanded) {
+    type Output = VFromOT<'a, P>;
 
-    fn query(self, db: &'a Database) -> Self::Output {
+    fn query(self, db: &'a Database<P>) -> Self::Output {
         VFromOT {
             db,
             object_id: self.0,
@@ -66,14 +67,14 @@ impl<'a> Query<'a> for (ObjectId, ObjectId, Demanded) {
     }
 }
 
-pub struct VFromOT<'a> {
-    db: &'a Database,
+pub struct VFromOT<'a, P: StorageProvider> {
+    db: &'a Database<P>,
     object_id: ObjectId,
     tag_id: ObjectId,
     current_row_id: u64,
 }
 
-impl<'a> Iterator for VFromOT<'a> {
+impl<'a, P: StorageProvider> Iterator for VFromOT<'a, P> {
     type Item = Value;
 
     fn next(&mut self) -> Option<Self::Item> {
