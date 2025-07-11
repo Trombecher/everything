@@ -18,36 +18,36 @@ impl Row {
         match row {
             ConstDecodedRow::Association(ObjectId(target_id), ObjectId(tag_id), value) => {
                 let (a, b) = match value {
-                    ConstValue::Unit => (ff::UNIT as u64, 0),
+                    ConstValue::Unit => (ff::VALUE_UNIT as u64, 0),
                     ConstValue::ObjectReference(ObjectId(id)) => {
-                        (ff::OBJECT_REFERENCE as u64, id.get())
+                        (ff::VALUE_OBJECT_REFERENCE as u64, id.get())
                     }
                     ConstValue::Schema(schema) => {
                         let (byte, other) = match schema {
-                            Schema::Unit => (ff::UNIT, 0),
-                            Schema::Integer => (ff::INTEGER, 0),
-                            Schema::Float => (ff::FLOAT, 0),
-                            Schema::Character => (ff::CHARACTER, 0),
-                            Schema::Duration => (ff::DURATION, 0),
-                            Schema::DateTime => (ff::DATE_TIME, 0),
+                            Schema::Unit => (ff::VALUE_UNIT, 0),
+                            Schema::Integer => (ff::VALUE_INTEGER, 0),
+                            Schema::Float => (ff::VALUE_FLOAT, 0),
+                            Schema::Character => (ff::VALUE_CHARACTER, 0),
+                            Schema::Duration => (ff::VALUE_DURATION, 0),
+                            Schema::DateTime => (ff::VALUE_DATE_TIME, 0),
                             Schema::ObjectReference(id) => (
-                                ff::OBJECT_REFERENCE,
+                                ff::VALUE_OBJECT_REFERENCE,
                                 match id {
                                     None => 0,
                                     Some(ObjectId(id)) => id.get(),
                                 },
                             ),
-                            Schema::Schema => (ff::SCHEMA, 0),
-                            Schema::Language => (ff::LANGUAGE, 0),
-                            Schema::Url => (ff::URL, 0),
-                            Schema::Color => (ff::COLOR, 0),
-                            Schema::Email => (ff::EMAIL, 0),
-                            Schema::Text => (ff::TEXT, 0),
-                            Schema::Binary => (ff::BINARY, 0),
-                            Schema::Encrypted => (ff::ENCRYPTED, 0),
+                            Schema::Schema => (ff::VALUE_SCHEMA, 0),
+                            Schema::Language => (ff::VALUE_LANGUAGE, 0),
+                            Schema::Url => (ff::VALUE_URL, 0),
+                            Schema::Color => (ff::VALUE_COLOR, 0),
+                            Schema::Email => (ff::VALUE_EMAIL, 0),
+                            Schema::Text => (ff::VALUE_TEXT, 0),
+                            Schema::Binary => (ff::VALUE_BINARY, 0),
+                            Schema::Encrypted => (ff::VALUE_ENCRYPTED, 0),
                         };
 
-                        (ff::SCHEMA as u64 | ((byte as u64) << 8), other)
+                        (ff::VALUE_SCHEMA as u64 | ((byte as u64) << 8), other)
                     }
                 };
 
@@ -69,69 +69,79 @@ impl Row {
                 let object_id = ObjectId(NonZeroU64::new(object_id).unwrap());
 
                 let value = match (a.to_le_bytes(), b) {
-                    ([ff::UNIT, 0, 0, 0, 0, 0, 0, 0], 0) => Value::Unit,
-                    ([ff::INTEGER, 0, 0, 0, 0, 0, 0, 0], b) => Value::Integer(b as _),
-                    ([ff::FLOAT, 0, 0, 0, 0, 0, 0, 0], 0) => Value::Float(f64::from_bits(b)),
-                    ([ff::CHARACTER, 0, 0, 0, remaining @ ..], 0) => {
+                    ([ff::VALUE_UNIT, 0, 0, 0, 0, 0, 0, 0], 0) => Value::Unit,
+                    ([ff::VALUE_INTEGER, 0, 0, 0, 0, 0, 0, 0], b) => Value::Integer(b as _),
+                    ([ff::VALUE_FLOAT, 0, 0, 0, 0, 0, 0, 0], 0) => Value::Float(f64::from_bits(b)),
+                    ([ff::VALUE_CHARACTER, 0, 0, 0, remaining @ ..], 0) => {
                         Value::Character(char::from_u32(u32::from_le_bytes(remaining)).ok_or(())?)
                     }
-                    ([ff::DURATION, bytes @ ..], b) => {
+                    ([ff::VALUE_DURATION, bytes @ ..], b) => {
                         Value::Duration(Duration::from_nanos(I120::from_le_bytes(unsafe {
                             transmute((bytes, b.to_le_bytes()))
                         })))
                     }
-                    ([ff::DATE_TIME, bytes @ ..], b) => {
+                    ([ff::VALUE_DATE_TIME, bytes @ ..], b) => {
                         Value::DateTime(DateTime::UNIX.const_add(Duration::from_nanos(
                             I120::from_le_bytes(unsafe { transmute((bytes, b.to_le_bytes())) }),
                         )))
                     }
-                    ([ff::OBJECT_REFERENCE, 0, 0, 0, 0, 0, 0, 0], b) if b != 0 => {
+                    ([ff::VALUE_OBJECT_REFERENCE, 0, 0, 0, 0, 0, 0, 0], b) if b != 0 => {
                         Value::ObjectReference(ObjectId(NonZeroU64::new(b).unwrap()))
                     }
-                    ([ff::SCHEMA, ff::OBJECT_REFERENCE, 0, 0, 0, 0, 0, 0], b) => {
-                        Value::Schema(Schema::ObjectReference(NonZeroU64::new(b).map(ObjectId)))
-                    }
-                    ([ff::SCHEMA, byte, 0, 0, 0, 0, 0, 0], 0) => Value::Schema(match byte {
-                        ff::UNIT => Schema::Unit,
-                        ff::INTEGER => Schema::Integer,
-                        ff::FLOAT => Schema::Float,
-                        ff::CHARACTER => Schema::Character,
-                        ff::DURATION => Schema::Duration,
-                        ff::DATE_TIME => Schema::DateTime,
-                        ff::SCHEMA => Schema::Schema,
-                        ff::LANGUAGE => Schema::Language,
-                        ff::URL => Schema::Url,
-                        ff::COLOR => Schema::Color,
-                        ff::EMAIL => Schema::Email,
-                        ff::TEXT => Schema::Text,
-                        ff::BINARY => Schema::Binary,
-                        ff::ENCRYPTED => Schema::Encrypted,
-                        ff::OBJECT_REFERENCE => unreachable!(),
+                    (
+                        [
+                            ff::VALUE_SCHEMA,
+                            ff::VALUE_OBJECT_REFERENCE,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                        ],
+                        b,
+                    ) => Value::Schema(Schema::ObjectReference(NonZeroU64::new(b).map(ObjectId))),
+                    ([ff::VALUE_SCHEMA, byte, 0, 0, 0, 0, 0, 0], 0) => Value::Schema(match byte {
+                        ff::VALUE_UNIT => Schema::Unit,
+                        ff::VALUE_INTEGER => Schema::Integer,
+                        ff::VALUE_FLOAT => Schema::Float,
+                        ff::VALUE_CHARACTER => Schema::Character,
+                        ff::VALUE_DURATION => Schema::Duration,
+                        ff::VALUE_DATE_TIME => Schema::DateTime,
+                        ff::VALUE_SCHEMA => Schema::Schema,
+                        ff::VALUE_LANGUAGE => Schema::Language,
+                        ff::VALUE_URL => Schema::Url,
+                        ff::VALUE_COLOR => Schema::Color,
+                        ff::VALUE_EMAIL => Schema::Email,
+                        ff::VALUE_TEXT => Schema::Text,
+                        ff::VALUE_BINARY => Schema::Binary,
+                        ff::VALUE_ENCRYPTED => Schema::Encrypted,
+                        ff::VALUE_OBJECT_REFERENCE => unreachable!(),
                         _ => return Err(()),
                     }),
-                    ([ff::LANGUAGE, 0, lang_bytes @ .., 0, 0, 0, 0], 0) => Value::Language(
+                    ([ff::VALUE_LANGUAGE, 0, lang_bytes @ .., 0, 0, 0, 0], 0) => Value::Language(
                         Language::try_from(u16::from_le_bytes(lang_bytes)).map_err(|_| ())?,
                     ),
-                    ([ff::COLOR, 0, 0, 0, bytes_c1 @ ..], b) => {
+                    ([ff::VALUE_COLOR, 0, 0, 0, bytes_c1 @ ..], b) => {
                         let l = f32::from_le_bytes(bytes_c1);
                         let a = f32::from_bits((b & u32::MAX as u64) as u32);
                         let b = f32::from_bits((b >> u32::BITS as u64) as u32);
 
                         Value::Color(Color { l, a, b })
                     }
-                    ([ff::URL, ..], _) => todo!(),
-                    ([ff::URL_MAX, ..], _) => todo!(),
-                    ([ff::URL_REFERENCE, ..], _) => todo!(),
-                    ([ff::EMAIL, ..], _) => todo!(),
-                    ([ff::EMAIL_MAX, ..], _) => todo!(),
-                    ([ff::EMAIL_REFERENCE, ..], _) => todo!(),
-                    ([ff::TEXT, ..], _) => todo!(),
-                    ([ff::TEXT_MAX, ..], _) => todo!(),
-                    ([ff::TEXT_REFERENCE, ..], _) => todo!(),
-                    ([ff::BINARY, ..], _) => todo!(),
-                    ([ff::BINARY_MAX, ..], _) => todo!(),
-                    ([ff::BINARY_REFERENCE, ..], _) => todo!(),
-                    ([ff::ENCRYPTED, ..], _) => todo!(),
+                    ([ff::VALUE_URL, ..], _) => todo!(),
+                    ([ff::VALUE_URL_MAX, ..], _) => todo!(),
+                    ([ff::VALUE_URL_REFERENCE, ..], _) => todo!(),
+                    ([ff::VALUE_EMAIL, ..], _) => todo!(),
+                    ([ff::VALUE_EMAIL_MAX, ..], _) => todo!(),
+                    ([ff::VALUE_EMAIL_REFERENCE, ..], _) => todo!(),
+                    ([ff::VALUE_TEXT, ..], _) => todo!(),
+                    ([ff::VALUE_TEXT_MAX, ..], _) => todo!(),
+                    ([ff::VALUE_TEXT_REFERENCE, ..], _) => todo!(),
+                    ([ff::VALUE_BINARY, ..], _) => todo!(),
+                    ([ff::VALUE_BINARY_MAX, ..], _) => todo!(),
+                    ([ff::VALUE_BINARY_REFERENCE, ..], _) => todo!(),
+                    ([ff::VALUE_ENCRYPTED, ..], _) => todo!(),
                     _ => todo!(),
                 };
 

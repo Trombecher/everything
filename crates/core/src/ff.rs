@@ -1,28 +1,34 @@
-pub const UNIT: u8 = 0;
-pub const INTEGER: u8 = 1;
-pub const FLOAT: u8 = 2;
-pub const CHARACTER: u8 = 3;
-pub const DURATION: u8 = 4;
-pub const DATE_TIME: u8 = 5;
-pub const OBJECT_REFERENCE: u8 = 6;
-pub const SCHEMA: u8 = 7;
-pub const LANGUAGE: u8 = 8;
-pub const URL: u8 = 9;
-pub const URL_MAX: u8 = 10;
-pub const URL_REFERENCE: u8 = 11;
-pub const COLOR: u8 = 12;
-pub const EMAIL: u8 = 16;
-pub const EMAIL_MAX: u8 = 17;
-pub const EMAIL_REFERENCE: u8 = 18;
-pub const TEXT: u8 = 19;
-pub const TEXT_MAX: u8 = 20;
-pub const TEXT_REFERENCE: u8 = 21;
-pub const BINARY: u8 = 22;
-pub const BINARY_MAX: u8 = 23;
-pub const BINARY_REFERENCE: u8 = 24;
-pub const ENCRYPTED: u8 = 25;
+//! File format constants.
 
-// ------------------ Pages ---------------------
+// region Values
+
+pub const VALUE_UNIT: u8 = 0;
+pub const VALUE_INTEGER: u8 = 1;
+pub const VALUE_FLOAT: u8 = 2;
+pub const VALUE_CHARACTER: u8 = 3;
+pub const VALUE_DURATION: u8 = 4;
+pub const VALUE_DATE_TIME: u8 = 5;
+pub const VALUE_OBJECT_REFERENCE: u8 = 6;
+pub const VALUE_SCHEMA: u8 = 7;
+pub const VALUE_LANGUAGE: u8 = 8;
+pub const VALUE_URL: u8 = 9;
+pub const VALUE_URL_MAX: u8 = 10;
+pub const VALUE_URL_SPILLED: u8 = 11;
+pub const VALUE_COLOR: u8 = 12;
+pub const VALUE_EMAIL: u8 = 16;
+pub const VALUE_EMAIL_MAX: u8 = 17;
+pub const VALUE_EMAIL_SPILLED: u8 = 18;
+pub const VALUE_TEXT: u8 = 19;
+pub const VALUE_TEXT_MAX: u8 = 20;
+pub const VALUE_TEXT_SPILLED: u8 = 21;
+pub const VALUE_BINARY: u8 = 22;
+pub const VALUE_BINARY_MAX: u8 = 23;
+pub const VALUE_BINARY_SPILLED: u8 = 24;
+pub const VALUE_ENCRYPTED: u8 = 25;
+
+// endregion
+
+// region Pages
 
 /// A page in a free list, ready to be used.
 pub const PAGE_KIND_FREE_LIST: u8 = 0;
@@ -50,3 +56,5 @@ pub const PAGE_KIND_B_TREE_NODE_V_OT: u8 = 7;
 
 /// Page of the write-ahead-log.
 pub const PAGE_KIND_WAL: u8 = 8;
+
+// endregion

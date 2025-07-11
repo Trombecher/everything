@@ -7,6 +7,7 @@ use tokio::io;
 pub enum Error {
     IO(io::Error),
     InvalidPageKind(PageId, u8),
+    InvalidValueKind(u8),
     PageCorrupted(PageId),
     InvalidValueForInvalidFormatPolicy,
 }
@@ -26,6 +27,7 @@ impl Display for Error {
             Error::PageCorrupted(page_id) => {
                 write!(f, "encountered corrupted page with id {}", page_id)
             }
+            Error::InvalidValueKind(kind) => write!(f, "encountered invalid value kind {}", kind),
         }
     }
 }

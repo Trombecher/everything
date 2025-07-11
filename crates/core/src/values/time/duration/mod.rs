@@ -10,7 +10,7 @@ pub struct Duration(I120);
 
 impl Duration {
     pub const MIN: Self = Self(I120::MIN);
-    pub const ZERO: Self = Self(I120::const_from(0));
+    pub const ZERO: Self = Self(I120::from_i128(0));
     pub const MAX: Self = Self(I120::MAX);
 
     #[inline]
@@ -20,7 +20,7 @@ impl Duration {
 
     #[inline]
     pub const fn as_micros(self) -> i128 {
-        let nanos: i128 = self.as_nanos().const_into();
+        let nanos = self.as_nanos().as_i128();
         nanos / 1_000
     }
 
@@ -61,7 +61,7 @@ impl Duration {
 
     #[inline]
     pub const fn from_micros(micros: i128) -> Self {
-        Self::from_nanos(I120::const_from(micros * 1_000))
+        Self::from_nanos(I120::from_i128(micros * 1_000))
     }
 
     #[inline]
@@ -103,7 +103,7 @@ impl Duration {
     pub const fn const_sub(self, other: Duration) -> Self {
         Self(self.0.const_sub(other.0))
     }
-    
+
     #[inline]
     pub const fn abs(self) -> Self {
         Self(self.0.abs())
