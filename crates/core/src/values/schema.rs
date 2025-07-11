@@ -1,5 +1,5 @@
 use crate::ff;
-use crate::values::v;
+use crate::objects::ObjectId;
 
 #[derive(Clone, Debug)]
 #[repr(u8)]
@@ -12,10 +12,10 @@ pub enum Schema {
     DateTime = ff::VALUE_DATE_TIME,
 
     /// Object reference, optionally with an object with constraint.
-    ObjectReference(v::ObjectId2) = ff::VALUE_OBJECT_REFERENCE,
+    ObjectReference(Option<ObjectId>) = ff::VALUE_OBJECT_REFERENCE,
     Schema = ff::VALUE_SCHEMA,
     Language = ff::VALUE_LANGUAGE,
-    Url = ff::VALUE_URL,
+    Uri = ff::VALUE_URI,
     Color = ff::VALUE_COLOR,
     Email = ff::VALUE_EMAIL,
     Text = ff::VALUE_TEXT,

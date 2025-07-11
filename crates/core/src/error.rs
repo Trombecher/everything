@@ -10,6 +10,7 @@ pub enum Error {
     InvalidValueKind(u8),
     PageCorrupted(PageId),
     InvalidValueForInvalidFormatPolicy,
+    Other,
 }
 
 impl Display for Error {
@@ -28,6 +29,7 @@ impl Display for Error {
                 write!(f, "encountered corrupted page with id {}", page_id)
             }
             Error::InvalidValueKind(kind) => write!(f, "encountered invalid value kind {}", kind),
+            Error::Other => write!(f, "unknown error")
         }
     }
 }

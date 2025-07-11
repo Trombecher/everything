@@ -21,21 +21,11 @@
 //! * `(Demanded, ObjectId, Demanded) -> OVFromT`
 //! * `(Demanded, Demanded, ObjectId) -> OTFromV`
 //! * `(Demanded, Demanded, Demanded) -> OTVIter`
-//!
-//! ## Examples
-//!
-//! Iterate over all values of the assocation of object #20 with tag #30.
-//!
-//! ```no_run
-//! for value in db.query((20.into(), 30.into(), Demanded)) {
-//!     println("{:?}", value);
-//! }
-//! ```
 
 use crate::sp::StorageProvider;
 use crate::{
     db::Database,
-    objects::{ObjectId, core::ROWS},
+    objects::ObjectId,
     values::Value,
 };
 
@@ -78,19 +68,6 @@ impl<'a, P: StorageProvider> Iterator for VFromOT<'a, P> {
     type Item = Value;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.current_row_id < ROWS.len() as u64 {
-            let row = ROWS[self.current_row_id as usize].clone();
-
-            let (found_object_id, found_tag_id, value) =
-                unsafe { row.decode().unwrap_unchecked().assume_association() };
-
-            self.current_row_id += 1;
-
-            if found_object_id == self.object_id && found_tag_id == self.tag_id {
-                return Some(value);
-            }
-        }
-
         // TODO: search db
 
         None

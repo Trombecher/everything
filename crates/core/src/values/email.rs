@@ -1,9 +1,14 @@
-use crate::values::inline::{InlineStr, InlineStrMax};
+use arrayvec::ArrayString;
 
 #[derive(Debug, Clone, PartialEq)]
 #[repr(transparent)]
-pub struct Email(InlineStr);
+pub struct Email(ArrayString<15>);
 
-#[derive(Debug, Clone, PartialEq)]
-#[repr(transparent)]
-pub struct EmailMax(InlineStrMax);
+impl TryFrom<ArrayString<15>> for Email {
+    type Error = ();
+
+    fn try_from(value: ArrayString<15>) -> Result<Self, Self::Error> {
+        // TODO: validation
+        Ok(Self(value))
+    }
+}

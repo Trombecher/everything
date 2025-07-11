@@ -1,6 +1,7 @@
 #![feature(if_let_guard)]
 #![feature(new_zeroed_alloc)]
-extern crate core;
+#![feature(generic_const_exprs)]
+#![feature(core_intrinsics)]
 
 mod error;
 mod ff;
@@ -10,7 +11,6 @@ pub use error::*;
 pub mod db;
 pub mod objects;
 pub mod query;
-pub mod rows;
 pub mod sp;
 pub mod values;
 
