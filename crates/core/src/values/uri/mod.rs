@@ -1,17 +1,17 @@
 mod regex;
 
-use crate::values::inline::{InlineStr, InlineStrMax};
+use arrayvec::ArrayString;
 pub use regex::*;
 
 #[derive(Clone, PartialEq, Debug)]
 #[repr(transparent)]
-pub struct Uri(InlineStr);
+pub struct Uri(ArrayString<15>);
 
 impl TryFrom<&str> for Uri {
     type Error = ();
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if let Ok(v) = InlineStr::try_from(value)
+        if let Ok(v) = ArrayString::try_from(value)
             && REGEX.is_match(value)
         {
             Ok(Self(v))
@@ -26,7 +26,3 @@ impl AsRef<str> for Uri {
         self.0.as_ref()
     }
 }
-
-#[derive(Clone, PartialEq, Debug)]
-#[repr(transparent)]
-pub struct UriMax(InlineStrMax);

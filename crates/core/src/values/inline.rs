@@ -94,9 +94,24 @@ impl PartialEq for InlineStr {
 
 // endregion
 
+// region InlineStrMax
+
 #[derive(Clone, PartialEq, Debug)]
 #[repr(transparent)]
 pub struct InlineStrMax([u8; 15]);
+
+impl TryFrom<&str> for InlineStrMax {
+    type Error = ();
+
+    #[inline]
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if value.len() == 15 {
+            Ok(Self(*value.as_bytes().array_chunks::<15>().next().unwrap()))
+        } else {
+            Err(())
+        }
+    }
+}
 
 impl AsRef<[u8]> for InlineStrMax {
     fn as_ref(&self) -> &[u8] {
@@ -109,3 +124,5 @@ impl AsRef<str> for InlineStrMax {
         unsafe { str::from_utf8_unchecked(self.as_ref()) }
     }
 }
+
+// endregion

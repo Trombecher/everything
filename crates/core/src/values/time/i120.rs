@@ -39,12 +39,12 @@ impl I120 {
     pub const MIN: Self = Self([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0b1000_0000]);
 
     #[inline]
-    pub const fn from_le_bytes(bytes: [u8; 15]) -> Self {
+    pub const fn from_bytes(bytes: [u8; 15]) -> Self {
         Self(bytes)
     }
 
     #[inline]
-    pub const fn to_le_bytes(self) -> [u8; 15] {
+    pub const fn to_bytes(self) -> [u8; 15] {
         self.0
     }
 

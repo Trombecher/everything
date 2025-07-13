@@ -1,4 +1,5 @@
 mod color;
+mod email;
 mod lang;
 mod schema;
 mod time;
@@ -6,20 +7,18 @@ mod uri;
 
 use crate::objects::ObjectId;
 use crate::pages::PageId;
-use crate::values::email::Email;
-use crate::values::uri::Uri;
 use crate::{ff, Error};
 use arrayvec::{ArrayString, ArrayVec};
-pub use color::*;
-pub use lang::*;
-pub use schema::*;
 use std::fmt::Debug;
 use std::intrinsics::transmute_unchecked;
 use std::num::NonZeroU64;
-pub use time::*;
 
-mod email;
-mod inline;
+pub use color::*;
+pub use email::*;
+pub use lang::*;
+pub use schema::*;
+pub use time::*;
+pub use uri::*;
 
 const fn concat_arrays<const M: usize, const N: usize, T>(a: [T; M], b: [T; N]) -> [T; M + N] {
     #[repr(C, packed)]
@@ -52,56 +51,104 @@ pub enum Value {
     Encrypted(Spilled) = ff::VALUE_ENCRYPTED,
 }
 
-pub type SpilledValueLength = [u8; 7];
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 #[repr(C, packed)]
 pub struct Spilled {
-    len: SpilledValueLength,
-    page: PageId,
+    len: u64,
+    pub page: PageId,
+}
+
+impl Spilled {
+    const MIN_LEN: u64 = 16;
+
+    pub fn len(self) -> u64 {
+        self.len
+    }
+
+    pub fn new(page: PageId, len: u64) -> Option<Self> {
+        if len >= Self::MIN_LEN {
+            Some(Self { len, page })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Clone)]
-pub struct OpaqueValue(u64, u64);
+#[repr(align(8))]
+pub struct OpaqueValue([u8; 16]);
 
 impl TryFrom<OpaqueValue> for Value {
     type Error = Error;
 
-    fn try_from(OpaqueValue(a, b): OpaqueValue) -> Result<Self, Self::Error> {
-        match (a.to_le_bytes(), b) {
-            ([ff::VALUE_UNIT, 0, 0, 0, 0, 0, 0, 0], 0) => Ok(Value::Unit),
-            ([ff::VALUE_INTEGER, 0, 0, 0, 0, 0, 0, 0], b) => Ok(Value::Integer(b as _)),
-            ([ff::VALUE_FLOAT, 0, 0, 0, 0, 0, 0, 0], 0) => Ok(Value::Float(f64::from_bits(b))),
-            ([ff::VALUE_CHARACTER, 0, 0, 0, remaining @ ..], 0) => Ok(Value::Character(
+    fn try_from(OpaqueValue(bytes): OpaqueValue) -> Result<Self, Self::Error> {
+        match bytes {
+            [ff::VALUE_UNIT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] => Ok(Value::Unit),
+            [ff::VALUE_INTEGER, 0, 0, 0, 0, 0, 0, 0, int_bytes @ ..] => {
+                Ok(Value::Integer(i64::from_le_bytes(int_bytes)))
+            }
+            [ff::VALUE_FLOAT, 0, 0, 0, 0, 0, 0, 0, float_bytes @ ..] => {
+                Ok(Value::Float(f64::from_le_bytes(float_bytes)))
+            }
+            [
+                ff::VALUE_CHARACTER,
+                0,
+                0,
+                0,
+                remaining @ ..,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ] => Ok(Value::Character(
                 char::from_u32(u32::from_le_bytes(remaining)).ok_or(Error::Other)?,
             )),
-            ([ff::VALUE_DURATION, bytes @ ..], b) => Ok(Value::Duration(Duration::from_nanos(
-                I120::from_le_bytes(concat_arrays(bytes, b.to_le_bytes())),
+            [ff::VALUE_DURATION, bytes @ ..] => Ok(Value::Duration(Duration::from_nanos(
+                I120::from_bytes(bytes),
             ))),
-            ([ff::VALUE_DATE_TIME, bytes @ ..], b) => Ok(Value::DateTime(
-                DateTime::UNIX.const_add(Duration::from_nanos(I120::from_le_bytes(unsafe {
-                    concat_arrays(bytes, b.to_le_bytes())
-                }))),
+            [ff::VALUE_DATE_TIME, bytes @ ..] => Ok(Value::DateTime(
+                DateTime::UNIX.const_add(Duration::from_nanos(I120::from_bytes(bytes))),
             )),
-            ([ff::VALUE_OBJECT_REFERENCE, 0, 0, 0, 0, 0, 0, 0], b) if b != 0 => Ok(
-                Value::ObjectReference(ObjectId(NonZeroU64::new(b).unwrap())),
-            ),
-            (
-                [
-                    ff::VALUE_SCHEMA,
-                    ff::VALUE_OBJECT_REFERENCE,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                ],
-                b,
-            ) => Ok(Value::Schema(Schema::ObjectReference(
-                NonZeroU64::new(b).map(ObjectId),
+            [ff::VALUE_OBJECT_REFERENCE, 0, 0, 0, 0, 0, 0, 0, bytes @ ..]
+                if let Some(b) = NonZeroU64::new(u64::from_le_bytes(bytes)) =>
+            {
+                Ok(Value::ObjectReference(ObjectId(b)))
+            }
+            [
+                ff::VALUE_SCHEMA,
+                ff::VALUE_OBJECT_REFERENCE,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                bytes @ ..,
+            ] => Ok(Value::Schema(Schema::ObjectReference(
+                NonZeroU64::new(u64::from_le_bytes(bytes)).map(ObjectId),
             ))),
-            ([ff::VALUE_SCHEMA, byte, 0, 0, 0, 0, 0, 0], 0) => Ok(Value::Schema(match byte {
+            [
+                ff::VALUE_SCHEMA,
+                byte,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ] => Ok(Value::Schema(match byte {
                 ff::VALUE_UNIT => Schema::Unit,
                 ff::VALUE_INTEGER => Schema::Integer,
                 ff::VALUE_FLOAT => Schema::Float,
@@ -119,60 +166,146 @@ impl TryFrom<OpaqueValue> for Value {
                 ff::VALUE_OBJECT_REFERENCE => unreachable!(),
                 _ => return Err(Error::Other),
             })),
-            ([ff::VALUE_LANGUAGE, 0, lang_bytes @ .., 0, 0, 0, 0], 0) => Ok(Value::Language(
+            [
+                ff::VALUE_LANGUAGE,
+                0,
+                lang_bytes @ ..,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ] => Ok(Value::Language(
                 Language::try_from(u16::from_le_bytes(lang_bytes)).map_err(|_| Error::Other)?,
             )),
-            ([ff::VALUE_COLOR, 0, 0, 0, bytes_c1 @ ..], b) => {
-                let l = f32::from_le_bytes(bytes_c1);
-                let a = f32::from_bits((b & u32::MAX as u64) as u32);
-                let b = f32::from_bits((b >> u32::BITS as u64) as u32);
+            [ff::VALUE_COLOR, 0, 0, 0, bytes_c1 @ ..] => {
+                let mut x = bytes_c1.array_chunks::<4>().copied();
+                let l = f32::from_le_bytes(x.next().unwrap());
+                let a = f32::from_le_bytes(x.next().unwrap());
+                let b = f32::from_le_bytes(x.next().unwrap());
 
                 Ok(Value::Color(Color { l, a, b }))
             }
-            ([ff::VALUE_URI, ..], _) => todo!(),
-            ([ff::VALUE_URI_MAX, ..], _) => todo!(),
-            ([ff::VALUE_URI_SPILLED, ..], _) => todo!(),
-            ([ff::VALUE_EMAIL, len, bytes @ ..], b) => {
+            [ff::VALUE_URI, len, bytes @ ..] => {
+                let s = if len <= 14
+                    && let Ok(x) = str::from_utf8(&bytes)
+                {
+                    x
+                } else {
+                    return Err(Error::Other);
+                };
+
+                let uri = Uri::try_from(s).map_err(|_| Error::Other)?;
+
+                Ok(Value::Uri(uri))
+            }
+            [ff::VALUE_URI_MAX, bytes @ ..] => {
+                let s = str::from_utf8(&bytes).map_err(|_| Error::Other)?;
+
+                Ok(Value::Uri(Uri::try_from(s).map_err(|_| Error::Other)?))
+            }
+            [ff::VALUE_EMAIL, len, bytes @ ..] => {
                 if len > 14 {
                     return Err(Error::Other);
                 }
 
-                let bytes: [u8; 14] = concat_arrays(bytes, b.to_le_bytes());
                 let s = str::from_utf8(&bytes[..len as usize]).map_err(|_| Error::Other)?;
 
-                let s = ArrayString::<15>::from(s).unwrap();
                 Ok(Value::Email(Email::try_from(s).map_err(|_| Error::Other)?))
             }
-            ([ff::VALUE_EMAIL_MAX, bytes @ ..], b) => {
-                let bytes: [u8; 15] = concat_arrays(bytes, b.to_le_bytes());
-
-                let arr =
-                    ArrayString::<15>::from(str::from_utf8(&bytes).map_err(|_| Error::Other)?)
-                        .unwrap();
+            [ff::VALUE_EMAIL_MAX, bytes @ ..] => {
+                let arr = str::from_utf8(&bytes).map_err(|_| Error::Other)?;
 
                 Ok(Value::Email(
                     Email::try_from(arr).map_err(|_| Error::Other)?,
                 ))
             }
-            ([ff::VALUE_EMAIL_SPILLED, len @ ..], page_id) if page_id != 0 => {
-                Ok(Value::EmailSpilled(Spilled {
-                    len,
-                    page: NonZeroU64::new(page_id).unwrap(),
-                }))
+            [ff::VALUE_TEXT, ..] => todo!(),
+            [ff::VALUE_TEXT_MAX, ..] => todo!(),
+            [ff::VALUE_BINARY, ..] => todo!(),
+            [ff::VALUE_BINARY_MAX, ..] => todo!(),
+            [
+                v @ (ff::VALUE_URI_SPILLED
+                | ff::VALUE_TEXT_SPILLED
+                | ff::VALUE_EMAIL_SPILLED
+                | ff::VALUE_BINARY_SPILLED
+                | ff::VALUE_ENCRYPTED),
+                p0,
+                p1,
+                p2,
+                p3,
+                p4,
+                p5,
+                p6,
+                len @ ..,
+            ] => {
+                let page = NonZeroU64::new(u64::from_le_bytes([p0, p1, p2, p3, p4, p5, p6, 0]))
+                    .ok_or(Error::Other)?;
+
+                let len = u64::from_le_bytes(len);
+
+                let spilled = match v {
+                    ff::VALUE_URI_SPILLED => Value::UriSpilled,
+                    ff::VALUE_TEXT_SPILLED => Value::TextSpilled,
+                    ff::VALUE_EMAIL_SPILLED => Value::EmailSpilled,
+                    ff::VALUE_BINARY_SPILLED => Value::BinarySpilled,
+                    ff::VALUE_ENCRYPTED => Value::Encrypted,
+                    _ => unreachable!(),
+                };
+
+                Ok(spilled(Spilled::new(page, len).ok_or(Error::Other)?))
             }
-            ([ff::VALUE_TEXT, ..], _) => todo!(),
-            ([ff::VALUE_TEXT_MAX, ..], _) => todo!(),
-            ([ff::VALUE_TEXT_SPILLED, ..], _) => todo!(),
-            ([ff::VALUE_BINARY, ..], _) => todo!(),
-            ([ff::VALUE_BINARY_MAX, ..], _) => todo!(),
-            ([ff::VALUE_BINARY_SPILLED, ..], _) => todo!(),
-            ([ff::VALUE_ENCRYPTED, len @ ..], page_id) if page_id != 0 => {
-                Ok(Value::Encrypted(Spilled {
-                    len,
-                    page: NonZeroU64::new(page_id).unwrap(),
-                }))
+            [kind, ..] => Err(Error::InvalidValueKind(kind)),
+        }
+    }
+}
+
+impl Into<OpaqueValue> for Value {
+    fn into(self) -> OpaqueValue {
+        match self {
+            Self::Unit => OpaqueValue(concat_arrays([ff::VALUE_UNIT], [0; 15])),
+            Self::Integer(i) => OpaqueValue(concat_arrays(
+                [ff::VALUE_INTEGER, 0, 0, 0, 0, 0, 0, 0],
+                i.to_le_bytes(),
+            )),
+            Self::Float(f) => OpaqueValue(concat_arrays(
+                [ff::VALUE_FLOAT, 0, 0, 0, 0, 0, 0, 0],
+                f.to_le_bytes(),
+            )),
+            Self::Character(c) => OpaqueValue(concat_arrays(
+                concat_arrays([ff::VALUE_CHARACTER, 0, 0, 0], (c as u32).to_le_bytes()),
+                [0; 8],
+            )),
+            Self::Duration(d) => {
+                OpaqueValue(concat_arrays([ff::VALUE_DURATION], d.as_nanos().to_bytes()))
             }
-            ([kind, ..], _) => Err(Error::InvalidValueKind(kind)),
+            Self::DateTime(d) => OpaqueValue(concat_arrays(
+                [ff::VALUE_DATE_TIME],
+                (d - DateTime::UNIX).as_nanos().to_bytes(),
+            )),
+            Self::ObjectReference(r) => OpaqueValue(concat_arrays(
+                [ff::VALUE_OBJECT_REFERENCE, 0, 0, 0, 0, 0, 0, 0],
+                r.0.get().to_le_bytes(),
+            )),
+            Self::Schema(_) => todo!(),
+            Self::Language(_) => todo!(),
+            Self::Uri(_) => todo!(),
+            Self::UriSpilled(_) => todo!(),
+            Self::Color(_) => todo!(),
+            Self::Email(_) => todo!(),
+            Self::EmailSpilled(_) => todo!(),
+            Self::Text(_) => todo!(),
+            Self::TextSpilled(_) => todo!(),
+            Self::Binary(_) => todo!(),
+            Self::BinarySpilled(_) => todo!(),
+            Self::Encrypted(_) => todo!(),
         }
     }
 }

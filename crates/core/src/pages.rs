@@ -5,6 +5,8 @@ use crc::{CRC_64_REDIS, Crc};
 use static_assertions::const_assert;
 use std::num::NonZeroU64;
 
+/// Due to implementation reasons, this number will only occupy 7 bytes,
+/// effectively limiting the max page count to 2^60-1.
 pub type PageId = NonZeroU64;
 
 #[repr(align(4096), C)]

@@ -59,6 +59,7 @@ pub trait StorageProvider {
 
     fn contents(&self) -> &Contents;
     fn ensure_page_count(&self, count: usize);
+    #[allow(async_fn_in_trait)]
     async fn flush(&self) -> Result<(), Error>;
 }
 

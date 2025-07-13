@@ -2,6 +2,7 @@
 #![feature(new_zeroed_alloc)]
 #![feature(generic_const_exprs)]
 #![feature(core_intrinsics)]
+#![feature(array_chunks)]
 
 mod error;
 mod ff;
