@@ -84,25 +84,80 @@ An object $a$ is _tagged_ with an object $b$ and a value $c$ if there exists an 
 
 + Every tag used in an association with a value $v$ must be tagged with $M_"tag"$ and a value $T$ such that $T$ is tagged with $M_"tag"$ and value $M_"type.0"$, and $v$ must be tagged with $T$ and a value of $0$. Here is the formal constraint:
 
-    $
-        (o, t, v) in D ==> exists T in O and (t, M_"tag", T) in D and (T, M_"tag", M_"type.0") in D and (v, T, 0) in D
-        .
-    $
+  $
+    (o, t, v) in D ==> exists T in O and (t, M_"tag", T) in D and (T, M_"tag", M_"type.0") in D and (v, T, 0) in D
+    .
+  $
 
-    The motivation behind this constraint is that you cannot arbitrarily tag objects with other objects. You have to declare the tag object as a tag. By doing this, you also constraint the objects that can be used as values in the association by defining a "type". This type is represented by the variable $T$ in the constraint, and its purpose is only to tag objects as values for this type. Tagging an object to be of type $T$ does not require any value, hence the $M_"type.0"$ in $(T, M_"tag", M_"type.0")$. And finally, the value actually used in the association must adhere to the type $T$; hence $(v, T, 0) in D$.
+  The motivation behind this constraint is that you cannot arbitrarily tag objects with other objects. You have to declare the tag object as a tag. By doing this, you also constraint the objects that can be used as values in the association by defining a "type". This type is represented by the variable $T$ in the constraint, and its purpose is only to tag objects as values for this type. Tagging an object to be of type $T$ does not require any value, hence the $M_"type.0"$ in $(T, M_"tag", M_"type.0")$. And finally, the value actually used in the association must adhere to the type $T$; hence $(v, T, 0) in D$.
 
 ...
 
 The empty set $emptyset$ is a database (?).
+
+== Alternative Constraints
+
++ Every tag, used in an association with a value $v$, must be tagged with $M_"tag"$ and a value $x$, and $v$ must be tagged with $x$.
+
+  $
+    forall (o, t, v) in D : exists x,y in O : (t, M_"tag", x) in D and (v, x, y) in D
+  $
++ Tags tagged with $M_"unique"$ enforce uniqueness on the value of associations they are involved in as a tag for a given object.
+
+  $
+    forall (t, M_"unique", x) in D : forall (o, t, x), (o, t, y) in D : x = y
+  $
+
+  Movivation: sometimes you want a tag to be applicable maximum once per object.
+
++ $M_"tag"$ is unique. There can only be one type describing the values of a tag. Formally:
+
+  $
+    exists v in O : (M_"tag", M_"unique", v) in D
+  $
+
+  The motivation behind this constraint is that if you could tag a tag multiple times with $M_"tag"$, there would be multiple tag objects for a value to validate against. The model would need to define the validation behaviour for this case.
+
+  But this case can be reduced to only one association: one can simply define a new type that describes the intended behavior (intersection or union) the user intended with the two or more associations by connecting expressions via the builtin constraints. Example:
+
+  $
+    {"Type1", "Type2", "Value1", "Value2", "Value3", "Type:0", "A"} subset.eq O \
+    \
+    E := {("Type:0", M_"tag", "Type:0"), (0, "Type:0", 0), ("Value1", "Type1", 0), \
+      ("Value2", "Type1", 0), ("Value2", "Type2", 0), ("Value3", "Type2", 0), \
+      ("A", M_"tag", "Type1"), ("A", M_"tag", "Type2")}
+  $
+
+  Here we define three values and two types. $"Type1"$ includes values 1 and 2 and $"Type2"$ includes value 2 and 3. Now what should $v in O$ in $(o, "A", v) in D$ be constraint to? $"Type1"$ or $"Type2"$, or perhaps both? By making $M_"tag"$ unique we force the user to think about what $v$ should be explicitly.
+
+== Alternative Core Associations
+
+$
+            & D != emptyset \
+        ==> & exists (o, t, v) in D \
+  ==>^((1)) & exists x,y in O and (t, M_"tag", x) in D and (v, x, y) in D \
+  ==>^((1)) & exists x',y',x'',y'' in O and (M_"tag", M_"tag", x') in D and (x, x', y') in D \
+            & and (x, M_"tag", x'') in D and (y, x'',y'') in D
+$
+
+---
+
+$
+            & (M_"tag", M_"tag", M_"tag") in D \
+  ==>^((1)) & exists x,y in O : (M_"tag", M_"tag", x) in D and (M_"tag", x, y) in D \
+  ==>^((2)) & x = M_"tag" and exists y in O : (M_"tag", M_"tag", y) in D \
+  ==>^((2)) & y = M_"tag" \
+        ==> & (M_"tag", M_"tag", M_"tag") in D
+$
 
 == Core Associations
 
 Interesting behavior emerges from these constraints. For this we assume a non-empty database $D != emptyset$.
 
 $
-              & D != emptyset \
-          ==> & exists (o, t, v) in D \
-    ==>^((1)) & exists T in O and (t, M_"tag", T) in D and (T, M_"tag", M_"type.0") in D and (v, T, 0) in D
+            & D != emptyset \
+        ==> & exists (o, t, v) in D \
+  ==>^((1)) & exists T in O and (t, M_"tag", T) in D and (T, M_"tag", M_"type.0") in D and (v, T, 0) in D
 $
 
 ...
@@ -110,8 +165,8 @@ $
 Working only with $M_"tag"$:
 
 $
-              & exists T in O and (t, M_"tag", T) in D \
-    ==>^((1)) & exists T' in O and (M_"tag", M_"tag", T') in D and (T', M_"tag", M_"type.0") in D and (T, T', 0) in D
+            & exists T in O and (t, M_"tag", T) in D \
+  ==>^((1)) & exists T' in O and (M_"tag", M_"tag", T') in D and (T', M_"tag", M_"type.0") in D and (T, T', 0) in D
 $
 
 
@@ -120,8 +175,8 @@ $
 == Solution
 
 $
-    D := {(M_"tag", M_"tag", M_"type"), (M_"type", M_"tag", M_"type.0"), (M_"type", M_"type", 0), \
-        (M_"type.0", M_"type", 0), (M_"type.0", M_"tag", M_"type.0"), (0, M_"type.0", 0)}
+  D := {(M_"tag", M_"tag", M_"type"), (M_"type", M_"tag", M_"type.0"), (M_"type", M_"type", 0), \
+    (M_"type.0", M_"type", 0), (M_"type.0", M_"tag", M_"type.0"), (0, M_"type.0", 0)}
 $
 
 is a database.
