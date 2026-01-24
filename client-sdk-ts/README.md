@@ -1,1 +1,0 @@
-# Everything Client SDK For TypeScript

@@ -1,1 +1,0 @@
-export const ERROR_INVALID_PACKET_ID_FROM_SERVER = 1;

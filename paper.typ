@@ -139,7 +139,7 @@ $
 
   $
     forall t in O : ((exists u in O : (t, M_"unique", u) in D) \
-      ==> (forall x, y in O : ((o, t, x) in D and (o, t, y) in D ==> x = y)))
+      ==> (forall o, x, y in O : ((o, t, x) in D and (o, t, y) in D ==> x = y)))
   $
 
   Movivation: sometimes you want a tag to be applicable maximum once per object.
@@ -164,11 +164,9 @@ $
 
   Here we define three values and two types. $"Type1"$ includes values 1 and 2 and $"Type2"$ includes value 2 and 3. Now what should $v in O$ in $(o, "A", v) in D$ be constraint to? $"Type1"$ or $"Type2"$, or perhaps both? By making $M_"tag"$ unique we force the user to think about what $v$ should be explicitly.
 
-4. The tag $M_"constraint"$
+4. $$
 
-5. $
-    exists.not v in O : (M_"tag", M_"inferred", v) in D
-  $
+5. $$
 
 6. The tag $M_"inferred"$ declares a tag as inferred. Inferred tags cannot be used explicitly in associations. However, virtually they compute the association value if the target matches the constraint. Formally:
 
@@ -199,6 +197,10 @@ $
   & and (or.big_(t' in O \ (t, M_"requires.or", t') in D) (exists v in O : (o, t', v) in D^diamond.small) or (exists.not t' in O : (t, M_"requires.or", t') in D)) \
   & and (or.big_(t' in O \ (t, M_"requires.or.not", t') in D) (exists.not v in O : (o, t', v) in D^diamond.small) or (exists.not t' in O : (t, M_"requires.or.not", t') in D)) \
 $
+
+=== Computation
+
+The EDM includes a Turing-complete programming language which is inspired by general math notation and array programming languages.
 
 === Consequences
 
