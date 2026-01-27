@@ -55,3 +55,8 @@
 (David, Human, 0)
 (David, HasAge, 20)
 
+------------------------------------------------
+
+(Customer, meta.tag, meta.type.0)
+
+(David, Customer, 0)

@@ -143,7 +143,7 @@ export class Database {
 	}
 
 	public modify(modifications: Modification[]) {
-		// Remove redunant modifications:
+		// Remove redundant modifications:
 
 		let index = 0;
 		while (index < modifications.length) {
