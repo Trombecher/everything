@@ -28,8 +28,41 @@ meta:node:parameter, meta:tag, meta:data
 
 ---
 
-Double, meta:tag, meta:object
-Double, meta:inferred, {
-    (meta:node:multiply:left, {(meta:node.Parameter, 0)}),
-    (meta:node:multiply.Right, {(meta:node.Parameter, 0)})
-}
+(Age, meta.tag, meta.type.0)
+(20, Age, 0)
+
+(Human, meta.tag, meta.type.0)
+
+(HasAge, meta.tag, meta.type.data)
+(HasAge, meta.required, Human)
+
+(HasDoubleAge, meta.tag, meta.type.data)
+(HasDoubleAge, meta.required, Age)
+(HasDoubleAge, meta.inferred, _ComputeDoubleAge)
+
+(_ComputeDoubleAge, NodeType.Function, 0)
+(_ComputeDoubleAge, NodeType.Function.Variable, _o)
+(_ComputeDoubleAge, NodeType.Function.Expression, _Multiply)
+(_ComputeDoubleAge, meta.temp, 0)
+
+(_o, NodeType.Variable, 0)
+(_o, meta.temp, 0)
+
+(_Multiply, NodeType.Multiply, 0)
+(_Multiply, NodeType.Multiply.Left, 2)
+(_Multiply, NodeType.Multiply.Right, _X)
+(_Multiply, meta.temp, 0)
+
+(_X, NodeType.ValueOf, 0)
+(_X, NodeType.ValueOf.Target, _o)
+(_X, NodeType.ValueOf.Tag, Age)
+(_X, meta.temp, 0)
+
+(David, Human, 0)
+(David, HasAge, 20)
+
+------------------------------------------------
+
+(Customer, meta.tag, meta.type.0)
+
+(David, Customer, 0)
