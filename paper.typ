@@ -1,6 +1,6 @@
 #set enum(numbering: "(1)")
 
-= The Everything Data Model
+= Modelling Everything
 
 == Abstract
 
@@ -40,11 +40,38 @@ When we as humans talk about numbers or other forms of data, we usually do not r
 
 Upfront there is a distinction to make between the theoretical model -- the _Everything data model (EDM)_ -- and the implementation -- the _Everything database_.
 
-The EDM works with objects, states facts, and places them in relation to each other. For that it presupposes a set $O$, the set of all objects tha can be described. In practice, it can just contain object ids, like integers, that unambiguously reference and identify objects.
+=== Objects, Properties, And Structures
 
-== Associations
+The EDM works with objects, states facts, and places them in relation to each other. For that it presupposes a set $O_A$, the _set of all abstract objects_. This set contains all the things that are not identified by their structure but by themselves. For example, the sun is such an abstract object; but the equation $2 = 2$ is not because it is identified by its structure which is an equality expression (which references other objects). More examples of abstract objects may include people, trees, tables, etc.
 
-An _association_ is a three-tuple of objects. Associations are facts. They connect objects with the following semantics:
+A _property_ is two-tuple of objects. The first entry (called the _tag_) represents the inherent field stated about. The second (and final) entry of the tuple represents the _value_ of the property which is also an object. The _set of all properties_ $P$ is defined by $P := O times O$. Properties describe objects.
+
+A structure is a set of properties that identifies the structure itself. The _set of all structures_ $O_S$ is defined as:
+
+$
+    O_S := {S | S subset.eq P and |S| != infinity}
+$
+
+The _set of all objects_ $O$ is recursively defined as:
+
+$
+    O := O_A union O_S
+$
+
+The motivation behind structures lies in the fact that without them, you would need to use an abstract object (id) and define the properties on it. However, since the structure (the object you are trying to model) is defined solely by its properties, another person trying to describe the same structure might end up with a different abstract object (id), although the properties are identical. Because to the database these are different objects, the introduction of structures is of great need.
+
+=== Examples for objects
+
+Let $a, b, c in O_A$.
+
+- $a in O$
+- ${} in O$
+- ${(a, b), (b, c)} in O$
+- ${(a, {(c, a), {(b, {})}})} in O$
+
+=== Associations
+
+An _association_ is a three-tuple of objects. Associations are facts. They connect objects with properties.
 
 - The first tuple entry is nicknamed _target_. It represents the object in question, the object stated about in the association.
 - The second tuple entry is nicknamed _tag_. It represents the "property" of the target stated about in this association.
@@ -52,7 +79,7 @@ An _association_ is a three-tuple of objects. Associations are facts. They conne
 
 The set of all associations is defined as follows: $A := O times O times O$. $(a, b, c)$ is an association iff $(a, b, c) in A$.
 
-== Builtin Objects
+=== Builtin Objects
 
 The EDM is a self-restricting model. This will become apparent when defining the database in the following section. But for that it needs some builtin anchors such that it can interface with the implementation of the database which does the actual validation.
 

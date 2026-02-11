@@ -1,0 +1,27 @@
+(Association, M_tag, M_object)
+(Association, M_requires, Association.Target)
+(Association, M_requires, Association.Tag)
+(Association, M_requires, Association.Value)
+(Association, M_inferred, {})
+
+(Association.Target, M_tag, M_object)
+(Association.Target, M_requires, Association)
+(Association.Target, M_unique, {})
+
+(Association.Tag, M_tag, M_object)
+(Association.Tag, M_requires, Association)
+(Association.Tag, M_unique, {})
+
+(Association.Value, M_tag, M_object)
+(Association.Value, M_requires, Association)
+(Association.Value, M_unique, {})
+
+(Database, M_tag, M_object)
+(Database, M_inferred, {})
+(Database, M_requires, IsDatabase)
+(Database, M_requires.value, True)
+
+(Database.Contains, M_tag, Association)
+
+(IsDatabase, M_tag, M_object)
+(IsDatabase, M_inferred, {(Node.Function, {()})})
