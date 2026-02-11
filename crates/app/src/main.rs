@@ -1,7 +1,7 @@
-use core2::{Database, ids::PackedId};
+use basic::Database;
 
 fn main() {
-    let db = Database::from_file("./test.db".as_ref()).unwrap();
+    let db = Database::try_from();
 
     println!("{:?}", db.version());
 }
