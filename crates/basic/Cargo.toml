@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+dashmap = "6.1.0"
+memmap2 = "0.9.9"
+ranged_integers = "0.11.0"
 sha3 = "0.10.8"
+tokio = { version = "1.49.0", features = ["full"] }

@@ -1,40 +1,35 @@
-use std::collections::{HashMap, HashSet};
-
 use crate::{
-    PackedId,
+    Error,
     associations::Association,
-    hash::{DataHash, StructureHash},
+    hash::StructureHash,
+    pages::{PageAllocatorSubsystem, PageProvider},
     structures::Structure,
+    transactions::Transaction,
 };
 
-pub struct Database {
-    data: HashMap<DataHash, Box<[u8]>>,
-    structures: HashMap<StructureHash, Structure>,
-    stored: HashSet<Association>,
+pub struct Database<P: PageProvider> {
+    allocator: PageAllocatorSubsystem<P>,
 }
 
-impl Database {
-    pub fn structure(&self, hash: &StructureHash) -> &Structure {
-        self.structure(hash)
-    }
-
-    pub fn validate(&self) {}
-
-    pub fn query_stored_associations(&self) -> impl Iterator<Item = &Association> {
-        self.stored.iter()
-    }
-
-    pub fn query_stored_values(
+impl<P: PageProvider> Database<P> {
+    pub fn register_structure(
         &self,
-        target: PackedId,
-        tag: PackedId,
-    ) -> impl Iterator<Item = PackedId> {
-        let find_target = target;
-        let find_tag = tag;
+        _associations: &[Association],
+    ) -> Result<StructureHash, Error> {
+        todo!()
+    }
+}
 
-        self.query_stored_associations()
-            .filter_map(move |Association { target, tag, value }| {
-                (*target == find_target && *tag == find_tag).then_some(*value)
-            })
+pub struct Snapshot<'db, P: PageProvider> {
+    db: &'db Database<P>,
+}
+
+impl<'db, P: PageProvider> Snapshot<'db, P> {
+    pub fn structure(&self, _hash: StructureHash) -> &Structure {
+        todo!()
+    }
+
+    pub fn modify<'snap>(&'snap self) -> Transaction<'db, 'snap, P> {
+        todo!()
     }
 }

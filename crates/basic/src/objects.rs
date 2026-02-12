@@ -21,10 +21,10 @@ pub enum Id {
 pub struct PackedId(u128);
 
 impl PackedId {
-    pub const M_TAG: Self = unsafe { Self::new_unchecked(1) };
-    pub const M_UNIQUE: Self = unsafe { Self::new_unchecked(2) };
-    pub const M_INFERRED: Self = unsafe { Self::new_unchecked(3) };
-    pub const M_REQUIRES: Self = unsafe { Self::new_unchecked(4) };
+    pub const M_TAG: Self = Self::pack(Id::Abstract(U126::new(1).unwrap()));
+    pub const M_UNIQUE: Self = Self::pack(Id::Abstract(U126::new(2).unwrap()));
+    pub const M_INFERRED: Self = Self::pack(Id::Abstract(U126::new(3).unwrap()));
+    pub const M_REQUIRES: Self = Self::pack(Id::Abstract(U126::new(4).unwrap()));
 
     #[must_use]
     #[inline(always)]
