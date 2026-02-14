@@ -148,7 +148,7 @@ export class Database {
         let index = 0;
         while (index < modifications.length) {
             // biome-ignore lint/style/noNonNullAssertion: index checked
-            const {type, association} = modifications[index]!;
+            const { type, association } = modifications[index]!;
 
             if (
                 (type === "add" && this.hasStored(association)) ||
@@ -162,7 +162,7 @@ export class Database {
         }
 
         // Apply changes
-        for (const {type, association} of modifications) {
+        for (const { type, association } of modifications) {
             if (type === "add") {
                 this.unsafeAddAssociation(association);
             } else {
@@ -176,7 +176,7 @@ export class Database {
         if (result === true) return true;
 
         // Changes are invalid -> revert changes
-        for (const {type, association} of modifications) {
+        for (const { type, association } of modifications) {
             if (type === "add") {
                 this.unsafeRemoveAssociation(association);
             } else {
