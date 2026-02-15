@@ -6,25 +6,8 @@ version = 4
 name = "app"
 version = "0.1.0"
 dependencies = [
- "basic",
+ "core3",
  "memmap2",
-]
-
-[[package]]
-name = "arrayvec"
-version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
-
-[[package]]
-name = "basic"
-version = "0.1.0"
-dependencies = [
- "dashmap",
- "memmap2",
- "ranged_integers",
- "sha3",
- "tokio",
 ]
 
 [[package]]
@@ -67,6 +50,17 @@ dependencies = [
  "memmap2",
  "sha3",
  "ulid",
+]
+
+[[package]]
+name = "core3"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "memmap2",
+ "ranged_integers",
+ "sha3",
+ "tokio",
 ]
 
 [[package]]
@@ -117,6 +111,10 @@ dependencies = [
  "block-buffer",
  "crypto-common",
 ]
+
+[[package]]
+name = "everything-mvp"
+version = "0.1.0"
 
 [[package]]
 name = "generic-array"
@@ -357,13 +355,6 @@ checksum = "17129e116933cf371d018bb80ae557e889637989d8638274fb25622827b03881"
 dependencies = [
  "libc",
  "windows-sys 0.60.2",
-]
-
-[[package]]
-name = "spathbuf"
-version = "0.1.0"
-dependencies = [
- "arrayvec",
 ]
 
 [[package]]

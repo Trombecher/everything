@@ -1,8 +1,6 @@
 [package]
-name = "app"
+name = "everything-mvp"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-core3 = { path = "../core3" }
-memmap2 = "0.9.9"
