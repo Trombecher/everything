@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::{
     AssociationForm, IdPattern,
     associations::Association,
@@ -38,7 +40,19 @@ impl<'base, 'changes> PotentialSnapshot<'base, 'changes> {
             .filter(|a| !self.changes.contains_removal_of(a))
     }
 
-    pub fn iter_stored_objects_by_tag(&self, )
+    pub fn iter_stored_targets_by_tag(&self, tag: Id) -> impl Iterator<Item = Id> {
+        let mut visited_objects = Vec::new();
+
+        self.iter_stored()
+            .filter_map(move |Association { target, tag: t, .. }| {
+                if t == &tag && !visited_objects.contains(target) {
+                    None
+                } else {
+                    visited_objects.push(target.clone());
+                    Some(target.clone())
+                }
+            })
+    }
 
     pub fn iter_stored_targets_and_values(&self, tag: Id) -> impl Iterator<Item = (Id, Id)> {
         self.iter_stored()
@@ -90,8 +104,18 @@ impl<'base, 'changes> PotentialSnapshot<'base, 'changes> {
         }
 
         // Constraint (2) -- uniqueness
-        for (tag, value) in self.iter_stored_targets_and_values(M_UNIQUE) {
-            for object of self.iter_stored()
+        for tag in self.iter_stored_targets_by_tag(M_UNIQUE) {
+            for target in self.iter_stored_targets_by_tag(tag.clone()) {
+                let second_value = self.iter_values(target.clone(), tag.clone()).skip(1).next();
+
+                if let Some(second_value) = second_value {
+                    return Err(Error::Found(AssociationForm {
+                        target: IdPattern::Specific(target.clone()),
+                        tag: IdPattern::Specific(tag.clone()),
+                        value: IdPattern::Specific(second_value),
+                    }));
+                }
+            }
         }
 
         todo!()

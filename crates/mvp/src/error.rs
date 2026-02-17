@@ -2,6 +2,7 @@ use crate::objects::Id;
 
 pub enum Error {
     Missing(AssociationForm),
+    Found(AssociationForm),
 }
 
 pub enum IdPattern {

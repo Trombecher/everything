@@ -49,13 +49,13 @@ A _property_ is two-tuple of objects. The first entry (called the _tag_) represe
 A structure is a set of properties that identifies the structure itself. The _set of all structures_ $O_S$ is defined as:
 
 $
-    O_S := {S | S subset.eq P and |S| != infinity}
+  O_S := {S | S subset.eq P and |S| != infinity}
 $
 
 The _set of all objects_ $O$ is recursively defined as:
 
 $
-    O := O_A union O_S
+  O := O_A union O_S
 $
 
 The motivation behind structures lies in the fact that without them, you would need to use an abstract object (id) and define the properties on it. However, since the structure (the object you are trying to model) is defined solely by its properties, another person trying to describe the same structure might end up with a different abstract object (id), although the properties are identical. Because to the database these are different objects, the introduction of structures is of great need.
@@ -86,8 +86,8 @@ The EDM is a self-restricting model. This will become apparent when defining the
 Therefore, we define the following set of builtin objects. The $M$ stands for "meta" but does not have any role beyond that.
 
 $
-    M_"tag", M_"unique", M_"inferred", M_"requires",\
-    M_"requires.not", M_"requires.or", M_"requires.or.not", M_"requires.value" :in O
+  M_"tag", M_"unique", M_"inferred", M_"requires",\
+  M_"requires.not", M_"requires.or", M_"requires.or.not", M_"requires.value" :in O
 $
 
 All these objects are pairwise distinct. Their behavior is explained in the constraints section.
@@ -112,7 +112,7 @@ $"Match"(o, t)$ and $"Compute"(f, v)$ will be defined later.
 For a given database $D$, the _set of all deducted associations_ $D^therefore$ is defined as:
 
 $
-    D^therefore := {(o, t, v) in A | "Match"(o, t) and (exists f in O : (t, M_"inferred", f) in D and v in "Compute"(f, o))}
+  D^therefore := {(o, t, v) in A | "Match"(o, t) and (exists f in O : (t, M_"inferred", f) in D and v in "Compute"(f, o))}
 $
 
 === Conceptual Associations
@@ -120,7 +120,7 @@ $
 For a given database $D$, the _set of all conceptual associations_ $D^diamond.small$ is defined as:
 
 $
-    D^diamond.small := D union D^therefore
+  D^diamond.small := D union D^therefore
 $
 
 
@@ -129,43 +129,43 @@ With just a few steps, it can be shown that association in $D$ are not deducted.
 Let $o,t,v in O$.
 
 $
-    & (o, t, v) in D and (o, t, v) in D^therefore \
-    ==>^("Def." D^therefore) & (o, t, v) in D and (exists f in O : (t, M_"inferred", f) in D and "Match"(o, t) and "Compute"(f, o) = v) \
-    ==>^((6) "alt") & (exists.not f in O : (t, M_"inferred", f) in D) \
-    & and (exists f in O : (t, M_"inferred", f) in D and "Match"(o, t) and "Compute"(f, o) = v) \
-    ==> & "false"
+  & (o, t, v) in D and (o, t, v) in D^therefore \
+  ==>^("Def." D^therefore) & (o, t, v) in D and (exists f in O : (t, M_"inferred", f) in D and "Match"(o, t) and "Compute"(f, o) = v) \
+  ==>^((6) "alt") & (exists.not f in O : (t, M_"inferred", f) in D) \
+  & and (exists f in O : (t, M_"inferred", f) in D and "Match"(o, t) and "Compute"(f, o) = v) \
+  ==> & "false"
 $
 
 $
-    therefore D inter D^therefore = emptyset
+  therefore D inter D^therefore = emptyset
 $
 
 === Constraints
 
 1. Every tag, used in an association with a value $v$, must be tagged with $M_"tag"$ and a value $x$, $t$ must be applicable to $o$, and $v$ must be tagged with $x$. Here is the formal constraint:
 
-    $
-        forall (o, t, v) in D : "Match"(o, t) and (exists x,y in O : (t, M_"tag", x) in D and (v, x, y) in D^diamond.small)
-    $
+  $
+    forall (o, t, v) in D : "Match"(o, t) and (exists x,y in O : (t, M_"tag", x) in D and (v, x, y) in D^diamond.small)
+  $
 
-    The motivation behind this constraint is that you cannot arbitrarily tag objects with other objects. You have to declare the tag object as a tag. By doing this, you also constraint the objects that can be used as values in the association by defining a "type". This type is a tag and only objects can be used as values in this association that are tagged with this type.
+  The motivation behind this constraint is that you cannot arbitrarily tag objects with other objects. You have to declare the tag object as a tag. By doing this, you also constraint the objects that can be used as values in the association by defining a "type". This type is a tag and only objects can be used as values in this association that are tagged with this type.
 
 2. Tags tagged with $M_"unique"$ enforce uniqueness on the value of associations they are involved in as a tag for a given object. Formally:
 
-    $
-        forall t in O : ((exists u in O : (t, M_"unique", u) in D) \
-            ==> (forall o, x, y in O : ((o, t, x) in D and (o, t, y) in D ==> x = y)))
-    $
+  $
+    forall t in O : ((exists u in O : (t, M_"unique", u) in D) \
+      ==> (forall o, x, y in O : ((o, t, x) in D and (o, t, y) in D ==> x = y)))
+  $
 
-    Motivation: sometimes you want a tag to be applicable maximum once per object.
+  Motivation: sometimes you want a tag to be applicable maximum once per object.
 
 3. $M_"tag"$ is unique. There can only be one type describing the values of a tag. Formally:
 
-    $
-        exists v in O : (M_"tag", M_"unique", v) in D
-    $
+  $
+    (M_"tag", M_"unique", 1) in D
+  $
 
-    The motivation behind this constraint is that if you could tag a tag multiple times with $M_"tag"$, there would be multiple tag objects for a value to validate against. The model would need to define the validation behavior for this case but does not.
+  The motivation behind this constraint is that if you could tag a tag multiple times with $M_"tag"$, there would be multiple tag objects for a value to validate against. The model would need to define the validation behavior for this case but does not.
 
 4. $$
 
@@ -173,15 +173,15 @@ $
 
 6. The tag $M_"inferred"$ declares a tag as inferred. Inferred tags cannot be used explicitly in associations. However, virtually they compute the association value if the target matches the constraint. Formally:
 
-    $
-        forall t in O : ((exists f in O : (t, M_"inferred", f) in D) ==> (exists.not o,v in O : (o, t, v) in D))
-    $
+  $
+    forall t in O : ((exists f in O : (t, M_"inferred", f) in D) ==> (exists.not o,v in O : (o, t, v) in D))
+  $
 
-    This implies (by contraposition of the implication in parentheses) that if there is an association in $D$, the tag of that association is not inferred. Formally ((6) alt):
+  This implies (by contraposition of the implication in parentheses) that if there is an association in $D$, the tag of that association is not inferred. Formally ((6) alt):
 
-    $
-        forall t in O : ((exists o,v in O : (o, t, v) in D) ==> (exists.not f in O : (t, M_"inferred", f) in D))
-    $
+  $
+    forall t in O : ((exists o,v in O : (o, t, v) in D) ==> (exists.not f in O : (t, M_"inferred", f) in D))
+  $
 
 === Match And Applicability
 
@@ -196,22 +196,22 @@ The motivation behind $"Match"(o, t)$ is to determine if tag $t$ is applicable t
 These properties formalize into this definition:
 
 $
-    "Match"(o, t) :<==> exists v in O : ( & (t, M_"required.value", v) in D ==> "MatchValue"(o, t, v)) \
-                                          & and ((t, M_"required.value", v) in.not D ==> "MatchFree"(o, t))
+  "Match"(o, t) :<==> exists v in O : ( & (t, M_"required.value", v) in D ==> "MatchValue"(o, t, v)) \
+                                        & and ((t, M_"required.value", v) in.not D ==> "MatchFree"(o, t))
 $
 
 $
-    "MatchFree"(o, t) :<==> & and.big_(t' in O \ (t, M_"requires", t') in D) (exists v in O : (o, t', v) in D^diamond.small) \
-    & and and.big_(t' in O \ (t, M_"requires.not", t') in D) (exists.not v in O : (o, t', v) in D^diamond.small) \
-    & and (or.big_(t' in O \ (t, M_"requires.or", t') in D) (exists v in O : (o, t', v) in D^diamond.small) or (exists.not t' in O : (t, M_"requires.or", t') in D)) \
-    & and (or.big_(t' in O \ (t, M_"requires.or.not", t') in D) (exists.not v in O : (o, t', v) in D^diamond.small) or (exists.not t' in O : (t, M_"requires.or.not", t') in D)) \
+  "MatchFree"(o, t) :<==> & and.big_(t' in O \ (t, M_"requires", t') in D) (exists v in O : (o, t', v) in D^diamond.small) \
+  & and and.big_(t' in O \ (t, M_"requires.not", t') in D) (exists.not v in O : (o, t', v) in D^diamond.small) \
+  & and (or.big_(t' in O \ (t, M_"requires.or", t') in D) (exists v in O : (o, t', v) in D^diamond.small) or (exists.not t' in O : (t, M_"requires.or", t') in D)) \
+  & and (or.big_(t' in O \ (t, M_"requires.or.not", t') in D) (exists.not v in O : (o, t', v) in D^diamond.small) or (exists.not t' in O : (t, M_"requires.or.not", t') in D)) \
 $
 
 $
-    "MatchValue"(o, t, v) :<==> & and and.big_(t' in O \ (t, M_"requires", t') in D) (o, t', v) in D^diamond.small \
-    & and and.big_(t' in O \ (t, M_"requires.not", t') in D) (o, t', v) in.not D^diamond.small \
-    & and (or.big_(t' in O \ (t, M_"requires.or", t') in D) (o, t', v) in D^diamond.small or (exists.not t' in O : (t, M_"requires.or", t') in D)) \
-    & and (or.big_(t' in O \ (t, M_"requires.or.not", t') in D) (o, t', v) in.not D^diamond.small or (exists.not t' in O : (t, M_"requires.or.not", t') in D)) \
+  "MatchValue"(o, t, v) :<==> & and and.big_(t' in O \ (t, M_"requires", t') in D) (o, t', v) in D^diamond.small \
+  & and and.big_(t' in O \ (t, M_"requires.not", t') in D) (o, t', v) in.not D^diamond.small \
+  & and (or.big_(t' in O \ (t, M_"requires.or", t') in D) (o, t', v) in D^diamond.small or (exists.not t' in O : (t, M_"requires.or", t') in D)) \
+  & and (or.big_(t' in O \ (t, M_"requires.or.not", t') in D) (o, t', v) in.not D^diamond.small or (exists.not t' in O : (t, M_"requires.or.not", t') in D)) \
 $
 
 === Computation
@@ -225,15 +225,15 @@ From constraint (3) follows that there are no empty databases.
 === Minimal Database
 
 $
-    {(M_"tag", M_"tag", M_"tag"), (M_"tag", M_"unique", 0), \
-        (M_"unique", M_"tag", M_"object"),
-        (M_"unique", M_"requires", M_"tag"),
-        (M_"unique", M_"requires.not", M_"inferred"), \
-        (M_"object", M_"tag", M_"object"), (M_"object", M_"inferred", 0), \
-        (M_"inferred", M_"tag", M_"object"),
-        (M_"inferred" M_"requires", M_"tag"), \
-        (M_"requires", M_"tag", M_"tag"),(M_"requires", M_"requires", M_"tag"), \
-        (M_"requires.not", M_"tag", M_"tag"),(M_"requires.not", M_"requires", M_"tag"), \
-        (M_"requires.or", M_"tag", M_"tag"),(M_"requires.or", M_"requires", M_"tag"), \
-        (M_"requires.or.not", M_"tag", M_"tag"),(M_"requires.or.not", M_"requires", M_"tag"), }
+  {(M_"tag", M_"tag", M_"tag"), (M_"tag", M_"unique", 0), \
+    (M_"unique", M_"tag", M_"object"),
+    (M_"unique", M_"requires", M_"tag"),
+    (M_"unique", M_"requires.not", M_"inferred"), \
+    (M_"object", M_"tag", M_"object"), (M_"object", M_"inferred", 0), \
+    (M_"inferred", M_"tag", M_"object"),
+    (M_"inferred" M_"requires", M_"tag"), \
+    (M_"requires", M_"tag", M_"tag"),(M_"requires", M_"requires", M_"tag"), \
+    (M_"requires.not", M_"tag", M_"tag"),(M_"requires.not", M_"requires", M_"tag"), \
+    (M_"requires.or", M_"tag", M_"tag"),(M_"requires.or", M_"requires", M_"tag"), \
+    (M_"requires.or.not", M_"tag", M_"tag"),(M_"requires.or.not", M_"requires", M_"tag"), }
 $
