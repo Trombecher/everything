@@ -1,0 +1,182 @@
+(@SuccessorOf @Axiom {
+    (@Node.ExistsValue.Target {
+        (@Node.Parameter {
+            (@SuccessorOf @Zero)
+        })
+    })
+    (@Node.ExistsValue.Tag @IsInteger)
+})
+(@SuccessorOf @Cardinality {
+    (@Node.Equal {
+        (@Node.Literal {
+            (@SuccessorOf @Zero)
+        })
+    })
+    (@Node.Equal {
+        (@Node.Parameter @Zero)
+    })
+})
+
+(@IsInteger @Computed {
+    (@Node.Or {
+        (@Node.Equals {
+            (@Node.Literal @Zero)
+        })
+        (@Node.Equals {
+            (@Node.Parameter @Zero)
+        })
+    })
+    (@Node.Or {
+        (@Node.ExistsValue.Target {
+            (@Node.Parameter @Zero)
+        })
+        (@Node.ExistsValue.Tag @SuccessorOf)
+    })
+})
+
+(@Tag @Computed [object => existsv (object @Computed) or existsv (object @Axiom)])
+
+(@Axiom @Axiom [(tag, f) => !existsv (tag @Computed) and existsv (f @Node)])
+(@Axiom @Cardinality {
+    (@Node.Equal {
+        (@Node.Literal {
+            (@SuccessorOf @Zero)
+        })
+    })
+    (@Node.Equal {
+        (@Node.Parameter @Zero)
+    })
+})
+
+(@Cardinality @Axiom [(o, check) => existsv (o @Axiom) and isBoolean check])
+(@Cardinality @Cardinality {
+    (@Node.Equal {
+        (@Node.Literal {
+            (@SuccessorOf @Zero)
+        })
+    })
+    (@Node.Equal {
+        (@Node.Parameter @Zero)
+    })
+})
+
+(@Computed @Axiom [(tag, f) => !existsv (tag @Axiom) and existsv (f @Node)])
+(@Computed @Cardinality {
+    (@Node.Equal {
+        (@Node.Literal {
+            (@SuccessorOf @Zero)
+        })
+    })
+    (@Node.Equal {
+        (@Node.Parameter @Zero)
+    })
+})
+
+(@Node @Computed {
+    (@Node.Xor {
+        (@Node.Exists.Target {
+            (@Node.Parameter @Zero)
+        })
+        (@Node.Exists.Tag {
+            (@Node.Literal @Node.Function)
+        })
+    })
+    (@Node.Xor {
+        (@Node.Exists.Target {
+            (@Node.Parameter @Zero)
+        })
+        (@Node.Exists.Tag {
+            (@Node.Literal @Node.And)
+        })
+    })
+    (@Node.Xor {
+        (@Node.Exists.Target {
+            (@Node.Parameter @Zero)
+        })
+        (@Node.Exists.Tag {
+            (@Node.Literal @Node.Xor)
+        })
+    })
+    (@Node.Xor {
+        (@Node.Exists.Target {
+            (@Node.Parameter @Zero)
+        })
+        (@Node.Exists.Tag {
+            (@Node.Literal @Node.Or)
+        })
+    })
+})
+
+(@Node.Function @Axiom [(o, v) => existsv (o @Node) and existsv (v @Node)])
+(@Node.Function @Cardinality {
+    (@Node.Equals {
+        (@Node.Literal {
+            (@SuccessorOf @Zero)
+        })
+    })
+    (@Node.Equals {
+        (@Node.Parameter @Zero)
+    })
+})
+
+(@Node.Literal @Axiom {
+    (@Node.Exists.Target, {
+        (@Node.Parameter @Zero)
+    })
+    (@Node.Exists.Tag {
+        (@Node.Literal @Node)
+    })
+})
+(@Node.Literal @Cardinality {
+    (@Node.Equal {
+        (@Node.Parameter @Zero)
+    })
+    (@Node.Equal {
+        (@Node.Literal {
+            (@SuccessorOf @Zero)
+        })
+    })
+})
+
+(@Node.Xor @Axiom [(o, v) => existsv (o @Node) and existsv (v @Node)])
+(@Node.Xor @Cardinality {
+    (@Node.Compare {
+        (@Node.Parameter @Zero)
+    })
+    (@Node.GreaterThan {
+        (@Node.Literal {
+            (@SuccessorOf @Zero)
+        })
+    })
+})
+
+(@Node.Equals @Axiom {
+    (@Node.And {
+        (@Node.Exists.Target {
+            (@Node.Parameter @Zero)
+        })
+        (@Node.Exists.Tag {
+            (@Node.Literal @Node)
+        })
+    })
+    (@Node.And {
+        (@Node.Exists.Target {
+            (@Node.Parameter {
+                (@SuccessorOf @Zero)
+            })
+        })
+        (@Node.Exists.Tag {
+            (@Node.Literal @Node)
+        })
+    })
+})
+(@Node.Equals @Cardinality {
+    (@Node.Greater.That {
+        (@Node.Parameter @Zero)
+    })
+    (@Node.Greater.Than {
+        (@Node.Literal {
+            (@SuccessorOf @zero)
+        })
+    })
+})

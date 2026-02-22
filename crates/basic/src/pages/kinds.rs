@@ -1,5 +1,5 @@
 use super::PAGE_SIZE;
-use std::sync::atomic::{AtomicU8, AtomicU32, AtomicU64};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64};
 
 macro_rules! unsafe_page_conversion {
     ($Page:ty) => {
@@ -21,6 +21,7 @@ pub struct MetaPage {
     /// Version
     pub version: AtomicU32,
 
+    pub free_list_locked: AtomicBool,
     pub free_list_pop: AtomicU64,
     pub free_list_append: AtomicU64,
 }
