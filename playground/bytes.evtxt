@@ -1,0 +1,27 @@
+include "./base.evtxt"
+
+(@Bytes @Computed $object => exists ($object @Byte))
+
+(@Byte @Computed $o =>
+    exists ($o @Byte.Bit0 *)
+    and exists ($o @Byte.Bit1 *)
+    and exists ($o @Byte.Bit2 *)
+    and exists ($o @Byte.Bit3 *)
+    and exists ($o @Byte.Bit4 *)
+    and exists ($o @Byte.Bit5 *)
+    and exists ($o @Byte.Bit6 *)
+    and exists ($o @Byte.Bit7 *))
+
+(@Byte.Bit0 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
+(@Byte.Bit1 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
+(@Byte.Bit2 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
+(@Byte.Bit3 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
+(@Byte.Bit4 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
+(@Byte.Bit5 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
+(@Byte.Bit6 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
+(@Byte.Bit7 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
+
+(@Bit @Axiom _ => $v => $v == {})
+
+(@Bit.0 @Bit {})
+(@Bit.1 @Bit {})

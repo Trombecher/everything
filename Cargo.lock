@@ -6,8 +6,7 @@ version = 4
 name = "app"
 version = "0.1.0"
 dependencies = [
- "memmap2",
- "tokio",
+ "everything",
 ]
 
 [[package]]
@@ -116,6 +115,14 @@ checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer",
  "crypto-common",
+]
+
+[[package]]
+name = "everything"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "sha3",
 ]
 
 [[package]]

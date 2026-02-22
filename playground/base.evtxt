@@ -1,182 +1,63 @@
-(@SuccessorOf @Axiom {
-    (@Node.ExistsValue.Target {
-        (@Node.Parameter {
-            (@SuccessorOf @Zero)
-        })
-    })
-    (@Node.ExistsValue.Tag @IsInteger)
-})
-(@SuccessorOf @Cardinality {
-    (@Node.Equal {
-        (@Node.Literal {
-            (@SuccessorOf @Zero)
-        })
-    })
-    (@Node.Equal {
-        (@Node.Parameter @Zero)
-    })
-})
+(@SuccessorOf, @Axiom, _ => $v => exists ($v, @IsInteger, _))
+(@SuccessorOf, @Cardinality, $n => $c == 1)
 
-(@IsInteger @Computed {
-    (@Node.Or {
-        (@Node.Equals {
-            (@Node.Literal @Zero)
-        })
-        (@Node.Equals {
-            (@Node.Parameter @Zero)
-        })
-    })
-    (@Node.Or {
-        (@Node.ExistsValue.Target {
-            (@Node.Parameter @Zero)
-        })
-        (@Node.ExistsValue.Tag @SuccessorOf)
-    })
-})
+(@IsInteger, @Computed, $o => $o == @Zero or exists ($o, @SuccessorOf, _))
 
-(@Tag @Computed [object => existsv (object @Computed) or existsv (object @Axiom)])
+(@Tag, @Computed, $o => exists ($o, @Computed, _) or exists ($o, @Axiom, _))
 
-(@Axiom @Axiom [(tag, f) => !existsv (tag @Computed) and existsv (f @Node)])
-(@Axiom @Cardinality {
-    (@Node.Equal {
-        (@Node.Literal {
-            (@SuccessorOf @Zero)
-        })
-    })
-    (@Node.Equal {
-        (@Node.Parameter @Zero)
-    })
-})
+(@Axiom, @Axiom, $tag => $f => not exists ($tag, @Computed, _) and exists ($f, @Node, _))
+(@Axiom, @Cardinality, $n => $n == 1)
 
-(@Cardinality @Axiom [(o, check) => existsv (o @Axiom) and isBoolean check])
-(@Cardinality @Cardinality {
-    (@Node.Equal {
-        (@Node.Literal {
-            (@SuccessorOf @Zero)
-        })
-    })
-    (@Node.Equal {
-        (@Node.Parameter @Zero)
-    })
-})
+(@Cardinality, @Axiom, $o => _ => exists (o, @Axiom, _)])
+(@Cardinality, @Cardinality, $n => $n == 1)
 
-(@Computed @Axiom [(tag, f) => !existsv (tag @Axiom) and existsv (f @Node)])
-(@Computed @Cardinality {
-    (@Node.Equal {
-        (@Node.Literal {
-            (@SuccessorOf @Zero)
-        })
-    })
-    (@Node.Equal {
-        (@Node.Parameter @Zero)
-    })
-})
+(@Computed, @Axiom, $tag => $f => not exists ($tag, @Axiom, _) and exists ($f, @Node, _))
+(@Computed, @Cardinality, $n => $n == 1)
 
-(@Node @Computed {
-    (@Node.Xor {
-        (@Node.Exists.Target {
-            (@Node.Parameter @Zero)
-        })
-        (@Node.Exists.Tag {
-            (@Node.Literal @Node.Function)
-        })
-    })
-    (@Node.Xor {
-        (@Node.Exists.Target {
-            (@Node.Parameter @Zero)
-        })
-        (@Node.Exists.Tag {
-            (@Node.Literal @Node.And)
-        })
-    })
-    (@Node.Xor {
-        (@Node.Exists.Target {
-            (@Node.Parameter @Zero)
-        })
-        (@Node.Exists.Tag {
-            (@Node.Literal @Node.Xor)
-        })
-    })
-    (@Node.Xor {
-        (@Node.Exists.Target {
-            (@Node.Parameter @Zero)
-        })
-        (@Node.Exists.Tag {
-            (@Node.Literal @Node.Or)
-        })
-    })
-})
+(@Node, @Computed, $o =>
+    exists ($o, @Node.Function, _)
+    xor exists ($o, @Node.Literal, _)
+    xor exists ($o, @Node.And, _)
+    xor exists ($o, @Node.Xor, _)
+    xor exists ($o, @Node.Or, _)
+    xor exists ($o, @Node.Not, _)
+    xor exists ($o, @Node.Equals, _)
+    xor exists ($o, @Node.Exists, _)
+)
 
-(@Node.Function @Axiom [(o, v) => existsv (o @Node) and existsv (v @Node)])
-(@Node.Function @Cardinality {
-    (@Node.Equals {
-        (@Node.Literal {
-            (@SuccessorOf @Zero)
-        })
-    })
-    (@Node.Equals {
-        (@Node.Parameter @Zero)
-    })
-})
+(@Node.Function, @Axiom, $o => $v => exists ($o, @Node, _) and exists ($v, @Node, _))
+(@Node.Function, @Cardinality, $n => $n == 1)
 
-(@Node.Literal @Axiom {
-    (@Node.Exists.Target, {
-        (@Node.Parameter @Zero)
-    })
-    (@Node.Exists.Tag {
-        (@Node.Literal @Node)
-    })
-})
-(@Node.Literal @Cardinality {
-    (@Node.Equal {
-        (@Node.Parameter @Zero)
-    })
-    (@Node.Equal {
-        (@Node.Literal {
-            (@SuccessorOf @Zero)
-        })
-    })
-})
+(@Node.Literal, @Axiom, $o => _ => exists ($o, @Node, _))
+(@Node.Literal, @Cardinality, $o => $o == 1)
 
-(@Node.Xor @Axiom [(o, v) => existsv (o @Node) and existsv (v @Node)])
-(@Node.Xor @Cardinality {
-    (@Node.Compare {
-        (@Node.Parameter @Zero)
-    })
-    (@Node.GreaterThan {
-        (@Node.Literal {
-            (@SuccessorOf @Zero)
-        })
-    })
-})
+(@Node.Xor, @Axiom, $o => $v => exists ($o, @Node, _) and exists ($v, @Node, _))
+(@Node.Xor, @Cardinality, $o => $o > 1)
 
-(@Node.Equals @Axiom {
-    (@Node.And {
-        (@Node.Exists.Target {
-            (@Node.Parameter @Zero)
-        })
-        (@Node.Exists.Tag {
-            (@Node.Literal @Node)
-        })
-    })
-    (@Node.And {
-        (@Node.Exists.Target {
-            (@Node.Parameter {
-                (@SuccessorOf @Zero)
-            })
-        })
-        (@Node.Exists.Tag {
-            (@Node.Literal @Node)
-        })
-    })
-})
-(@Node.Equals @Cardinality {
-    (@Node.Greater.That {
-        (@Node.Parameter @Zero)
-    })
-    (@Node.Greater.Than {
-        (@Node.Literal {
-            (@SuccessorOf @zero)
-        })
-    })
-})
+(@Node.Or, @Axiom, $o => $v => exists ($o, @Node, _) and exists ($v, @Node, _))
+(@Node.Or, @Cardinality, $o => $o > 1)
+
+(@Node.And, @Axiom, $o => $v => exists ($o, @Node, _) and exists ($v, @Node, _))
+(@Node.And, @Cardinality, $o => $o > 1)
+
+(@Node.Equals, @Axiom, $o => $v => exists ($o, @Node, _) and exists ($v, @Node, _))
+(@Node.Equals, @Cardinality, $n => $n > 1)
+
+(@Node.Exists, @Computed, $o =>
+    (exists ($o, @Node.Exists.Target, _)
+    or exists ($o, @Node.Exists.Tag, _)
+    or exists ($o, @Node.Exists.Value, _))
+    and exists ($o, @Node, _)
+)
+
+(@Node.Exists.Target, @Axiom, $o => $v => exists ($o, @Node.Exists, _) and exists ($v, @Node, _))
+(@Node.Exists.Target, @Cardinality, $n => $n == 1)
+
+(@Node.Exists.Tag, @Axiom, $o => $v => exists ($o, @Node.Exists, _) and exists ($v, @Node, _))
+(@Node.Exists.Tag, @Cardinality, $n => $n == 1)
+
+(@Node.Exists.Value, @Axiom, $o => $v => exists ($o, @Node.Exists, _) and exists ($v, @Node, _))
+(@Node.Exists.Value, @Cardinality, $n => $n == 1)
+
+(@Node.Not, @Axiom, $o => $v => exists ($o, @Node, _) and exists ($v, @Node, _))
+(@Node.Not, @Cardinality, $n => $n == 1)

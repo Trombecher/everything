@@ -1,7 +1,8 @@
 [package]
-name = "app"
+name = "everything"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-everything = { path = "../everything" }
+arrayvec = "0.7.6"
+sha3 = "0.10.8"
