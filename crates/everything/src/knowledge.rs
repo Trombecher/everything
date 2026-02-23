@@ -81,7 +81,8 @@ impl<'a> UnvaliatedKnowledge<'a> {
     }
 
     fn is_tag(self, object: Object) -> bool {
-        self.exists_axiomatic_target_tag(object, Object::TAG)
+        println!("Calling is_tag with object = {object:?}");
+        self.exists_target_tag(object, Object::TAG)
     }
 
     #[inline(always)]
@@ -226,6 +227,22 @@ impl<'a> UnvaliatedKnowledge<'a> {
     }
 
     fn compute(self, target: Object, tag: Object) -> Structure {
+        // FIXME: Debug
+        if tag == Object::TAG {
+            if self.exists_axiomatic_target_tag(target.clone(), Object::AXIOMATIC)
+                ^ self.exists_axiomatic_target_tag(target, Object::COMPUTED)
+            {
+                // Return {(@Contains, {})}; "true"
+                return Structure::new(&mut [AxiomaticProperty {
+                    tag: Object::CONTAINS,
+                    value: Object::Structure(Structure::new(&mut [])),
+                }]);
+            } else {
+                // Return {}; "false"
+                return Structure::new(&mut []);
+            }
+        }
+
         todo!("compute")
     }
 }

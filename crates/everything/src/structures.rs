@@ -2,10 +2,19 @@ use std::{fmt::Debug, sync::Arc};
 
 use crate::Object;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub struct AxiomaticProperty {
     pub tag: Object,
     pub value: Object,
+}
+
+impl Debug for AxiomaticProperty {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("")
+            .field(&self.tag)
+            .field(&self.value)
+            .finish()
+    }
 }
 
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
