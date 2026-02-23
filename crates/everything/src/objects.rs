@@ -1,11 +1,22 @@
+use std::fmt::Debug;
+
 use ecow::EcoString;
 
 use crate::Structure;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub enum Object {
     Abstract(EcoString),
     Structure(Structure),
+}
+
+impl Debug for Object {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Abstract(id) => write!(f, "@{id}"),
+            Self::Structure(s) => Structure::fmt(s, f),
+        }
+    }
 }
 
 macro_rules! builtin {

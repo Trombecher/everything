@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::Object;
 
@@ -8,7 +8,7 @@ pub struct AxiomaticProperty {
     pub value: Object,
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub struct Structure(Arc<[AxiomaticProperty]>);
 
 impl Structure {
@@ -20,5 +20,11 @@ impl Structure {
 
     pub fn properties(&self) -> &[AxiomaticProperty] {
         &self.0
+    }
+}
+
+impl Debug for Structure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_set().entries(self.0.iter()).finish()
     }
 }
