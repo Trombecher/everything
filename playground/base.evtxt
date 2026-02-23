@@ -2,7 +2,7 @@
 
 (@SuccessorOf, @Axiom, $o => $v =>
     exists ($v, @IsInteger, _)
-    and count ($o, @SuccessorOf, _) == 1
+    and count query ($o, @SuccessorOf, _) == 1
 )
 
 (@IsInteger, @Computed, $o =>
@@ -22,13 +22,13 @@
         @Node.Function,
         _
     )
-    and count ($tag, @Axiom, _) == 1
+    and count query ($tag, @Axiom, _) == 1
 )
 
 (@Computed, @Axiom, $tag => $f =>
     not exists ($tag, @Axiom, _)
     and exists ($f, @Node.Function, _)
-    and count ($tag, @Axiom, _) == 1
+    and count query ($tag, @Axiom, _) == 1
 )
 
 (@Node, @Computed, $o =>
@@ -45,36 +45,36 @@
 (@Node.Function, @Axiom, $o => $v =>
     exists ($o, @Node, _)
     and exists ($v, @Node, _)
-    and count ($o, @Node.Function, _) == 1
+    and count query ($o, @Node.Function, _) == 1
 )
 
 (@Node.Literal, @Axiom, $o => _ =>
     exists ($o, @Node, _)
-    and count ($o, @Node.Literal, _) == 1
+    and count query ($o, @Node.Literal, _) == 1
 )
 
 (@Node.Xor, @Axiom, $o => $v =>
     exists ($o, @Node, _)
     and exists ($v, @Node, _)
-    and count ($o, @Node.Xor, _) > 1
+    and count query ($o, @Node.Xor, _) > 1
 )
 
 (@Node.Or, @Axiom, $o => $v =>
     exists ($o, @Node, _)
     and exists ($v, @Node, _)
-    and count ($o, @Node.Or, _) > 1
+    and count query ($o, @Node.Or, _) > 1
 )
 
 (@Node.And, @Axiom, $o => $v =>
     exists ($o, @Node, _)
     and exists ($v, @Node, _)
-    and count ($o, @Node.And, _) > 1
+    and count query ($o, @Node.And, _) > 1
 )
 
 (@Node.Equals, @Axiom, $o => $v =>
     exists ($o, @Node, _)
     and exists ($v, @Node, _)
-    and count ($o, @Node.Equals, _) > 1
+    and count query ($o, @Node.Equals, _) > 1
 )
 
 (@Node.Exists, @Computed, $o =>
@@ -87,23 +87,23 @@
 (@Node.Exists.Target, @Axiom, $o => $v =>
     exists ($o, @Node.Exists, _)
     and exists ($v, @Node, _)
-    and count ($o, Node.Exists.Target, _) == 1
+    and count query ($o, Node.Exists.Target, _) == 1
 )
 
 (@Node.Exists.Tag, @Axiom, $o => $v =>
     exists ($o, @Node.Exists, _)
     and exists ($v, @Node, _)
-    and count ($o, @Node.Exists.Tag, _) == 1
+    and count query ($o, @Node.Exists.Tag, _) == 1
 )
 
 (@Node.Exists.Value, @Axiom, $o => $v =>
     exists ($o, @Node.Exists, _)
     and exists ($v, @Node, _)
-    and count ($o, @Node.Exists.Value, _) == 1
+    and count query ($o, @Node.Exists.Value, _) == 1
 )
 
 (@Node.Not, @Axiom, $o => $v =>
     exists ($o, @Node, _)
     and exists ($v, @Node, _)
-    and count ($o, @Node.Not, _) == 1
+    and count query ($o, @Node.Not, _) == 1
 )
