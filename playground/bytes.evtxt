@@ -1,25 +1,47 @@
 include "./base.evtxt"
 
-(@Bytes @Computed $object => exists ($object @Byte))
+(@Bytes, @Computed, $o => $o == @Bytes.None or exists ($o, @Byte, _))
 
-(@Byte @Computed $o =>
-    exists ($o @Byte.Bit0 *)
-    and exists ($o @Byte.Bit1 *)
-    and exists ($o @Byte.Bit2 *)
-    and exists ($o @Byte.Bit3 *)
-    and exists ($o @Byte.Bit4 *)
-    and exists ($o @Byte.Bit5 *)
-    and exists ($o @Byte.Bit6 *)
-    and exists ($o @Byte.Bit7 *))
+(@Bytes.Rest, @Axiom, $o => $v =>
+    exists ($o, @Bytes, _)
+    and exists ($v, @Bytes)
+    and count query ($o, @Bytes.Rest, _) == 1
+)
 
-(@Byte.Bit0 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
-(@Byte.Bit1 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
-(@Byte.Bit2 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
-(@Byte.Bit3 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
-(@Byte.Bit4 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
-(@Byte.Bit5 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
-(@Byte.Bit6 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
-(@Byte.Bit7 @Axiom $object => $value => exists ($object @Byte *) and exists ($value @Bit *))
+(@Byte, @Computed, $o =>
+    exists ($o, @Byte.Bit0, _)
+    and exists ($o, @Byte.Bit1, _)
+    and exists ($o, @Byte.Bit2, _)
+    and exists ($o, @Byte.Bit3, _)
+    and exists ($o, @Byte.Bit4, _)
+    and exists ($o, @Byte.Bit5, _)
+    and exists ($o, @Byte.Bit6, _)
+    and exists ($o, @Byte.Bit7, _)
+)
+
+(@Byte.Bit0, @Axiom, $object => $value => exists ($object, @Byte, _) and exists ($value, @Bit, _))
+(@Byte.Bit0, @Cardinality, $n => $n == 1)
+
+(@Byte.Bit1, @Axiom, $object => $value => exists ($object, @Byte, _) and exists ($value, @Bit, _))
+(@Byte.Bit1, @Cardinality, $n => $n == 1)
+
+(@Byte.Bit2, @Axiom, $object => $value => exists ($object, @Byte, _) and exists ($value, @Bit, _))
+(@Byte.Bit2, @Cardinality, $n => $n == 1)
+
+(@Byte.Bit3, @Axiom, $object => $value => exists ($object, @Byte, _) and exists ($value, @Bit, _))
+(@Byte.Bit3, @Cardinality, $n => $n == 1)
+
+(@Byte.Bit4, @Axiom, $object => $value => exists ($object, @Byte, _) and exists ($value, @Bit, _))
+(@Byte.Bit4, @Cardinality, $n => $n == 1)
+
+(@Byte.Bit5, @Axiom, $object => $value => exists ($object, @Byte, _) and exists ($value, @Bit, _))
+(@Byte.Bit5, @Cardinality, $n => $n == 1)
+
+(@Byte.Bit6, @Axiom, $object => $value => exists ($object, @Byte, _) and exists ($value, @Bit, _))
+(@Byte.Bit6, @Cardinality, $n => $n == 1)
+
+(@Byte.Bit7, @Axiom, $object => $value => exists ($object, @Byte, _) and exists ($value, @Bit, _))
+(@Byte.Bit7, @Cardinality, $n => $n == 1)
 
 (@Bit @Axiom _ => $v => $v == {})
 
