@@ -6,12 +6,7 @@ pub struct Knowledge<'a>(UncheckedKnowlege<'a>);
 impl<'a> Knowledge<'a> {
     #[must_use]
     pub fn new(uk: UncheckedKnowlege<'a>) -> Result<Self, Error> {
-        uk.check().map(|()| unsafe { Self::new_unchecked(uk) })
-    }
-
-    #[must_use]
-    pub const unsafe fn new_unchecked(uk: UncheckedKnowlege<'a>) -> Self {
-        Self(uk)
+        uk.check().map(|()| Self(uk))
     }
 }
 
@@ -30,5 +25,9 @@ pub struct UncheckedKnowlege<'a> {
 impl<'a> UncheckedKnowlege<'a> {
     fn check(&self) -> Result<(), Error> {
         Ok(())
+    }
+
+    fn eval(&self) -> Object {
+        todo!()
     }
 }

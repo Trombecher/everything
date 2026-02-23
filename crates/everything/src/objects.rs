@@ -1,40 +1,47 @@
-use std::sync::Arc;
-
-use arrayvec::ArrayString;
+use ecow::EcoString;
 
 use crate::Structure;
 
-#[derive(Clone, Debug, Eq, Ord)]
-pub enum Abstract {
-    Inline(ArrayString<15>),
-    Allocated(Arc<str>),
-}
-
-impl AsRef<str> for Abstract {
-    fn as_ref(&self) -> &str {
-        match self {
-            Self::Inline(s) => s,
-            Self::Allocated(a) => a,
-        }
-    }
-}
-
-impl PartialEq for Abstract {
-    fn eq(&self, other: &Self) -> bool {
-        <str as PartialEq>::eq(self.as_ref(), other.as_ref())
-    }
-}
-
-impl PartialOrd for Abstract {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        <str as PartialOrd>::partial_cmp(self.as_ref(), other.as_ref())
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub enum Object {
-    Abstract(Abstract),
+    Abstract(EcoString),
     Structure(Structure),
 }
 
-impl Object {}
+macro_rules! builtin {
+    ($s:literal) => {
+        Self::Abstract(EcoString::inline($s))
+    };
+}
+
+// Builtin objects
+impl Object {
+    // Sets
+    pub const CONTAINS: Self = builtin!("Contains");
+
+    // Tags
+    pub const AXIOM: Self = builtin!("Axiom");
+    pub const COMPUTED: Self = builtin!("Computed");
+    pub const TAG: Self = builtin!("Tag");
+
+    // Integers
+    pub const SUCCESSOR_OF: Self = builtin!("SuccessorOf");
+    pub const IS_INTEGER: Self = builtin!("IsInteger");
+    pub const ZERO: Self = builtin!("Zero");
+
+    // Nodes
+    pub const NODE: Self = builtin!("Node");
+    pub const NODE_LITERAL: Self = builtin!("Node.Literal");
+    pub const NODE_FUNCTION: Self = builtin!("Node.Function");
+    pub const NODE_XOR: Self = builtin!("Node.Xor");
+    pub const NODE_OR: Self = builtin!("Node.Or");
+    pub const NODE_AND: Self = builtin!("Node.And");
+    pub const NODE_EQUALS: Self = builtin!("Node.Equals");
+    pub const NODE_E: Self = builtin!("Node.E");
+    pub const NODE_E_TARGET: Self = builtin!("Node.E.Target");
+    pub const NODE_E_TAG: Self = builtin!("Node.E.Tag");
+    pub const NODE_E_VALUE: Self = builtin!("Node.E.Value");
+    pub const NODE_NOT: Self = builtin!("Node.Not");
+    pub const NODE_COUNT: Self = builtin!("Node.Count");
+    pub const NODE_QUERY: Self = builtin!("Node.Query");
+}

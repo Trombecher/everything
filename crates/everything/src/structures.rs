@@ -12,12 +12,9 @@ pub struct Property {
 pub struct Structure(Arc<[Property]>);
 
 impl Structure {
-    pub unsafe fn new_unchecked(properties: &[Property]) -> Self {
-        Self(Arc::from(properties))
-    }
-
+    #[must_use]
     pub fn new(properties: &mut [Property]) -> Self {
         properties.sort();
-        unsafe { Self::new_unchecked(properties) }
+        Self(Arc::from(properties))
     }
 }
