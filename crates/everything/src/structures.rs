@@ -3,18 +3,22 @@ use std::sync::Arc;
 use crate::Object;
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
-pub struct Property {
-    tag: Object,
-    value: Object,
+pub struct AxiomaticProperty {
+    pub tag: Object,
+    pub value: Object,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
-pub struct Structure(Arc<[Property]>);
+pub struct Structure(Arc<[AxiomaticProperty]>);
 
 impl Structure {
     #[must_use]
-    pub fn new(properties: &mut [Property]) -> Self {
+    pub fn new(properties: &mut [AxiomaticProperty]) -> Self {
         properties.sort();
         Self(Arc::from(properties))
+    }
+
+    pub fn properties(&self) -> &[AxiomaticProperty] {
+        &self.0
     }
 }

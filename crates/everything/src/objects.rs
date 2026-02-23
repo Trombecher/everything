@@ -20,7 +20,7 @@ impl Object {
     pub const CONTAINS: Self = builtin!("Contains");
 
     // Tags
-    pub const AXIOM: Self = builtin!("Axiom");
+    pub const AXIOMATIC: Self = builtin!("Axiomatic");
     pub const COMPUTED: Self = builtin!("Computed");
     pub const TAG: Self = builtin!("Tag");
 
