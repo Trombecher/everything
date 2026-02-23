@@ -1,8 +1,0 @@
-(@Person @Axiom ...)
-
-(@HatKind @Axiom $person => $kind => exists ($person @Person _) and exists ($kind @Person _))
-
-(@x @Person {})
-(@x @HatKind @kind)
-
-(@kind @Person {})
