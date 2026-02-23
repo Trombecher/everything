@@ -3,6 +3,7 @@
 mod errors;
 mod knowledge;
 mod objects;
+pub mod parse;
 mod statements;
 mod structures;
 

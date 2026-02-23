@@ -1,13 +1,13 @@
-use everything::{AxiomaticProperty, Knowledge, Object, Statement, Structure};
+use everything::{Knowledge, Object, Property, Statement, Structure};
 
 fn main() {
     let empty_structure = Object::Structure(Structure::new(&mut []));
 
-    let accept_all = Object::Structure(Structure::new(&mut [AxiomaticProperty {
+    let accept_all = Object::Structure(Structure::new(&mut [Property {
         tag: Object::NODE_FUNCTION,
-        value: Object::Structure(Structure::new(&mut [AxiomaticProperty {
+        value: Object::Structure(Structure::new(&mut [Property {
             tag: Object::NODE_FUNCTION,
-            value: Object::Structure(Structure::new(&mut [AxiomaticProperty {
+            value: Object::Structure(Structure::new(&mut [Property {
                 tag: Object::NODE_LITERAL,
                 value: empty_structure.clone(),
             }])),

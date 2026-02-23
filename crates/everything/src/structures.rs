@@ -3,12 +3,12 @@ use std::{fmt::Debug, sync::Arc};
 use crate::Object;
 
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
-pub struct AxiomaticProperty {
+pub struct Property {
     pub tag: Object,
     pub value: Object,
 }
 
-impl Debug for AxiomaticProperty {
+impl Debug for Property {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("")
             .field(&self.tag)
@@ -18,16 +18,16 @@ impl Debug for AxiomaticProperty {
 }
 
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
-pub struct Structure(Arc<[AxiomaticProperty]>);
+pub struct Structure(Arc<[Property]>);
 
 impl Structure {
     #[must_use]
-    pub fn new(properties: &mut [AxiomaticProperty]) -> Self {
+    pub fn new(properties: &mut [Property]) -> Self {
         properties.sort();
         Self(Arc::from(properties))
     }
 
-    pub fn properties(&self) -> &[AxiomaticProperty] {
+    pub fn properties(&self) -> &[Property] {
         &self.0
     }
 }

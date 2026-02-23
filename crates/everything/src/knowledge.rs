@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::{
-    AxiomaticProperty, Error, Object, ObjectOrAny, StatementPattern, Structure,
+    Property, Error, Object, ObjectOrAny, StatementPattern, Structure,
     statements::Statement,
 };
 
@@ -81,7 +81,6 @@ impl<'a> UnvaliatedKnowledge<'a> {
     }
 
     fn is_tag(self, object: Object) -> bool {
-        println!("Calling is_tag with object = {object:?}");
         self.exists_target_tag(object, Object::TAG)
     }
 
@@ -136,7 +135,7 @@ impl<'a> UnvaliatedKnowledge<'a> {
     fn exists_axiomatic_statement(self, fact: &Statement) -> bool {
         if let Object::Structure(s) = fact.target.clone() {
             if s.properties()
-                .binary_search(&AxiomaticProperty {
+                .binary_search(&Property {
                     tag: fact.tag.clone(),
                     value: fact.value.clone(),
                 })
@@ -233,7 +232,7 @@ impl<'a> UnvaliatedKnowledge<'a> {
                 ^ self.exists_axiomatic_target_tag(target, Object::COMPUTED)
             {
                 // Return {(@Contains, {})}; "true"
-                return Structure::new(&mut [AxiomaticProperty {
+                return Structure::new(&mut [Property {
                     tag: Object::CONTAINS,
                     value: Object::Structure(Structure::new(&mut [])),
                 }]);

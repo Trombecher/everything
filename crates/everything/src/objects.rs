@@ -1,19 +1,29 @@
 use std::fmt::Debug;
 
 use ecow::EcoString;
+use ulid::Ulid;
 
-use crate::Structure;
+use crate::{Property, Structure};
+
+#[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
+pub struct Abstract(pub EcoString);
+
+impl Abstract {
+    pub fn unique() -> Self {
+        Self(EcoString::from(Ulid::new().to_string()))
+    }
+}
 
 #[derive(Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub enum Object {
-    Abstract(EcoString),
+    Abstract(Abstract),
     Structure(Structure),
 }
 
 impl Debug for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Abstract(id) => write!(f, "@{id}"),
+            Self::Abstract(id) => write!(f, "@{}", id.0),
             Self::Structure(s) => Structure::fmt(s, f),
         }
     }
@@ -21,7 +31,7 @@ impl Debug for Object {
 
 macro_rules! builtin {
     ($s:literal) => {
-        Self::Abstract(EcoString::inline($s))
+        Self::Abstract(Abstract(EcoString::inline($s)))
     };
 }
 
@@ -37,7 +47,7 @@ impl Object {
 
     // Integers
     pub const SUCCESSOR_OF: Self = builtin!("SuccessorOf");
-    pub const IS_INTEGER: Self = builtin!("IsInteger");
+    pub const IS_NATURAL: Self = builtin!("IsNatural");
     pub const ZERO: Self = builtin!("Zero");
 
     // Nodes
@@ -55,4 +65,23 @@ impl Object {
     pub const NODE_NOT: Self = builtin!("Node.Not");
     pub const NODE_COUNT: Self = builtin!("Node.Count");
     pub const NODE_QUERY: Self = builtin!("Node.Query");
+
+    /// Peano-definition of natural numbers.
+    pub fn from_natural(n: u64) -> Self {
+        if n == 0 {
+            Self::ZERO
+        } else {
+            Self::Structure(Structure::new(&mut [Property {
+                tag: Self::SUCCESSOR_OF,
+                value: Self::from_natural(n - 1),
+            }]))
+        }
+    }
+
+    pub fn node_not(expr: Object) -> Self {
+        Self::Structure(Structure::new(&mut [Property {
+            tag: Object::NODE_NOT,
+            value: expr,
+        }]))
+    }
 }
