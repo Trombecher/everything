@@ -31,18 +31,51 @@ impl<I: FallibleIterator<Item = Token, Error = Error>> Parser<I> {
     pub fn parse_statement(&mut self) -> Result<Statement, Error> {
         match self.tokens.peek()? {
             Some(Token::LeftParenthesis) => {}
-            _ => bail!("expected '(' while parsing start of statement"),
+            _ => bail!("expected '(', as the start of a statement"),
         }
 
         self.tokens.next()?;
 
-        let target = self.parse_expression();
+        let target = self.parse_expression(BindingPrecedance::Minimum)?;
 
-        todo!()
+        match self.tokens.peek()? {
+            Some(Token::Comma) => {}
+            _ => bail!("expected ',', as the expression delimiter"),
+        }
+
+        self.tokens.next()?;
+
+        let tag = self.parse_expression(BindingPrecedance::Minimum)?;
+
+        match self.tokens.peek()? {
+            Some(Token::Comma) => {}
+            _ => bail!("expected ',', as the expression delimiter"),
+        }
+
+        self.tokens.next()?;
+
+        let value = self.parse_expression(BindingPrecedance::Minimum)?;
+
+        // Trailing comma
+        match self.tokens.peek()? {
+            Some(Token::Comma) => {
+                self.tokens.next()?;
+            }
+            _ => {}
+        }
+
+        match self.tokens.peek()? {
+            Some(Token::RightParenthesis) => {}
+            _ => bail!("expected ')', as the end of a statement"),
+        }
+
+        self.tokens.next()?;
+
+        Ok(Statement { target, tag, value })
     }
 
-    fn parse_expression(&mut self) -> Result<Object, Error> {
-        let left = match self.tokens.peek()? {
+    fn parse_expression(&mut self, min_bp: BindingPrecedance) -> Result<Object, Error> {
+        let mut left = match self.tokens.peek()? {
             Some(Token::AbstractObject(id)) => {
                 let id = id.clone();
                 self.tokens.next()?;
@@ -58,7 +91,7 @@ impl<I: FallibleIterator<Item = Token, Error = Error>> Parser<I> {
             Some(Token::Not) => {
                 self.tokens.next()?;
 
-                Object::node_not(self.parse_expression()?)
+                Object::node_not(self.parse_expression(BindingPrecedance::Not)?)
             }
             Some(Token::LeftBrace) => {
                 // Parses structure
@@ -77,7 +110,7 @@ impl<I: FallibleIterator<Item = Token, Error = Error>> Parser<I> {
 
                     self.tokens.next()?;
 
-                    let tag = self.parse_expression()?;
+                    let tag = self.parse_expression(BindingPrecedance::Minimum)?;
 
                     match self.tokens.peek()? {
                         Some(Token::Comma) => {}
@@ -86,7 +119,7 @@ impl<I: FallibleIterator<Item = Token, Error = Error>> Parser<I> {
 
                     self.tokens.next()?;
 
-                    let value = self.parse_expression()?;
+                    let value = self.parse_expression(BindingPrecedance::Minimum)?;
 
                     properties.push(Property { tag, value });
 
@@ -110,10 +143,33 @@ impl<I: FallibleIterator<Item = Token, Error = Error>> Parser<I> {
 
                 Object::Structure(Structure::new(&mut properties))
             }
+            Some(Token::Exists) => {
+                todo!("Exists")
+            }
+            Some(Token::Query) => {
+                todo!("Query")
+            }
             _ => bail!(
                 "expected 'not', 'query', 'exists', a natural number, an abstract object, '(', or '{{'"
             ),
         };
+
+        loop {
+            left = match self.tokens.peek()? {
+                Some(Token::LeftAngle) => todo!("less than"),
+                Some(Token::RightAngle) => todo!("greater than"),
+                Some(Token::EqualsEquals) => {
+                    if BindingPrecedance::Equality < min_bp {
+                        break;
+                    }
+
+                    self.tokens.next();
+
+                    todo!()
+                }
+                _ => break,
+            };
+        }
 
         Ok(left)
     }
@@ -130,4 +186,16 @@ impl<I: FallibleIterator<Item = Token, Error = Error>> FallibleIterator for Pars
             Some(_) => self.parse_statement().map(Some),
         }
     }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
+pub enum BindingPrecedance {
+    Minimum,
+    Or,
+    And,
+    Equality,
+    Comparison,
+    Add,
+    Not,
 }

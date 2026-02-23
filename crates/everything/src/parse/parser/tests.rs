@@ -4,7 +4,7 @@ use fallible_iterator::{FallibleIterator, IntoFallible};
 
 use crate::{
     Abstract, Object, Property, Structure,
-    parse::{Error, Parser, Token},
+    parse::{BindingPrecedance, Error, Parser, Token},
 };
 
 fn tokens<const N: usize>(
@@ -21,7 +21,7 @@ fn parse_abstract_object_expression() {
     let tokens = tokens([Token::AbstractObject("A".into())]);
 
     assert_eq!(
-        Parser::new(tokens).parse_expression(),
+        Parser::new(tokens).parse_expression(BindingPrecedance::Minimum),
         Ok(Object::Abstract(Abstract("A".into())))
     );
 }
@@ -30,7 +30,10 @@ fn parse_abstract_object_expression() {
 fn parse_natural_expression() {
     let mut parser = Parser::new(tokens([Token::Natural(42)]));
 
-    assert_eq!(parser.parse_expression(), Ok(Object::from_natural(42)));
+    assert_eq!(
+        parser.parse_expression(BindingPrecedance::Minimum),
+        Ok(Object::from_natural(42))
+    );
 }
 
 #[test]
@@ -52,7 +55,7 @@ fn parse_structure_expression() {
     ]);
 
     assert_eq!(
-        Parser::new(tokens).parse_expression(),
+        Parser::new(tokens).parse_expression(BindingPrecedance::Minimum),
         Ok(Object::Structure(Structure::new(&mut [
             Property {
                 tag: Object::Abstract(Abstract("A".into())),

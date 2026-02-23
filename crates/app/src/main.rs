@@ -1,4 +1,4 @@
-use everything::{Knowledge, Object, Property, Statement, Structure};
+use everything::{Abstract, Knowledge, Object, Property, Statement, Structure};
 
 fn main() {
     let empty_structure = Object::Structure(Structure::new(&mut []));
@@ -14,8 +14,8 @@ fn main() {
         }])),
     }]));
 
-    let person = Object::Abstract("Person".into());
-    let david = Object::Abstract("David".into());
+    let person = Object::Abstract(Abstract("Person".into()));
+    let david = Object::Abstract(Abstract("David".into()));
 
     let mut statements = [
         Statement {
