@@ -1,5 +1,5 @@
-use crate::FactPattern;
+use crate::StatementPattern;
 
 pub enum Error {
-    CouldNotProveTheorem(FactPattern),
+    CouldNotProveTheorem(StatementPattern),
 }

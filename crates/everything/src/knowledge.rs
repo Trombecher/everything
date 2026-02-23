@@ -1,42 +1,61 @@
-use crate::{AxiomaticProperty, Error, FactPattern, Object, ObjectOrAny, Structure, axioms::Fact};
+use std::ops::Deref;
+
+use crate::{
+    AxiomaticProperty, Error, Object, ObjectOrAny, StatementPattern, Structure,
+    statements::Statement,
+};
 
 #[derive(Clone, Debug, Copy)]
-pub struct Knowledge<'a>(UncheckedKnowlege<'a>);
+pub struct Knowledge<'a>(UnvaliatedKnowledge<'a>);
 
 impl<'a> Knowledge<'a> {
+    pub fn new(statements: &'a mut [Statement]) -> Result<Self, Error> {
+        Self::from_unvalidated(UnvaliatedKnowledge::new(statements))
+    }
+
     #[must_use]
-    pub fn new(uk: UncheckedKnowlege<'a>) -> Result<Self, Error> {
-        uk.check().map(|()| Self(uk))
+    pub fn from_unvalidated(uk: UnvaliatedKnowledge<'a>) -> Result<Self, Error> {
+        uk.validate().map(|()| Self(uk))
     }
 }
 
+impl<'a> Deref for Knowledge<'a> {
+    type Target = UnvaliatedKnowledge<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// A set of statements which has not been checked
+/// for correctness.
 #[derive(Clone, Debug, Copy)]
-pub struct UncheckedKnowlege<'a> {
-    /// A sorted array of facts.
-    axioms: &'a [Fact],
+pub struct UnvaliatedKnowledge<'a> {
+    /// A sorted array of statements.
+    statements: &'a [Statement],
 }
 
-impl<'a> UncheckedKnowlege<'a> {
-    pub fn new(axioms: &'a mut [Fact]) -> Self {
+impl<'a> UnvaliatedKnowledge<'a> {
+    pub fn new(axioms: &'a mut [Statement]) -> Self {
         axioms.sort();
-        Self { axioms }
+        Self { statements: axioms }
     }
 
-    fn check(self) -> Result<(), Error> {
+    fn validate(self) -> Result<(), Error> {
         // Check constraints:
-        for fact in self.axioms {
-            if !self.is_tag(fact.tag.clone()) {
-                return Err(Error::CouldNotProveTheorem(FactPattern {
-                    target: ObjectOrAny::Object(fact.tag.clone()),
+        for statement in self.statements {
+            if !self.is_tag(statement.tag.clone()) {
+                return Err(Error::CouldNotProveTheorem(StatementPattern {
+                    target: ObjectOrAny::Object(statement.tag.clone()),
                     tag: ObjectOrAny::Object(Object::AXIOMATIC),
                     value: ObjectOrAny::Any,
                 }));
             }
 
-            if let TagKind::Computed = self.tag_kind(fact.tag.clone()) {
+            if let TagKind::Computed = self.tag_kind(statement.tag.clone()) {
                 // Computed tags cannot be used axiomatically.
 
-                return Err(Error::CouldNotProveTheorem(fact.clone().into()));
+                return Err(Error::CouldNotProveTheorem(statement.clone().into()));
             }
         }
 
@@ -67,53 +86,53 @@ impl<'a> UncheckedKnowlege<'a> {
 
     #[inline(always)]
     #[must_use]
-    pub fn exists_axiomatic(self, axiom_pattern: FactPattern) -> bool {
-        match axiom_pattern {
-            FactPattern {
+    pub fn exists_axiomatic(self, sp: StatementPattern) -> bool {
+        match sp {
+            StatementPattern {
                 target: ObjectOrAny::Any,
                 tag: ObjectOrAny::Any,
                 value: ObjectOrAny::Any,
             } => true,
-            FactPattern {
+            StatementPattern {
                 target: ObjectOrAny::Object(target),
                 tag: ObjectOrAny::Any,
                 value: ObjectOrAny::Any,
             } => self.exists_axiomatic_target(target),
-            FactPattern {
+            StatementPattern {
                 target: ObjectOrAny::Any,
                 tag: ObjectOrAny::Object(tag),
                 value: ObjectOrAny::Any,
             } => self.exists_axiomatic_tag(tag),
-            FactPattern {
+            StatementPattern {
                 target: ObjectOrAny::Any,
                 tag: ObjectOrAny::Any,
                 value: ObjectOrAny::Object(value),
             } => self.exists_axiomatic_value(value),
-            FactPattern {
+            StatementPattern {
                 target: ObjectOrAny::Object(target),
                 tag: ObjectOrAny::Object(tag),
                 value: ObjectOrAny::Any,
             } => self.exists_axiomatic_target_tag(target, tag),
-            FactPattern {
+            StatementPattern {
                 target: ObjectOrAny::Any,
                 tag: ObjectOrAny::Object(tag),
                 value: ObjectOrAny::Object(value),
             } => self.exists_axiomatic_tag_value(tag, value),
-            FactPattern {
+            StatementPattern {
                 target: ObjectOrAny::Object(target),
                 tag: ObjectOrAny::Any,
                 value: ObjectOrAny::Object(value),
             } => self.exists_axiomatic_target_value(target, value),
-            FactPattern {
+            StatementPattern {
                 target: ObjectOrAny::Object(target),
                 tag: ObjectOrAny::Object(tag),
                 value: ObjectOrAny::Object(value),
-            } => self.exists_axiomatic_fact(&Fact { target, tag, value }),
+            } => self.exists_axiomatic_statement(&Statement { target, tag, value }),
         }
     }
 
     #[must_use]
-    fn exists_axiomatic_fact(self, fact: &Fact) -> bool {
+    fn exists_axiomatic_statement(self, fact: &Statement) -> bool {
         if let Object::Structure(s) = fact.target.clone() {
             if s.properties()
                 .binary_search(&AxiomaticProperty {
@@ -126,7 +145,7 @@ impl<'a> UncheckedKnowlege<'a> {
             }
         }
 
-        self.axioms.binary_search(fact).is_ok()
+        self.statements.binary_search(fact).is_ok()
     }
 
     #[must_use]
@@ -143,7 +162,7 @@ impl<'a> UncheckedKnowlege<'a> {
             }
         }
 
-        self.axioms
+        self.statements
             .binary_search_by_key(&(target.clone(), tag.clone()), |a| {
                 (a.target.clone(), a.tag.clone())
             })
@@ -161,7 +180,7 @@ impl<'a> UncheckedKnowlege<'a> {
             }
         }
 
-        self.axioms
+        self.statements
             .binary_search_by_key(&(target.clone(), value.clone()), |a| {
                 (a.target.clone(), a.value.clone())
             })
@@ -170,7 +189,7 @@ impl<'a> UncheckedKnowlege<'a> {
 
     #[must_use]
     fn exists_axiomatic_tag_value(self, tag: Object, value: Object) -> bool {
-        self.axioms
+        self.statements
             .binary_search_by(|a| {
                 (a.tag.clone(), a.value.clone()).cmp(&(tag.clone(), value.clone()))
             })
@@ -199,7 +218,7 @@ impl<'a> UncheckedKnowlege<'a> {
     /// * If `tag` is computed, it computes the result and checks
     /// if the resulting set has one or more elements.
     #[must_use]
-    fn exists_target_tag(self, target: Object, tag: Object) -> bool {
+    pub fn exists_target_tag(self, target: Object, tag: Object) -> bool {
         match self.tag_kind(tag.clone()) {
             TagKind::Axiom => self.exists_axiomatic_target_tag(target, tag),
             TagKind::Computed => self.compute(target, tag).properties().len() > 0,
@@ -208,62 +227,6 @@ impl<'a> UncheckedKnowlege<'a> {
 
     fn compute(self, target: Object, tag: Object) -> Structure {
         todo!("compute")
-    }
-}
-
-pub struct Ignore;
-
-/// Convenience trait to query the knowledge for existance.
-pub trait ExistsAxiomatic {
-    fn exists_axiomatic(self, uk: UncheckedKnowlege) -> bool;
-}
-
-impl ExistsAxiomatic for (Object, Object, Object) {
-    fn exists_axiomatic(self, uk: UncheckedKnowlege) -> bool {
-        let (target, tag, value) = self;
-        uk.exists_axiomatic_fact(&Fact { target, tag, value })
-    }
-}
-
-impl ExistsAxiomatic for (Object, Object, Ignore) {
-    fn exists_axiomatic(self, uk: UncheckedKnowlege) -> bool {
-        let (target, tag, Ignore) = self;
-        uk.exists_axiomatic_target_tag(target, tag)
-    }
-}
-
-impl ExistsAxiomatic for (Object, Ignore, Object) {
-    fn exists_axiomatic(self, uk: UncheckedKnowlege) -> bool {
-        let (target, Ignore, value) = self;
-        uk.exists_axiomatic_target_value(target, value)
-    }
-}
-
-impl ExistsAxiomatic for (Ignore, Object, Object) {
-    fn exists_axiomatic(self, uk: UncheckedKnowlege) -> bool {
-        let (Ignore, tag, value) = self;
-        uk.exists_axiomatic_tag_value(tag, value)
-    }
-}
-
-impl ExistsAxiomatic for (Object, Ignore, Ignore) {
-    fn exists_axiomatic(self, uk: UncheckedKnowlege) -> bool {
-        let (target, Ignore, Ignore) = self;
-        uk.exists_axiomatic_target(target)
-    }
-}
-
-impl ExistsAxiomatic for (Ignore, Object, Ignore) {
-    fn exists_axiomatic(self, uk: UncheckedKnowlege) -> bool {
-        let (Ignore, tag, Ignore) = self;
-        uk.exists_axiomatic_tag(tag)
-    }
-}
-
-impl ExistsAxiomatic for (Ignore, Ignore, Object) {
-    fn exists_axiomatic(self, uk: UncheckedKnowlege) -> bool {
-        let (Ignore, Ignore, value) = self;
-        uk.exists_axiomatic_value(value)
     }
 }
 

@@ -1,13 +1,13 @@
 #![forbid(unsafe_code)]
 
-mod axioms;
 mod errors;
 mod knowledge;
 mod objects;
+mod statements;
 mod structures;
 
-pub use axioms::*;
 pub use errors::*;
 pub use knowledge::*;
 pub use objects::*;
+pub use statements::*;
 pub use structures::*;
