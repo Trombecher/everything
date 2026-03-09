@@ -1,0 +1,23 @@
+{
+    (@Statement.Target, @Statement.Target)
+    (@Statement.Tag, @Axiomatic)
+    (@Statement.Value, $o => _ => 1 == count query {
+        (@Statement.Target, $o)
+        (@Statement.Tag, @Statement.Target)
+        (@Query.For, @Statement.Value)
+    })
+}
+{
+    (@Statement.Target, @Statement.Tag)
+    (@Statement.Tag, @Axiomatic)
+    (@Statement.Value, $o => $v => 1 == count query {
+        (@Statement.Target, $o)
+        (@Statement.Tag, @)
+    })
+}
+
+{
+    (@Statement.Target, @Contains)
+    (@Statement.Tag, @Axiomatic)
+    (@Statement.Value, _ => _ => {(@Contains, {})})
+}
