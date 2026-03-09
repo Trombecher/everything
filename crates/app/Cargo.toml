@@ -4,5 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+<<<<<<< HEAD
 core3 = { path = "../core3" }
 memmap2 = "0.9.9"
+=======
+everything = { path = "../everything" }
+>>>>>>> 7e0e6fafd81fd1f8705ab31ffc0e04ae159c4dca

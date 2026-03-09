@@ -1,0 +1,76 @@
+include "./base.evtxt"
+
+(@Bytes, @Computed, $o =>
+    $o == @Bytes.None
+    or exists ($o, @Byte, _)
+)
+
+(@Bytes.Rest, @Axiom, $o => $v =>
+    exists ($o, @Bytes, _)
+    and exists ($v, @Bytes)
+    and count query ($o, @Bytes.Rest, _) == 1
+)
+
+(@Byte, @Computed, $o =>
+    exists ($o, @Byte.Bit0, _)
+    and exists ($o, @Byte.Bit1, _)
+    and exists ($o, @Byte.Bit2, _)
+    and exists ($o, @Byte.Bit3, _)
+    and exists ($o, @Byte.Bit4, _)
+    and exists ($o, @Byte.Bit5, _)
+    and exists ($o, @Byte.Bit6, _)
+    and exists ($o, @Byte.Bit7, _)
+)
+
+(@Byte.Bit0, @Axiom, $object => $value =>
+    exists ($object, @Byte, _)
+    and exists ($value, @Bit, _)
+    and count query ($object, @Byte.Bit0, _) == 1
+)
+
+(@Byte.Bit1, @Axiom, $object => $value =>
+    exists ($object, @Byte, _)
+    and exists ($value, @Bit, _)
+    and count query ($object, @Byte.Bit1, _) == 1
+)
+
+(@Byte.Bit2, @Axiom, $object => $value =>
+    exists ($object, @Byte, _)
+    and exists ($value, @Bit, _)
+    and count query ($object, @Byte.Bit2, _) == 1
+)
+
+(@Byte.Bit3, @Axiom, $object => $value =>
+    exists ($object, @Byte, _)
+    and exists ($value, @Bit, _)
+    and count query ($object, @Byte.Bit3, _) == 1
+)
+
+(@Byte.Bit4, @Axiom, $object => $value =>
+    exists ($object, @Byte, _)
+    and exists ($value, @Bit, _)
+    and count query ($object, @Byte.Bit4, _) == 1
+)
+
+(@Byte.Bit5, @Axiom, $object => $value =>
+    exists ($object, @Byte, _)
+    and exists ($value, @Bit, _)
+    and count query ($object, @Byte.Bit5, _) == 1
+)
+
+(@Byte.Bit6, @Axiom, $object => $value =>
+    exists ($object, @Byte, _)
+    and exists ($value, @Bit, _)
+    and count query ($object, @Byte.Bit6, _) == 1
+)
+
+(@Byte.Bit7, @Axiom, $object => $value =>
+    exists ($object, @Byte, _)
+    and exists ($value, @Bit, _)
+    and count query ($object, @Byte.Bit7, _) == 1
+)
+
+(@Bit @Axiom _ => $v => $v == {})
+
+(@Bit.0 @Bit {})
+(@Bit.1 @Bit {})

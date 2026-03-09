@@ -1,6 +1,6 @@
 use std::sync::atomic::Ordering;
 
-use tokio::sync::Mutex;
+use tokio::task::yield_now;
 
 use crate::{
     Error,
@@ -23,6 +23,10 @@ impl<P: PageProvider> PageAllocatorSubsystem<P> {
 
     pub async fn allocate(&self) -> Result<u64, Error> {
         let meta_page = self.meta_page().await?;
+
+        while meta_page.free_list_locked.load(Ordering::Relaxed) {
+            yield_now().await;
+        }
 
         let page_id = meta_page.free_list_pop.load(Ordering::Relaxed);
 

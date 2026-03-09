@@ -1,7 +1,7 @@
 use std::{fs::OpenOptions, path::Path, sync::Arc};
 
 use memmap2::MmapMut;
-use tokio::task::spawn_blocking;
+use tokio::{fs::File, task::spawn_blocking};
 
 use crate::{
     Error,
@@ -26,6 +26,8 @@ impl MemoryMapPageProvider {
             .await
             .unwrap()
             .map_err(Error::Io)?;
+
+            let file = File::from_std(std_file);
 
             if map.len() == 0 {
                 // New file -> init db

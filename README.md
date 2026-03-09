@@ -1,3 +1,3 @@
 # Everything
 
-Store everything you can think of.
+Abstract knowledge representation language and engine. You can model anything.
