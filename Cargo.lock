@@ -129,6 +129,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "everything-mvp"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "sha3",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -614,10 +622,6 @@ name = "wit-bindgen"
 version = "0.51.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7249219f66ced02969388cf2bb044a09756a083d0fab1e566056b04d9fbcaa5"
-
-[[package]]
-name = "witer"
-version = "0.1.0"
 
 [[package]]
 name = "zerocopy"

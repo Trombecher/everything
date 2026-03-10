@@ -1,9 +1,11 @@
-mod associations;
-mod change;
-mod db;
+#![feature(slice_partition_dedup)]
+
 mod error;
 mod objects;
+mod properties;
 mod structures;
 
-pub use db::*;
 pub use error::*;
+pub use objects::*;
+pub use properties::*;
+pub use structures::*;
