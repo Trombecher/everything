@@ -1,3 +1,3 @@
 # Everything
 
-Abstract knowledge representation language and engine. You can model anything.
+Everything provides a structure file format and an inference engine for statements.

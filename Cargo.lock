@@ -129,11 +129,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "everything-mvp"
+name = "everything-structures"
 version = "0.1.0"
 dependencies = [
  "dashmap",
- "sha3",
+ "ulid",
 ]
 
 [[package]]

@@ -1,3 +1,5 @@
+use ulid::Ulid;
+
 use crate::{Change, Id, Property, Structure, structures::GLOBAL_REGISTRY};
 use std::{assert_matches, sync::Arc};
 
@@ -19,7 +21,7 @@ fn one_structure() {
         contains_knowledge_structure().as_ref(),
         [Property {
             tag: Id::CONTAINS,
-            value: Id::CONTAINS
+            value: Id::KNOWLEDGE
         }]
     );
 }
@@ -89,5 +91,7 @@ fn deduping() {
 
 #[test]
 fn debug() {
-    println!("{:?}", contains_knowledge_structure())
+    println!("{:?}", contains_knowledge_structure());
+
+    println!("{:?}", Id::Abstract(Ulid::new()));
 }
