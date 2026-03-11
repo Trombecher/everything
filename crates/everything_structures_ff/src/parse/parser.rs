@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-use everything_structures::{Change, Object, Property, Structure};
+use everything_structures::{Object, Property, Structure};
 
 use crate::{
     Span,
@@ -76,7 +76,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
 
             let value = self.parse_object()?;
 
-            properties.push(Change::Add(Property { tag, value }));
+            properties.push(Property { tag, value });
 
             match self.tokens.peek() {
                 Some(Span {
@@ -92,7 +92,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
 
         self.tokens.next(); // Skip '}'
 
-        Ok(Structure::EMPTY.change(&mut properties))
+        Ok(Structure::EMPTY.change(&mut [], &mut properties))
     }
 
     fn parse_object(&mut self) -> Result<Object, Error> {

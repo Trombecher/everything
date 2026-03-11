@@ -14,21 +14,6 @@ use dashmap::DashMap;
 
 use crate::{Object, properties::Property};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Change {
-    Add(Property),
-    Remove(Property),
-}
-
-impl Change {
-    pub fn property(&self) -> &Property {
-        match self {
-            Self::Add(property) => property,
-            Self::Remove(property) => property,
-        }
-    }
-}
-
 #[derive(Clone, Eq, Hash)]
 pub struct Structure {
     propeties: Option<Arc<[Property]>>,
@@ -57,8 +42,12 @@ impl Structure {
     /// Note that first all indicated properties are removed from
     /// the structure and then all indicated properties are added.
     #[must_use]
-    pub fn change(&self, changes: &mut [Change]) -> Structure {
-        GLOBAL_REGISTRY.resolve(self, changes)
+    pub fn change(
+        &self,
+        remove_properties: &mut [Property],
+        add_properties: &mut [Property],
+    ) -> Structure {
+        GLOBAL_REGISTRY.resolve(self, remove_properties, add_properties)
     }
 
     /// Returns an iterator over all values that this tag has
@@ -175,90 +164,21 @@ impl Registry {
         self.entries.remove(&hash);
     }
 
-    pub(crate) fn resolve(&self, base: &Structure, mut changes: &mut [Change]) -> Structure {
-        // Remove duplicates and sort the slice.
-        changes = changes.partition_dedup().0;
-        changes.sort();
+    pub(crate) fn resolve(
+        &self,
+        base: &Structure,
+        remove_properties: &mut [Property],
+        mut add_properties: &mut [Property],
+    ) -> Structure {
+        // Prepare properties
+        remove_properties.sort();
 
-        // Partition into add and remove.
-        let first_remove_index = changes.partition_point(|a| matches!(a, Change::Add(_)));
-        let props_to_add = &changes[..first_remove_index];
-        let props_to_remove = &changes[first_remove_index..];
+        add_properties = add_properties.partition_dedup().0;
+        add_properties.sort();
 
-        let mut hasher = DefaultHasher::new();
-        let empty_hash = hasher.finish();
-        let mut prop_count = 0;
+        let (hash, prop_count) = hash_of_new_structure(base, remove_properties, add_properties);
 
-        {
-            let mut base_props = base.as_ref().iter().peekable();
-            let mut add_iter = props_to_add.iter().peekable();
-
-            // Calculate hash
-            loop {
-                let base_prop = base_props.peek().copied();
-                let change = add_iter.peek().copied();
-
-                match (base_prop, change) {
-                    (None, None) => break,
-                    (None, Some(change)) => {
-                        // There are no base props so
-                        // we just add this change.
-
-                        change.hash(&mut hasher);
-                        prop_count += 1;
-
-                        // Consume change.
-                        add_iter.next();
-                    }
-                    (Some(base_prop), None) => {
-                        let ignore_property = props_to_remove
-                            .binary_search(&Change::Remove(base_prop.clone()))
-                            .is_ok();
-
-                        if !ignore_property {
-                            base_prop.hash(&mut hasher);
-                            prop_count += 1;
-                        }
-
-                        base_props.next();
-                    }
-                    (Some(base_prop), Some(add_prop)) => match base_prop.cmp(add_prop.property()) {
-                        Ordering::Less => {
-                            // The base prop comes first.
-
-                            let ignore_property = props_to_remove
-                                .binary_search_by(|probe| probe.property().cmp(base_prop))
-                                .is_ok();
-
-                            if !ignore_property {
-                                base_prop.hash(&mut hasher);
-                                prop_count += 1;
-                            }
-
-                            base_props.next();
-                        }
-                        Ordering::Equal => {
-                            base_prop.hash(&mut hasher);
-                            prop_count += 1;
-
-                            add_iter.next();
-                            base_props.next();
-                        }
-                        Ordering::Greater => {
-                            // We should choose the property to add.
-                            add_prop.property().hash(&mut hasher);
-                            prop_count += 1;
-
-                            add_iter.next();
-                        }
-                    },
-                }
-            }
-        }
-
-        let hash = hasher.finish();
-
-        if empty_hash == hash {
+        if hash_of_nothing() == hash {
             // Empty structure.
             return Structure { propeties: None };
         }
@@ -272,36 +192,140 @@ impl Registry {
         // The structure does not exist yet,
         // so we have to create it.
 
-        let mut new_props: Arc<[MaybeUninit<Property>]> = Arc::new_uninit_slice(prop_count);
-        let mut new_props_iter = Arc::get_mut(&mut new_props).unwrap().iter_mut();
+        let new_props = allocate_new_structure(base, remove_properties, add_properties, prop_count);
+        self.entries.insert(hash, Arc::clone(&new_props));
 
-        let mut base_props = base.as_ref().iter().peekable();
-        let mut add_iter = props_to_add.iter().peekable();
+        Structure {
+            propeties: Some(new_props),
+        }
+    }
+}
 
-        // Fill new props
-        loop {
-            let base_prop = base_props.peek().copied();
-            let change = add_iter.peek().copied();
+/// Hashes the given structure will changes applied
+/// and returns `(hash, prop_count)`
+fn hash_of_new_structure(
+    base: &Structure,
+    remove_properties: &[Property],
+    add_properties: &[Property],
+) -> (u64, usize) {
+    let mut hasher = DefaultHasher::new();
+    let mut prop_count = 0_usize;
 
-            match (base_prop, change) {
-                (None, None) => break,
-                (None, Some(change)) => {
-                    // There are no base props so
-                    // we just add this change.
+    let mut base_props = base.as_ref().iter().peekable();
+    let mut add_iter = add_properties.iter().peekable();
 
-                    new_props_iter
-                        .next()
-                        .unwrap()
-                        .write(change.property().clone());
+    // Calculate hash
+    loop {
+        let base_prop = base_props.peek().copied();
+        let change = add_iter.peek().copied();
 
-                    // Consume change.
+        match (base_prop, change) {
+            (None, None) => break,
+            (None, Some(change)) => {
+                // There are no base props so
+                // we just add this change.
+
+                change.hash(&mut hasher);
+                prop_count += 1;
+
+                // Consume change.
+                add_iter.next();
+            }
+            (Some(base_prop), None) => {
+                let ignore_property = remove_properties.binary_search(base_prop).is_ok();
+
+                if !ignore_property {
+                    base_prop.hash(&mut hasher);
+                    prop_count += 1;
+                }
+
+                base_props.next();
+            }
+            (Some(base_prop), Some(add_property)) => match base_prop.cmp(add_property) {
+                Ordering::Less => {
+                    // The base prop comes first.
+
+                    let ignore_property = remove_properties
+                        .binary_search_by(|probe| probe.cmp(base_prop))
+                        .is_ok();
+
+                    if !ignore_property {
+                        base_prop.hash(&mut hasher);
+                        prop_count += 1;
+                    }
+
+                    base_props.next();
+                }
+                Ordering::Equal => {
+                    base_prop.hash(&mut hasher);
+                    prop_count += 1;
+
+                    add_iter.next();
+                    base_props.next();
+                }
+                Ordering::Greater => {
+                    // We should choose the property to add.
+                    add_property.hash(&mut hasher);
+                    prop_count += 1;
+
                     add_iter.next();
                 }
-                (Some(base_prop), None) => {
-                    // TODO: opt .clone()
+            },
+        }
+    }
 
-                    let ignore_property = props_to_remove
-                        .binary_search(&Change::Remove(base_prop.clone()))
+    (hasher.finish(), prop_count)
+}
+
+#[inline(always)]
+fn hash_of_nothing() -> u64 {
+    let hasher = DefaultHasher::new();
+    hasher.finish()
+}
+
+fn allocate_new_structure(
+    base: &Structure,
+    remove_properties: &[Property],
+    add_properties: &[Property],
+    prop_count: usize,
+) -> Arc<[Property]> {
+    let mut new_props: Arc<[MaybeUninit<Property>]> = Arc::new_uninit_slice(prop_count);
+    let mut new_props_iter = Arc::get_mut(&mut new_props).unwrap().iter_mut();
+
+    let mut base_props = base.as_ref().iter().peekable();
+    let mut add_iter = add_properties.iter().peekable();
+
+    // Fill new props
+    loop {
+        let base_prop = base_props.peek().copied();
+        let change = add_iter.peek().copied();
+
+        match (base_prop, change) {
+            (None, None) => break,
+            (None, Some(add_property)) => {
+                // There are no base props so
+                // we just add this change.
+
+                new_props_iter.next().unwrap().write(add_property.clone());
+
+                // Consume change.
+                add_iter.next();
+            }
+            (Some(base_prop), None) => {
+                let ignore_property = remove_properties.binary_search(base_prop).is_ok();
+
+                if !ignore_property {
+                    new_props_iter.next().unwrap().write(base_prop.clone());
+                }
+
+                base_props.next();
+            }
+            (Some(base_prop), Some(add_prop)) => match base_prop.cmp(add_prop) {
+                Ordering::Less => {
+                    // The base prop comes first.
+
+                    let ignore_property = remove_properties
+                        .binary_search_by(|probe| probe.cmp(base_prop))
                         .is_ok();
 
                     if !ignore_property {
@@ -310,47 +334,23 @@ impl Registry {
 
                     base_props.next();
                 }
-                (Some(base_prop), Some(add_prop)) => match base_prop.cmp(add_prop.property()) {
-                    Ordering::Less => {
-                        // The base prop comes first.
+                Ordering::Equal => {
+                    new_props_iter.next().unwrap().write(base_prop.clone());
 
-                        let ignore_property = props_to_remove
-                            .binary_search_by(|probe| probe.property().cmp(base_prop))
-                            .is_ok();
+                    add_iter.next();
+                    base_props.next();
+                }
+                Ordering::Greater => {
+                    // We should choose the property to add.
+                    new_props_iter.next().unwrap().write(add_prop.clone());
 
-                        if !ignore_property {
-                            new_props_iter.next().unwrap().write(base_prop.clone());
-                        }
-
-                        base_props.next();
-                    }
-                    Ordering::Equal => {
-                        new_props_iter.next().unwrap().write(base_prop.clone());
-
-                        add_iter.next();
-                        base_props.next();
-                    }
-                    Ordering::Greater => {
-                        // We should choose the property to add.
-                        new_props_iter
-                            .next()
-                            .unwrap()
-                            .write(add_prop.property().clone());
-
-                        add_iter.next();
-                    }
-                },
-            }
-        }
-
-        assert_matches!(new_props_iter.next(), None);
-
-        let new_props = unsafe { Arc::<[_]>::assume_init(new_props) };
-
-        self.entries.insert(hash, Arc::clone(&new_props));
-
-        Structure {
-            propeties: Some(new_props),
+                    add_iter.next();
+                }
+            },
         }
     }
+
+    assert_matches!(new_props_iter.next(), None);
+
+    unsafe { Arc::<[_]>::assume_init(new_props) }
 }

@@ -1,21 +1,24 @@
 use ulid::Ulid;
 
-use crate::{Change, Object, Property, Structure, structures::GLOBAL_REGISTRY};
+use crate::{Object, Property, Structure, structures::GLOBAL_REGISTRY};
 use std::{assert_matches, sync::Arc};
 
 pub const ALICE: Object = Object::Abstract(Ulid::from_bytes(*b"This is Alice!!!"));
 pub const BOB: Object = Object::Abstract(Ulid::from_bytes(*b"This is Bob!!!!!"));
 
 fn alice_bob_structure() -> Structure {
-    Structure::EMPTY.change(&mut [Change::Add(Property {
-        tag: ALICE,
-        value: BOB,
-    })])
+    Structure::EMPTY.change(
+        &mut [],
+        &mut [Property {
+            tag: ALICE,
+            value: BOB,
+        }],
+    )
 }
 
 #[test]
 fn empty_structure() {
-    assert_eq!(Structure::EMPTY.change(&mut []), Structure::EMPTY);
+    assert_eq!(Structure::EMPTY.change(&mut [], &mut []), Structure::EMPTY);
 }
 
 #[test]
@@ -33,10 +36,13 @@ fn one_structure() {
 fn inner_structure() {
     let inner = alice_bob_structure();
 
-    let outer = Structure::EMPTY.change(&mut [Change::Add(Property {
-        tag: ALICE,
-        value: inner.clone().into(),
-    })]);
+    let outer = Structure::EMPTY.change(
+        &mut [],
+        &mut [Property {
+            tag: ALICE,
+            value: inner.clone().into(),
+        }],
+    );
 
     assert_eq!(GLOBAL_REGISTRY.entries.len(), 2);
 
@@ -53,10 +59,13 @@ fn inner_structure() {
 fn remove_props() {
     let structure = alice_bob_structure();
 
-    let should_be_empty = structure.change(&mut [Change::Remove(Property {
-        tag: ALICE,
-        value: BOB,
-    })]);
+    let should_be_empty = structure.change(
+        &mut [Property {
+            tag: ALICE,
+            value: BOB,
+        }],
+        &mut [],
+    );
 
     assert_matches!(should_be_empty.propeties, None);
 }
@@ -114,16 +123,19 @@ fn one_value() {
 
 #[test]
 fn multiple_values() {
-    let s = Structure::EMPTY.change(&mut [
-        Change::Add(Property {
-            tag: ALICE,
-            value: ALICE,
-        }),
-        Change::Add(Property {
-            tag: ALICE,
-            value: BOB,
-        }),
-    ]);
+    let s = Structure::EMPTY.change(
+        &mut [],
+        &mut [
+            Property {
+                tag: ALICE,
+                value: ALICE,
+            },
+            Property {
+                tag: ALICE,
+                value: BOB,
+            },
+        ],
+    );
 
     let mut alices = s.values(&ALICE);
     assert_matches!(alices.next(), Some(&ALICE));
@@ -149,16 +161,19 @@ fn one_tag() {
 
 #[test]
 fn multiple_tags() {
-    let s = Structure::EMPTY.change(&mut [
-        Change::Add(Property {
-            tag: ALICE,
-            value: ALICE,
-        }),
-        Change::Add(Property {
-            tag: BOB,
-            value: ALICE,
-        }),
-    ]);
+    let s = Structure::EMPTY.change(
+        &mut [],
+        &mut [
+            Property {
+                tag: ALICE,
+                value: ALICE,
+            },
+            Property {
+                tag: BOB,
+                value: ALICE,
+            },
+        ],
+    );
 
     let mut tags_that_have_alice = s.tags(&ALICE);
     assert_matches!(tags_that_have_alice.next(), Some(&ALICE));

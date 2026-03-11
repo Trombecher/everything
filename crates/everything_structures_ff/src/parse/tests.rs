@@ -1,6 +1,6 @@
 //! Tests for the parser.
 
-use everything_structures::{Change, Object, Property, Structure};
+use everything_structures::{Object, Property, Structure};
 use ulid::Ulid;
 
 use crate::{
@@ -43,9 +43,12 @@ fn parse_structure_continue() {
 
     assert_eq!(
         result,
-        Ok(Structure::EMPTY.change(&mut [Change::Add(Property {
-            tag: Object::Abstract(Ulid(1)),
-            value: Object::Abstract(Ulid(9))
-        })]))
+        Ok(Structure::EMPTY.change(
+            &mut [],
+            &mut [Property {
+                tag: Object::Abstract(Ulid(1)),
+                value: Object::Abstract(Ulid(9))
+            }]
+        ))
     );
 }
