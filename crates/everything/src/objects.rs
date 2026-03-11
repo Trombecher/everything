@@ -1,15 +1,57 @@
 //! This module defines structures.
 
-use everything_structures::Object;
+use everything_structures::{Object, Property};
 use ulid::Ulid;
 
-pub const CONTAINS: Object = Object::Abstract(Ulid(1));
-pub const AXIOMATIC: Object = Object::Abstract(Ulid(2));
-pub const COMPUTED: Object = Object::Abstract(Ulid(3));
-pub const STATEMENT_SUBJECT: Object = Object::Abstract(Ulid(4));
-pub const STATEMENT_TAG: Object = Object::Abstract(Ulid(5));
-pub const STATEMENT_VALUE: Object = Object::Abstract(Ulid(6));
-pub const STATEMENT: Object = Object::Abstract(Ulid(7));
-pub const KNOWLEDGE: Object = Object::Abstract(Ulid(8));
-pub const ZERO: Object = Object::Abstract(Ulid(9));
-pub const SUCESSOR_OF: Object = Object::Abstract(Ulid(10));
+macro_rules! define_abstract {
+    ($($id:ident = $n:literal),* $(,)?) => {
+        $(pub const $id: Object = Object::Abstract(Ulid($n));)*
+    };
+}
+
+// DO NOT CHANGE THESE!
+define_abstract!(
+    CONTAINS = 1,
+    AXIOMATIC = 2,
+    COMPUTED = 3,
+    STATEMENT_SUBJECT = 4,
+    STATEMENT_TAG = 5,
+    STATEMENT_VALUE = 6,
+    STATEMENT = 7,
+    KNOWLEDGE = 8,
+    ZERO = 9,
+    SUCESSOR_OF = 10,
+    NODE_FUNCTION_BODY = 11,
+    NODE_LITERAL = 12,
+    NODE_AND = 13,
+    NODE_EXISTS = 14,
+    NODE_PARAMETER = 15,
+    IS_NATURAL_NUMBER = 16,
+    NODE_COUNT = 17,
+    NODE_QUERY = 18,
+    NODE_EQUAL = 19,
+    NODE_OR = 20,
+    NODE_XOR = 21,
+    NODE_NOT = 22,
+    NODE = 23,
+);
+
+pub fn is_only_natural_number(o: &Object) -> bool {
+    match o {
+        &ZERO => true,
+        Object::Structure(s) => {
+            if let [
+                Property {
+                    tag: SUCESSOR_OF,
+                    value,
+                },
+            ] = s.as_ref()
+            {
+                is_only_natural_number(value)
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
