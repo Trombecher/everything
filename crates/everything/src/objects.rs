@@ -1,3 +1,8 @@
+//! This module defines structures.
+
+use everything_structures::Object;
+use ulid::Ulid;
+
 pub const CONTAINS: Object = Object::Abstract(Ulid(1));
 pub const AXIOMATIC: Object = Object::Abstract(Ulid(2));
 pub const COMPUTED: Object = Object::Abstract(Ulid(3));

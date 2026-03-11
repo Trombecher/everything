@@ -105,28 +105,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "ecow"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78e4f79b296fbaab6ce2e22d52cb4c7f010fe0ebe7a32e34fa25885fd797bd02"
-
-[[package]]
 name = "everything"
 version = "0.1.0"
 dependencies = [
- "ecow",
- "fallible-iterator",
+ "everything_structures",
  "labuf",
- "sha3",
  "ulid",
 ]
 
 [[package]]
-name = "everything-cli"
+name = "everything_cli"
 version = "0.1.0"
 
 [[package]]
-name = "everything-structures"
+name = "everything_structures"
 version = "0.1.0"
 dependencies = [
  "dashmap",
@@ -134,7 +126,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "everything-structures-ff"
+name = "everything_structures-ff"
 version = "0.1.0"
 
 [[package]]
