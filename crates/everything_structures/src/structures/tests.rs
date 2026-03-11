@@ -95,3 +95,73 @@ fn debug() {
 
     println!("{:?}", Object::Abstract(Ulid::new()));
 }
+
+#[test]
+fn no_values() {
+    assert_matches!(Structure::EMPTY.values(&ALICE).next(), None)
+}
+
+#[test]
+fn one_value() {
+    let s = alice_bob_structure();
+
+    let mut alices = s.values(&ALICE);
+    assert_matches!(alices.next(), Some(&BOB));
+    assert_matches!(alices.next(), None);
+
+    assert_matches!(s.values(&BOB).next(), None);
+}
+
+#[test]
+fn multiple_values() {
+    let s = Structure::EMPTY.change(&mut [
+        Change::Add(Property {
+            tag: ALICE,
+            value: ALICE,
+        }),
+        Change::Add(Property {
+            tag: ALICE,
+            value: BOB,
+        }),
+    ]);
+
+    let mut alices = s.values(&ALICE);
+    assert_matches!(alices.next(), Some(&ALICE));
+    assert_matches!(alices.next(), Some(&BOB));
+    assert_matches!(alices.next(), None);
+}
+
+#[test]
+fn no_tags() {
+    assert_matches!(Structure::EMPTY.tags(&ALICE).next(), None);
+}
+
+#[test]
+fn one_tag() {
+    let s = alice_bob_structure();
+
+    let mut tags_that_have_bob = s.tags(&BOB);
+    assert_matches!(tags_that_have_bob.next(), Some(&ALICE));
+    assert_matches!(tags_that_have_bob.next(), None);
+
+    assert_matches!(s.tags(&ALICE).next(), None);
+}
+
+#[test]
+fn multiple_tags() {
+    let s = Structure::EMPTY.change(&mut [
+        Change::Add(Property {
+            tag: ALICE,
+            value: ALICE,
+        }),
+        Change::Add(Property {
+            tag: BOB,
+            value: ALICE,
+        }),
+    ]);
+
+    let mut tags_that_have_alice = s.tags(&ALICE);
+    assert_matches!(tags_that_have_alice.next(), Some(&ALICE));
+    assert_matches!(tags_that_have_alice.next(), Some(&BOB));
+    assert_matches!(tags_that_have_alice.next(), None);
+}

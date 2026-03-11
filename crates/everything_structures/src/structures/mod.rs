@@ -4,7 +4,7 @@ mod tests;
 use std::{
     assert_matches,
     cmp::Ordering,
-    fmt::Debug,
+    fmt,
     hash::{DefaultHasher, Hash, Hasher},
     mem::MaybeUninit,
     sync::{Arc, LazyLock},
@@ -12,7 +12,7 @@ use std::{
 
 use dashmap::DashMap;
 
-use crate::properties::Property;
+use crate::{Object, properties::Property};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Change {
@@ -60,10 +60,32 @@ impl Structure {
     pub fn change(&self, changes: &mut [Change]) -> Structure {
         GLOBAL_REGISTRY.resolve(self, changes)
     }
+
+    /// Returns an iterator over all values that this tag has
+    /// in this structure.
+    #[must_use]
+    pub fn values(&self, tag: &Object) -> impl Iterator<Item = &Object> {
+        let properties = self.as_ref();
+        let start = properties.partition_point(|property| &property.tag < tag);
+
+        properties[start..]
+            .iter()
+            .take_while(move |property| &property.tag == tag)
+            .map(|property| &property.value)
+    }
+
+    /// Returns an iterator over all tags that this value has
+    /// in this structure.
+    #[must_use]
+    pub fn tags(&self, value: &Object) -> impl Iterator<Item = &Object> {
+        self.as_ref()
+            .iter()
+            .filter_map(move |property| (&property.value == value).then_some(&property.tag))
+    }
 }
 
-impl Debug for Structure {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for Structure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_set();
 
         if let Some(props) = &self.propeties {

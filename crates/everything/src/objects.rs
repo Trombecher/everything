@@ -34,6 +34,7 @@ define_abstract!(
     NODE_XOR = 21,
     NODE_NOT = 22,
     NODE = 23,
+    TAG = 24,
 );
 
 pub fn is_only_natural_number(o: &Object) -> bool {
