@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::iter::Peekable;
 
 use everything_structures::{Object, Property, Structure};
@@ -32,7 +35,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
                 value: FilteredToken::OpeningBrace,
                 ..
             }) => {}
-            _ => bail!("expected"),
+            _ => bail!("expected {{"),
         }
 
         self.tokens.next();
@@ -40,7 +43,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
         self.parse_structure_continue()
     }
 
-    pub(crate) fn parse_structure_continue(&mut self) -> Result<Structure, Error> {
+    fn parse_structure_continue(&mut self) -> Result<Structure, Error> {
         let mut properties = Vec::new();
 
         loop {
@@ -114,7 +117,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
 
                 Ok(Object::Structure(self.parse_structure_continue()?))
             }
-            _ => bail!("expected @<<NAME>> or '{{'"),
+            _ => bail!("expected @<<id>> or '{{'"),
         }
     }
 }

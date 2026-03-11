@@ -12,6 +12,7 @@ use crate::{
 
 pub type SourceIndex = u32;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Span<T> {
     pub range: Range<SourceIndex>,
     pub value: T,

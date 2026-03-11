@@ -6,6 +6,7 @@ use crate::{
     parse::ulid_from_iter::UlidFromIterator,
 };
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum FilteredToken {
     Abstract(AbstractId),
     OpeningParenthesis,

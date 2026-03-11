@@ -1,6 +1,7 @@
 //! Tests for the parser.
 
 use everything_structures::{Object, Property, Structure};
+use std::assert_matches;
 use ulid::Ulid;
 
 use crate::{
@@ -10,7 +11,7 @@ use crate::{
 
 #[test]
 fn parse_structure_continue() {
-    let result = Parser::new(
+    let mut parser = Parser::new(
         [
             Span {
                 range: 1..2,
@@ -38,11 +39,10 @@ fn parse_structure_continue() {
             },
         ]
         .into_iter(),
-    )
-    .parse_structure_continue();
+    );
 
     assert_eq!(
-        result,
+        parser.parse_structure_continue(),
         Ok(Structure::EMPTY.change(
             &mut [],
             &mut [Property {
@@ -51,4 +51,21 @@ fn parse_structure_continue() {
             }]
         ))
     );
+
+    assert_matches!(parser.tokens.peek(), None);
+}
+
+#[test]
+fn parse_object() {
+    let mut parser = Parser::new(
+        [Span {
+            value: FilteredToken::Abstract(Ulid(20)),
+            range: 0..3,
+        }]
+        .into_iter(),
+    );
+
+    assert_eq!(parser.parse_object(), Ok(Object::Abstract(Ulid(20))));
+
+    assert_matches!(parser.tokens.peek(), None);
 }
