@@ -32,3 +32,15 @@ impl fmt::Debug for Id {
         }
     }
 }
+
+impl From<Structure> for Id {
+    fn from(structure: Structure) -> Self {
+        Self::Structure(structure)
+    }
+}
+
+impl From<AbstractId> for Id {
+    fn from(id: AbstractId) -> Self {
+        Self::Abstract(id)
+    }
+}

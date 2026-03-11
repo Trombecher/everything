@@ -35,8 +35,10 @@ pub struct Structure {
 }
 
 impl Structure {
+    /// The empty structure. Contains no properties.
     pub const EMPTY: Self = Self { propeties: None };
 
+    /// Checks if the structure has this property.
     #[must_use]
     pub fn has(&self, property: &Property) -> bool {
         match &self.propeties {
@@ -45,6 +47,15 @@ impl Structure {
         }
     }
 
+    /// Modifies this structure by adding and removing properties.
+    /// Returns the modified structure.
+    ///
+    /// `changes` needs to be mutable because this method needs to
+    /// reorder and dedup changes in-place to avoid unneccessary
+    /// allocations.
+    ///
+    /// Note that first all indicated properties are removed from
+    /// the structure and then all indicated properties are added.
     #[must_use]
     pub fn change(&self, changes: &mut [Change]) -> Structure {
         GLOBAL_REGISTRY.resolve(self, changes)
@@ -109,7 +120,12 @@ impl Drop for Structure {
             && Arc::strong_count(props) == 2
         {
             // We and the registry are the only ones
-            // that have a ref.
+            // that have a ref. When removing this structure
+            // from the registry, `self` will be the
+            // only reference and thus will deallocate
+            // after drop.
+
+            GLOBAL_REGISTRY.remove(self);
         }
     }
 }
@@ -117,33 +133,27 @@ impl Drop for Structure {
 static GLOBAL_REGISTRY: LazyLock<Registry> = LazyLock::new(Registry::empty);
 
 struct Registry {
+    /// A map of hashes to structures.
     entries: DashMap<u64, Arc<[Property]>>,
 }
 
-/*
-fn merge_iters<I: Iterator>(a: I, b: I) -> I {
-    let mut a = a.peekable();
-    let mut b = b.peekable();
-
-    iter::from_fn(move || {
-        match (a.peek(), b.peek()) {
-            (Some(a), Some(b)) => {
-            }
-            (None, None) => None,
-            (None, Some(x)) => Some(x)
-        }
-    })
-} */
-
 impl Registry {
     #[must_use]
-    pub fn empty() -> Self {
+    pub(crate) fn empty() -> Self {
         Self {
             entries: DashMap::new(),
         }
     }
 
-    pub fn resolve(&self, base: &Structure, mut changes: &mut [Change]) -> Structure {
+    pub(crate) fn remove(&self, s: &Structure) {
+        let mut hasher = DefaultHasher::new();
+        s.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        self.entries.remove(&hash);
+    }
+
+    pub(crate) fn resolve(&self, base: &Structure, mut changes: &mut [Change]) -> Structure {
         // Remove duplicates and sort the slice.
         changes = changes.partition_dedup().0;
         changes.sort();

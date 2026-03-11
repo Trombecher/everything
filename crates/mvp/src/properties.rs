@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::objects::Id;
 
+/// A property has a tag and a value.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Property {
     pub tag: Id,
