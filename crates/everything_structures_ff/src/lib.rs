@@ -1,5 +1,12 @@
-mod error;
 mod lex;
+mod parse;
 
-pub use error::*;
+use std::ops::Range;
+
 pub use lex::*;
+pub use parse::*;
+
+pub struct Span<T> {
+    range: Range<SourceIndex>,
+    value: T,
+}

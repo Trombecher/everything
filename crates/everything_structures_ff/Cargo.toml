@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 everything_structures = { path = "../everything_structures" }
+ulid = "1.2.1"

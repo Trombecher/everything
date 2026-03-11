@@ -1,12 +1,5 @@
 //! Tests for the parser.
 
-use fallible_iterator::{FallibleIterator, IntoFallible};
-
-use crate::{
-    Abstract, Object, Property, Structure,
-    parse::{BindingPrecedance, Error, Parser, Token},
-};
-
 fn tokens<const N: usize>(
     tokens: [Token; N],
 ) -> impl FallibleIterator<Item = Token, Error = Error> {

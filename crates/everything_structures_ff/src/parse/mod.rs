@@ -1,16 +1,22 @@
-#[cfg(test)]
-mod tests;
+use std::iter::Peekable;
 
-use fallible_iterator::FallibleIterator;
-use labuf::LookaheadBuffer;
+use everything_structures::{Change, Object, Property, Structure};
 
 use crate::{
-    Abstract, Object, Property, Statement, Structure,
-    parse::{Error, Token},
+    Span, Token,
+    parse::filtered::{FilteredToken, FilteredTokens},
 };
 
-pub struct Parser<I: FallibleIterator<Item = Token, Error = Error>> {
-    tokens: LookaheadBuffer<I>,
+mod error;
+mod filtered;
+#[cfg(test)]
+mod tests;
+mod ulid_from_iter;
+
+pub use error::*;
+
+pub struct Parser<'source, I: Iterator<Item = Token>> {
+    tokens: Peekable<FilteredTokens<'source, I>>,
 }
 
 macro_rules! bail {
@@ -19,183 +25,104 @@ macro_rules! bail {
     };
 }
 
-impl<I: FallibleIterator<Item = Token, Error = Error>> Parser<I> {
+impl<'source, I: Iterator<Item = Token>> Parser<'source, I> {
     #[must_use]
     #[inline]
-    pub const fn new(tokens: I) -> Self {
+    pub fn new(tokens: I, source: &'source str) -> Self {
         Self {
-            tokens: LookaheadBuffer::new(tokens),
+            tokens: FilteredTokens::new(tokens, source).peekable(),
         }
     }
 
-    pub fn parse_statement(&mut self) -> Result<Statement, Error> {
-        match self.tokens.peek()? {
-            Some(Token::LeftParenthesis) => {}
-            _ => bail!("expected '(', as the start of a statement"),
+    pub fn parse_input(&mut self) -> Result<_, Error> {
+        match self.tokens.peek() {
+            Some(Span {
+                value: FilteredToken::OpeningBrace,
+                ..
+            }) => {}
+            _ => bail!("expected"),
         }
 
-        self.tokens.next()?;
+        self.tokens.next();
 
-        let target = self.parse_expression(BindingPrecedance::Minimum)?;
-
-        match self.tokens.peek()? {
-            Some(Token::Comma) => {}
-            _ => bail!("expected ',', as the expression delimiter"),
-        }
-
-        self.tokens.next()?;
-
-        let tag = self.parse_expression(BindingPrecedance::Minimum)?;
-
-        match self.tokens.peek()? {
-            Some(Token::Comma) => {}
-            _ => bail!("expected ',', as the expression delimiter"),
-        }
-
-        self.tokens.next()?;
-
-        let value = self.parse_expression(BindingPrecedance::Minimum)?;
-
-        // Trailing comma
-        match self.tokens.peek()? {
-            Some(Token::Comma) => {
-                self.tokens.next()?;
-            }
-            _ => {}
-        }
-
-        match self.tokens.peek()? {
-            Some(Token::RightParenthesis) => {}
-            _ => bail!("expected ')', as the end of a statement"),
-        }
-
-        self.tokens.next()?;
-
-        Ok(Statement { target, tag, value })
+        Ok(self.parse_structure())
     }
 
-    fn parse_expression(&mut self, min_bp: BindingPrecedance) -> Result<Object, Error> {
-        let mut left = match self.tokens.peek()? {
-            Some(Token::AbstractObject(id)) => {
-                let id = id.clone();
-                self.tokens.next()?;
-
-                Object::Abstract(Abstract(id))
-            }
-            Some(Token::Natural(n)) => {
-                let n = *n;
-                self.tokens.next()?;
-
-                Object::from_natural(n)
-            }
-            Some(Token::Not) => {
-                self.tokens.next()?;
-
-                Object::node_not(self.parse_expression(BindingPrecedance::Not)?)
-            }
-            Some(Token::LeftBrace) => {
-                // Parses structure
-
-                self.tokens.next()?;
-                let mut properties = Vec::new();
-
-                loop {
-                    // Start of property
-
-                    match self.tokens.peek()? {
-                        Some(Token::RightBrace) => break,
-                        Some(Token::LeftParenthesis) => {}
-                        _ => bail!("expected '(' or '}}'"),
-                    }
-
-                    self.tokens.next()?;
-
-                    let tag = self.parse_expression(BindingPrecedance::Minimum)?;
-
-                    match self.tokens.peek()? {
-                        Some(Token::Comma) => {}
-                        _ => bail!("expected ','"),
-                    }
-
-                    self.tokens.next()?;
-
-                    let value = self.parse_expression(BindingPrecedance::Minimum)?;
-
-                    properties.push(Property { tag, value });
-
-                    // Handle trailing comma
-                    match self.tokens.peek()? {
-                        Some(Token::Comma) => {
-                            self.tokens.next()?;
-                        }
-                        _ => {}
-                    }
-
-                    match self.tokens.peek()? {
-                        Some(Token::RightParenthesis) => {}
-                        _ => bail!("expected ')'"),
-                    }
-
-                    self.tokens.next()?;
-                }
-
-                self.tokens.next()?; // Skip '}'
-
-                Object::Structure(Structure::new(&mut properties))
-            }
-            Some(Token::Exists) => {
-                todo!("Exists")
-            }
-            Some(Token::Query) => {
-                todo!("Query")
-            }
-            _ => bail!(
-                "expected 'not', 'query', 'exists', a natural number, an abstract object, '(', or '{{'"
-            ),
-        };
+    fn parse_structure(&mut self) -> Result<Structure, Error> {
+        let mut properties = Vec::new();
 
         loop {
-            left = match self.tokens.peek()? {
-                Some(Token::LeftAngle) => todo!("less than"),
-                Some(Token::RightAngle) => todo!("greater than"),
-                Some(Token::EqualsEquals) => {
-                    if BindingPrecedance::Equality < min_bp {
-                        break;
-                    }
+            // Start of property
 
-                    self.tokens.next();
+            match self.tokens.peek() {
+                Some(Span {
+                    value: FilteredToken::ClosingBrace,
+                    ..
+                }) => break,
+                Some(Span {
+                    value: FilteredToken::OpeningParenthesis,
+                    ..
+                }) => {}
+                _ => bail!("expected '(' or '}}'"),
+            }
 
-                    todo!()
-                }
-                _ => break,
-            };
+            // Skip '('.
+            self.tokens.next()?;
+
+            let tag = self.parse_object()?;
+
+            match self.tokens.peek() {
+                Some(Span {
+                    value: FilteredToken::Comma,
+                    ..
+                }) => {}
+                _ => bail!("expected ','"),
+            }
+
+            // Skip ','
+            self.tokens.next()?;
+
+            let value = self.parse_object()?;
+
+            properties.push(Change::Add(Property { tag, value }));
+
+            match self.tokens.peek() {
+                Some(Span {
+                    value: FilteredToken::ClosingParenthesis,
+                    ..
+                }) => {}
+                _ => bail!("expected ')'"),
+            }
+
+            // Skip ')'
+            self.tokens.next()?;
         }
 
-        Ok(left)
+        self.tokens.next()?; // Skip '}'
+
+        Ok(Structure::EMPTY.change(&mut properties))
     }
-}
 
-impl<I: FallibleIterator<Item = Token, Error = Error>> FallibleIterator for Parser<I> {
-    type Item = Statement;
+    fn parse_object(&mut self) -> Result<Object, Error> {
+        match self.tokens.peek() {
+            Some(Span {
+                value: FilteredToken::Abstract(id),
+                ..
+            }) => {
+                let id = *id;
+                self.tokens.next();
 
-    type Error = Error;
+                Ok(Object::Abstract(id))
+            }
+            Some(Span {
+                value: FilteredToken::OpeningBrace,
+                ..
+            }) => {
+                self.tokens.next();
 
-    fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
-        match self.tokens.peek()? {
-            None => Ok(None),
-            Some(_) => self.parse_statement().map(Some),
+                Ok(Object::Structure(self.parse_structure()?))
+            }
+            _ => bail!("expected @<<NAME>> or '{{'"),
         }
     }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u8)]
-pub enum BindingPrecedance {
-    Minimum,
-    Or,
-    And,
-    Equality,
-    Comparison,
-    Add,
-    Not,
 }
