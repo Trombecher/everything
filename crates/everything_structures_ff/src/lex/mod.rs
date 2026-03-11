@@ -1,9 +1,9 @@
 mod extract;
 #[cfg(test)]
 mod tests;
-mod tokenize;
+mod tokenizer;
 mod tokens;
 
 pub use extract::*;
-pub use tokenize::*;
+pub use tokenizer::*;
 pub use tokens::*;

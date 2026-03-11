@@ -1,6 +1,6 @@
 use ulid::Ulid;
 
-use crate::Digit;
+use crate::lex::Digit;
 
 pub struct UlidFromIterator(pub Ulid);
 

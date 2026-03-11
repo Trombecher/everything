@@ -3,7 +3,10 @@ use std::{
     str::Chars,
 };
 
-use crate::{SourceIndex, Token, TokenKind};
+use crate::{
+    SourceIndex,
+    lex::{Token, TokenKind},
+};
 
 #[inline]
 #[must_use]

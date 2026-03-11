@@ -1,4 +1,4 @@
-pub type SourceIndex = u32;
+use crate::SourceIndex;
 
 /// A token emitted by the tokenizer.
 #[derive(Clone, Copy, Debug, PartialEq)]

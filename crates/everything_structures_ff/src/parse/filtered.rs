@@ -1,7 +1,9 @@
 use everything_structures::AbstractId;
 
 use crate::{
-    SourceIndex, Span, Token, TokenKind, extract_abstract, parse::ulid_from_iter::UlidFromIterator,
+    SourceIndex, Span,
+    lex::{Token, TokenKind, extract_abstract},
+    parse::ulid_from_iter::UlidFromIterator,
 };
 
 pub enum FilteredToken {

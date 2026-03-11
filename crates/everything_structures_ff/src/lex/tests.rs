@@ -1,4 +1,4 @@
-use crate::{Token, TokenKind, tokenize};
+use crate::lex::{Token, TokenKind, tokenize};
 
 #[test]
 fn tokenization() {

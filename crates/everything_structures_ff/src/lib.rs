@@ -1,10 +1,9 @@
-mod lex;
-mod parse;
+pub mod lex;
+pub mod parse;
 
 use std::ops::Range;
 
-pub use lex::*;
-pub use parse::*;
+pub type SourceIndex = u32;
 
 pub struct Span<T> {
     range: Range<SourceIndex>,
