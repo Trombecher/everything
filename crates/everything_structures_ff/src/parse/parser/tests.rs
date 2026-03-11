@@ -43,13 +43,10 @@ fn parse_structure_continue() {
 
     assert_eq!(
         parser.parse_structure_continue(),
-        Ok(Structure::EMPTY.change(
-            &mut [],
-            &mut [Property {
-                tag: Object::Abstract(Ulid(1)),
-                value: Object::Abstract(Ulid(9))
-            }]
-        ))
+        Ok(Structure::new(&mut [Property {
+            tag: Object::Abstract(Ulid(1)),
+            value: Object::Abstract(Ulid(9))
+        }]))
     );
 
     assert_matches!(parser.tokens.peek(), None);

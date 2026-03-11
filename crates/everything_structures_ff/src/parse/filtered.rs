@@ -84,8 +84,8 @@ impl<'source, I: Iterator<Item = Token>> Iterator for FilteredTokens<'source, I>
                         value: FilteredToken::Invalid,
                     });
                 }
-                Some(TokenKind::Whitespace) => {
-                    // Ignore whitespace and wait for next token
+                Some(TokenKind::Whitespace) | Some(TokenKind::LineComment) => {
+                    // Ignore whitespace and comments and wait for next token
                 }
                 Some(TokenKind::Abstract) => {
                     let id: AbstractId = extract_abstract(self.source, range.clone())

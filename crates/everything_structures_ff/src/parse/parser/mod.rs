@@ -7,7 +7,7 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::{
     Span,
-    parse::{Error, filtered::FilteredToken},
+    parse::{Error, ErrorInfo, filtered::FilteredToken},
 };
 
 pub struct Parser<I: Iterator<Item = Span<FilteredToken>>> {
@@ -15,8 +15,8 @@ pub struct Parser<I: Iterator<Item = Span<FilteredToken>>> {
 }
 
 macro_rules! bail {
-    ($($arg:expr),+) => {
-        return Err(format!($($arg),+))
+    ($range:expr, $($arg:expr),+) => {
+        return Err(Box::new(ErrorInfo {message: format!($($arg),+), range: $range }))
     };
 }
 
@@ -30,15 +30,13 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
     }
 
     pub fn parse_structure(&mut self) -> Result<Structure, Error> {
-        match self.tokens.peek() {
+        match self.tokens.next() {
             Some(Span {
                 value: FilteredToken::OpeningBrace,
                 ..
             }) => {}
-            _ => bail!("expected {{"),
+            token => bail!(token.map(|s| s.range), "expected {{"),
         }
-
-        self.tokens.next();
 
         self.parse_structure_continue()
     }
@@ -49,7 +47,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
         loop {
             // Start of property
 
-            match self.tokens.peek() {
+            match self.tokens.next() {
                 Some(Span {
                     value: FilteredToken::ClosingBrace,
                     ..
@@ -58,66 +56,46 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
                     value: FilteredToken::OpeningParenthesis,
                     ..
                 }) => {}
-                _ => bail!("expected '(' or '}}'"),
+                token => bail!(token.map(|s| s.range), "expected '(' or '}}'"),
             }
-
-            // Skip '('.
-            self.tokens.next();
 
             let tag = self.parse_object()?;
 
-            match self.tokens.peek() {
+            match self.tokens.next() {
                 Some(Span {
                     value: FilteredToken::Comma,
                     ..
                 }) => {}
-                _ => bail!("expected ','"),
+                token => bail!(token.map(|s| s.range), "expected ','"),
             }
-
-            // Skip ','
-            self.tokens.next();
 
             let value = self.parse_object()?;
 
             properties.push(Property { tag, value });
 
-            match self.tokens.peek() {
+            match self.tokens.next() {
                 Some(Span {
                     value: FilteredToken::ClosingParenthesis,
                     ..
                 }) => {}
-                _ => bail!("expected ')'"),
+                token => bail!(token.map(|s| s.range), "expected ')', got: {:?}", token),
             }
-
-            // Skip ')'
-            self.tokens.next();
         }
-
-        self.tokens.next(); // Skip '}'
 
         Ok(Structure::EMPTY.change(&mut [], &mut properties))
     }
 
     fn parse_object(&mut self) -> Result<Object, Error> {
-        match self.tokens.peek() {
+        match self.tokens.next() {
             Some(Span {
                 value: FilteredToken::Abstract(id),
                 ..
-            }) => {
-                let id = *id;
-                self.tokens.next();
-
-                Ok(Object::Abstract(id))
-            }
+            }) => Ok(Object::Abstract(id)),
             Some(Span {
                 value: FilteredToken::OpeningBrace,
                 ..
-            }) => {
-                self.tokens.next();
-
-                Ok(Object::Structure(self.parse_structure_continue()?))
-            }
-            _ => bail!("expected @<<id>> or '{{'"),
+            }) => Ok(Object::Structure(self.parse_structure_continue()?)),
+            token => bail!(token.map(|s| s.range), "expected @<<id>> or '{{'"),
         }
     }
 }

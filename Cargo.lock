@@ -161,6 +161,7 @@ dependencies = [
  "clap",
  "colored",
  "everything_structures",
+ "everything_structures_ff",
 ]
 
 [[package]]
@@ -172,7 +173,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "everything_structures-ff"
+name = "everything_structures_ff"
 version = "0.1.0"
 dependencies = [
  "everything_structures",

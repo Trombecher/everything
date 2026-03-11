@@ -24,7 +24,7 @@ fn next_token(chars: &mut Peekable<Chars>) -> Option<Token> {
 
     match chars.next() {
         Some(c) if is_whitespace(c) => {
-            let mut length = 1_u32;
+            let mut length: SourceIndex = 1;
 
             while let Some(c) = chars.peek().copied()
                 && is_whitespace(c)
@@ -35,6 +35,18 @@ fn next_token(chars: &mut Peekable<Chars>) -> Option<Token> {
 
             Some(Token {
                 kind: TokenKind::Whitespace,
+                length,
+            })
+        }
+        Some('#') => {
+            let mut length: SourceIndex = 1;
+
+            while !matches!(chars.peek(), Some('\r' | '\n') | None) {
+                length += chars.next().map_or(0, |c| c.len_utf8() as SourceIndex);
+            }
+
+            Some(Token {
+                kind: TokenKind::LineComment,
                 length,
             })
         }

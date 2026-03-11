@@ -32,4 +32,7 @@ pub enum TokenKind {
 
     /// Invalid token
     Invalid,
+
+    /// A line comment '#'.
+    LineComment,
 }

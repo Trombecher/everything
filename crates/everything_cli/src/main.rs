@@ -1,7 +1,8 @@
-use std::path::PathBuf;
+use std::{fs::read_to_string, path::PathBuf};
 
 use clap::{Parser, Subcommand};
 use everything_structures::{AbstractId, Object};
+use everything_structures_ff::{SourceIndex, parse_structure};
 
 #[derive(Parser)]
 #[command(version)]
@@ -19,10 +20,14 @@ struct Args {
 enum Command {
     /// Generates and prints a new, unique abstract object id.
     Gen,
-    /// Loads a structure file.
-    Load {
+    /// Parses the structure file and prints the structure.
+    #[command(id = "pp")]
+    ParseAndPrint {
         #[arg(id = "structure file path")]
         path: PathBuf,
+        /// Minify. Default `false`.
+        #[arg(short = 'm', long = "minify")]
+        minify: bool,
     },
 }
 
@@ -35,8 +40,66 @@ fn main() {
         Command::Gen => {
             println!("{:?}", Object::Abstract(AbstractId::new()))
         }
-        Command::Load { path } => {
-            println!("Loading {:?}", path)
+        Command::ParseAndPrint { path, minify } => {
+            let input = read_to_string(path).expect("Reading from file failed");
+
+            match parse_structure(&input) {
+                Ok(s) => {
+                    if minify {
+                        println!("{:?}", s);
+                    } else {
+                        println!("{:#?}", s);
+                    }
+                }
+                Err(error) => match error.range.clone() {
+                    Some(range) => {
+                        let (start_line, start_col) = lc_from_index(&input, range.start);
+                        let (end_line, end_col) = lc_from_index(&input, range.end);
+
+                        eprintln!(
+                            "error while parsing at {}:{} (to {}:{}): {}",
+                            start_line + 1,
+                            start_col + 1,
+                            end_line + 1,
+                            end_col + 1,
+                            error.message
+                        )
+                    }
+                    None => {
+                        eprintln!("error while parsing at the end: {}", error.message)
+                    }
+                },
+            }
         }
     }
+}
+
+fn lc_from_index(source: &str, index: SourceIndex) -> (SourceIndex, SourceIndex) {
+    let slice = &source[..index as usize];
+
+    let mut lines = 0;
+    let mut cr = false;
+
+    let mut chars = slice.chars();
+    let mut last_line = slice;
+
+    while let Some(c) = chars.next() {
+        if c == '\r' {
+            cr = true;
+
+            lines += 1;
+            last_line = chars.as_str();
+        } else if c == '\n' {
+            if !cr {
+                lines += 1;
+                last_line = chars.as_str();
+            }
+
+            cr = false;
+        } else {
+            cr = false;
+        }
+    }
+
+    (lines, last_line.chars().count() as SourceIndex)
 }
