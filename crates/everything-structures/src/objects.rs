@@ -4,7 +4,7 @@ use ulid::Ulid;
 
 use crate::structures::Structure;
 
-type AbstractId = Ulid;
+pub type AbstractId = Ulid;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Id {
