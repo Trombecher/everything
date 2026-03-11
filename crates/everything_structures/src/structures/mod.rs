@@ -32,10 +32,16 @@ impl Structure {
         }
     }
 
+    /// Creates a new structure from the given properties
+    /// by adding them to the empty structure.
+    pub fn new(properties: &mut [Property]) -> Self {
+        Self::EMPTY.change(&mut [], properties)
+    }
+
     /// Modifies this structure by adding and removing properties.
     /// Returns the modified structure.
     ///
-    /// `changes` needs to be mutable because this method needs to
+    /// The properties need to be mutable because this method needs to
     /// reorder and dedup changes in-place to avoid unneccessary
     /// allocations.
     ///

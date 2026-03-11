@@ -1,6 +1,9 @@
 //! This module defines structures.
 
-use everything_structures::{Object, Property};
+#[cfg(test)]
+mod tests;
+
+use everything_structures::{Object, Property, Structure};
 use ulid::Ulid;
 
 macro_rules! define_abstract {
@@ -54,5 +57,23 @@ pub fn is_only_natural_number(o: &Object) -> bool {
             }
         }
         _ => false,
+    }
+}
+
+/// Constructs a natural number object using
+/// repeated succ.
+pub fn natural_number(n: u64) -> Object {
+    if n == 0 {
+        ZERO
+    } else {
+        Structure::EMPTY
+            .change(
+                &mut [],
+                &mut [Property {
+                    tag: SUCESSOR_OF,
+                    value: natural_number(n - 1),
+                }],
+            )
+            .into()
     }
 }
