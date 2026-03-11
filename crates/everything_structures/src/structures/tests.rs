@@ -1,12 +1,15 @@
 use ulid::Ulid;
 
-use crate::{Change, Id, Property, Structure, structures::GLOBAL_REGISTRY};
+use crate::{Change, Object, Property, Structure, structures::GLOBAL_REGISTRY};
 use std::{assert_matches, sync::Arc};
 
-fn contains_knowledge_structure() -> Structure {
+pub const ALICE: Object = Object::Abstract(Ulid::from_bytes(*b"This is Alice!!!"));
+pub const BOB: Object = Object::Abstract(Ulid::from_bytes(*b"This is Bob!!!!!"));
+
+fn alice_bob_structure() -> Structure {
     Structure::EMPTY.change(&mut [Change::Add(Property {
-        tag: Id::CONTAINS,
-        value: Id::KNOWLEDGE,
+        tag: ALICE,
+        value: BOB,
     })])
 }
 
@@ -18,20 +21,20 @@ fn empty_structure() {
 #[test]
 fn one_structure() {
     assert_eq!(
-        contains_knowledge_structure().as_ref(),
+        alice_bob_structure().as_ref(),
         [Property {
-            tag: Id::CONTAINS,
-            value: Id::KNOWLEDGE
+            tag: ALICE,
+            value: BOB
         }]
     );
 }
 
 #[test]
 fn inner_structure() {
-    let inner = contains_knowledge_structure();
+    let inner = alice_bob_structure();
 
     let outer = Structure::EMPTY.change(&mut [Change::Add(Property {
-        tag: Id::CONTAINS,
+        tag: ALICE,
         value: inner.clone().into(),
     })]);
 
@@ -40,7 +43,7 @@ fn inner_structure() {
     assert_eq!(
         outer.as_ref(),
         [Property {
-            tag: Id::CONTAINS,
+            tag: ALICE,
             value: inner.into()
         }]
     )
@@ -48,11 +51,11 @@ fn inner_structure() {
 
 #[test]
 fn remove_props() {
-    let structure = contains_knowledge_structure();
+    let structure = alice_bob_structure();
 
     let should_be_empty = structure.change(&mut [Change::Remove(Property {
-        tag: Id::CONTAINS,
-        value: Id::KNOWLEDGE,
+        tag: ALICE,
+        value: BOB,
     })]);
 
     assert_matches!(should_be_empty.propeties, None);
@@ -60,19 +63,16 @@ fn remove_props() {
 
 #[test]
 fn has() {
-    let structure = Structure::EMPTY.change(&mut [Change::Add(Property {
-        tag: Id::CONTAINS,
-        value: Id::KNOWLEDGE,
-    })]);
+    let structure = alice_bob_structure();
 
     assert!(structure.has(&Property {
-        tag: Id::CONTAINS,
-        value: Id::KNOWLEDGE
+        tag: ALICE,
+        value: BOB
     }));
 
     assert!(!structure.has(&Property {
-        tag: Id::CONTAINS,
-        value: Id::CONTAINS
+        tag: ALICE,
+        value: ALICE
     }))
 }
 
@@ -80,8 +80,8 @@ fn has() {
 /// will have the same allocation.
 #[test]
 fn deduping() {
-    let structure_a = contains_knowledge_structure();
-    let structure_b = contains_knowledge_structure();
+    let structure_a = alice_bob_structure();
+    let structure_b = alice_bob_structure();
 
     assert!(Arc::ptr_eq(
         &structure_a.propeties.as_ref().unwrap(),
@@ -91,7 +91,7 @@ fn deduping() {
 
 #[test]
 fn debug() {
-    println!("{:?}", contains_knowledge_structure());
+    println!("{:?}", alice_bob_structure());
 
-    println!("{:?}", Id::Abstract(Ulid::new()));
+    println!("{:?}", Object::Abstract(Ulid::new()));
 }

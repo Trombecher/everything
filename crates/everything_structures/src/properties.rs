@@ -1,12 +1,12 @@
 use std::fmt;
 
-use crate::objects::Id;
+use crate::objects::Object;
 
 /// A property has a tag and a value.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Property {
-    pub tag: Id,
-    pub value: Id,
+    pub tag: Object,
+    pub value: Object,
 }
 
 impl fmt::Debug for Property {

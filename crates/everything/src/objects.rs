@@ -1,0 +1,10 @@
+pub const CONTAINS: Object = Object::Abstract(Ulid(1));
+pub const AXIOMATIC: Object = Object::Abstract(Ulid(2));
+pub const COMPUTED: Object = Object::Abstract(Ulid(3));
+pub const STATEMENT_SUBJECT: Object = Object::Abstract(Ulid(4));
+pub const STATEMENT_TAG: Object = Object::Abstract(Ulid(5));
+pub const STATEMENT_VALUE: Object = Object::Abstract(Ulid(6));
+pub const STATEMENT: Object = Object::Abstract(Ulid(7));
+pub const KNOWLEDGE: Object = Object::Abstract(Ulid(8));
+pub const ZERO: Object = Object::Abstract(Ulid(9));
+pub const SUCESSOR_OF: Object = Object::Abstract(Ulid(10));
