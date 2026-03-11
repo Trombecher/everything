@@ -1,36 +1,3 @@
-(@Contains, @Axiom, _ => _ => {(@Contains, {})})
-
-(@SuccessorOf, @Axiom, $o => $v =>
-    exists ($v, @IsInteger, _)
-    and count query ($o, @SuccessorOf, _) == 1
-)
-
-(@IsInteger, @Computed, $o =>
-    $o == @Zero
-    or exists ($o, @SuccessorOf, _)
-)
-
-(@Tag, @Computed, $o =>
-    exists ($o, @Computed, _)
-    or exists ($o, @Axiom, _)
-)
-
-(@Axiom, @Axiom, $tag => $f =>
-    not exists ($tag, @Computed, _)
-    and exists (
-        query $g in ($f, @Node.Function, $g),
-        @Node.Function,
-        _
-    )
-    and count query ($tag, @Axiom, _) == 1
-)
-
-(@Computed, @Axiom, $tag => $f =>
-    not exists ($tag, @Axiom, _)
-    and exists ($f, @Node.Function, _)
-    and count query ($tag, @Axiom, _) == 1
-)
-
 (@Node, @Computed, $o =>
     exists ($o, @Node.Function, _)
     xor exists ($o, @Node.Literal, _)
