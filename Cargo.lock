@@ -3,13 +3,6 @@
 version = 4
 
 [[package]]
-name = "app"
-version = "0.1.0"
-dependencies = [
- "everything",
-]
-
-[[package]]
 name = "bitflags"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -127,6 +120,10 @@ dependencies = [
  "sha3",
  "ulid",
 ]
+
+[[package]]
+name = "everything-cli"
+version = "0.1.0"
 
 [[package]]
 name = "everything-structures"
