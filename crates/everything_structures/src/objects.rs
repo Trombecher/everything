@@ -1,10 +1,8 @@
 use std::fmt;
 
-use ulid::Ulid;
-
 use crate::structures::Structure;
 
-pub type AbstractId = Ulid;
+pub type AbstractId = u128;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Object {
@@ -19,7 +17,7 @@ impl fmt::Debug for Object {
         match self {
             Self::Abstract(id) => {
                 f.write_str("@")?;
-                id.0.fmt(f)
+                id.fmt(f)
             }
             Self::Structure(s) => s.fmt(f),
         }

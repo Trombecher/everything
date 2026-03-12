@@ -1,6 +1,5 @@
 use everything_structures::{Object, Property, Structure};
 use everything_structures_ff::parse_structure;
-use ulid::Ulid;
 
 #[test]
 fn main() {
@@ -9,8 +8,8 @@ fn main() {
         Ok(Structure::EMPTY.change(
             &mut [],
             &mut [Property {
-                tag: Object::Abstract(Ulid(1)),
-                value: Object::Abstract(Ulid(2)),
+                tag: Object::Abstract(1),
+                value: Object::Abstract(2),
             }]
         ))
     );

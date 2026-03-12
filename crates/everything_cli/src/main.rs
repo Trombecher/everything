@@ -1,8 +1,9 @@
 use std::{fs::read_to_string, path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
-use everything_structures::{AbstractId, Object};
+use everything_structures::Object;
 use everything_structures_ff::{SourceIndex, parse_structure};
+use ulid::Ulid;
 
 #[derive(Parser)]
 #[command(version)]
@@ -38,7 +39,7 @@ fn main() {
 
     match command {
         Command::Gen => {
-            println!("{:?}", Object::Abstract(AbstractId::new()))
+            println!("{:?}", Object::Abstract(Ulid::new().0))
         }
         Command::ParseAndPrint { path, minify } => {
             let input = read_to_string(path).expect("Reading from file failed");

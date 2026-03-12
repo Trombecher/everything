@@ -3,7 +3,7 @@ use everything_structures::AbstractId;
 use crate::{
     SourceIndex, Span,
     lex::{Token, TokenKind, extract_abstract},
-    parse::ulid_from_iter::UlidFromIterator,
+    parse::u128_from_iter::U128FromIterator,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -89,7 +89,7 @@ impl<'source, I: Iterator<Item = Token>> Iterator for FilteredTokens<'source, I>
                 }
                 Some(TokenKind::Abstract) => {
                     let id: AbstractId = extract_abstract(self.source, range.clone())
-                        .collect::<UlidFromIterator>()
+                        .collect::<U128FromIterator>()
                         .0;
 
                     return Some(Span {

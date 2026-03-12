@@ -5,4 +5,3 @@ edition = "2024"
 
 [dependencies]
 dashmap = "6.1.0"
-ulid = "1.2.1"

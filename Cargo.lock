@@ -162,6 +162,7 @@ dependencies = [
  "colored",
  "everything_structures",
  "everything_structures_ff",
+ "ulid",
 ]
 
 [[package]]
@@ -169,7 +170,6 @@ name = "everything_structures"
 version = "0.1.0"
 dependencies = [
  "dashmap",
- "ulid",
 ]
 
 [[package]]
@@ -177,7 +177,6 @@ name = "everything_structures_ff"
 version = "0.1.0"
 dependencies = [
  "everything_structures",
- "ulid",
 ]
 
 [[package]]

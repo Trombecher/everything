@@ -1,10 +1,8 @@
-use ulid::Ulid;
-
 use crate::{Object, Property, Structure, structures::GLOBAL_REGISTRY};
 use std::{assert_matches, sync::Arc};
 
-pub const ALICE: Object = Object::Abstract(Ulid::from_bytes(*b"This is Alice!!!"));
-pub const BOB: Object = Object::Abstract(Ulid::from_bytes(*b"This is Bob!!!!!"));
+pub const ALICE: Object = Object::Abstract(u128::from_be_bytes(*b"This is Alice!!!"));
+pub const BOB: Object = Object::Abstract(u128::from_be_bytes(*b"This is Bob!!!!!"));
 
 fn alice_bob_structure() -> Structure {
     Structure::new(&mut [Property {
@@ -96,7 +94,7 @@ fn deduping() {
 fn debug() {
     println!("{:?}", alice_bob_structure());
 
-    println!("{:?}", Object::Abstract(Ulid::new()));
+    println!("{:?}", Object::Abstract(42));
 }
 
 #[test]

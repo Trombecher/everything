@@ -4,11 +4,10 @@
 mod tests;
 
 use everything_structures::{Object, Property, Structure};
-use ulid::Ulid;
 
 macro_rules! define_abstract {
     ($($id:ident = $n:literal),* $(,)?) => {
-        $(pub const $id: Object = Object::Abstract(Ulid($n));)*
+        $(pub const $id: Object = Object::Abstract($n);)*
     };
 }
 
