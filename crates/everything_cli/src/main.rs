@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, path::PathBuf};
+use std::{fs::read_to_string, path::PathBuf, time::Instant};
 
 use clap::{Parser, Subcommand};
 use everything_structures::{AbstractId, Object};
@@ -43,7 +43,12 @@ fn main() {
         Command::ParseAndPrint { path, minify } => {
             let input = read_to_string(path).expect("Reading from file failed");
 
-            match parse_structure(&input) {
+            let now = Instant::now();
+            let result = parse_structure(&input);
+
+            println!("time parsing: {:?}", now.elapsed());
+
+            match result {
                 Ok(s) => {
                     if minify {
                         println!("{:?}", s);
