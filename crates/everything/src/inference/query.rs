@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use everything_structures::{Object, Property, Structure, ValuesIter};
+use everything_structures::{Object, Structure, ValuesIter};
 
 use crate::{inference::compute::compute, objects};
 
@@ -11,12 +11,12 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
     knowledge_root: &'knowledge Structure,
     subject: &'subject Object,
     tag: &'tag Object,
-) -> QueryValuesIter<'knowledge, 'subject, 'tag, 'item> {
+) -> QueryValuesResult<'knowledge, 'subject, 'tag, 'item> {
     match (subject, tag) {
         (&objects::AXIOMATIC, &objects::AXIOMATIC) => {
-            return QueryValuesIter::Single(Some(&TODO_OBJECT));
+            return QueryValuesResult::Single(Some(&TODO_OBJECT));
         }
-        (&objects::AXIOMATIC, &objects::COMPUTED) => return QueryValuesIter::Single(None),
+        (&objects::AXIOMATIC, &objects::COMPUTED) => return QueryValuesResult::Single(None),
         _ => {}
     }
 
@@ -34,24 +34,41 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
 
             let statements = knowledge_root.values(&objects::CONTAINS);
 
-            QueryValuesIter::Axiomatic(AxiomaticIter {
+            QueryValuesResult::Axiomatic(AxiomaticIter {
                 values_from_subject,
                 statements,
-                subject,
+                subject: subject.clone(),
                 tag,
                 _yield: PhantomData,
             })
         }
         (None, Some(computation_function)) => {
             let result = compute(computation_function, subject.clone());
-
-            QueryValuesIter::ComputationResult(())
+            QueryValuesResult::ComputationResult(result)
         }
         _ => {
             // In case that there is none or both,
             // tag is not a `Tag` so we can return nothing.
 
-            QueryValuesIter::Single(None)
+            QueryValuesResult::Single(None)
+        }
+    }
+}
+
+pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> {
+    Single(Option<&'static Object>),
+    Axiomatic(AxiomaticIter<'knowledge, 'subject, 'tag, 'item>),
+    ComputationResult(Object),
+}
+
+impl<'knowlege: 'item, 'subject: 'item, 'tag: 'item, 'item>
+    QueryValuesResult<'knowlege, 'subject, 'tag, 'item>
+{
+    pub fn iter<'query>(&'query self) -> QueryValuesIter<'query, 'knowlege, 'subject, 'tag, 'item> {
+        match self {
+            Self::Single(object) => QueryValuesIter::Single(object),
+            Self::Axiomatic(axiomatic_iter) => QueryValuesIter::Axiomatic(axiomatic_iter),
+            Self::ComputationResult(object) => Box::new(query_values(knowledge_root, object, tag)),
         }
     }
 }
@@ -59,11 +76,11 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
 pub enum QueryValuesIter<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> {
     Single(Option<&'static Object>),
     Axiomatic(AxiomaticIter<'knowledge, 'subject, 'tag, 'item>),
-    ComputationResult(ComputationResultIter),
+    ComputationResult(Box<QueryValuesIter<'knowledge, 'subject, 'tag, 'item>>),
 }
 
-impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
-    for QueryValuesIter<'knowledge, 'subject, 'tag, 'item>
+impl<'query, 'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
+    for QueryValuesIter<'query, 'knowledge, 'subject, 'tag, 'item>
 {
     type Item = &'item Object;
 
@@ -71,6 +88,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
         match self {
             Self::Single(object) => object.take(),
             Self::Axiomatic(axiomatic_iter) => axiomatic_iter.next(),
+            Self::ComputationResult(iter) => iter.next(),
         }
     }
 }
@@ -78,7 +96,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
 struct AxiomaticIter<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> {
     values_from_subject: Option<ValuesIter<'subject, 'tag>>,
     statements: ValuesIter<'knowledge, 'static>,
-    subject: &'subject Object,
+    subject: Object,
     tag: &'tag Object,
     _yield: PhantomData<&'item Object>,
 }
@@ -141,8 +159,4 @@ impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
 
         None
     }
-}
-
-struct ComputationResultIter {
-    result: Object,
 }

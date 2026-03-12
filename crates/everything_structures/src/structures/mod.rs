@@ -6,7 +6,6 @@ use std::{
     cmp::Ordering,
     fmt,
     hash::{DefaultHasher, Hash, Hasher},
-    iter::TakeWhile,
     mem::MaybeUninit,
     slice,
     sync::{Arc, LazyLock},
@@ -95,14 +94,14 @@ impl Structure {
     }
 }
 
-pub struct ValuesIter<'a, 'b> {
-    props: slice::Iter<'a, Property>,
-    tag: &'b Object,
+pub struct ValuesIter<'props, 'tag> {
+    props: slice::Iter<'props, Property>,
+    tag: &'tag Object,
     done: bool,
 }
 
-impl<'a, 'b> Iterator for ValuesIter<'a, 'b> {
-    type Item = &'a Object;
+impl<'props, 'tag> Iterator for ValuesIter<'props, 'tag> {
+    type Item = &'props Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
