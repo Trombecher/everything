@@ -1,4 +1,4 @@
-//! This module defines structures.
+//! This module defines some objects.
 
 #[cfg(test)]
 mod tests;
