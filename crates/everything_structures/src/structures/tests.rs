@@ -77,6 +77,15 @@ fn has() {
     }))
 }
 
+#[test]
+fn has_by_ref() {
+    let structure = alice_bob_structure();
+
+    assert!(structure.has_by_ref(&ALICE, &BOB));
+
+    assert!(!structure.has_by_ref(&ALICE, &ALICE));
+}
+
 /// This test assures that structurally identical objects
 /// will have the same allocation.
 #[test]

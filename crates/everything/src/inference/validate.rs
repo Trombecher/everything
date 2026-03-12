@@ -5,6 +5,8 @@ use crate::{
     objects,
 };
 
+use self as validate;
+
 pub fn cardinality_of_1(target: &Structure, tag: &Object) -> Result<(), ValidationError> {
     let mut values = target.values(tag);
 
@@ -29,9 +31,9 @@ pub fn cardinality_of_1(target: &Structure, tag: &Object) -> Result<(), Validati
 }
 
 pub fn statement(structure: &Structure) -> Result<(), ValidationError> {
-    self::cardinality_of_1(structure, &objects::STATEMENT_SUBJECT)?;
-    self::cardinality_of_1(structure, &objects::STATEMENT_TAG)?;
-    self::cardinality_of_1(structure, &objects::STATEMENT_VALUE)
+    validate::cardinality_of_1(structure, &objects::STATEMENT_SUBJECT)?;
+    validate::cardinality_of_1(structure, &objects::STATEMENT_TAG)?;
+    validate::cardinality_of_1(structure, &objects::STATEMENT_VALUE)
 }
 
 pub fn knowledge(root: &Structure) -> Result<(), ValidationError> {
@@ -52,9 +54,13 @@ pub fn knowledge(root: &Structure) -> Result<(), ValidationError> {
             Object::Structure(structure) => structure,
         };
 
-        // Validate structure
-        self::statement(statement)?;
+        validate::statement(statement)?;
     }
 
+    Ok(())
+}
+
+/// Checks if
+pub fn is_tag(root: &Structure, object: &Object) -> Result<(), ValidationError> {
     Ok(())
 }

@@ -6,7 +6,9 @@ use std::{
     cmp::Ordering,
     fmt,
     hash::{DefaultHasher, Hash, Hasher},
+    iter::TakeWhile,
     mem::MaybeUninit,
+    slice,
     sync::{Arc, LazyLock},
 };
 
@@ -29,6 +31,19 @@ impl Structure {
         match &self.propeties {
             None => false,
             Some(properties) => properties.binary_search(property).is_ok(),
+        }
+    }
+
+    #[must_use]
+    pub fn has_by_ref(&self, tag: &Object, value: &Object) -> bool {
+        match &self.propeties {
+            None => false,
+            Some(properties) => properties
+                .binary_search_by(|property| match property.tag.cmp(tag) {
+                    Ordering::Equal => property.value.cmp(value),
+                    ordering => ordering,
+                })
+                .is_ok(),
         }
     }
 
@@ -59,14 +74,15 @@ impl Structure {
     /// Returns an iterator over all values that this tag has
     /// in this structure.
     #[must_use]
-    pub fn values(&self, tag: &Object) -> impl Iterator<Item = &Object> {
+    pub fn values<'props, 'tag>(&'props self, tag: &'tag Object) -> ValuesIter<'props, 'tag> {
         let properties = self.as_ref();
         let start = properties.partition_point(|property| &property.tag < tag);
 
-        properties[start..]
-            .iter()
-            .take_while(move |property| &property.tag == tag)
-            .map(|property| &property.value)
+        ValuesIter {
+            props: properties[start..].iter(),
+            tag,
+            done: false,
+        }
     }
 
     /// Returns an iterator over all tags that this value has
@@ -76,6 +92,32 @@ impl Structure {
         self.as_ref()
             .iter()
             .filter_map(move |property| (&property.value == value).then_some(&property.tag))
+    }
+}
+
+pub struct ValuesIter<'a, 'b> {
+    props: slice::Iter<'a, Property>,
+    tag: &'b Object,
+    done: bool,
+}
+
+impl<'a, 'b> Iterator for ValuesIter<'a, 'b> {
+    type Item = &'a Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            None
+        } else if let Some(property) = self.props.next() {
+            if &property.tag == self.tag {
+                Some(&property.value)
+            } else {
+                self.done = true;
+
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 

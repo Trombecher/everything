@@ -10,8 +10,6 @@ pub enum Object {
     Structure(Structure),
 }
 
-impl Object {}
-
 impl fmt::Debug for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

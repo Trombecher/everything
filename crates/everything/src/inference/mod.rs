@@ -1,4 +1,6 @@
+mod compute;
 mod error;
+mod query;
 pub mod validate;
 
 pub use error::*;
