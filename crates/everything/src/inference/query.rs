@@ -8,13 +8,15 @@ use crate::{
 };
 
 // TODO
-const TODO_OBJECT: Object = Object::Abstract(u128::from_be_bytes(*b"This is the todo"));
+const TODO_OBJECT: Object = Object::Abstract(999_999_999);
 
 pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
     knowledge_root: &'knowledge Structure,
     subject: &'subject Object,
     tag: &'tag Object,
 ) -> QueryValuesResult<'knowledge, 'subject, 'tag, 'item> {
+    println!("querying ({subject:?}, {tag:?}, ?)");
+
     match (subject, tag) {
         (&objects::AXIOMATIC, &objects::AXIOMATIC) => {
             return QueryValuesResult::Single(Some(&TODO_OBJECT));
