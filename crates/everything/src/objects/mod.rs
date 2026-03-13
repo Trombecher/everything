@@ -5,6 +5,8 @@ mod tests;
 
 use everything_structures::{Object, Property, Structure};
 
+use crate::objects;
+
 macro_rules! define_abstract {
     ($($id:ident = $n:literal),* $(,)?) => {
         $(pub const $id: Object = Object::Abstract($n);)*
@@ -57,9 +59,6 @@ pub trait ObjectExt {
     /// false |-> {}
     /// ```
     fn from_bool(b: bool) -> Object;
-
-    /// Checks whether `self` is knowledge.
-    fn is_knowledge(&self) -> bool;
 
     /// Constructs a new set containing only `self`.
     fn to_set_of_self(self) -> Structure;
@@ -114,14 +113,48 @@ impl ObjectExt for Object {
         .into()
     }
 
-    fn is_knowledge(&self) -> bool {
-        todo!()
-    }
-
     fn to_set_of_self(self) -> Structure {
         Structure::new(&mut [Property {
             tag: CONTAINS,
             value: self,
         }])
+    }
+}
+
+pub trait StructureExt {
+    fn has_exactly_one_value_on(&self, tag: &Object) -> bool;
+
+    fn is_knowledge(&self) -> bool;
+
+    fn is_statement(&self) -> bool;
+}
+
+impl StructureExt for Structure {
+    fn has_exactly_one_value_on(&self, tag: &Object) -> bool {
+        let mut values = self.values(tag);
+        return values.next().is_some() && values.next().is_none();
+    }
+
+    fn is_knowledge(&self) -> bool {
+        // First we validate that every object contained
+        // in the root is a statement.
+
+        for contains_object in self.values(&CONTAINS) {
+            if let Object::Structure(contains_structure) = contains_object
+                && contains_structure.is_statement()
+            {
+            } else {
+                // TODO: review this for abstracts
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn is_statement(&self) -> bool {
+        self.has_exactly_one_value_on(&objects::STATEMENT_SUBJECT)
+            && self.has_exactly_one_value_on(&objects::STATEMENT_TAG)
+            && self.has_exactly_one_value_on(&objects::STATEMENT_VALUE)
     }
 }

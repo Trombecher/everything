@@ -1,7 +1,5 @@
 use everything_structures::Object;
 
-pub fn dynamic(function: &Object, argument: Object) -> Object {
-    // TODO: implement this.
-
-    argument
+pub fn compute(_function: &Object, _argument: Object) -> Object {
+    todo!("impl dynamic")
 }

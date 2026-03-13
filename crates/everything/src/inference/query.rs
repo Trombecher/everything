@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use everything_structures::{Object, Structure, ValuesIter};
 
 use crate::{
-    inference::compute,
-    objects::{self, ObjectExt},
+    inference::compute::compute,
+    objects::{self, StructureExt},
 };
 
 // TODO
@@ -24,7 +24,11 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
-            return QueryValuesResult::Single(subject.is_knowledge().then_some(&EMPTY_OBJECT));
+            return QueryValuesResult::Single(match subject {
+                // TODO: review this for abstract objects
+                Object::Abstract(_) => None,
+                Object::Structure(s) => s.is_knowledge().then_some(&EMPTY_OBJECT),
+            });
         }
         _ => {}
     }
@@ -55,7 +59,7 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
             })
         }
         (None, Some(computation_function)) => {
-            let result = compute::dynamic(computation_function, subject.clone());
+            let result = compute(computation_function, subject.clone());
             QueryValuesResult::ComputationResult(result)
         }
         _ => {

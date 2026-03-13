@@ -1,18 +1,20 @@
 mod compute;
-mod error;
 mod query;
-pub mod validate;
 
-pub use error::*;
+pub use compute::*;
+pub use query::*;
+
 use everything_structures::Structure;
+
+use crate::objects::StructureExt;
 
 #[derive(Clone)]
 pub struct Knowledge(Structure);
 
 impl Knowledge {
     #[inline]
-    pub fn new(structure: Structure) -> Result<Self, ValidationError> {
-        validate::knowledge(&structure).map(|()| Self(structure))
+    pub fn new(structure: Structure) -> Option<Self> {
+        structure.is_knowledge().then_some(Self(structure))
     }
 
     #[must_use]
@@ -23,10 +25,10 @@ impl Knowledge {
 }
 
 impl TryFrom<Structure> for Knowledge {
-    type Error = ValidationError;
+    type Error = ();
 
     fn try_from(value: Structure) -> Result<Self, Self::Error> {
-        Self::new(value)
+        Self::new(value).ok_or(())
     }
 }
 
