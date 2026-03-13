@@ -3,7 +3,7 @@ mod query;
 
 pub use query::*;
 
-use everything_structures::Structure;
+use everything_structures::{Object, Structure};
 
 use crate::objects::StructureExt;
 
@@ -20,6 +20,17 @@ impl Knowledge {
     #[inline]
     pub fn structure(&self) -> &Structure {
         &self.0
+    }
+
+    /// Query the knowledge.
+    #[inline]
+    #[must_use]
+    pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
+        &'knowledge self,
+        subject: &'subject Object,
+        tag: &'tag Object,
+    ) -> QueryValuesResult<'knowledge, 'subject, 'tag, 'item> {
+        query_values(self.structure(), subject, tag)
     }
 }
 

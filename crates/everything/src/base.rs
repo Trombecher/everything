@@ -39,14 +39,14 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         stmt_to_prop(
             objects::SUCCESSOR_OF,
             objects::AXIOMATIC,
-            Structure::node_function(
-                Structure::node_function(
-                    Structure::node_and([
-                        Structure::node_exists(
+            Structure::new_node_function(
+                Structure::new_node_function(
+                    Structure::new_node_and([
+                        Structure::new_node_exists(
                             Structure::new(&mut [
                                 Property {
                                     tag: objects::STATEMENT_SUBJECT,
-                                    value: Structure::node_parameter(Object::natural_number(0))
+                                    value: Structure::new_node_parameter(Object::natural_number(0))
                                         .into(),
                                 },
                                 Property {
@@ -57,13 +57,13 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                             .into(),
                         )
                         .into(),
-                        Structure::node_equal([
-                            Structure::node_count(
-                                Structure::node_query(
+                        Structure::new_node_equal([
+                            Structure::new_node_count(
+                                Structure::new_node_query(
                                     Structure::new(&mut [
                                         Property {
                                             tag: objects::STATEMENT_SUBJECT,
-                                            value: Structure::node_parameter(
+                                            value: Structure::new_node_parameter(
                                                 Object::natural_number(1),
                                             )
                                             .into(),

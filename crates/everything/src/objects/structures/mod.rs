@@ -10,10 +10,17 @@ use crate::{
 
 /// Nice-to-have functions for [Structure]s.
 pub trait StructureExt {
-    fn node_query(node: Object) -> Self;
-    fn node_count(node: Object) -> Self;
-    fn node_parameter(node: Object) -> Self;
-    fn node_exists(statement: Object) -> Self;
+    /// Constructs a query node.
+    fn new_node_query(node: Object) -> Self;
+
+    /// Constructs a count node.
+    fn new_node_count(node: Object) -> Self;
+
+    /// Constructs a parameter node.
+    fn new_node_parameter(node: Object) -> Self;
+
+    fn new_node_exists(statement: Object) -> Self;
+
     fn has_exactly_one_value_on(&self, tag: &Object) -> bool;
 
     fn is_knowledge(&self) -> bool;
@@ -22,11 +29,11 @@ pub trait StructureExt {
 
     fn parse_statement<'a>(&'a self) -> Option<Statement<'a>>;
 
-    fn node_function(body: Object) -> Self;
+    fn new_node_function(body: Object) -> Self;
 
-    fn node_equal<const N: usize>(nodes: [Object; N]) -> Self;
+    fn new_node_equal<const N: usize>(nodes: [Object; N]) -> Self;
 
-    fn node_and<const N: usize>(nodes: [Object; N]) -> Self;
+    fn new_node_and<const N: usize>(nodes: [Object; N]) -> Self;
 }
 
 impl StructureExt for Structure {
@@ -52,8 +59,11 @@ impl StructureExt for Structure {
         // Now we need to check constraints and values.
 
         for statement in self.values(&super::CONTAINS) {
-            // TODO: better panic msgs
-            let statement = statement.structure().unwrap().parse_statement().unwrap();
+            let statement = statement
+                .structure()
+                .expect("expected structure because it was validated earlier")
+                .parse_statement()
+                .expect("found a structure which is not a statement");
 
             // Get constraint function from tag for value:
             let constraint_query_result = query_values(self, &statement.tag, &objects::AXIOMATIC);
@@ -82,7 +92,7 @@ impl StructureExt for Structure {
     fn parse_statement<'a>(&'a self) -> Option<Statement<'a>> {
         let subject = self.values(&objects::STATEMENT_SUBJECT).next()?;
         let tag = self.values(&objects::STATEMENT_TAG).next()?;
-        let value = self.values(&objects::STATEMENT_TAG).next()?;
+        let value = self.values(&objects::STATEMENT_VALUE).next()?;
 
         Some(Statement {
             subject,
@@ -91,14 +101,14 @@ impl StructureExt for Structure {
         })
     }
 
-    fn node_function(body: Object) -> Self {
+    fn new_node_function(body: Object) -> Self {
         Self::new(&mut [Property {
             tag: objects::NODE_FUNCTION_BODY,
             value: body,
         }])
     }
 
-    fn node_equal<const N: usize>(nodes: [Object; N]) -> Self {
+    fn new_node_equal<const N: usize>(nodes: [Object; N]) -> Self {
         let mut properties = nodes.map(|node| Property {
             tag: objects::NODE_EQUAL,
             value: node,
@@ -107,7 +117,7 @@ impl StructureExt for Structure {
         Self::new(&mut properties)
     }
 
-    fn node_and<const N: usize>(nodes: [Object; N]) -> Self {
+    fn new_node_and<const N: usize>(nodes: [Object; N]) -> Self {
         let mut properties = nodes.map(|node| Property {
             tag: objects::NODE_AND,
             value: node,
@@ -116,28 +126,28 @@ impl StructureExt for Structure {
         Self::new(&mut properties)
     }
 
-    fn node_exists(statement_node: Object) -> Self {
+    fn new_node_exists(statement_node: Object) -> Self {
         Self::new(&mut [Property {
             tag: objects::NODE_EXISTS,
             value: statement_node,
         }])
     }
 
-    fn node_parameter(node: Object) -> Self {
+    fn new_node_parameter(node: Object) -> Self {
         Self::new(&mut [Property {
             tag: objects::NODE_PARAMETER,
             value: node,
         }])
     }
 
-    fn node_count(node: Object) -> Self {
+    fn new_node_count(node: Object) -> Self {
         Self::new(&mut [Property {
             tag: objects::NODE_COUNT,
             value: node,
         }])
     }
 
-    fn node_query(query: Object) -> Self {
+    fn new_node_query(query: Object) -> Self {
         Self::new(&mut [Property {
             tag: objects::NODE_QUERY,
             value: query,

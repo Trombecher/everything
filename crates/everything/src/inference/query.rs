@@ -3,15 +3,15 @@ use std::marker::PhantomData;
 use everything_structures::{Object, Structure, ValuesIter};
 
 use crate::{
-    inference::compute::call,
+    inference::compute,
     objects::{self, StructureExt},
 };
 
 // TODO
 const TODO_OBJECT: Object = Object::Abstract(999_999_999);
 
-pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
-    knowledge_root: &'knowledge Structure,
+pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
+    knowledge: &'knowledge Structure,
     subject: &'subject Object,
     tag: &'tag Object,
 ) -> QueryValuesResult<'knowledge, 'subject, 'tag, 'item> {
@@ -35,10 +35,10 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
         _ => {}
     }
 
-    let maybe_constraint_query = query_values(knowledge_root, tag, &objects::AXIOMATIC);
+    let maybe_constraint_query = query_values(knowledge, tag, &objects::AXIOMATIC);
     let maybe_constraint = maybe_constraint_query.iter().next();
 
-    let maybe_computation_function_query = query_values(knowledge_root, tag, &objects::COMPUTED);
+    let maybe_computation_function_query = query_values(knowledge, tag, &objects::COMPUTED);
     let maybe_computation_function = maybe_computation_function_query.iter().next();
 
     match (maybe_constraint, maybe_computation_function) {
@@ -50,7 +50,7 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
                 Object::Structure(structure) => Some(structure.values(tag)),
             };
 
-            let statements = knowledge_root.values(&objects::CONTAINS);
+            let statements = knowledge.values(&objects::CONTAINS);
 
             QueryValuesResult::Axiomatic(AxiomaticIter {
                 values_from_subject,
@@ -61,7 +61,7 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
             })
         }
         (None, Some(computation_function)) => {
-            let result = call(computation_function, &subject);
+            let result = compute::call(knowledge, computation_function, &subject);
             QueryValuesResult::ComputationResult(result)
         }
         _ => {

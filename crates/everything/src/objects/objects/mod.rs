@@ -3,9 +3,14 @@ mod tests;
 
 use everything_structures::{Object, Property, Structure};
 
-use crate::objects;
+use crate::{
+    inference::query_values,
+    objects::{self, NodeType},
+};
 
 pub trait ObjectExt {
+    fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
+
     fn is_only_natural_number(&self) -> bool;
 
     /// Constructs a natural number object using
@@ -101,5 +106,26 @@ impl ObjectExt for Object {
             Self::Abstract(_) => false,
             Self::Structure(structure) => !structure.as_ref().is_empty(),
         }
+    }
+
+    fn node_type(&self, knowledge: &Structure) -> Option<NodeType> {
+        let mut current_pick = None;
+
+        for node_type in NodeType::ALL {
+            let node_type_object: Object = node_type.into();
+            let query = query_values(knowledge, self, &node_type_object);
+            let there_are_values = query.iter().next().is_some();
+
+            if there_are_values {
+                if current_pick.is_some() {
+                    // multiple node types apply
+                    return None;
+                }
+
+                current_pick = Some(node_type);
+            }
+        }
+
+        current_pick
     }
 }
