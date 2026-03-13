@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use everything_structures::{Object, Structure};
 
 use crate::{
