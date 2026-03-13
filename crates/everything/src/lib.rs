@@ -2,4 +2,7 @@
 
 pub mod base;
 pub mod ext;
-pub mod inference;
+mod knowledge;
+pub mod query;
+
+pub use knowledge::*;

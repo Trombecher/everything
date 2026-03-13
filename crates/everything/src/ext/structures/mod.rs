@@ -4,8 +4,8 @@ mod tests;
 use everything_structures::{Object, Property, Structure};
 
 use crate::{
-    ext::{self, ObjectExt, Statement},
-    inference::{compute, query_values},
+    ext::{ObjectExt, Statement},
+    query::query_values,
 };
 
 /// Nice-to-have functions for [Structure]s.
@@ -46,7 +46,7 @@ impl StructureExt for Structure {
         // First we validate that every object contained
         // in `self` is a statement.
 
-        for contains_object in self.values(&super::CONTAINS) {
+        for contains_object in self.values(&Object::CONTAINS) {
             if let Object::Structure(contains_structure) = contains_object
                 && contains_structure.is_statement()
             {
@@ -58,7 +58,7 @@ impl StructureExt for Structure {
 
         // Now we need to check constraints and values.
 
-        for statement in self.values(&super::CONTAINS) {
+        for statement in self.values(&Object::CONTAINS) {
             let statement = statement
                 .structure()
                 .expect("expected structure because it was validated earlier")
@@ -66,14 +66,15 @@ impl StructureExt for Structure {
                 .expect("found a structure which is not a statement");
 
             // Get constraint function from tag for value:
-            let constraint_query_result = query_values(self, &statement.tag, &ext::AXIOMATIC);
+            let axiomatic = Object::AXIOMATIC;
+            let constraint_query_result = query_values(self, &statement.tag, &axiomatic);
             let constraint_function = match constraint_query_result.iter().next() {
                 Some(c) => c,
                 None => return false,
             };
 
-            let inter = compute::call(constraint_function, &statement.subject);
-            let result = compute::call(&inter, &statement.value);
+            let inter = constraint_function.call(self, &statement.subject);
+            let result = inter.call(self, &statement.value);
 
             if !result.is_truthy() {
                 return false;
@@ -84,15 +85,15 @@ impl StructureExt for Structure {
     }
 
     fn is_statement(&self) -> bool {
-        self.has_exactly_one_value_on(&ext::STATEMENT_SUBJECT)
-            && self.has_exactly_one_value_on(&ext::STATEMENT_TAG)
-            && self.has_exactly_one_value_on(&ext::STATEMENT_VALUE)
+        self.has_exactly_one_value_on(&Object::STATEMENT_SUBJECT)
+            && self.has_exactly_one_value_on(&Object::STATEMENT_TAG)
+            && self.has_exactly_one_value_on(&Object::STATEMENT_VALUE)
     }
 
     fn parse_statement<'a>(&'a self) -> Option<Statement<'a>> {
-        let subject = self.values(&ext::STATEMENT_SUBJECT).next()?;
-        let tag = self.values(&ext::STATEMENT_TAG).next()?;
-        let value = self.values(&ext::STATEMENT_VALUE).next()?;
+        let subject = self.values(&Object::STATEMENT_SUBJECT).next()?;
+        let tag = self.values(&Object::STATEMENT_TAG).next()?;
+        let value = self.values(&Object::STATEMENT_VALUE).next()?;
 
         Some(Statement {
             subject,
@@ -103,14 +104,14 @@ impl StructureExt for Structure {
 
     fn new_node_function(body: Object) -> Self {
         Self::new(&mut [Property {
-            tag: ext::NODE_FUNCTION_BODY,
+            tag: Object::NODE_FUNCTION_BODY,
             value: body,
         }])
     }
 
     fn new_node_equal<const N: usize>(nodes: [Object; N]) -> Self {
         let mut properties = nodes.map(|node| Property {
-            tag: ext::NODE_EQUAL,
+            tag: Object::NODE_EQUAL,
             value: node,
         });
 
@@ -119,7 +120,7 @@ impl StructureExt for Structure {
 
     fn new_node_and<const N: usize>(nodes: [Object; N]) -> Self {
         let mut properties = nodes.map(|node| Property {
-            tag: ext::NODE_AND,
+            tag: Object::NODE_AND,
             value: node,
         });
 
@@ -128,28 +129,28 @@ impl StructureExt for Structure {
 
     fn new_node_exists(statement_node: Object) -> Self {
         Self::new(&mut [Property {
-            tag: ext::NODE_EXISTS,
+            tag: Object::NODE_EXISTS,
             value: statement_node,
         }])
     }
 
     fn new_node_parameter(node: Object) -> Self {
         Self::new(&mut [Property {
-            tag: ext::NODE_PARAMETER,
+            tag: Object::NODE_PARAMETER,
             value: node,
         }])
     }
 
     fn new_node_count(node: Object) -> Self {
         Self::new(&mut [Property {
-            tag: ext::NODE_COUNT,
+            tag: Object::NODE_COUNT,
             value: node,
         }])
     }
 
     fn new_node_query(query: Object) -> Self {
         Self::new(&mut [Property {
-            tag: ext::NODE_QUERY,
+            tag: Object::NODE_QUERY,
             value: query,
         }])
     }

@@ -3,12 +3,49 @@ mod tests;
 
 use everything_structures::{Object, Property, Structure};
 
-use crate::{
-    ext::{self, NodeType},
-    inference::query_values,
-};
+use crate::{ext::NodeType, query::query_values};
+
+macro_rules! define_abstract {
+    ($($id:ident = $n:literal),* $(,)?) => {
+        $(const $id: Object = Object::Abstract($n);)*
+    };
+}
 
 pub trait ObjectExt {
+    // DO NOT CHANGE THESE!
+    define_abstract!(
+        CONTAINS = 1,
+        AXIOMATIC = 2,
+        COMPUTED = 3,
+        STATEMENT_SUBJECT = 4,
+        STATEMENT_TAG = 5,
+        STATEMENT_VALUE = 6,
+        STATEMENT = 7,
+        KNOWLEDGE = 8,
+        ZERO = 9,
+        SUCCESSOR_OF = 10,
+        NODE_FUNCTION_BODY = 11,
+        NODE_LITERAL = 12,
+        NODE_AND = 13,
+        NODE_EXISTS = 14,
+        NODE_PARAMETER = 15,
+        IS_NATURAL_NUMBER = 16,
+        NODE_COUNT = 17,
+        NODE_QUERY = 18,
+        NODE_EQUAL = 19,
+        NODE_OR = 20,
+        NODE_XOR = 21,
+        NODE_NOT = 22,
+        NODE = 23,
+        TAG = 24,
+        NODE_FUNCTION_SELF = 25,
+        NODE_CALL_TARGET = 26,
+        NODE_CALL_PARAMETER = 27,
+        NODE_CALL = 28,
+    );
+
+    fn eval(&self, knowledge: &Structure) -> Object;
+
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
 
     fn is_only_natural_number(&self) -> bool;
@@ -35,16 +72,18 @@ pub trait ObjectExt {
     fn structure(&self) -> Option<&Structure>;
 
     fn is_truthy(&self) -> bool;
+
+    fn call(&self, knowledge: &Structure, parameter: &Object) -> Object;
 }
 
 impl ObjectExt for Object {
     fn is_only_natural_number(&self) -> bool {
         match self {
-            &ext::ZERO => true,
+            &Object::ZERO => true,
             Object::Structure(s) => {
                 if let [
                     Property {
-                        tag: ext::SUCCESSOR_OF,
+                        tag: Object::SUCCESSOR_OF,
                         value,
                     },
                 ] = s.as_ref()
@@ -60,10 +99,10 @@ impl ObjectExt for Object {
 
     fn natural_number(n: u64) -> Self {
         if n == 0 {
-            ext::ZERO
+            Object::ZERO
         } else {
             Structure::new(&mut [Property {
-                tag: ext::SUCCESSOR_OF,
+                tag: Object::SUCCESSOR_OF,
                 value: Self::natural_number(n - 1),
             }])
             .into()
@@ -88,7 +127,7 @@ impl ObjectExt for Object {
 
     fn to_set_of_self(self) -> Structure {
         Structure::new(&mut [Property {
-            tag: ext::CONTAINS,
+            tag: Object::CONTAINS,
             value: self,
         }])
     }
@@ -127,5 +166,21 @@ impl ObjectExt for Object {
         }
 
         current_pick
+    }
+
+    fn eval(&self, knowledge: &Structure) -> Object {
+        match self.node_type(knowledge) {
+            Some(NodeType::Call) => {
+                // let query = query_values(knowledge, node, &objects::NODE_CALL);
+                // let x = query.iter().next().unwrap();
+                todo!()
+            }
+            Some(_) => todo!(),
+            None => self.clone(),
+        }
+    }
+
+    fn call(&self, _knowledge: &Structure, parameter: &Object) -> Object {
+        todo!("impl call of {self:?} {parameter:?} = ?")
     }
 }

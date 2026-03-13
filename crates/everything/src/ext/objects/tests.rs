@@ -1,16 +1,16 @@
 use everything_structures::{Object, Property, Structure};
 
-use crate::ext::{self, ObjectExt};
+use crate::ext::ObjectExt;
 
 #[test]
 fn is_only_natural_number() {
     // Abstracts
-    assert!(!ext::CONTAINS.is_only_natural_number());
-    assert!(ext::ZERO.is_only_natural_number());
+    assert!(!Object::CONTAINS.is_only_natural_number());
+    assert!(Object::ZERO.is_only_natural_number());
 
     let one: Object = Structure::new(&mut [Property {
-        tag: ext::SUCCESSOR_OF,
-        value: ext::ZERO,
+        tag: Object::SUCCESSOR_OF,
+        value: Object::ZERO,
     }])
     .into();
 
@@ -18,12 +18,12 @@ fn is_only_natural_number() {
 
     let one_with_stuff: Object = Structure::new(&mut [
         Property {
-            tag: ext::SUCCESSOR_OF,
-            value: ext::ZERO,
+            tag: Object::SUCCESSOR_OF,
+            value: Object::ZERO,
         },
         Property {
-            tag: ext::CONTAINS,
-            value: ext::ZERO,
+            tag: Object::CONTAINS,
+            value: Object::ZERO,
         },
     ])
     .into();
@@ -33,15 +33,15 @@ fn is_only_natural_number() {
 
 #[test]
 fn natural_number() {
-    assert_eq!(Object::natural_number(0), ext::ZERO);
+    assert_eq!(Object::natural_number(0), Object::ZERO);
 
     assert_eq!(
         Object::natural_number(2),
         Structure::new(&mut [Property {
-            tag: ext::SUCCESSOR_OF,
+            tag: Object::SUCCESSOR_OF,
             value: Structure::new(&mut [Property {
-                tag: ext::SUCCESSOR_OF,
-                value: ext::ZERO
+                tag: Object::SUCCESSOR_OF,
+                value: Object::ZERO
             }])
             .into()
         }])

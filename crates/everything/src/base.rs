@@ -2,22 +2,22 @@ use std::sync::LazyLock;
 
 use everything_structures::{Object, Property, Structure};
 
-use crate::objects::{self, ObjectExt, StructureExt};
+use crate::ext::{ObjectExt, StructureExt};
 
 fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
     Property {
-        tag: objects::CONTAINS,
+        tag: Object::CONTAINS,
         value: Structure::new(&mut [
             Property {
-                tag: objects::STATEMENT_SUBJECT,
+                tag: Object::STATEMENT_SUBJECT,
                 value: subject,
             },
             Property {
-                tag: objects::STATEMENT_TAG,
+                tag: Object::STATEMENT_TAG,
                 value: tag,
             },
             Property {
-                tag: objects::STATEMENT_VALUE,
+                tag: Object::STATEMENT_VALUE,
                 value: value,
             },
         ])
@@ -28,30 +28,30 @@ fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
 pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
     Structure::new(&mut [
         stmt_to_prop(
-            objects::CONTAINS,
-            objects::AXIOMATIC,
+            Object::CONTAINS,
+            Object::AXIOMATIC,
             Structure::new(&mut [Property {
-                tag: objects::CONTAINS,
+                tag: Object::CONTAINS,
                 value: Structure::EMPTY.into(),
             }])
             .into(),
         ),
         stmt_to_prop(
-            objects::SUCCESSOR_OF,
-            objects::AXIOMATIC,
+            Object::SUCCESSOR_OF,
+            Object::AXIOMATIC,
             Structure::new_node_function(
                 Structure::new_node_function(
                     Structure::new_node_and([
                         Structure::new_node_exists(
                             Structure::new(&mut [
                                 Property {
-                                    tag: objects::STATEMENT_SUBJECT,
+                                    tag: Object::STATEMENT_SUBJECT,
                                     value: Structure::new_node_parameter(Object::natural_number(0))
                                         .into(),
                                 },
                                 Property {
-                                    tag: objects::STATEMENT_TAG,
-                                    value: objects::IS_NATURAL_NUMBER,
+                                    tag: Object::STATEMENT_TAG,
+                                    value: Object::IS_NATURAL_NUMBER,
                                 },
                             ])
                             .into(),
@@ -62,15 +62,15 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                                 Structure::new_node_query(
                                     Structure::new(&mut [
                                         Property {
-                                            tag: objects::STATEMENT_SUBJECT,
+                                            tag: Object::STATEMENT_SUBJECT,
                                             value: Structure::new_node_parameter(
                                                 Object::natural_number(1),
                                             )
                                             .into(),
                                         },
                                         Property {
-                                            tag: objects::STATEMENT_TAG,
-                                            value: objects::SUCCESSOR_OF,
+                                            tag: Object::STATEMENT_TAG,
+                                            value: Object::SUCCESSOR_OF,
                                         },
                                     ])
                                     .into(),

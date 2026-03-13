@@ -1,11 +1,9 @@
-pub mod compute;
-mod query;
-
-pub use query::*;
-
 use everything_structures::{Object, Structure};
 
-use crate::ext::StructureExt;
+use crate::{
+    ext::StructureExt,
+    query::{QueryValuesResult, query_values},
+};
 
 #[derive(Clone)]
 pub struct Knowledge(Structure);
