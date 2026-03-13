@@ -1,14 +1,19 @@
 #[cfg(test)]
 mod tests;
 
-use everything_structures::{Object, Structure};
+use everything_structures::{Object, Property, Structure};
 
 use crate::{
     inference::{compute, query_values},
     objects::{self, ObjectExt, Statement},
 };
 
+/// Nice-to-have functions for [Structure]s.
 pub trait StructureExt {
+    fn node_query(node: Object) -> Self;
+    fn node_count(node: Object) -> Self;
+    fn node_parameter(node: Object) -> Self;
+    fn node_exists(statement: Object) -> Self;
     fn has_exactly_one_value_on(&self, tag: &Object) -> bool;
 
     fn is_knowledge(&self) -> bool;
@@ -16,6 +21,12 @@ pub trait StructureExt {
     fn is_statement(&self) -> bool;
 
     fn parse_statement<'a>(&'a self) -> Option<Statement<'a>>;
+
+    fn node_function(body: Object) -> Self;
+
+    fn node_equal<const N: usize>(nodes: [Object; N]) -> Self;
+
+    fn node_and<const N: usize>(nodes: [Object; N]) -> Self;
 }
 
 impl StructureExt for Structure {
@@ -78,5 +89,58 @@ impl StructureExt for Structure {
             tag,
             value,
         })
+    }
+
+    fn node_function(body: Object) -> Self {
+        Self::new(&mut [Property {
+            tag: objects::NODE_FUNCTION_BODY,
+            value: body,
+        }])
+    }
+
+    fn node_equal<const N: usize>(nodes: [Object; N]) -> Self {
+        let mut properties = nodes.map(|node| Property {
+            tag: objects::NODE_EQUAL,
+            value: node,
+        });
+
+        Self::new(&mut properties)
+    }
+
+    fn node_and<const N: usize>(nodes: [Object; N]) -> Self {
+        let mut properties = nodes.map(|node| Property {
+            tag: objects::NODE_AND,
+            value: node,
+        });
+
+        Self::new(&mut properties)
+    }
+
+    fn node_exists(statement_node: Object) -> Self {
+        Self::new(&mut [Property {
+            tag: objects::NODE_EXISTS,
+            value: statement_node,
+        }])
+    }
+
+    fn node_parameter(node: Object) -> Self {
+        Self::new(&mut [Property {
+            tag: objects::NODE_PARAMETER,
+            value: node,
+        }])
+    }
+
+    fn node_count(node: Object) -> Self {
+        Self::new(&mut [Property {
+            tag: objects::NODE_COUNT,
+            value: node,
+        }])
+    }
+
+    fn node_query(query: Object) -> Self {
+        Self::new(&mut [Property {
+            tag: objects::NODE_QUERY,
+            value: query,
+        }])
     }
 }

@@ -9,7 +9,7 @@ fn is_only_natural_number() {
     assert!(objects::ZERO.is_only_natural_number());
 
     let one: Object = Structure::new(&mut [Property {
-        tag: objects::SUCESSOR_OF,
+        tag: objects::SUCCESSOR_OF,
         value: objects::ZERO,
     }])
     .into();
@@ -18,7 +18,7 @@ fn is_only_natural_number() {
 
     let one_with_stuff: Object = Structure::new(&mut [
         Property {
-            tag: objects::SUCESSOR_OF,
+            tag: objects::SUCCESSOR_OF,
             value: objects::ZERO,
         },
         Property {
@@ -38,9 +38,9 @@ fn natural_number() {
     assert_eq!(
         Object::natural_number(2),
         Structure::new(&mut [Property {
-            tag: objects::SUCESSOR_OF,
+            tag: objects::SUCCESSOR_OF,
             value: Structure::new(&mut [Property {
-                tag: objects::SUCESSOR_OF,
+                tag: objects::SUCCESSOR_OF,
                 value: objects::ZERO
             }])
             .into()

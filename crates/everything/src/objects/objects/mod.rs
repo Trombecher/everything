@@ -39,7 +39,7 @@ impl ObjectExt for Object {
             Object::Structure(s) => {
                 if let [
                     Property {
-                        tag: objects::SUCESSOR_OF,
+                        tag: objects::SUCCESSOR_OF,
                         value,
                     },
                 ] = s.as_ref()
@@ -58,7 +58,7 @@ impl ObjectExt for Object {
             objects::ZERO
         } else {
             Structure::new(&mut [Property {
-                tag: objects::SUCESSOR_OF,
+                tag: objects::SUCCESSOR_OF,
                 value: Self::natural_number(n - 1),
             }])
             .into()
