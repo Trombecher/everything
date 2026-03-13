@@ -2,7 +2,7 @@
 
 use everything_structures::{Object, Property, Structure};
 
-use crate::objects::StructureExt;
+use crate::ext::StructureExt;
 
 const ALICE: Object = Object::Abstract(999_999_999);
 const BOB: Object = Object::Abstract(888_888_888);

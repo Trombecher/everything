@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use everything_structures::{Object, Structure, ValuesIter};
 
 use crate::{
+    ext::{self, StructureExt},
     inference::compute,
-    objects::{self, StructureExt},
 };
 
 // TODO
@@ -18,11 +18,11 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'ite
     println!("querying ({subject:?}, {tag:?}, ?)");
 
     match (subject, tag) {
-        (&objects::AXIOMATIC, &objects::AXIOMATIC) => {
+        (&ext::AXIOMATIC, &ext::AXIOMATIC) => {
             return QueryValuesResult::Single(Some(&TODO_OBJECT));
         }
-        (&objects::AXIOMATIC, &objects::COMPUTED) => return QueryValuesResult::Single(None),
-        (_, &objects::KNOWLEDGE) => {
+        (&ext::AXIOMATIC, &ext::COMPUTED) => return QueryValuesResult::Single(None),
+        (_, &ext::KNOWLEDGE) => {
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
@@ -35,10 +35,10 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'ite
         _ => {}
     }
 
-    let maybe_constraint_query = query_values(knowledge, tag, &objects::AXIOMATIC);
+    let maybe_constraint_query = query_values(knowledge, tag, &ext::AXIOMATIC);
     let maybe_constraint = maybe_constraint_query.iter().next();
 
-    let maybe_computation_function_query = query_values(knowledge, tag, &objects::COMPUTED);
+    let maybe_computation_function_query = query_values(knowledge, tag, &ext::COMPUTED);
     let maybe_computation_function = maybe_computation_function_query.iter().next();
 
     match (maybe_constraint, maybe_computation_function) {
@@ -50,7 +50,7 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'ite
                 Object::Structure(structure) => Some(structure.values(tag)),
             };
 
-            let statements = knowledge.values(&objects::CONTAINS);
+            let statements = knowledge.values(&ext::CONTAINS);
 
             QueryValuesResult::Axiomatic(AxiomaticIter {
                 values_from_subject,
@@ -95,7 +95,7 @@ impl<'knowlege: 'item, 'subject: 'item, 'tag: 'item, 'item>
                     Object::Structure(structure) => structure,
                 };
 
-                QueryValuesIter::ComputationResult(structure.values(&objects::CONTAINS))
+                QueryValuesIter::ComputationResult(structure.values(&ext::CONTAINS))
             }
         }
     }
@@ -157,7 +157,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
             };
 
             let statement_subject = statement
-                .values(&objects::STATEMENT_SUBJECT)
+                .values(&ext::STATEMENT_SUBJECT)
                 .next()
                 .expect(":/");
 
@@ -165,19 +165,13 @@ impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
                 continue;
             }
 
-            let statement_tag = statement
-                .values(&objects::STATEMENT_TAG)
-                .next()
-                .expect(":/");
+            let statement_tag = statement.values(&ext::STATEMENT_TAG).next().expect(":/");
 
             if statement_tag != self.tag {
                 continue;
             }
 
-            let statement_value = statement
-                .values(&objects::STATEMENT_TAG)
-                .next()
-                .expect(":/");
+            let statement_value = statement.values(&ext::STATEMENT_TAG).next().expect(":/");
 
             // Now this value may be already been in
             // the subject if it is a structure. So we

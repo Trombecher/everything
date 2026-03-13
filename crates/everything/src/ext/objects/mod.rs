@@ -4,8 +4,8 @@ mod tests;
 use everything_structures::{Object, Property, Structure};
 
 use crate::{
+    ext::{self, NodeType},
     inference::query_values,
-    objects::{self, NodeType},
 };
 
 pub trait ObjectExt {
@@ -40,11 +40,11 @@ pub trait ObjectExt {
 impl ObjectExt for Object {
     fn is_only_natural_number(&self) -> bool {
         match self {
-            &objects::ZERO => true,
+            &ext::ZERO => true,
             Object::Structure(s) => {
                 if let [
                     Property {
-                        tag: objects::SUCCESSOR_OF,
+                        tag: ext::SUCCESSOR_OF,
                         value,
                     },
                 ] = s.as_ref()
@@ -60,10 +60,10 @@ impl ObjectExt for Object {
 
     fn natural_number(n: u64) -> Self {
         if n == 0 {
-            objects::ZERO
+            ext::ZERO
         } else {
             Structure::new(&mut [Property {
-                tag: objects::SUCCESSOR_OF,
+                tag: ext::SUCCESSOR_OF,
                 value: Self::natural_number(n - 1),
             }])
             .into()
@@ -88,7 +88,7 @@ impl ObjectExt for Object {
 
     fn to_set_of_self(self) -> Structure {
         Structure::new(&mut [Property {
-            tag: objects::CONTAINS,
+            tag: ext::CONTAINS,
             value: self,
         }])
     }

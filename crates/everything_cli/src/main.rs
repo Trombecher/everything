@@ -1,7 +1,7 @@
 use std::{fs::read_to_string, path::PathBuf, process::exit, time::Instant};
 
 use clap::{Parser, Subcommand};
-use everything::objects::StructureExt;
+use everything::ext::StructureExt;
 use everything_structures::Object;
 use everything_structures_ff::{SourceIndex, parse::ErrorInfo, parse_structure};
 use ulid::Ulid;

@@ -5,7 +5,7 @@ pub use query::*;
 
 use everything_structures::{Object, Structure};
 
-use crate::objects::StructureExt;
+use crate::ext::StructureExt;
 
 #[derive(Clone)]
 pub struct Knowledge(Structure);
