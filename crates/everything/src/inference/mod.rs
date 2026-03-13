@@ -1,7 +1,6 @@
-mod compute;
+pub mod compute;
 mod query;
 
-pub use compute::*;
 pub use query::*;
 
 use everything_structures::Structure;

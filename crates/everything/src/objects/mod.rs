@@ -5,7 +5,10 @@ mod tests;
 
 use everything_structures::{Object, Property, Structure};
 
-use crate::objects;
+use crate::{
+    inference::{compute, query_values},
+    objects,
+};
 
 macro_rules! define_abstract {
     ($($id:ident = $n:literal),* $(,)?) => {
@@ -41,6 +44,12 @@ define_abstract!(
     TAG = 24,
 );
 
+pub struct Statement<'a> {
+    pub subject: &'a Object,
+    pub tag: &'a Object,
+    pub value: &'a Object,
+}
+
 pub trait ObjectExt {
     fn is_only_natural_number(&self) -> bool;
 
@@ -62,6 +71,10 @@ pub trait ObjectExt {
 
     /// Constructs a new set containing only `self`.
     fn to_set_of_self(self) -> Structure;
+
+    fn structure(&self) -> Option<&Structure>;
+
+    fn is_truthy(&self) -> bool;
 }
 
 impl ObjectExt for Object {
@@ -119,6 +132,21 @@ impl ObjectExt for Object {
             value: self,
         }])
     }
+
+    fn structure(&self) -> Option<&Structure> {
+        match self {
+            Self::Abstract(_) => None,
+            Self::Structure(structure) => Some(structure),
+        }
+    }
+
+    // TODO: discuss abstract objects
+    fn is_truthy(&self) -> bool {
+        match self {
+            Self::Abstract(_) => false,
+            Self::Structure(structure) => !structure.as_ref().is_empty(),
+        }
+    }
 }
 
 pub trait StructureExt {
@@ -127,6 +155,8 @@ pub trait StructureExt {
     fn is_knowledge(&self) -> bool;
 
     fn is_statement(&self) -> bool;
+
+    fn parse_statement<'a>(&'a self) -> Option<Statement<'a>>;
 }
 
 impl StructureExt for Structure {
@@ -137,7 +167,7 @@ impl StructureExt for Structure {
 
     fn is_knowledge(&self) -> bool {
         // First we validate that every object contained
-        // in the root is a statement.
+        // in `self` is a statement.
 
         for contains_object in self.values(&CONTAINS) {
             if let Object::Structure(contains_structure) = contains_object
@@ -149,6 +179,27 @@ impl StructureExt for Structure {
             }
         }
 
+        // Now we need to check constraints and values.
+
+        for statement in self.values(&CONTAINS) {
+            // TODO: better panic msgs
+            let statement = statement.structure().unwrap().parse_statement().unwrap();
+
+            // Get constraint function from tag for value:
+            let constraint_query_result = query_values(self, &statement.tag, &AXIOMATIC);
+            let constraint_function = match constraint_query_result.iter().next() {
+                Some(c) => c,
+                None => return false,
+            };
+
+            let inter = compute::call(constraint_function, &statement.subject);
+            let result = compute::call(&inter, &statement.value);
+
+            if !result.is_truthy() {
+                return false;
+            }
+        }
+
         true
     }
 
@@ -156,5 +207,17 @@ impl StructureExt for Structure {
         self.has_exactly_one_value_on(&objects::STATEMENT_SUBJECT)
             && self.has_exactly_one_value_on(&objects::STATEMENT_TAG)
             && self.has_exactly_one_value_on(&objects::STATEMENT_VALUE)
+    }
+
+    fn parse_statement<'a>(&'a self) -> Option<Statement<'a>> {
+        let subject = self.values(&objects::STATEMENT_SUBJECT).next()?;
+        let tag = self.values(&objects::STATEMENT_TAG).next()?;
+        let value = self.values(&objects::STATEMENT_TAG).next()?;
+
+        Some(Statement {
+            subject,
+            tag,
+            value,
+        })
     }
 }

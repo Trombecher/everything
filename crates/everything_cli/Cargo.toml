@@ -9,4 +9,5 @@ clap = { version = "4.5.60", features = ["derive"] }
 colored = "3.1.1"
 everything_structures = { path = "../everything_structures" }
 everything_structures_ff = { path = "../everything_structures_ff" }
+everything = { path = "../everything" }
 ulid = "1.2.1"

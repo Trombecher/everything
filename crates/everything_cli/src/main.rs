@@ -1,8 +1,9 @@
-use std::{fs::read_to_string, path::PathBuf, time::Instant};
+use std::{fs::read_to_string, path::PathBuf, process::exit, time::Instant};
 
 use clap::{Parser, Subcommand};
+use everything::objects::StructureExt;
 use everything_structures::Object;
-use everything_structures_ff::{SourceIndex, parse_structure};
+use everything_structures_ff::{SourceIndex, parse::ErrorInfo, parse_structure};
 use ulid::Ulid;
 
 #[derive(Parser)]
@@ -30,6 +31,34 @@ enum Command {
         #[arg(short = 'm', long = "minify")]
         minify: bool,
     },
+    #[command(id = "validate")]
+    ValidateKnowledge {
+        #[arg(id = "structure file path")]
+        path: PathBuf,
+    },
+}
+
+fn handle_parse_error(input: &str, error: &ErrorInfo) -> ! {
+    match error.range.clone() {
+        Some(range) => {
+            let (start_line, start_col) = lc_from_index(&input, range.start);
+            let (end_line, end_col) = lc_from_index(&input, range.end);
+
+            eprintln!(
+                "error while parsing at {}:{} (to {}:{}): {}",
+                start_line + 1,
+                start_col + 1,
+                end_line + 1,
+                end_col + 1,
+                error.message
+            )
+        }
+        None => {
+            eprintln!("error while parsing at the end: {}", error.message)
+        }
+    }
+
+    exit(-1)
 }
 
 fn main() {
@@ -49,32 +78,23 @@ fn main() {
 
             println!("time parsing: {:?}", now.elapsed());
 
-            match result {
-                Ok(s) => {
-                    if minify {
-                        println!("{:?}", s);
-                    } else {
-                        println!("{:#?}", s);
-                    }
-                }
-                Err(error) => match error.range.clone() {
-                    Some(range) => {
-                        let (start_line, start_col) = lc_from_index(&input, range.start);
-                        let (end_line, end_col) = lc_from_index(&input, range.end);
+            let structure = result.unwrap_or_else(|error| handle_parse_error(&input, &error));
 
-                        eprintln!(
-                            "error while parsing at {}:{} (to {}:{}): {}",
-                            start_line + 1,
-                            start_col + 1,
-                            end_line + 1,
-                            end_col + 1,
-                            error.message
-                        )
-                    }
-                    None => {
-                        eprintln!("error while parsing at the end: {}", error.message)
-                    }
-                },
+            if minify {
+                println!("{:?}", structure);
+            } else {
+                println!("{:#?}", structure);
+            }
+        }
+        Command::ValidateKnowledge { path } => {
+            let input = read_to_string(path).expect("Reading from file failed");
+            let structure =
+                parse_structure(&input).unwrap_or_else(|error| handle_parse_error(&input, &error));
+
+            if structure.is_knowledge() {
+                println!("Structure is knowledge")
+            } else {
+                eprintln!("Structure is not knowledge")
             }
         }
     }

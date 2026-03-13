@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use everything_structures::{Object, Structure, ValuesIter};
 
 use crate::{
-    inference::compute::compute,
+    inference::compute::call,
     objects::{self, StructureExt},
 };
 
@@ -59,7 +59,7 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
             })
         }
         (None, Some(computation_function)) => {
-            let result = compute(computation_function, subject.clone());
+            let result = call(computation_function, &subject);
             QueryValuesResult::ComputationResult(result)
         }
         _ => {

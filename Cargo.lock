@@ -160,6 +160,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "colored",
+ "everything",
  "everything_structures",
  "everything_structures_ff",
  "ulid",
