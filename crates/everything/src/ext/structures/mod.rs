@@ -21,7 +21,7 @@ pub trait StructureExt {
 
     fn new_node_exists(statement: Object) -> Self;
 
-    fn has_exactly_one_value_on(&self, tag: &Object) -> bool;
+    fn has_exactly_one_value_on(&self, tag: Object) -> bool;
 
     fn is_knowledge(&self) -> bool;
 
@@ -37,7 +37,7 @@ pub trait StructureExt {
 }
 
 impl StructureExt for Structure {
-    fn has_exactly_one_value_on(&self, tag: &Object) -> bool {
+    fn has_exactly_one_value_on(&self, tag: Object) -> bool {
         let mut values = self.values(tag);
         return values.next().is_some() && values.next().is_none();
     }
@@ -46,7 +46,7 @@ impl StructureExt for Structure {
         // First we validate that every object contained
         // in `self` is a statement.
 
-        for contains_object in self.values(&Object::CONTAINS) {
+        for contains_object in self.values(Object::CONTAINS) {
             if let Object::Structure(contains_structure) = contains_object
                 && contains_structure.is_statement()
             {
@@ -58,7 +58,7 @@ impl StructureExt for Structure {
 
         // Now we need to check constraints and values.
 
-        for statement in self.values(&Object::CONTAINS) {
+        for statement in self.values(Object::CONTAINS) {
             let statement = statement
                 .structure()
                 .expect("expected structure because it was validated earlier")
@@ -66,8 +66,7 @@ impl StructureExt for Structure {
                 .expect("found a structure which is not a statement");
 
             // Get constraint function from tag for value:
-            let axiomatic = Object::AXIOMATIC;
-            let constraint_query_result = query_values(self, &statement.tag, &axiomatic);
+            let constraint_query_result = query_values(self, &statement.tag, Object::AXIOMATIC);
             let constraint_function = match constraint_query_result.iter().next() {
                 Some(c) => c,
                 None => return false,
@@ -85,15 +84,15 @@ impl StructureExt for Structure {
     }
 
     fn is_statement(&self) -> bool {
-        self.has_exactly_one_value_on(&Object::STATEMENT_SUBJECT)
-            && self.has_exactly_one_value_on(&Object::STATEMENT_TAG)
-            && self.has_exactly_one_value_on(&Object::STATEMENT_VALUE)
+        self.has_exactly_one_value_on(Object::STATEMENT_SUBJECT)
+            && self.has_exactly_one_value_on(Object::STATEMENT_TAG)
+            && self.has_exactly_one_value_on(Object::STATEMENT_VALUE)
     }
 
     fn parse_statement<'a>(&'a self) -> Option<Statement<'a>> {
-        let subject = self.values(&Object::STATEMENT_SUBJECT).next()?;
-        let tag = self.values(&Object::STATEMENT_TAG).next()?;
-        let value = self.values(&Object::STATEMENT_VALUE).next()?;
+        let subject = self.values(Object::STATEMENT_SUBJECT).next()?;
+        let tag = self.values(Object::STATEMENT_TAG).next()?;
+        let value = self.values(Object::STATEMENT_VALUE).next()?;
 
         Some(Statement {
             subject,

@@ -73,9 +73,9 @@ impl Structure {
     /// Returns an iterator over all values that this tag has
     /// in this structure.
     #[must_use]
-    pub fn values<'props, 'tag>(&'props self, tag: &'tag Object) -> ValuesIter<'props, 'tag> {
+    pub fn values<'props>(&'props self, tag: Object) -> ValuesIter<'props> {
         let properties = self.as_ref();
-        let start = properties.partition_point(|property| &property.tag < tag);
+        let start = properties.partition_point(|property| property.tag < tag);
 
         ValuesIter {
             props: properties[start..].iter(),
@@ -95,20 +95,20 @@ impl Structure {
 }
 
 #[derive(Clone)]
-pub struct ValuesIter<'props, 'tag> {
+pub struct ValuesIter<'props> {
     props: slice::Iter<'props, Property>,
-    tag: &'tag Object,
+    tag: Object,
     done: bool,
 }
 
-impl<'props, 'tag> Iterator for ValuesIter<'props, 'tag> {
+impl<'props> Iterator for ValuesIter<'props> {
     type Item = &'props Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
             None
         } else if let Some(property) = self.props.next() {
-            if &property.tag == self.tag {
+            if property.tag == self.tag {
                 Some(&property.value)
             } else {
                 self.done = true;

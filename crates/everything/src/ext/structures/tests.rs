@@ -9,14 +9,14 @@ const BOB: Object = Object::Abstract(888_888_888);
 
 #[test]
 fn has_exactly_one_value_on() {
-    assert!(!Structure::EMPTY.has_exactly_one_value_on(&ALICE));
+    assert!(!Structure::EMPTY.has_exactly_one_value_on(ALICE));
 
     assert!(
         Structure::new(&mut [Property {
             tag: ALICE,
             value: ALICE
         }])
-        .has_exactly_one_value_on(&ALICE)
+        .has_exactly_one_value_on(ALICE)
     );
 
     assert!(
@@ -30,6 +30,6 @@ fn has_exactly_one_value_on() {
                 value: BOB,
             }
         ])
-        .has_exactly_one_value_on(&ALICE)
+        .has_exactly_one_value_on(ALICE)
     );
 }

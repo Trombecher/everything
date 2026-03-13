@@ -7,14 +7,14 @@ use crate::ext::{ObjectExt, StructureExt};
 // TODO
 const TODO_OBJECT: Object = Object::Abstract(999_999_999);
 
-pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
+pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
-    tag: &'tag Object,
-) -> QueryValuesResult<'knowledge, 'subject, 'tag, 'item> {
+    tag: Object,
+) -> QueryValuesResult<'knowledge, 'subject, 'item> {
     println!("querying ({subject:?}, {tag:?}, ?)");
 
-    match (subject, tag) {
+    match (subject, &tag) {
         (&Object::AXIOMATIC, &Object::AXIOMATIC) => {
             return QueryValuesResult::Single(Some(&TODO_OBJECT));
         }
@@ -32,10 +32,10 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'ite
         _ => {}
     }
 
-    let maybe_constraint_query = query_values(knowledge, tag, &Object::AXIOMATIC);
+    let maybe_constraint_query = query_values(knowledge, &tag, Object::AXIOMATIC);
     let maybe_constraint = maybe_constraint_query.iter().next();
 
-    let maybe_computation_function_query = query_values(knowledge, tag, &Object::COMPUTED);
+    let maybe_computation_function_query = query_values(knowledge, &tag, Object::COMPUTED);
     let maybe_computation_function = maybe_computation_function_query.iter().next();
 
     match (maybe_constraint, maybe_computation_function) {
@@ -44,10 +44,10 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'ite
 
             let values_from_subject = match subject {
                 Object::Abstract(_) => None,
-                Object::Structure(structure) => Some(structure.values(tag)),
+                Object::Structure(structure) => Some(structure.values(tag.clone())),
             };
 
-            let statements = knowledge.values(&Object::CONTAINS);
+            let statements = knowledge.values(Object::CONTAINS);
 
             QueryValuesResult::Axiomatic(AxiomaticIter {
                 values_from_subject,
@@ -70,19 +70,17 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'ite
     }
 }
 
-pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> {
+pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'item> {
     Single(Option<&'static Object>),
-    Axiomatic(AxiomaticIter<'knowledge, 'subject, 'tag, 'item>),
+    Axiomatic(AxiomaticIter<'knowledge, 'subject, 'item>),
     ComputationResult(Object),
 }
 
 static EMPTY_STRUCTURE: Structure = Structure::EMPTY;
 static EMPTY_OBJECT: Object = Object::Structure(Structure::EMPTY);
 
-impl<'knowlege: 'item, 'subject: 'item, 'tag: 'item, 'item>
-    QueryValuesResult<'knowlege, 'subject, 'tag, 'item>
-{
-    pub fn iter<'query>(&'query self) -> QueryValuesIter<'query, 'knowlege, 'subject, 'tag, 'item> {
+impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'subject, 'item> {
+    pub fn iter<'query>(&'query self) -> QueryValuesIter<'query, 'knowlege, 'subject, 'item> {
         match self {
             Self::Single(object) => QueryValuesIter::Single(object.clone()),
             Self::Axiomatic(axiomatic_iter) => QueryValuesIter::Axiomatic(axiomatic_iter.clone()),
@@ -93,26 +91,20 @@ impl<'knowlege: 'item, 'subject: 'item, 'tag: 'item, 'item>
                 };
                 let contains = Object::CONTAINS;
 
-                QueryValuesIter::ComputationResult(structure.values(&contains))
+                QueryValuesIter::ComputationResult(structure.values(contains))
             }
         }
     }
 }
 
-pub enum QueryValuesIter<
-    'query_result: 'item,
-    'knowledge: 'item,
-    'subject: 'item,
-    'tag: 'item,
-    'item,
-> {
+pub enum QueryValuesIter<'query_result: 'item, 'knowledge: 'item, 'subject: 'item, 'item> {
     Single(Option<&'static Object>),
-    Axiomatic(AxiomaticIter<'knowledge, 'subject, 'tag, 'item>),
-    ComputationResult(ValuesIter<'query_result, 'tag>),
+    Axiomatic(AxiomaticIter<'knowledge, 'subject, 'item>),
+    ComputationResult(ValuesIter<'query_result>),
 }
 
-impl<'query, 'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
-    for QueryValuesIter<'query, 'knowledge, 'subject, 'tag, 'item>
+impl<'query, 'knowledge: 'item, 'subject: 'item, 'item> Iterator
+    for QueryValuesIter<'query, 'knowledge, 'subject, 'item>
 {
     type Item = &'item Object;
 
@@ -126,16 +118,16 @@ impl<'query, 'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
 }
 
 #[derive(Clone)]
-pub struct AxiomaticIter<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> {
-    values_from_subject: Option<ValuesIter<'subject, 'tag>>,
-    statements: ValuesIter<'knowledge, 'static>,
+pub struct AxiomaticIter<'knowledge: 'item, 'subject: 'item, 'item> {
+    values_from_subject: Option<ValuesIter<'subject>>,
+    statements: ValuesIter<'knowledge>,
     subject: Object,
-    tag: &'tag Object,
+    tag: Object,
     _yield: PhantomData<&'item Object>,
 }
 
-impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
-    for AxiomaticIter<'knowledge, 'subject, 'tag, 'item>
+impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
+    for AxiomaticIter<'knowledge, 'subject, 'item>
 {
     type Item = &'item Object;
 
@@ -155,7 +147,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
             };
 
             let statement_subject = statement
-                .values(&Object::STATEMENT_SUBJECT)
+                .values(Object::STATEMENT_SUBJECT)
                 .next()
                 .expect(":/");
 
@@ -163,13 +155,13 @@ impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
                 continue;
             }
 
-            let statement_tag = statement.values(&Object::STATEMENT_TAG).next().expect(":/");
+            let statement_tag = statement.values(Object::STATEMENT_TAG).next().expect(":/");
 
-            if statement_tag != self.tag {
+            if statement_tag != &self.tag {
                 continue;
             }
 
-            let statement_value = statement.values(&Object::STATEMENT_TAG).next().expect(":/");
+            let statement_value = statement.values(Object::STATEMENT_TAG).next().expect(":/");
 
             // Now this value may be already been in
             // the subject if it is a structure. So we

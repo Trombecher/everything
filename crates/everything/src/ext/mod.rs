@@ -7,6 +7,7 @@ mod structures;
 pub use objects::*;
 pub use structures::*;
 
+#[allow(unused_imports)]
 use everything_structures::{Object, Structure};
 
 #[derive(Clone, Debug, PartialEq)]

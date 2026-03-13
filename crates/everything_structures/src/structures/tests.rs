@@ -108,18 +108,18 @@ fn debug() {
 
 #[test]
 fn no_values() {
-    assert_matches!(Structure::EMPTY.values(&ALICE).next(), None)
+    assert_matches!(Structure::EMPTY.values(ALICE).next(), None)
 }
 
 #[test]
 fn one_value() {
     let s = alice_bob_structure();
 
-    let mut alices = s.values(&ALICE);
+    let mut alices = s.values(ALICE);
     assert_matches!(alices.next(), Some(&BOB));
     assert_matches!(alices.next(), None);
 
-    assert_matches!(s.values(&BOB).next(), None);
+    assert_matches!(s.values(BOB).next(), None);
 }
 
 #[test]
@@ -135,7 +135,7 @@ fn multiple_values() {
         },
     ]);
 
-    let mut alices = s.values(&ALICE);
+    let mut alices = s.values(ALICE);
     assert_matches!(alices.next(), Some(&ALICE));
     assert_matches!(alices.next(), Some(&BOB));
     assert_matches!(alices.next(), None);

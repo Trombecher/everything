@@ -23,11 +23,11 @@ impl Knowledge {
     /// Query the knowledge.
     #[inline]
     #[must_use]
-    pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
+    pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
         &'knowledge self,
         subject: &'subject Object,
-        tag: &'tag Object,
-    ) -> QueryValuesResult<'knowledge, 'subject, 'tag, 'item> {
+        tag: Object,
+    ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
         query_values(self.structure(), subject, tag)
     }
 }

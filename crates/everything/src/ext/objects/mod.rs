@@ -152,7 +152,7 @@ impl ObjectExt for Object {
 
         for node_type in NodeType::ALL {
             let node_type_object: Object = node_type.into();
-            let query = query_values(knowledge, self, &node_type_object);
+            let query = query_values(knowledge, self, node_type_object);
             let there_are_values = query.iter().next().is_some();
 
             if there_are_values {
