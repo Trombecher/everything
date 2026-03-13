@@ -1,12 +1,12 @@
 use everything_structures::{Object, Property, Structure};
 
-use crate::objects;
+use crate::objects::{self, ObjectExt};
 
 #[test]
 fn is_only_natural_number() {
     // Abstracts
-    assert!(!objects::is_only_natural_number(&objects::CONTAINS));
-    assert!(objects::is_only_natural_number(&objects::ZERO));
+    assert!(!objects::CONTAINS.is_only_natural_number());
+    assert!(objects::ZERO.is_only_natural_number());
 
     let one: Object = Structure::new(&mut [Property {
         tag: objects::SUCESSOR_OF,
@@ -14,7 +14,7 @@ fn is_only_natural_number() {
     }])
     .into();
 
-    assert!(objects::is_only_natural_number(&one));
+    assert!(one.is_only_natural_number());
 
     let one_with_stuff: Object = Structure::new(&mut [
         Property {
@@ -28,15 +28,15 @@ fn is_only_natural_number() {
     ])
     .into();
 
-    assert!(!objects::is_only_natural_number(&one_with_stuff))
+    assert!(!one_with_stuff.is_only_natural_number())
 }
 
 #[test]
 fn natural_number() {
-    assert_eq!(objects::natural_number(0), objects::ZERO);
+    assert_eq!(Object::natural_number(0), objects::ZERO);
 
     assert_eq!(
-        objects::natural_number(2),
+        Object::natural_number(2),
         Structure::new(&mut [Property {
             tag: objects::SUCESSOR_OF,
             value: Structure::new(&mut [Property {

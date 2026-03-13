@@ -94,6 +94,7 @@ impl Structure {
     }
 }
 
+#[derive(Clone)]
 pub struct ValuesIter<'props, 'tag> {
     props: slice::Iter<'props, Property>,
     tag: &'tag Object,

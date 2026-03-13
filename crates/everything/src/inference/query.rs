@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use everything_structures::{Object, Structure, ValuesIter};
 
-use crate::{inference::compute::compute, objects};
+use crate::{
+    inference::compute,
+    objects::{self, ObjectExt},
+};
 
 // TODO
 const TODO_OBJECT: Object = Object::Abstract(u128::from_be_bytes(*b"This is the todo"));
@@ -17,11 +20,20 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
             return QueryValuesResult::Single(Some(&TODO_OBJECT));
         }
         (&objects::AXIOMATIC, &objects::COMPUTED) => return QueryValuesResult::Single(None),
+        (_, &objects::KNOWLEDGE) => {
+            // We could also use the computation result variant
+            // but for that we would need to create a set structure.
+
+            return QueryValuesResult::Single(subject.is_knowledge().then_some(&EMPTY_OBJECT));
+        }
         _ => {}
     }
 
-    let maybe_constraint = query_values(knowledge_root, tag, &objects::AXIOMATIC).next();
-    let maybe_computation_function = query_values(knowledge_root, tag, &objects::COMPUTED).next();
+    let maybe_constraint_query = query_values(knowledge_root, tag, &objects::AXIOMATIC);
+    let maybe_constraint = maybe_constraint_query.iter().next();
+
+    let maybe_computation_function_query = query_values(knowledge_root, tag, &objects::COMPUTED);
+    let maybe_computation_function = maybe_computation_function_query.iter().next();
 
     match (maybe_constraint, maybe_computation_function) {
         (Some(_constraint_function), None) => {
@@ -43,7 +55,7 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item>(
             })
         }
         (None, Some(computation_function)) => {
-            let result = compute(computation_function, subject.clone());
+            let result = compute::dynamic(computation_function, subject.clone());
             QueryValuesResult::ComputationResult(result)
         }
         _ => {
@@ -61,22 +73,38 @@ pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'ite
     ComputationResult(Object),
 }
 
+static EMPTY_STRUCTURE: Structure = Structure::EMPTY;
+static EMPTY_OBJECT: Object = Object::Structure(Structure::EMPTY);
+
 impl<'knowlege: 'item, 'subject: 'item, 'tag: 'item, 'item>
     QueryValuesResult<'knowlege, 'subject, 'tag, 'item>
 {
     pub fn iter<'query>(&'query self) -> QueryValuesIter<'query, 'knowlege, 'subject, 'tag, 'item> {
         match self {
-            Self::Single(object) => QueryValuesIter::Single(object),
-            Self::Axiomatic(axiomatic_iter) => QueryValuesIter::Axiomatic(axiomatic_iter),
-            Self::ComputationResult(object) => Box::new(query_values(knowledge_root, object, tag)),
+            Self::Single(object) => QueryValuesIter::Single(object.clone()),
+            Self::Axiomatic(axiomatic_iter) => QueryValuesIter::Axiomatic(axiomatic_iter.clone()),
+            Self::ComputationResult(object) => {
+                let structure = match object {
+                    Object::Abstract(_) => &EMPTY_STRUCTURE,
+                    Object::Structure(structure) => structure,
+                };
+
+                QueryValuesIter::ComputationResult(structure.values(&objects::CONTAINS))
+            }
         }
     }
 }
 
-pub enum QueryValuesIter<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> {
+pub enum QueryValuesIter<
+    'query_result: 'item,
+    'knowledge: 'item,
+    'subject: 'item,
+    'tag: 'item,
+    'item,
+> {
     Single(Option<&'static Object>),
     Axiomatic(AxiomaticIter<'knowledge, 'subject, 'tag, 'item>),
-    ComputationResult(Box<QueryValuesIter<'knowledge, 'subject, 'tag, 'item>>),
+    ComputationResult(ValuesIter<'query_result, 'tag>),
 }
 
 impl<'query, 'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
@@ -93,7 +121,8 @@ impl<'query, 'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
     }
 }
 
-struct AxiomaticIter<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> {
+#[derive(Clone)]
+pub struct AxiomaticIter<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> {
     values_from_subject: Option<ValuesIter<'subject, 'tag>>,
     statements: ValuesIter<'knowledge, 'static>,
     subject: Object,
@@ -126,7 +155,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
                 .next()
                 .expect(":/");
 
-            if statement_subject != self.subject {
+            if statement_subject != &self.subject {
                 continue;
             }
 
@@ -148,7 +177,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'tag: 'item, 'item> Iterator
             // the subject if it is a structure. So we
             // need to dedup here.
 
-            if let Object::Structure(structure) = self.subject {
+            if let Object::Structure(structure) = &self.subject {
                 if structure.has_by_ref(statement_tag, statement_value) {
                     continue;
                 }

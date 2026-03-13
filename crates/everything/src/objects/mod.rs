@@ -39,40 +39,89 @@ define_abstract!(
     TAG = 24,
 );
 
-pub fn is_only_natural_number(o: &Object) -> bool {
-    match o {
-        &ZERO => true,
-        Object::Structure(s) => {
-            if let [
-                Property {
-                    tag: SUCESSOR_OF,
-                    value,
-                },
-            ] = s.as_ref()
-            {
-                is_only_natural_number(value)
-            } else {
-                false
-            }
-        }
-        _ => false,
-    }
+pub trait ObjectExt {
+    fn is_only_natural_number(&self) -> bool;
+
+    /// Constructs a natural number object using
+    /// repeated succ.
+    fn natural_number(n: u64) -> Self;
+
+    /// Returns the number of properties this object has.
+    /// For abstract objects, this returns zero.
+    fn property_count(&self) -> usize;
+
+    /// Converts a boolean to an object.
+    ///
+    /// ```plain
+    /// true |-> {(@1, {})}
+    /// false |-> {}
+    /// ```
+    fn from_bool(b: bool) -> Object;
+
+    /// Checks whether `self` is knowledge.
+    fn is_knowledge(&self) -> bool;
+
+    /// Constructs a new set containing only `self`.
+    fn to_set_of_self(self) -> Structure;
 }
 
-/// Constructs a natural number object using
-/// repeated succ.
-pub fn natural_number(n: u64) -> Object {
-    if n == 0 {
-        ZERO
-    } else {
-        Structure::EMPTY
-            .change(
-                &mut [],
-                &mut [Property {
-                    tag: SUCESSOR_OF,
-                    value: natural_number(n - 1),
-                }],
-            )
+impl ObjectExt for Object {
+    fn is_only_natural_number(&self) -> bool {
+        match self {
+            &ZERO => true,
+            Object::Structure(s) => {
+                if let [
+                    Property {
+                        tag: SUCESSOR_OF,
+                        value,
+                    },
+                ] = s.as_ref()
+                {
+                    value.is_only_natural_number()
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    fn natural_number(n: u64) -> Self {
+        if n == 0 {
+            ZERO
+        } else {
+            Structure::new(&mut [Property {
+                tag: SUCESSOR_OF,
+                value: Self::natural_number(n - 1),
+            }])
             .into()
+        }
+    }
+
+    fn property_count(&self) -> usize {
+        match self {
+            Object::Abstract(_) => 0,
+            Object::Structure(structure) => structure.as_ref().len(),
+        }
+    }
+
+    fn from_bool(b: bool) -> Self {
+        if b {
+            Self::to_set_of_self(Structure::EMPTY.into())
+        } else {
+            Structure::EMPTY
+        }
+        .into()
+    }
+
+    fn is_knowledge(&self) -> bool {
+        todo!()
+    }
+
+    fn to_set_of_self(self) -> Structure {
+        Structure::new(&mut [Property {
+            tag: CONTAINS,
+            value: self,
+        }])
     }
 }
