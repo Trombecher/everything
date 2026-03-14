@@ -25,6 +25,33 @@ fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
     }
 }
 
+pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> = LazyLock::new(|| {
+    Structure::new_node_function(
+        Structure::new_node_equal([
+            Structure::new_node_count(
+                Structure::new_node_query(
+                    Structure::new(&mut [
+                        Property {
+                            tag: Object::STATEMENT_SUBJECT,
+                            value: Structure::new_node_parameter(Object::ZERO).into(),
+                        },
+                        Property {
+                            tag: Object::STATEMENT_TAG,
+                            value: Object::AXIOMATIC,
+                        },
+                    ])
+                    .into(),
+                )
+                .into(),
+            )
+            .into(),
+            Object::natural_number(1),
+        ])
+        .into(),
+    )
+    .into()
+});
+
 pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
     Structure::new(&mut [
         stmt_to_prop(
@@ -87,6 +114,11 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                 .into(),
             )
             .into(),
+        ),
+        stmt_to_prop(
+            Object::AXIOMATIC,
+            Object::AXIOMATIC,
+            AXIOMATIC_AXIOMATIC_CONSTRAINT.clone(),
         ),
     ])
 });

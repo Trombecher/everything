@@ -1,5 +1,3 @@
-// TODO: tests for structures
-
 use everything_structures::{Object, Property, Structure};
 
 use crate::ext::StructureExt;

@@ -175,3 +175,26 @@ fn multiple_tags() {
     assert_matches!(tags_that_have_alice.next(), Some(&BOB));
     assert_matches!(tags_that_have_alice.next(), None);
 }
+
+#[test]
+fn union() {
+    let a = alice_bob_structure();
+    let b = Structure::new(&mut [Property {
+        tag: BOB,
+        value: ALICE,
+    }]);
+
+    assert_eq!(
+        a.union(&b),
+        Structure::new(&mut [
+            Property {
+                tag: ALICE,
+                value: BOB
+            },
+            Property {
+                tag: BOB,
+                value: ALICE
+            }
+        ])
+    );
+}

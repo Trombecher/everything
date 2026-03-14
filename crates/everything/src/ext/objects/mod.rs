@@ -155,6 +155,8 @@ impl ObjectExt for Object {
             let query = query_values(knowledge, self, node_type_object);
             let there_are_values = query.iter().next().is_some();
 
+            println!("there are values: {there_are_values}");
+
             if there_are_values {
                 if current_pick.is_some() {
                     // multiple node types apply

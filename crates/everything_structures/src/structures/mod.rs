@@ -92,6 +92,12 @@ impl Structure {
             .iter()
             .filter_map(move |property| (&property.value == value).then_some(&property.tag))
     }
+
+    pub fn union(&self, other: &Self) -> Self {
+        let mut add_properties = Box::clone_from_ref(other.as_ref());
+
+        self.change(&mut [], &mut add_properties)
+    }
 }
 
 #[derive(Clone)]

@@ -1,36 +1,58 @@
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use everything_structures::{Object, Structure, ValuesIter};
 
-use crate::ext::{ObjectExt, StructureExt};
+use crate::{
+    base,
+    ext::{ObjectExt, StructureExt},
+};
 
-// TODO
-const TODO_OBJECT: Object = Object::Abstract(999_999_999);
+#[cfg(debug_assertions)]
+static QUERY_DEPTH: AtomicUsize = AtomicUsize::new(0);
 
 pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
     tag: Object,
 ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
-    println!("querying ({subject:?}, {tag:?}, ?)");
+    println!(
+        "{}querying ({subject:?}, {tag:?}, ?)",
+        "  ".repeat(QUERY_DEPTH.load(Ordering::Relaxed))
+    );
 
     match (subject, &tag) {
         (&Object::AXIOMATIC, &Object::AXIOMATIC) => {
-            return QueryValuesResult::Single(Some(&TODO_OBJECT));
+            return QueryValuesResult::Single(Some(&base::AXIOMATIC_AXIOMATIC_CONSTRAINT));
         }
-        (&Object::AXIOMATIC, &Object::COMPUTED) => return QueryValuesResult::Single(None),
+        (&Object::AXIOMATIC | &Object::COMPUTED, &Object::COMPUTED) => {
+            return QueryValuesResult::Single(None);
+        }
         (_, &Object::KNOWLEDGE) => {
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
-            return QueryValuesResult::Single(match subject {
+            #[cfg(debug_assertions)]
+            QUERY_DEPTH.update(Ordering::Relaxed, Ordering::Relaxed, |depth| depth + 1);
+
+            let result = QueryValuesResult::Single(match subject {
                 // TODO: review this for abstract objects
                 Object::Abstract(_) => None,
                 Object::Structure(s) => s.is_knowledge().then_some(&EMPTY_OBJECT),
             });
+
+            #[cfg(debug_assertions)]
+            QUERY_DEPTH.update(Ordering::Relaxed, Ordering::Relaxed, |depth| depth - 1);
+
+            return result;
         }
         _ => {}
     }
+
+    #[cfg(debug_assertions)]
+    QUERY_DEPTH.update(Ordering::Relaxed, Ordering::Relaxed, |depth| depth + 1);
 
     let maybe_constraint_query = query_values(knowledge, &tag, Object::AXIOMATIC);
     let maybe_constraint = maybe_constraint_query.iter().next();
@@ -38,7 +60,7 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     let maybe_computation_function_query = query_values(knowledge, &tag, Object::COMPUTED);
     let maybe_computation_function = maybe_computation_function_query.iter().next();
 
-    match (maybe_constraint, maybe_computation_function) {
+    let result = match (maybe_constraint, maybe_computation_function) {
         (Some(_constraint_function), None) => {
             // Axiomatic (and ignore the constraint function).
 
@@ -67,7 +89,12 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
 
             QueryValuesResult::Single(None)
         }
-    }
+    };
+
+    #[cfg(debug_assertions)]
+    QUERY_DEPTH.update(Ordering::Relaxed, Ordering::Relaxed, |depth| depth - 1);
+
+    result
 }
 
 pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'item> {

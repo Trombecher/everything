@@ -1,4 +1,5 @@
 #![feature(slice_partition_dedup)]
+#![feature(clone_from_ref)]
 
 //! This crate provides the basis of Everything.
 
