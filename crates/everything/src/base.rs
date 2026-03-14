@@ -52,6 +52,33 @@ pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> = LazyLock::new(|| {
     .into()
 });
 
+fn unique_constraint_for(tag: Object) -> Object {
+    Structure::new_node_function(
+        Structure::new_node_equal([
+            Object::natural_number(1),
+            Structure::new_node_count(
+                Structure::new_node_query(
+                    Structure::new(&mut [
+                        Property {
+                            tag: Object::STATEMENT_SUBJECT,
+                            value: Structure::new_node_parameter(Object::ZERO).into(),
+                        },
+                        Property {
+                            tag: Object::STATEMENT_TAG,
+                            value: tag,
+                        },
+                    ])
+                    .into(),
+                )
+                .into(),
+            )
+            .into(),
+        ])
+        .into(),
+    )
+    .into()
+}
+
 pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
     Structure::new(&mut [
         stmt_to_prop(
@@ -119,6 +146,11 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             Object::AXIOMATIC,
             Object::AXIOMATIC,
             AXIOMATIC_AXIOMATIC_CONSTRAINT.clone(),
+        ),
+        stmt_to_prop(
+            Object::NODE_FUNCTION_BODY,
+            Object::AXIOMATIC,
+            unique_constraint_for(Object::NODE_FUNCTION_BODY),
         ),
     ])
 });

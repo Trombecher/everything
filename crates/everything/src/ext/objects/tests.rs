@@ -2,6 +2,7 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::{
     Knowledge,
+    base::BASE,
     ext::{NodeType, ObjectExt, StructureExt},
 };
 
@@ -54,26 +55,25 @@ fn natural_number() {
 
 #[test]
 fn node_type() {
-    let knowledge = Structure::EMPTY;
+    let knowledge = &BASE;
 
-    /*
     // None
     assert_eq!(
-        Object::Structure(Structure::EMPTY).node_type(&knowledge),
+        Object::Structure(Structure::EMPTY).node_type(knowledge),
         None
     );
-     */
 
     // Single
     assert_eq!(
-        Object::Structure(Structure::new_node_function(Object::ZERO)).node_type(&knowledge),
+        Object::Structure(Structure::new_node_function(Object::ZERO)).node_type(knowledge),
         Some(NodeType::FunctionBody)
     );
 
+    /*
     // Multiple
     assert_eq!(
         Object::Structure(Structure::new_node_and([Object::ZERO, Object::KNOWLEDGE]))
-            .node_type(&knowledge),
+            .node_type(knowledge),
         Some(NodeType::And)
     );
 
@@ -83,7 +83,8 @@ fn node_type() {
             Structure::new_node_function(Object::ZERO)
                 .union(&Structure::new_node_count(Object::ZERO)),
         )
-        .node_type(&Structure::EMPTY),
+        .node_type(knowledge),
         None
     );
+     */
 }

@@ -1,17 +1,16 @@
-use std::{
-    marker::PhantomData,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::marker::PhantomData;
 
 use everything_structures::{Object, Structure, ValuesIter};
 
+#[cfg(debug_assertions)]
+use crate::debug_depth_count::DebugDepthCount;
 use crate::{
     base,
     ext::{ObjectExt, StructureExt},
 };
 
 #[cfg(debug_assertions)]
-static QUERY_DEPTH: AtomicUsize = AtomicUsize::new(0);
+static QUERY_DEPTH: DebugDepthCount = DebugDepthCount::new();
 
 pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
@@ -20,7 +19,7 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
 ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
     println!(
         "{}querying ({subject:?}, {tag:?}, ?)",
-        "  ".repeat(QUERY_DEPTH.load(Ordering::Relaxed))
+        "  ".repeat(QUERY_DEPTH.get())
     );
 
     match (subject, &tag) {
@@ -34,8 +33,7 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
-            #[cfg(debug_assertions)]
-            QUERY_DEPTH.update(Ordering::Relaxed, Ordering::Relaxed, |depth| depth + 1);
+            QUERY_DEPTH.inc();
 
             let result = QueryValuesResult::Single(match subject {
                 // TODO: review this for abstract objects
@@ -43,16 +41,14 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
                 Object::Structure(s) => s.is_knowledge().then_some(&EMPTY_OBJECT),
             });
 
-            #[cfg(debug_assertions)]
-            QUERY_DEPTH.update(Ordering::Relaxed, Ordering::Relaxed, |depth| depth - 1);
+            QUERY_DEPTH.dec();
 
             return result;
         }
         _ => {}
     }
 
-    #[cfg(debug_assertions)]
-    QUERY_DEPTH.update(Ordering::Relaxed, Ordering::Relaxed, |depth| depth + 1);
+    QUERY_DEPTH.inc();
 
     let maybe_constraint_query = query_values(knowledge, &tag, Object::AXIOMATIC);
     let maybe_constraint = maybe_constraint_query.iter().next();
@@ -91,8 +87,7 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
         }
     };
 
-    #[cfg(debug_assertions)]
-    QUERY_DEPTH.update(Ordering::Relaxed, Ordering::Relaxed, |depth| depth - 1);
+    QUERY_DEPTH.dec();
 
     result
 }
