@@ -26,9 +26,6 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
         (&Object::AXIOMATIC, &Object::AXIOMATIC) => {
             return QueryValuesResult::Single(Some(&base::AXIOMATIC_AXIOMATIC_CONSTRAINT));
         }
-        (&Object::AXIOMATIC | &Object::COMPUTED, &Object::COMPUTED) => {
-            return QueryValuesResult::Single(None);
-        }
         (_, &Object::KNOWLEDGE) => {
             // We could also use the computation result variant
             // but for that we would need to create a set structure.

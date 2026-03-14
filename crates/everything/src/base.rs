@@ -25,33 +25,18 @@ fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
     }
 }
 
-pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> = LazyLock::new(|| {
-    Structure::new_node_function(
-        Structure::new_node_equal([
-            Structure::new_node_count(
-                Structure::new_node_query(
-                    Structure::new(&mut [
-                        Property {
-                            tag: Object::STATEMENT_SUBJECT,
-                            value: Structure::new_node_parameter(Object::ZERO).into(),
-                        },
-                        Property {
-                            tag: Object::STATEMENT_TAG,
-                            value: Object::AXIOMATIC,
-                        },
-                    ])
-                    .into(),
-                )
-                .into(),
-            )
-            .into(),
-            Object::natural_number(1),
-        ])
-        .into(),
-    )
-    .into()
-});
+pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> =
+    LazyLock::new(|| unique_constraint_for(Object::AXIOMATIC));
 
+/// Creates a function object that validates that any
+/// subject associated axiomatically with the given tag
+/// has at most one association with this tag.
+///
+/// More specifically, it creates this function for the given tag:
+///
+/// ```plain
+/// $subject |-> count query {(@4, $subject), (@5, tag)} == 1
+/// ```
 fn unique_constraint_for(tag: Object) -> Object {
     Structure::new_node_function(
         Structure::new_node_equal([

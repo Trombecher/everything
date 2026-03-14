@@ -1,7 +1,6 @@
 use everything_structures::{Object, Property, Structure};
 
 use crate::{
-    Knowledge,
     base::BASE,
     ext::{NodeType, ObjectExt, StructureExt},
 };
