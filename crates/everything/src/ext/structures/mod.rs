@@ -5,6 +5,7 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::{
     base::BASE,
+    ctx::EvaluationContext,
     ext::{ObjectExt, Statement},
     query::query_values,
 };
@@ -83,16 +84,27 @@ impl StructureExt for Structure {
                 Object::AXIOMATIC,
                 &mut Default::default(),
             );
+
             let constraint_function = match constraint_qr.iter().next() {
                 Some(c) => c,
-                None => return false,
+                None => {
+                    // println!("{:?} is not axiomatic", statement.tag);
+                    return false;
+                }
             };
 
+            let mut ctx = EvaluationContext::default();
+
             let result = constraint_function
-                .call(self, &statement.subject, &mut Default::default())
-                .call(self, &statement.value, &mut Default::default());
+                .call(self, &statement.subject, &mut ctx)
+                .call(self, &statement.value, &mut ctx);
 
             if !result.is_truthy() {
+                println!(
+                    "{:?} does not match the constraint {:?}",
+                    statement, constraint_function
+                );
+
                 return false;
             }
         }

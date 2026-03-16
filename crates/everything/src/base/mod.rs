@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::sync::LazyLock;
 
 use everything_structures::{Object, Property, Structure};

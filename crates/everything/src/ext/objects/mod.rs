@@ -265,7 +265,28 @@ impl ObjectExt for Object {
                     .map(Clone::clone)
                     .unwrap_or(Structure::EMPTY.into())
             }
-            Some(_) => todo!(),
+            Some(NodeType::Equal) => {
+                let qr = query_values(knowledge, self, Object::NODE_EQUAL, ctx);
+                let mut expressions = qr.iter();
+
+                let first = expressions.next().unwrap();
+                let equal = expressions.all(|object| object == first);
+
+                Object::from_bool(equal)
+            }
+            Some(NodeType::Or) => {
+                let qr = query_values(knowledge, self, Object::NODE_OR, ctx);
+                let mut values = qr.iter();
+
+                Object::from_bool(values.any(Self::is_truthy))
+            }
+            Some(NodeType::And) => {
+                let qr = query_values(knowledge, self, Object::NODE_AND, ctx);
+                let mut values = qr.iter();
+
+                Object::from_bool(values.all(Self::is_truthy))
+            }
+            Some(ty) => todo!("{ty:?} not impl"),
             None => self.clone(),
         }
     }
