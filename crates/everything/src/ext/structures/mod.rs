@@ -10,6 +10,7 @@ use crate::{
 
 /// Nice-to-have functions for [Structure]s.
 pub trait StructureExt {
+    fn new_node_not(node: Object) -> Self;
     /// Constructs a query node.
     fn new_node_query(node: Object) -> Self;
 
@@ -174,5 +175,12 @@ impl StructureExt for Structure {
         });
 
         Self::new(&mut properties)
+    }
+
+    fn new_node_not(node: Object) -> Self {
+        Self::new(&mut [Property {
+            tag: Object::NODE_NOT,
+            value: node,
+        }])
     }
 }

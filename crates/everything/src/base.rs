@@ -25,6 +25,33 @@ fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
     }
 }
 
+fn common_unique_constraint_expression(tag: Object, parameter_depth: u64) -> Object {
+    Structure::new_node_equal([
+        Object::natural_number(1),
+        Structure::new_node_count(
+            Structure::new_node_query(
+                Structure::new(&mut [
+                    Property {
+                        tag: Object::STATEMENT_SUBJECT,
+                        value: Structure::new_node_parameter(Object::natural_number(
+                            parameter_depth,
+                        ))
+                        .into(),
+                    },
+                    Property {
+                        tag: Object::STATEMENT_TAG,
+                        value: tag,
+                    },
+                ])
+                .into(),
+            )
+            .into(),
+        )
+        .into(),
+    ])
+    .into()
+}
+
 /// Creates a function object that validates that any
 /// subject associated axiomatically with the given tag
 /// has at most one association with this tag.
@@ -35,31 +62,12 @@ fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
 /// ... |-> count query {(@4, $parameter_at_depth), (@5, tag)} == 1
 /// ```
 fn unique_constraint_for(tag: Object, parameter_depth: u64) -> Object {
+    Structure::new_computed(common_unique_constraint_expression(tag, parameter_depth)).into()
+}
+
+fn more_than_1_constraint_for(tag: Object, parameter_depth: u64) -> Object {
     Structure::new_computed(
-        Structure::new_node_equal([
-            Object::natural_number(1),
-            Structure::new_node_count(
-                Structure::new_node_query(
-                    Structure::new(&mut [
-                        Property {
-                            tag: Object::STATEMENT_SUBJECT,
-                            value: Structure::new_node_parameter(Object::natural_number(
-                                parameter_depth,
-                            ))
-                            .into(),
-                        },
-                        Property {
-                            tag: Object::STATEMENT_TAG,
-                            value: tag,
-                        },
-                    ])
-                    .into(),
-                )
-                .into(),
-            )
-            .into(),
-        ])
-        .into(),
+        Structure::new_node_not(common_unique_constraint_expression(tag, parameter_depth)).into(),
     )
     .into()
 }
@@ -159,10 +167,59 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             Object::AXIOMATIC,
             unique_constraint_for(Object::STATEMENT_VALUE, 1),
         ),
+        // TODO: statement, knowledge, tag
+
+        // --------------------- NODES ---------------------
+        stmt_to_prop(
+            Object::NODE_LITERAL,
+            Object::AXIOMATIC,
+            unique_constraint_for(Object::NODE_LITERAL, 1),
+        ),
         stmt_to_prop(
             Object::NODE_COUNT,
             Object::AXIOMATIC,
             unique_constraint_for(Object::NODE_COUNT, 1),
         ),
+        stmt_to_prop(
+            Object::NODE_PARAMETER,
+            Object::AXIOMATIC,
+            unique_constraint_for(Object::NODE_PARAMETER, 1),
+        ),
+        stmt_to_prop(
+            Object::NODE_AND,
+            Object::AXIOMATIC,
+            more_than_1_constraint_for(Object::NODE_AND, 1),
+        ),
+        stmt_to_prop(
+            Object::NODE_OR,
+            Object::AXIOMATIC,
+            more_than_1_constraint_for(Object::NODE_OR, 1),
+        ),
+        stmt_to_prop(
+            Object::NODE_XOR,
+            Object::AXIOMATIC,
+            more_than_1_constraint_for(Object::NODE_XOR, 1),
+        ),
+        stmt_to_prop(
+            Object::NODE_EQUAL,
+            Object::AXIOMATIC,
+            more_than_1_constraint_for(Object::NODE_EQUAL, 1),
+        ),
+        stmt_to_prop(
+            Object::NODE_EXISTS,
+            Object::AXIOMATIC,
+            unique_constraint_for(Object::NODE_EXISTS, 1),
+        ),
+        stmt_to_prop(
+            Object::NODE_QUERY,
+            Object::AXIOMATIC,
+            unique_constraint_for(Object::NODE_QUERY, 1),
+        ),
+        stmt_to_prop(
+            Object::NODE_NOT,
+            Object::AXIOMATIC,
+            unique_constraint_for(Object::NODE_NOT, 1),
+        ),
+        // TODO: node
     ])
 });
