@@ -3,12 +3,20 @@ mod tests;
 
 use everything_structures::{Object, Property, Structure};
 
-use crate::{ext::NodeType, query::query_values};
+use crate::{
+    ext::{NodeType, StructureExt},
+    query::query_values,
+};
 
 macro_rules! define_abstract {
     ($($id:ident = $n:literal),* $(,)?) => {
         $(const $id: Object = Object::Abstract($n);)*
     };
+}
+
+struct EvaluationContext {
+    pub parameters: Vec<Object>,
+    pub functions: Vec<Object>,
 }
 
 pub trait ObjectExt {
@@ -44,7 +52,7 @@ pub trait ObjectExt {
         // NODE_CALL = 28,
     );
 
-    fn eval(&self, knowledge: &Structure) -> Object;
+    fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Object;
 
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
 
@@ -52,7 +60,7 @@ pub trait ObjectExt {
 
     /// Constructs a natural number object using
     /// repeated succ.
-    fn natural_number(n: u64) -> Self;
+    fn natural_number(n: usize) -> Self;
 
     /// Returns the number of properties this object has.
     /// For abstract objects, this returns zero.
@@ -73,7 +81,14 @@ pub trait ObjectExt {
 
     fn is_truthy(&self) -> bool;
 
-    fn call(&self, knowledge: &Structure, parameter: &Object) -> Object;
+    fn call(
+        &self,
+        knowledge: &Structure,
+        parameter: &Object,
+        ctx: &mut EvaluationContext,
+    ) -> Object;
+
+    fn to_natural_number(&self, knowledge: &Structure) -> Option<usize>;
 }
 
 impl ObjectExt for Object {
@@ -97,7 +112,7 @@ impl ObjectExt for Object {
         }
     }
 
-    fn natural_number(n: u64) -> Self {
+    fn natural_number(n: usize) -> Self {
         if n == 0 {
             Object::ZERO
         } else {
@@ -170,15 +185,15 @@ impl ObjectExt for Object {
         current_pick
     }
 
-    fn eval(&self, knowledge: &Structure) -> Object {
+    fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Object {
         // TODO: better panic msgs
 
         match self.node_type(knowledge) {
             Some(NodeType::Count) => {
                 let qr = query_values(knowledge, self, Object::NODE_COUNT);
-                let value = qr.iter().next().unwrap();
+                let value = qr.iter().next().unwrap().eval(knowledge, ctx);
 
-                Object::natural_number(value.property_count() as u64)
+                Object::natural_number(value.property_count())
             }
             Some(NodeType::Query) => {
                 // TODO: adjust constraint for query
@@ -190,7 +205,10 @@ impl ObjectExt for Object {
                 let subject = subject_qr
                     .iter()
                     .next()
-                    .expect("cannot query with no subject");
+                    .expect("cannot query with no subject")
+                    .eval(knowledge, ctx);
+
+                ctx.parameters.push(subject.clone());
 
                 let tag_qr = query_values(knowledge, query_form, Object::STATEMENT_TAG);
                 let tag = tag_qr.iter().next().expect("cannot query with no tag");
@@ -198,13 +216,15 @@ impl ObjectExt for Object {
                 let value_qr = query_values(knowledge, query_form, Object::STATEMENT_VALUE);
                 let value = value_qr.iter().next();
 
-                let actual_qr = query_values(knowledge, subject, tag.clone());
+                let actual_qr = query_values(knowledge, &subject, tag.clone());
 
                 if let Some(value) = value {
+                    let value = value.eval(knowledge, ctx);
+
                     // This is just equal to `NODE_EXISTS`.
 
                     for item in actual_qr.iter() {
-                        if item == value {
+                        if item == &value {
                             return Object::from_bool(true);
                         }
                     }
@@ -215,13 +235,85 @@ impl ObjectExt for Object {
                     actual_qr.collect_to_set()
                 }
             }
+            Some(NodeType::Literal) => {
+                let qr = query_values(knowledge, self, Object::NODE_LITERAL);
+                qr.iter().next().unwrap().clone()
+            }
+            Some(NodeType::Computed) => {
+                // TODO: look at this
+
+                ctx.functions.push(self.clone());
+
+                let qr = query_values(knowledge, self, Object::COMPUTED);
+                let new_body = qr.iter().next().unwrap().clone().eval(knowledge, ctx);
+
+                ctx.functions.pop();
+
+                // TODO: Debate if we should clone `self`
+                // (and adjust props) or do this:
+
+                Structure::new_computed(new_body).into()
+            }
+            Some(NodeType::Parameter) => {
+                let depth_qr = query_values(knowledge, self, Object::NODE_PARAMETER);
+                let depth = depth_qr
+                    .iter()
+                    .next()
+                    .unwrap()
+                    .to_natural_number(knowledge)
+                    .unwrap();
+
+                ctx.parameters
+                    .get(depth)
+                    .map(Clone::clone)
+                    .unwrap_or(Structure::EMPTY.into())
+            }
             Some(_) => todo!(),
             None => self.clone(),
         }
     }
 
-    // TODO: remove this fn
-    fn call(&self, _knowledge: &Structure, parameter: &Object) -> Object {
-        todo!("impl call of {self:?} {parameter:?} = ?")
+    fn call(
+        &self,
+        knowledge: &Structure,
+        parameter: &Object,
+        ctx: &mut EvaluationContext,
+    ) -> Object {
+        if let Some(NodeType::Computed) = self.node_type(knowledge) {
+            // `self` is a function yay
+
+            let body_qr = query_values(knowledge, self, Object::COMPUTED);
+            let body = body_qr.iter().next().unwrap();
+
+            let parameter = parameter.eval(knowledge, ctx);
+
+            ctx.functions.push(self.clone());
+            ctx.parameters.push(parameter);
+
+            let result = body.eval(knowledge, ctx);
+
+            ctx.parameters.pop();
+            ctx.functions.pop();
+
+            result
+        } else {
+            // Ignore parameter and eval `self`.
+            self.eval(knowledge, ctx)
+        }
+    }
+
+    fn to_natural_number(&self, knowledge: &Structure) -> Option<usize> {
+        if self == &Object::ZERO {
+            Some(0)
+        } else {
+            let qr = query_values(knowledge, self, Object::SUCCESSOR_OF);
+
+            // TODO: maybe validate that there is only one.
+            if let Some(successor_of) = qr.iter().next() {
+                successor_of.to_natural_number(knowledge).map(|n| n + 1)
+            } else {
+                None
+            }
+        }
     }
 }

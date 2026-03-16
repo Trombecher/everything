@@ -4,6 +4,7 @@ mod tests;
 use everything_structures::{Object, Property, Structure};
 
 use crate::{
+    base::BASE,
     ext::{ObjectExt, Statement},
     query::query_values,
 };
@@ -48,7 +49,12 @@ impl StructureExt for Structure {
     }
 
     fn is_knowledge(&self) -> bool {
-        // First we validate that every object contained
+        // BASE needs to be included
+        if !BASE.is_subset_of(self) {
+            return false;
+        }
+
+        // We validate that every object contained
         // in `self` is a statement.
 
         for contains_object in self.values(Object::CONTAINS) {
