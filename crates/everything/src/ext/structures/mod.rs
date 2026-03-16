@@ -77,14 +77,20 @@ impl StructureExt for Structure {
                 .expect("found a structure which is not a statement");
 
             // Get constraint function from tag for value:
-            let constraint_query_result = query_values(self, &statement.tag, Object::AXIOMATIC);
-            let constraint_function = match constraint_query_result.iter().next() {
+            let constraint_qr = query_values(
+                self,
+                &statement.tag,
+                Object::AXIOMATIC,
+                &mut Default::default(),
+            );
+            let constraint_function = match constraint_qr.iter().next() {
                 Some(c) => c,
                 None => return false,
             };
 
-            let inter = constraint_function.call(self, &statement.subject);
-            let result = inter.call(self, &statement.value);
+            let result = constraint_function
+                .call(self, &statement.subject, &mut Default::default())
+                .call(self, &statement.value, &mut Default::default());
 
             if !result.is_truthy() {
                 return false;

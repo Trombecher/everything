@@ -4,6 +4,7 @@ mod tests;
 use everything_structures::{Object, Property, Structure};
 
 use crate::{
+    ctx::EvaluationContext,
     ext::{NodeType, StructureExt},
     query::query_values,
 };
@@ -12,11 +13,6 @@ macro_rules! define_abstract {
     ($($id:ident = $n:literal),* $(,)?) => {
         $(const $id: Object = Object::Abstract($n);)*
     };
-}
-
-struct EvaluationContext {
-    pub parameters: Vec<Object>,
-    pub functions: Vec<Object>,
 }
 
 pub trait ObjectExt {
@@ -167,10 +163,10 @@ impl ObjectExt for Object {
 
         for node_type in NodeType::ALL {
             let node_type_object: Object = node_type.into();
-            let query = query_values(knowledge, self, node_type_object);
-            let there_are_values = query.iter().next().is_some();
 
-            println!("there are values: {there_are_values}");
+            // We do not need an evaluation context because all node types are axiomatic.
+            let query = query_values(knowledge, self, node_type_object, &mut Default::default());
+            let there_are_values = query.iter().next().is_some();
 
             if there_are_values {
                 if current_pick.is_some() {
@@ -190,7 +186,7 @@ impl ObjectExt for Object {
 
         match self.node_type(knowledge) {
             Some(NodeType::Count) => {
-                let qr = query_values(knowledge, self, Object::NODE_COUNT);
+                let qr = query_values(knowledge, self, Object::NODE_COUNT, ctx);
                 let value = qr.iter().next().unwrap().eval(knowledge, ctx);
 
                 Object::natural_number(value.property_count())
@@ -198,10 +194,11 @@ impl ObjectExt for Object {
             Some(NodeType::Query) => {
                 // TODO: adjust constraint for query
 
-                let qr = query_values(knowledge, self, Object::NODE_QUERY);
+                let qr = query_values(knowledge, self, Object::NODE_QUERY, ctx);
                 let query_form = qr.iter().next().unwrap();
 
-                let subject_qr = query_values(knowledge, query_form, Object::STATEMENT_SUBJECT);
+                let subject_qr =
+                    query_values(knowledge, query_form, Object::STATEMENT_SUBJECT, ctx);
                 let subject = subject_qr
                     .iter()
                     .next()
@@ -210,13 +207,13 @@ impl ObjectExt for Object {
 
                 ctx.parameters.push(subject.clone());
 
-                let tag_qr = query_values(knowledge, query_form, Object::STATEMENT_TAG);
+                let tag_qr = query_values(knowledge, query_form, Object::STATEMENT_TAG, ctx);
                 let tag = tag_qr.iter().next().expect("cannot query with no tag");
 
-                let value_qr = query_values(knowledge, query_form, Object::STATEMENT_VALUE);
+                let value_qr = query_values(knowledge, query_form, Object::STATEMENT_VALUE, ctx);
                 let value = value_qr.iter().next();
 
-                let actual_qr = query_values(knowledge, &subject, tag.clone());
+                let actual_qr = query_values(knowledge, &subject, tag.clone(), ctx);
 
                 if let Some(value) = value {
                     let value = value.eval(knowledge, ctx);
@@ -236,7 +233,7 @@ impl ObjectExt for Object {
                 }
             }
             Some(NodeType::Literal) => {
-                let qr = query_values(knowledge, self, Object::NODE_LITERAL);
+                let qr = query_values(knowledge, self, Object::NODE_LITERAL, ctx);
                 qr.iter().next().unwrap().clone()
             }
             Some(NodeType::Computed) => {
@@ -244,7 +241,7 @@ impl ObjectExt for Object {
 
                 ctx.functions.push(self.clone());
 
-                let qr = query_values(knowledge, self, Object::COMPUTED);
+                let qr = query_values(knowledge, self, Object::COMPUTED, ctx);
                 let new_body = qr.iter().next().unwrap().clone().eval(knowledge, ctx);
 
                 ctx.functions.pop();
@@ -255,7 +252,7 @@ impl ObjectExt for Object {
                 Structure::new_computed(new_body).into()
             }
             Some(NodeType::Parameter) => {
-                let depth_qr = query_values(knowledge, self, Object::NODE_PARAMETER);
+                let depth_qr = query_values(knowledge, self, Object::NODE_PARAMETER, ctx);
                 let depth = depth_qr
                     .iter()
                     .next()
@@ -282,7 +279,7 @@ impl ObjectExt for Object {
         if let Some(NodeType::Computed) = self.node_type(knowledge) {
             // `self` is a function yay
 
-            let body_qr = query_values(knowledge, self, Object::COMPUTED);
+            let body_qr = query_values(knowledge, self, Object::COMPUTED, &mut Default::default());
             let body = body_qr.iter().next().unwrap();
 
             let parameter = parameter.eval(knowledge, ctx);
@@ -306,7 +303,12 @@ impl ObjectExt for Object {
         if self == &Object::ZERO {
             Some(0)
         } else {
-            let qr = query_values(knowledge, self, Object::SUCCESSOR_OF);
+            let qr = query_values(
+                knowledge,
+                self,
+                Object::SUCCESSOR_OF,
+                &mut Default::default(),
+            );
 
             // TODO: maybe validate that there is only one.
             if let Some(successor_of) = qr.iter().next() {

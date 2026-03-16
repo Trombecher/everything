@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use everything_structures::{Object, Property, Structure, ValuesIter};
 
+use crate::ctx::EvaluationContext;
 use crate::debug_depth_count::DebugDepthCount;
 use crate::{
     base,
@@ -14,6 +15,7 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
     tag: Object,
+    ctx: &mut EvaluationContext,
 ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
     match (subject, &tag) {
         (&Object::AXIOMATIC, &Object::AXIOMATIC) => {
@@ -40,10 +42,10 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
 
     QUERY_DEPTH.inc();
 
-    let maybe_constraint_query = query_values(knowledge, &tag, Object::AXIOMATIC);
+    let maybe_constraint_query = query_values(knowledge, &tag, Object::AXIOMATIC, ctx);
     let maybe_constraint = maybe_constraint_query.iter().next();
 
-    let maybe_computation_function_query = query_values(knowledge, &tag, Object::COMPUTED);
+    let maybe_computation_function_query = query_values(knowledge, &tag, Object::COMPUTED, ctx);
     let maybe_computation_function = maybe_computation_function_query.iter().next();
 
     let result = match (maybe_constraint, maybe_computation_function) {
@@ -66,7 +68,7 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
             })
         }
         (None, Some(computation_function)) => {
-            let result = computation_function.call(knowledge, &subject);
+            let result = computation_function.call(knowledge, &subject, ctx);
             QueryValuesResult::ComputationResult(result)
         }
         _ => {

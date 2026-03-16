@@ -28,7 +28,7 @@ impl Knowledge {
         subject: &'subject Object,
         tag: Object,
     ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
-        query_values(self.structure(), subject, tag)
+        query_values(self.structure(), subject, tag, &mut Default::default())
     }
 }
 
