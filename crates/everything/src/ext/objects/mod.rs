@@ -267,7 +267,7 @@ impl ObjectExt for Object {
             }
             Some(NodeType::Equal) => {
                 let qr = query_values(knowledge, self, Object::NODE_EQUAL, ctx);
-                let mut expressions = qr.iter();
+                let mut expressions = qr.iter().map(|value| value.eval(knowledge, ctx));
 
                 let first = expressions.next().unwrap();
                 let equal = expressions.all(|object| object == first);
@@ -276,15 +276,15 @@ impl ObjectExt for Object {
             }
             Some(NodeType::Or) => {
                 let qr = query_values(knowledge, self, Object::NODE_OR, ctx);
-                let mut values = qr.iter();
+                let mut values = qr.iter().map(|value| value.eval(knowledge, ctx));
 
-                Object::from_bool(values.any(Self::is_truthy))
+                Object::from_bool(values.any(|o| o.is_truthy()))
             }
             Some(NodeType::And) => {
                 let qr = query_values(knowledge, self, Object::NODE_AND, ctx);
-                let mut values = qr.iter();
+                let mut values = qr.iter().map(|value| value.eval(knowledge, ctx));
 
-                Object::from_bool(values.all(Self::is_truthy))
+                Object::from_bool(values.all(|value| value.is_truthy()))
             }
             Some(ty) => todo!("{ty:?} not impl"),
             None => self.clone(),
@@ -304,6 +304,7 @@ impl ObjectExt for Object {
             let body = body_qr.iter().next().unwrap();
 
             let parameter = parameter.eval(knowledge, ctx);
+            println!("evaluating {body:?} with {parameter:?}");
 
             ctx.functions.push(self.clone());
             ctx.parameters.push(parameter);

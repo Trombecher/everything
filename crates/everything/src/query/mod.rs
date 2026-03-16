@@ -54,9 +54,13 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     let maybe_computation_function_query = query_values(knowledge, &tag, Object::COMPUTED, ctx);
     let maybe_computation_function = maybe_computation_function_query.iter().next();
 
+    if subject == &Object::CONTAINS && tag == Object::AXIOMATIC {
+        println!("asking 1 2 ... {maybe_constraint:?} {maybe_computation_function:?}");
+    }
+
     let result = match (maybe_constraint, maybe_computation_function) {
-        (Some(_constraint_function), None) => {
-            // Axiomatic (and ignore the constraint function).
+        (Some(_), None) => {
+            // Tag is axiomatic.
 
             let values_from_subject = match subject {
                 Object::Abstract(_) => None,
@@ -109,9 +113,8 @@ impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'sub
                     Object::Abstract(_) => &EMPTY_STRUCTURE,
                     Object::Structure(structure) => structure,
                 };
-                let contains = Object::CONTAINS;
 
-                QueryValuesIter::ComputationResult(structure.values(contains))
+                QueryValuesIter::ComputationResult(structure.values(Object::CONTAINS))
             }
         }
     }
@@ -205,7 +208,10 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
                 continue;
             }
 
-            let statement_value = statement.values(Object::STATEMENT_TAG).next().expect(":/");
+            let statement_value = statement
+                .values(Object::STATEMENT_VALUE)
+                .next()
+                .expect(":/");
 
             // Now this value may be already been in
             // the subject if it is a structure. So we

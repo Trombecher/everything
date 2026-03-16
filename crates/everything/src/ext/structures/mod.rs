@@ -100,16 +100,63 @@ impl StructureExt for Structure {
                 .call(self, &statement.value, &mut ctx);
 
             if !result.is_truthy() {
-                println!(
-                    "{:?} does not match the constraint {:?}",
-                    statement, constraint_function
-                );
-
                 return false;
             }
         }
 
-        true
+        fn check_for_all_tag_values(subject: &Object, knowledge: &Structure) -> bool {
+            match subject {
+                Object::Abstract(_) => true,
+                Object::Structure(structure) => {
+                    for Property { tag, value } in structure.as_ref() {
+                        let constraint_qr = query_values(
+                            knowledge,
+                            tag,
+                            Object::AXIOMATIC,
+                            &mut Default::default(),
+                        );
+
+                        let constraint_function = match constraint_qr.iter().next() {
+                            Some(f) => f,
+                            None => {
+                                println!("{tag:?} is not axiomatic");
+
+                                return false;
+                            }
+                        };
+
+                        println!("Constraint f of tag {tag:?} is {constraint_function:?}");
+
+                        let mut ctx = EvaluationContext::default();
+
+                        let result = constraint_function
+                            .call(knowledge, subject, &mut ctx)
+                            .call(knowledge, value, &mut ctx);
+
+                        if !result.is_truthy() {
+                            println!(
+                                "{subject:?} with value {value:?} is not applicable to {tag:?}"
+                            );
+
+                            return false;
+                        }
+
+                        if !check_for_all_tag_values(tag, knowledge) {
+                            return false;
+                        }
+
+                        if !check_for_all_tag_values(value, knowledge) {
+                            return false;
+                        }
+                    }
+
+                    true
+                }
+            }
+        }
+
+        let subject = Object::Structure(self.clone());
+        check_for_all_tag_values(&subject, self)
     }
 
     fn is_statement(&self) -> bool {

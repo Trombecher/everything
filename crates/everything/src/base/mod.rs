@@ -73,7 +73,7 @@ fn more_than_1_constraint_for(tag: Object, parameter_depth: usize) -> Object {
 }
 
 pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> =
-    LazyLock::new(|| unique_constraint_for(Object::AXIOMATIC, 1));
+    LazyLock::new(|| unique_constraint_for(Object::AXIOMATIC, 0));
 
 pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
     Structure::new_computed(
@@ -147,22 +147,22 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         stmt_to_prop(
             Object::COMPUTED,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::COMPUTED, 1),
+            unique_constraint_for(Object::COMPUTED, 0),
         ),
         stmt_to_prop(
             Object::STATEMENT_SUBJECT,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::STATEMENT, 1),
+            unique_constraint_for(Object::STATEMENT_SUBJECT, 0),
         ),
         stmt_to_prop(
             Object::STATEMENT_TAG,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::STATEMENT_TAG, 1),
+            unique_constraint_for(Object::STATEMENT_TAG, 0),
         ),
         stmt_to_prop(
             Object::STATEMENT_VALUE,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::STATEMENT_VALUE, 1),
+            unique_constraint_for(Object::STATEMENT_VALUE, 0),
         ),
         // TODO: statement, knowledge, tag
 
@@ -170,19 +170,19 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         stmt_to_prop(
             Object::NODE_LITERAL,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_LITERAL, 1),
+            unique_constraint_for(Object::NODE_LITERAL, 0),
         ),
         stmt_to_prop(
             Object::NODE_COUNT,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_COUNT, 1),
+            unique_constraint_for(Object::NODE_COUNT, 0),
         ),
         stmt_to_prop(
             Object::NODE_PARAMETER,
             Object::AXIOMATIC,
             Structure::new_computed(
                 Structure::new_node_and([
-                    common_unique_constraint_expression(Object::NODE_PARAMETER, 1),
+                    common_unique_constraint_expression(Object::NODE_PARAMETER, 0),
                     // maybe hard code "parameter == zero or has succ"
                     Structure::new_node_exists(
                         Structure::new(&mut [
@@ -206,37 +206,37 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         stmt_to_prop(
             Object::NODE_AND,
             Object::AXIOMATIC,
-            more_than_1_constraint_for(Object::NODE_AND, 1),
+            more_than_1_constraint_for(Object::NODE_AND, 0),
         ),
         stmt_to_prop(
             Object::NODE_OR,
             Object::AXIOMATIC,
-            more_than_1_constraint_for(Object::NODE_OR, 1),
+            more_than_1_constraint_for(Object::NODE_OR, 0),
         ),
         stmt_to_prop(
             Object::NODE_XOR,
             Object::AXIOMATIC,
-            more_than_1_constraint_for(Object::NODE_XOR, 1),
+            more_than_1_constraint_for(Object::NODE_XOR, 0),
         ),
         stmt_to_prop(
             Object::NODE_EQUAL,
             Object::AXIOMATIC,
-            more_than_1_constraint_for(Object::NODE_EQUAL, 1),
+            more_than_1_constraint_for(Object::NODE_EQUAL, 0),
         ),
         stmt_to_prop(
             Object::NODE_EXISTS,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_EXISTS, 1),
+            unique_constraint_for(Object::NODE_EXISTS, 0),
         ),
         stmt_to_prop(
             Object::NODE_QUERY,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_QUERY, 1),
+            unique_constraint_for(Object::NODE_QUERY, 0),
         ),
         stmt_to_prop(
             Object::NODE_NOT,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_NOT, 1),
+            unique_constraint_for(Object::NODE_NOT, 0),
         ),
         // TODO: node
     ])
