@@ -1,4 +1,4 @@
-use crate::{Object, Property, Structure, structures::GLOBAL_REGISTRY};
+use crate::{Object, Property, Structure};
 use std::{assert_matches, sync::Arc};
 
 pub const ALICE: Object = Object::Abstract(u128::from_be_bytes(*b"This is Alice!!!"));
@@ -35,8 +35,6 @@ fn inner_structure() {
         tag: ALICE,
         value: inner.clone().into(),
     }]);
-
-    assert_eq!(GLOBAL_REGISTRY.entries.len(), 2);
 
     assert_eq!(
         outer.as_ref(),

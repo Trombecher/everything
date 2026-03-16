@@ -68,7 +68,6 @@ fn node_type() {
         Some(NodeType::Computed)
     );
 
-    /*
     // Multiple
     assert_eq!(
         Object::Structure(Structure::new_node_and([Object::ZERO, Object::KNOWLEDGE]))
@@ -79,13 +78,11 @@ fn node_type() {
     // Mix
     assert_eq!(
         Object::Structure(
-            Structure::new_node_function(Object::ZERO)
-                .union(&Structure::new_node_count(Object::ZERO)),
+            Structure::new_computed(Object::ZERO).union(&Structure::new_node_count(Object::ZERO)),
         )
         .node_type(knowledge),
         None
     );
-     */
 }
 
 #[test]
@@ -96,21 +93,4 @@ fn call() {
         f.call(&BASE, &Object::ZERO, &mut Default::default()),
         Object::ZERO
     );
-
-    let f: Object = Structure::new_computed(
-        Structure::new_computed(Structure::new_node_parameter(1).into()).into(),
-    )
-    .into();
-
-    println!(
-        "{:?}",
-        f.call(&BASE, &Object::ZERO, &mut Default::default())
-    )
-}
-
-#[test]
-fn node_types() {
-    let n: Object = Structure::new_computed(Object::ZERO).into();
-
-    assert_eq!(n.node_type(&BASE), Some(NodeType::Computed));
 }
