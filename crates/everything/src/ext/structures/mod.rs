@@ -10,6 +10,32 @@ use crate::{
     query::query_values,
 };
 
+#[derive(PartialEq, Clone, Debug)]
+pub enum ObjectForm {
+    Any,
+    Specific(Object),
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub struct StatementForm {
+    pub subject: ObjectForm,
+    pub tag: ObjectForm,
+    pub value: ObjectForm,
+}
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum KnowledgeError {
+    IsNotSupersetOfBase,
+    SubjectIsNotStatementStructure(Object),
+    NeedsToBeTrueButIsFalse(StatementForm),
+    NeedsToBeFalseButIsTrue(StatementForm),
+    ValueOnSubjectDoesNotMatchTagsConstraint {
+        subject: Object,
+        tag: Object,
+        value: Object,
+    },
+}
+
 /// Nice-to-have functions for [Structure]s.
 pub trait StructureExt {
     fn new_node_not(node: Object) -> Self;
@@ -26,7 +52,7 @@ pub trait StructureExt {
 
     fn has_exactly_one_value_on(&self, tag: Object) -> bool;
 
-    fn is_knowledge(&self) -> bool;
+    fn is_knowledge(&self) -> Result<(), KnowledgeError>;
 
     fn is_statement(&self) -> bool;
 
@@ -49,10 +75,10 @@ impl StructureExt for Structure {
         return values.next().is_some() && values.next().is_none();
     }
 
-    fn is_knowledge(&self) -> bool {
+    fn is_knowledge(&self) -> Result<(), KnowledgeError> {
         // BASE needs to be included
         if !BASE.is_subset_of(self) {
-            return false;
+            return Err(KnowledgeError::IsNotSupersetOfBase);
         }
 
         // We validate that every object contained
@@ -64,7 +90,9 @@ impl StructureExt for Structure {
             {
             } else {
                 // TODO: review this for abstracts
-                return false;
+                return Err(KnowledgeError::SubjectIsNotStatementStructure(
+                    contains_object.clone(),
+                ));
             }
         }
 
@@ -88,8 +116,11 @@ impl StructureExt for Structure {
             let constraint_function = match constraint_qr.iter().next() {
                 Some(c) => c,
                 None => {
-                    // println!("{:?} is not axiomatic", statement.tag);
-                    return false;
+                    return Err(KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+                        subject: ObjectForm::Specific(statement.tag.clone()),
+                        tag: ObjectForm::Specific(Object::AXIOMATIC),
+                        value: ObjectForm::Any,
+                    }));
                 }
             };
 
@@ -100,13 +131,20 @@ impl StructureExt for Structure {
                 .call(self, &statement.value, &mut ctx);
 
             if !result.is_truthy() {
-                return false;
+                return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
+                    subject: statement.subject.clone(),
+                    tag: statement.tag.clone(),
+                    value: statement.value.clone(),
+                });
             }
         }
 
-        fn check_for_all_tag_values(subject: &Object, knowledge: &Structure) -> bool {
+        fn check_for_all_tag_values(
+            subject: &Object,
+            knowledge: &Structure,
+        ) -> Result<(), KnowledgeError> {
             match subject {
-                Object::Abstract(_) => true,
+                Object::Abstract(_) => Ok(()),
                 Object::Structure(structure) => {
                     for Property { tag, value } in structure.as_ref() {
                         let constraint_qr = query_values(
@@ -119,9 +157,13 @@ impl StructureExt for Structure {
                         let constraint_function = match constraint_qr.iter().next() {
                             Some(f) => f,
                             None => {
-                                println!("{tag:?} is not axiomatic");
-
-                                return false;
+                                return Err(KnowledgeError::NeedsToBeTrueButIsFalse(
+                                    StatementForm {
+                                        subject: ObjectForm::Specific(tag.clone()),
+                                        tag: ObjectForm::Specific(Object::AXIOMATIC),
+                                        value: ObjectForm::Any,
+                                    },
+                                ));
                             }
                         };
 
@@ -134,23 +176,18 @@ impl StructureExt for Structure {
                             .call(knowledge, value, &mut ctx);
 
                         if !result.is_truthy() {
-                            println!(
-                                "{subject:?} with value {value:?} is not applicable to {tag:?}"
-                            );
-
-                            return false;
+                            return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
+                                subject: subject.clone(),
+                                tag: tag.clone(),
+                                value: value.clone(),
+                            });
                         }
 
-                        if !check_for_all_tag_values(tag, knowledge) {
-                            return false;
-                        }
-
-                        if !check_for_all_tag_values(value, knowledge) {
-                            return false;
-                        }
+                        check_for_all_tag_values(tag, knowledge)?;
+                        check_for_all_tag_values(value, knowledge)?;
                     }
 
-                    true
+                    Ok(())
                 }
             }
         }

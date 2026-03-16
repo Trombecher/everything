@@ -36,7 +36,7 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
             let result = QueryValuesResult::Single(match subject {
                 // TODO: review this for abstract objects
                 Object::Abstract(_) => None,
-                Object::Structure(s) => s.is_knowledge().then_some(&EMPTY_OBJECT),
+                Object::Structure(s) => s.is_knowledge().is_ok().then_some(&EMPTY_OBJECT),
             });
 
             QUERY_DEPTH.dec();

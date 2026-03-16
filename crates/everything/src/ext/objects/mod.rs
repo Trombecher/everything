@@ -286,6 +286,48 @@ impl ObjectExt for Object {
 
                 Object::from_bool(values.all(|value| value.is_truthy()))
             }
+            Some(NodeType::Exists) => {
+                // TODO: discuss exists form
+
+                let qr = query_values(knowledge, self, Object::NODE_EXISTS, ctx);
+                let exists_form = qr.iter().next().unwrap();
+
+                let subject_qr =
+                    query_values(knowledge, exists_form, Object::STATEMENT_SUBJECT, ctx);
+                let subject = subject_qr
+                    .iter()
+                    .next()
+                    .expect("cannot query exists with no subject")
+                    .eval(knowledge, ctx);
+
+                ctx.parameters.push(subject.clone());
+
+                let tag_qr = query_values(knowledge, exists_form, Object::STATEMENT_TAG, ctx);
+                let tag = tag_qr.iter().next();
+
+                let value_qr = query_values(knowledge, exists_form, Object::STATEMENT_VALUE, ctx);
+                let value = value_qr.iter().next();
+
+                match (tag, value) {
+                    // I think this should be fine.
+                    (None, None) => Object::from_bool(true),
+                    (Some(tag), None) => {
+                        // Now we only need to check if one value exists.
+
+                        let values_qr = query_values(knowledge, &subject, tag.clone(), ctx);
+
+                        Object::from_bool(values_qr.iter().next().is_some())
+                    }
+                    // TODO: ?
+                    (None, Some(_)) => Object::from_bool(true),
+                    (Some(tag), Some(value)) => {
+                        // TODO: perf
+
+                        let values_qr = query_values(knowledge, &subject, tag.clone(), ctx);
+                        Object::from_bool(values_qr.iter().find(|v| *v == value).is_some())
+                    }
+                }
+            }
             Some(ty) => todo!("{ty:?} not impl"),
             None => self.clone(),
         }

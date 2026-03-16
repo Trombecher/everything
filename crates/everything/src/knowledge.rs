@@ -1,7 +1,7 @@
 use everything_structures::{Object, Structure};
 
 use crate::{
-    ext::StructureExt,
+    ext::{KnowledgeError, StructureExt},
     query::{QueryValuesResult, query_values},
 };
 
@@ -10,8 +10,8 @@ pub struct Knowledge(Structure);
 
 impl Knowledge {
     #[inline]
-    pub fn new(structure: Structure) -> Option<Self> {
-        structure.is_knowledge().then_some(Self(structure))
+    pub fn new(structure: Structure) -> Result<Self, KnowledgeError> {
+        structure.is_knowledge().map(|()| Self(structure))
     }
 
     #[must_use]
@@ -33,10 +33,10 @@ impl Knowledge {
 }
 
 impl TryFrom<Structure> for Knowledge {
-    type Error = ();
+    type Error = KnowledgeError;
 
     fn try_from(value: Structure) -> Result<Self, Self::Error> {
-        Self::new(value).ok_or(())
+        Self::new(value)
     }
 }
 
