@@ -2,14 +2,12 @@ use std::marker::PhantomData;
 
 use everything_structures::{Object, Structure, ValuesIter};
 
-#[cfg(debug_assertions)]
 use crate::debug_depth_count::DebugDepthCount;
 use crate::{
     base,
     ext::{ObjectExt, StructureExt},
 };
 
-#[cfg(debug_assertions)]
 static QUERY_DEPTH: DebugDepthCount = DebugDepthCount::new();
 
 pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
@@ -17,11 +15,6 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     subject: &'subject Object,
     tag: Object,
 ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
-    println!(
-        "{}querying ({subject:?}, {tag:?}, ?)",
-        "  ".repeat(QUERY_DEPTH.get())
-    );
-
     match (subject, &tag) {
         (&Object::AXIOMATIC, &Object::AXIOMATIC) => {
             return QueryValuesResult::Single(Some(&base::AXIOMATIC_AXIOMATIC_CONSTRAINT));

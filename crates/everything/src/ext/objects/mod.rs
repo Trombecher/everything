@@ -24,12 +24,12 @@ pub trait ObjectExt {
         KNOWLEDGE = 8,
         ZERO = 9,
         SUCCESSOR_OF = 10,
-        NODE_FUNCTION_BODY = 11,
+        // NODE_FUNCTION_BODY = 11,
         NODE_LITERAL = 12,
         NODE_AND = 13,
         NODE_EXISTS = 14,
         NODE_PARAMETER = 15,
-        IS_NATURAL_NUMBER = 16,
+        // IS_NATURAL_NUMBER = 16,
         NODE_COUNT = 17,
         NODE_QUERY = 18,
         NODE_EQUAL = 19,
@@ -39,9 +39,9 @@ pub trait ObjectExt {
         NODE = 23,
         TAG = 24,
         NODE_FUNCTION_SELF = 25,
-        NODE_CALL_TARGET = 26,
-        NODE_CALL_PARAMETER = 27,
-        NODE_CALL = 28,
+        // NODE_CALL_TARGET = 26,
+        // NODE_CALL_PARAMETER = 27,
+        // NODE_CALL = 28,
     );
 
     fn eval(&self, knowledge: &Structure) -> Object;
@@ -172,16 +172,12 @@ impl ObjectExt for Object {
 
     fn eval(&self, knowledge: &Structure) -> Object {
         match self.node_type(knowledge) {
-            Some(NodeType::Call) => {
-                // let query = query_values(knowledge, node, &objects::NODE_CALL);
-                // let x = query.iter().next().unwrap();
-                todo!()
-            }
             Some(_) => todo!(),
             None => self.clone(),
         }
     }
 
+    // TODO: remove this fn
     fn call(&self, _knowledge: &Structure, parameter: &Object) -> Object {
         todo!("impl call of {self:?} {parameter:?} = ?")
     }

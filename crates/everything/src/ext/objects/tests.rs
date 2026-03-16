@@ -64,8 +64,8 @@ fn node_type() {
 
     // Single
     assert_eq!(
-        Object::Structure(Structure::new_node_function(Object::ZERO)).node_type(knowledge),
-        Some(NodeType::FunctionBody)
+        Object::Structure(Structure::new_computed(Object::ZERO)).node_type(knowledge),
+        Some(NodeType::Computed)
     );
 
     /*

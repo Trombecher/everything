@@ -9,7 +9,10 @@ impl DebugDepthCount {
 
     pub fn get(&self) -> usize {
         #[cfg(debug_assertions)]
-        self.0.load(Ordering::Relaxed)
+        return self.0.load(Ordering::Relaxed);
+
+        #[cfg(not(debug_assertions))]
+        0
     }
 
     pub fn inc(&self) {

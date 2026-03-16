@@ -19,7 +19,7 @@ pub struct Statement<'a> {
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum NodeType {
-    FunctionBody,
+    Computed,
     Literal,
     And,
     FunctionSelf,
@@ -31,12 +31,12 @@ pub enum NodeType {
     Or,
     XOr,
     Not,
-    Call,
+    // Call,
 }
 
 impl NodeType {
-    pub const ALL: [Self; 13] = [
-        Self::FunctionBody,
+    pub const ALL: [Self; 12] = [
+        Self::Computed,
         Self::Literal,
         Self::And,
         Self::FunctionSelf,
@@ -48,14 +48,14 @@ impl NodeType {
         Self::Or,
         Self::XOr,
         Self::Not,
-        Self::Call,
+        // Self::Call,
     ];
 }
 
 impl Into<Object> for NodeType {
     fn into(self) -> Object {
         match self {
-            Self::FunctionBody => Object::NODE_FUNCTION_BODY,
+            Self::Computed => Object::COMPUTED,
             Self::Literal => Object::NODE_LITERAL,
             Self::And => Object::NODE_AND,
             Self::FunctionSelf => Object::NODE_FUNCTION_SELF,
@@ -67,7 +67,7 @@ impl Into<Object> for NodeType {
             Self::Or => Object::NODE_OR,
             Self::XOr => Object::NODE_XOR,
             Self::Not => Object::NODE_NOT,
-            Self::Call => Object::NODE_CALL,
+            // Self::Call => Object::NODE_CALL,
         }
     }
 }

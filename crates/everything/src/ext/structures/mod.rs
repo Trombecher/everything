@@ -29,11 +29,15 @@ pub trait StructureExt {
 
     fn parse_statement<'a>(&'a self) -> Option<Statement<'a>>;
 
-    fn new_node_function(body: Object) -> Self;
+    fn new_computed(body: Object) -> Self;
 
     fn new_node_equal<const N: usize>(nodes: [Object; N]) -> Self;
 
     fn new_node_and<const N: usize>(nodes: [Object; N]) -> Self;
+
+    fn new_node_or<const N: usize>(nodes: [Object; N]) -> Self;
+
+    fn new_node_xor<const N: usize>(nodes: [Object; N]) -> Self;
 }
 
 impl StructureExt for Structure {
@@ -101,9 +105,9 @@ impl StructureExt for Structure {
         })
     }
 
-    fn new_node_function(body: Object) -> Self {
+    fn new_computed(body: Object) -> Self {
         Self::new(&mut [Property {
-            tag: Object::NODE_FUNCTION_BODY,
+            tag: Object::COMPUTED,
             value: body,
         }])
     }
@@ -152,5 +156,23 @@ impl StructureExt for Structure {
             tag: Object::NODE_QUERY,
             value: query,
         }])
+    }
+
+    fn new_node_or<const N: usize>(nodes: [Object; N]) -> Self {
+        let mut properties = nodes.map(|node| Property {
+            tag: Object::NODE_OR,
+            value: node,
+        });
+
+        Self::new(&mut properties)
+    }
+
+    fn new_node_xor<const N: usize>(nodes: [Object; N]) -> Self {
+        let mut properties = nodes.map(|node| Property {
+            tag: Object::NODE_XOR,
+            value: node,
+        });
+
+        Self::new(&mut properties)
     }
 }
