@@ -67,6 +67,8 @@ pub trait StructureExt {
     fn new_node_or<const N: usize>(nodes: [Object; N]) -> Self;
 
     fn new_node_xor<const N: usize>(nodes: [Object; N]) -> Self;
+
+    fn new_node_literal(object: Object) -> Self;
 }
 
 impl StructureExt for Structure {
@@ -289,6 +291,13 @@ impl StructureExt for Structure {
         Self::new(&mut [Property {
             tag: Object::NODE_NOT,
             value: node,
+        }])
+    }
+
+    fn new_node_literal(object: Object) -> Self {
+        Self::new(&mut [Property {
+            tag: Object::NODE_LITERAL,
+            value: object,
         }])
     }
 }

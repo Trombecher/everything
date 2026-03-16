@@ -94,3 +94,84 @@ fn call() {
         Object::ZERO
     );
 }
+
+#[test]
+fn eval_and() {
+    assert!(
+        !Object::Structure(Structure::new_node_and([
+            Object::from_bool(false),
+            Object::from_bool(true)
+        ]))
+        .eval(&BASE, &mut Default::default())
+        .is_truthy()
+    );
+
+    assert!(
+        Object::Structure(Structure::new_node_and([
+            Object::from_bool(true),
+            Object::from_bool(true)
+        ]))
+        .eval(&BASE, &mut Default::default())
+        .is_truthy()
+    )
+}
+
+#[test]
+fn eval_or() {
+    assert!(
+        !Object::Structure(Structure::new_node_or([
+            Object::from_bool(false),
+            Object::from_bool(false)
+        ]))
+        .eval(&BASE, &mut Default::default())
+        .is_truthy()
+    );
+
+    assert!(
+        Object::Structure(Structure::new_node_or([
+            Object::from_bool(true),
+            Object::from_bool(false)
+        ]))
+        .eval(&BASE, &mut Default::default())
+        .is_truthy()
+    )
+}
+
+#[test]
+fn eval_literal() {
+    assert_eq!(
+        Object::Structure(Structure::new_node_literal(Object::ZERO))
+            .eval(&BASE, &mut Default::default()),
+        Object::ZERO
+    );
+}
+
+#[test]
+fn eval_count() {
+    assert_eq!(
+        Object::Structure(Structure::new_node_count(Structure::EMPTY.into()))
+            .eval(&BASE, &mut Default::default()),
+        Object::natural_number(0)
+    );
+
+    assert_eq!(
+        Object::Structure(Structure::new_node_count(
+            Structure::new_node_literal(
+                Structure::new(&mut [
+                    Property {
+                        tag: Object::CONTAINS,
+                        value: Object::ZERO
+                    },
+                    Property {
+                        tag: Object::CONTAINS,
+                        value: Object::KNOWLEDGE
+                    }
+                ])
+                .into()
+            )
+            .into()
+        ))
+        .eval(&BASE, &mut Default::default()),
+        Object::natural_number(2)
+    );
+}
