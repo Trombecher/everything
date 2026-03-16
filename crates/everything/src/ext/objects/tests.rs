@@ -96,6 +96,16 @@ fn call() {
         f.call(&BASE, &Object::ZERO, &mut Default::default()),
         Object::ZERO
     );
+
+    let f: Object = Structure::new_computed(
+        Structure::new_computed(Structure::new_node_parameter(1).into()).into(),
+    )
+    .into();
+
+    println!(
+        "{:?}",
+        f.call(&BASE, &Object::ZERO, &mut Default::default())
+    )
 }
 
 #[test]

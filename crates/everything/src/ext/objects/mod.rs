@@ -261,7 +261,7 @@ impl ObjectExt for Object {
                     .unwrap();
 
                 ctx.parameters
-                    .get(depth)
+                    .get(ctx.functions.len() - 1 - depth)
                     .map(Clone::clone)
                     .unwrap_or(Structure::EMPTY.into())
             }
