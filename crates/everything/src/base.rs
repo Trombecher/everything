@@ -33,10 +33,7 @@ fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> O
                 Structure::new(&mut [
                     Property {
                         tag: Object::STATEMENT_SUBJECT,
-                        value: Structure::new_node_parameter(Object::natural_number(
-                            parameter_depth,
-                        ))
-                        .into(),
+                        value: Structure::new_node_parameter(parameter_depth).into(),
                     },
                     Property {
                         tag: Object::STATEMENT_TAG,
@@ -78,16 +75,13 @@ pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> =
 pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
     Structure::new_computed(
         Structure::new_node_or([
-            Structure::new_node_equal([
-                Structure::new_node_parameter(Object::ZERO).into(),
-                Object::ZERO,
-            ])
-            .into(),
+            Structure::new_node_equal([Structure::new_node_parameter(0).into(), Object::ZERO])
+                .into(),
             Structure::new_node_exists(
                 Structure::new(&mut [
                     Property {
                         tag: Object::STATEMENT_SUBJECT,
-                        value: Structure::new_node_parameter(Object::ZERO).into(),
+                        value: Structure::new_node_parameter(0).into(),
                     },
                     Property {
                         tag: Object::STATEMENT_TAG,
@@ -124,7 +118,7 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                             Structure::new(&mut [
                                 Property {
                                     tag: Object::STATEMENT_SUBJECT,
-                                    value: Structure::new_node_parameter(Object::ZERO).into(),
+                                    value: Structure::new_node_parameter(0).into(),
                                 },
                                 Property {
                                     tag: Object::STATEMENT_TAG,
@@ -183,7 +177,28 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         stmt_to_prop(
             Object::NODE_PARAMETER,
             Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_PARAMETER, 1),
+            Structure::new_computed(
+                Structure::new_node_and([
+                    common_unique_constraint_expression(Object::NODE_PARAMETER, 1),
+                    // maybe hard code "parameter == zero or has succ"
+                    Structure::new_node_exists(
+                        Structure::new(&mut [
+                            Property {
+                                tag: Object::STATEMENT_SUBJECT,
+                                value: Structure::new_node_parameter(0).into(),
+                            },
+                            Property {
+                                tag: Object::STATEMENT_TAG,
+                                value: IS_NATURAL_NUMBER.clone(),
+                            },
+                        ])
+                        .into(),
+                    )
+                    .into(),
+                ])
+                .into(),
+            )
+            .into(),
         ),
         stmt_to_prop(
             Object::NODE_AND,

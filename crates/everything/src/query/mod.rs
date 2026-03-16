@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::marker::PhantomData;
 
 use everything_structures::{Object, Property, Structure, ValuesIter};
@@ -17,6 +20,8 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     tag: Object,
     ctx: &mut EvaluationContext,
 ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
+    println!("qv {subject:?} and {tag:?}");
+
     match (subject, &tag) {
         (&Object::AXIOMATIC, &Object::AXIOMATIC) => {
             return QueryValuesResult::Single(Some(&base::AXIOMATIC_AXIOMATIC_CONSTRAINT));

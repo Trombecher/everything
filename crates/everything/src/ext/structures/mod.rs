@@ -19,7 +19,7 @@ pub trait StructureExt {
     fn new_node_count(node: Object) -> Self;
 
     /// Constructs a parameter node.
-    fn new_node_parameter(node: Object) -> Self;
+    fn new_node_parameter(depth: usize) -> Self;
 
     fn new_node_exists(statement: Object) -> Self;
 
@@ -150,10 +150,10 @@ impl StructureExt for Structure {
         }])
     }
 
-    fn new_node_parameter(node: Object) -> Self {
+    fn new_node_parameter(depth: usize) -> Self {
         Self::new(&mut [Property {
             tag: Object::NODE_PARAMETER,
-            value: node,
+            value: Object::natural_number(depth),
         }])
     }
 
