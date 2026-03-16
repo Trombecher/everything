@@ -171,7 +171,50 @@ impl ObjectExt for Object {
     }
 
     fn eval(&self, knowledge: &Structure) -> Object {
+        // TODO: better panic msgs
+
         match self.node_type(knowledge) {
+            Some(NodeType::Count) => {
+                let qr = query_values(knowledge, self, Object::NODE_COUNT);
+                let value = qr.iter().next().unwrap();
+
+                Object::natural_number(value.property_count() as u64)
+            }
+            Some(NodeType::Query) => {
+                // TODO: adjust constraint for query
+
+                let qr = query_values(knowledge, self, Object::NODE_QUERY);
+                let query_form = qr.iter().next().unwrap();
+
+                let subject_qr = query_values(knowledge, query_form, Object::STATEMENT_SUBJECT);
+                let subject = subject_qr
+                    .iter()
+                    .next()
+                    .expect("cannot query with no subject");
+
+                let tag_qr = query_values(knowledge, query_form, Object::STATEMENT_TAG);
+                let tag = tag_qr.iter().next().expect("cannot query with no tag");
+
+                let value_qr = query_values(knowledge, query_form, Object::STATEMENT_VALUE);
+                let value = value_qr.iter().next();
+
+                let actual_qr = query_values(knowledge, subject, tag.clone());
+
+                if let Some(value) = value {
+                    // This is just equal to `NODE_EXISTS`.
+
+                    for item in actual_qr.iter() {
+                        if item == value {
+                            return Object::from_bool(true);
+                        }
+                    }
+
+                    Object::from_bool(false)
+                } else {
+                    // Collect all values into a set.
+                    actual_qr.collect_to_set()
+                }
+            }
             Some(_) => todo!(),
             None => self.clone(),
         }

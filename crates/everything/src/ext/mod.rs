@@ -31,7 +31,6 @@ pub enum NodeType {
     Or,
     XOr,
     Not,
-    // Call,
 }
 
 impl NodeType {
@@ -48,7 +47,6 @@ impl NodeType {
         Self::Or,
         Self::XOr,
         Self::Not,
-        // Self::Call,
     ];
 }
 
@@ -67,7 +65,6 @@ impl Into<Object> for NodeType {
             Self::Or => Object::NODE_OR,
             Self::XOr => Object::NODE_XOR,
             Self::Not => Object::NODE_NOT,
-            // Self::Call => Object::NODE_CALL,
         }
     }
 }

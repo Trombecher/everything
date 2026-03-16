@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use everything_structures::{Object, Structure, ValuesIter};
+use everything_structures::{Object, Property, Structure, ValuesIter};
 
 use crate::debug_depth_count::DebugDepthCount;
 use crate::{
@@ -105,6 +105,30 @@ impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'sub
 
                 QueryValuesIter::ComputationResult(structure.values(contains))
             }
+        }
+    }
+
+    pub fn collect_to_set(self) -> Object {
+        match self {
+            Self::Single(None) => Structure::EMPTY.into(),
+            Self::Single(Some(object)) => Structure::new(&mut [Property {
+                tag: Object::CONTAINS,
+                value: object.clone(),
+            }])
+            .into(),
+            Self::Axiomatic(axiomatic_iter) => {
+                // Collect all values to a set.
+
+                let mut properties: Vec<_> = axiomatic_iter
+                    .map(|value| Property {
+                        tag: Object::CONTAINS,
+                        value: value.clone(),
+                    })
+                    .collect();
+
+                Structure::new(&mut properties).into()
+            }
+            Self::ComputationResult(result) => result, // <- this is expected to be a set
         }
     }
 }
