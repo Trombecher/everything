@@ -51,13 +51,10 @@ fn inner_structure() {
 fn remove_props() {
     let structure = alice_bob_structure();
 
-    let should_be_empty = structure.change(
-        &mut [Property {
-            tag: ALICE,
-            value: BOB,
-        }],
-        &mut [],
-    );
+    let should_be_empty = structure.remove(&mut [Property {
+        tag: ALICE,
+        value: BOB,
+    }]);
 
     assert_matches!(should_be_empty.propeties, None);
 }
@@ -197,4 +194,16 @@ fn union() {
             }
         ])
     );
+}
+
+#[test]
+fn subsets() {
+    assert!(
+        alice_bob_structure().is_subset_of(&alice_bob_structure().add(&mut [Property {
+            tag: ALICE,
+            value: ALICE
+        }]))
+    );
+
+    assert!(!alice_bob_structure().is_subset_of(&Structure::EMPTY))
 }

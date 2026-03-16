@@ -82,7 +82,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
             }
         }
 
-        Ok(Structure::EMPTY.change(&mut [], &mut properties))
+        Ok(Structure::EMPTY.add(&mut properties))
     }
 
     fn parse_object(&mut self) -> Result<Object, Error> {

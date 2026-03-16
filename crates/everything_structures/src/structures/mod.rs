@@ -48,8 +48,24 @@ impl Structure {
 
     /// Creates a new structure from the given properties
     /// by adding them to the empty structure.
+    #[must_use]
+    #[inline]
     pub fn new(properties: &mut [Property]) -> Self {
-        Self::EMPTY.change(&mut [], properties)
+        Self::EMPTY.add(properties)
+    }
+
+    /// Adds the given properties to this structure.
+    #[inline]
+    #[must_use]
+    pub fn add(&self, properties: &mut [Property]) -> Self {
+        self.change(&mut [], properties)
+    }
+
+    /// Removes the given properties from this structure.
+    #[inline]
+    #[must_use]
+    pub fn remove(&self, properties: &mut [Property]) -> Self {
+        self.change(properties, &mut [])
     }
 
     /// Modifies this structure by adding and removing properties.
@@ -93,10 +109,19 @@ impl Structure {
             .filter_map(move |property| (&property.value == value).then_some(&property.tag))
     }
 
+    /// Merges the properties of `self` and `other` into a new structure.
+    #[must_use]
     pub fn union(&self, other: &Self) -> Self {
         let mut add_properties = Box::clone_from_ref(other.as_ref());
 
-        self.change(&mut [], &mut add_properties)
+        self.add(&mut add_properties)
+    }
+
+    /// Determines if `self` is a subset of `other` by checking
+    /// if `other` has every property of `self`.
+    #[must_use]
+    pub fn is_subset_of(&self, other: &Self) -> bool {
+        self.as_ref().iter().all(|property| other.has(property))
     }
 }
 
