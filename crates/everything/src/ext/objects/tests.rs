@@ -97,3 +97,10 @@ fn call() {
         Object::ZERO
     );
 }
+
+#[test]
+fn node_types() {
+    let n: Object = Structure::new_computed(Object::ZERO).into();
+
+    assert_eq!(n.node_type(&BASE), Some(NodeType::Computed));
+}
