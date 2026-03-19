@@ -89,8 +89,8 @@ fn deduping() {
     let structure_b = alice_bob_structure();
 
     assert!(Arc::ptr_eq(
-        &structure_a.propeties.as_ref().unwrap(),
-        &structure_b.propeties.as_ref().unwrap()
+        structure_a.propeties.as_ref().unwrap(),
+        structure_b.propeties.as_ref().unwrap()
     ))
 }
 

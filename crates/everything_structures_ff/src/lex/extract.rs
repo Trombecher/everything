@@ -36,9 +36,9 @@ impl TryFrom<char> for Digit {
     }
 }
 
-impl Into<u8> for Digit {
-    fn into(self) -> u8 {
-        self as u8
+impl From<Digit> for u8 {
+    fn from(value: Digit) -> Self {
+        value as u8
     }
 }
 

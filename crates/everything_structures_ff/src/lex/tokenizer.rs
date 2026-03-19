@@ -92,7 +92,7 @@ fn next_token(chars: &mut Peekable<Chars>) -> Option<Token> {
 
             Some(Token {
                 kind: TokenKind::Abstract,
-                length: length,
+                length,
             })
         }
         None => None,

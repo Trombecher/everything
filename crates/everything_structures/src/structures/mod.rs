@@ -15,7 +15,7 @@ use dashmap::DashMap;
 
 use crate::{Object, properties::Property};
 
-#[derive(Clone, Eq, Hash)]
+#[derive(Clone, Eq)]
 pub struct Structure {
     propeties: Option<Arc<[Property]>>,
 }
@@ -102,7 +102,6 @@ impl Structure {
 
     /// Returns an iterator over all tags that this value has
     /// in this structure.
-    #[must_use]
     pub fn tags(&self, value: &Object) -> impl Iterator<Item = &Object> {
         self.as_ref()
             .iter()
@@ -172,6 +171,12 @@ impl AsRef<[Property]> for Structure {
             None => &[],
             Some(x) => x,
         }
+    }
+}
+
+impl Hash for Structure {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.propeties.as_ref().map(Arc::as_ptr).hash(state);
     }
 }
 

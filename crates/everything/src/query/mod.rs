@@ -54,10 +54,6 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     let maybe_computation_function_query = query_values(knowledge, &tag, Object::COMPUTED, ctx);
     let maybe_computation_function = maybe_computation_function_query.iter().next();
 
-    if subject == &Object::CONTAINS && tag == Object::AXIOMATIC {
-        println!("asking 1 2 ... {maybe_constraint:?} {maybe_computation_function:?}");
-    }
-
     let result = match (maybe_constraint, maybe_computation_function) {
         (Some(_), None) => {
             // Tag is axiomatic.
