@@ -50,21 +50,21 @@ impl NodeType {
     ];
 }
 
-impl Into<Object> for NodeType {
-    fn into(self) -> Object {
-        match self {
-            Self::Computed => Object::COMPUTED,
-            Self::Literal => Object::NODE_LITERAL,
-            Self::And => Object::NODE_AND,
-            Self::FunctionSelf => Object::NODE_FUNCTION_SELF,
-            Self::Exists => Object::NODE_EXISTS,
-            Self::Parameter => Object::NODE_PARAMETER,
-            Self::Count => Object::NODE_COUNT,
-            Self::Query => Object::NODE_QUERY,
-            Self::Equal => Object::NODE_EQUAL,
-            Self::Or => Object::NODE_OR,
-            Self::XOr => Object::NODE_XOR,
-            Self::Not => Object::NODE_NOT,
+impl From<NodeType> for Object {
+    fn from(value: NodeType) -> Object {
+        match value {
+            NodeType::Computed => Object::COMPUTED,
+            NodeType::Literal => Object::NODE_LITERAL,
+            NodeType::And => Object::NODE_AND,
+            NodeType::FunctionSelf => Object::NODE_FUNCTION_SELF,
+            NodeType::Exists => Object::NODE_EXISTS,
+            NodeType::Parameter => Object::NODE_PARAMETER,
+            NodeType::Count => Object::NODE_COUNT,
+            NodeType::Query => Object::NODE_QUERY,
+            NodeType::Equal => Object::NODE_EQUAL,
+            NodeType::Or => Object::NODE_OR,
+            NodeType::XOr => Object::NODE_XOR,
+            NodeType::Not => Object::NODE_NOT,
         }
     }
 }

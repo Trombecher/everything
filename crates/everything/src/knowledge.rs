@@ -40,8 +40,8 @@ impl TryFrom<Structure> for Knowledge {
     }
 }
 
-impl Into<Structure> for Knowledge {
-    fn into(self) -> Structure {
-        self.0
+impl From<Knowledge> for Structure {
+    fn from(value: Knowledge) -> Self {
+        value.0
     }
 }

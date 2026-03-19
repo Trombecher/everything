@@ -74,7 +74,7 @@ pub trait StructureExt {
 impl StructureExt for Structure {
     fn has_exactly_one_value_on(&self, tag: Object) -> bool {
         let mut values = self.values(tag);
-        return values.next().is_some() && values.next().is_none();
+        values.next().is_some() && values.next().is_none()
     }
 
     fn is_knowledge(&self) -> Result<(), KnowledgeError> {
@@ -110,7 +110,7 @@ impl StructureExt for Structure {
             // Get constraint function from tag for value:
             let constraint_qr = query_values(
                 self,
-                &statement.tag,
+                statement.tag,
                 Object::AXIOMATIC,
                 &mut Default::default(),
             );
@@ -129,8 +129,8 @@ impl StructureExt for Structure {
             let mut ctx = EvaluationContext::default();
 
             let result = constraint_function
-                .call(self, &statement.subject, &mut ctx)
-                .call(self, &statement.value, &mut ctx);
+                .call(self, statement.subject, &mut ctx)
+                .call(self, statement.value, &mut ctx);
 
             if !result.is_truthy() {
                 return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {

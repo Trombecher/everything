@@ -21,7 +21,7 @@ fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
             },
             Property {
                 tag: Object::STATEMENT_VALUE,
-                value: value,
+                value,
             },
         ])
         .into(),

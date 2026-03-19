@@ -74,7 +74,7 @@ pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
             })
         }
         (None, Some(computation_function)) => {
-            let result = computation_function.call(knowledge, &subject, ctx);
+            let result = computation_function.call(knowledge, subject, ctx);
             QueryValuesResult::ComputationResult(result)
         }
         _ => {
@@ -102,7 +102,7 @@ static EMPTY_OBJECT: Object = Object::Structure(Structure::EMPTY);
 impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'subject, 'item> {
     pub fn iter<'query>(&'query self) -> QueryValuesIter<'query, 'knowlege, 'subject, 'item> {
         match self {
-            Self::Single(object) => QueryValuesIter::Single(object.clone()),
+            Self::Single(object) => QueryValuesIter::Single(*object),
             Self::Axiomatic(axiomatic_iter) => QueryValuesIter::Axiomatic(axiomatic_iter.clone()),
             Self::ComputationResult(object) => {
                 let structure = match object {
@@ -175,13 +175,13 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
     type Item = &'item Object;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(iter) = &mut self.values_from_subject {
-            if let Some(value) = iter.next() {
-                return Some(value);
-            }
+        if let Some(iter) = &mut self.values_from_subject
+            && let Some(value) = iter.next()
+        {
+            return Some(value);
         }
 
-        while let Some(statement) = self.statements.next() {
+        for statement in self.statements.by_ref() {
             // TODO: better error msg
 
             let statement = match statement {
@@ -213,10 +213,10 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
             // the subject if it is a structure. So we
             // need to dedup here.
 
-            if let Object::Structure(structure) = &self.subject {
-                if structure.has_by_ref(statement_tag, statement_value) {
-                    continue;
-                }
+            if let Object::Structure(structure) = &self.subject
+                && structure.has_by_ref(statement_tag, statement_value)
+            {
+                continue;
             }
 
             return Some(statement_value);
