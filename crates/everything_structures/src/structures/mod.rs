@@ -300,61 +300,60 @@ fn hash_of_new_structure(
 
     // Calculate hash
     loop {
-        let base_prop = base_props.peek().copied();
-        let change = add_iter.peek().copied();
-
-        match (base_prop, change) {
+        match (base_props.peek().copied(), add_iter.peek().copied()) {
             (None, None) => break,
-            (None, Some(change)) => {
+            (None, Some(property_to_add)) => {
                 // There are no base props so
                 // we just add this change.
 
-                change.hash(&mut hasher);
+                property_to_add.hash(&mut hasher);
                 prop_count += 1;
 
-                // Consume change.
+                // Consume property.
                 add_iter.next();
             }
-            (Some(base_prop), None) => {
-                let ignore_property = remove_properties.binary_search(base_prop).is_ok();
+            (Some(base_property), None) => {
+                let ignore_property = remove_properties.binary_search(base_property).is_ok();
 
                 if !ignore_property {
-                    base_prop.hash(&mut hasher);
+                    base_property.hash(&mut hasher);
                     prop_count += 1;
                 }
 
                 base_props.next();
             }
-            (Some(base_prop), Some(add_property)) => match base_prop.cmp(add_property) {
-                Ordering::Less => {
-                    // The base prop comes first.
+            (Some(base_property), Some(property_to_add)) => {
+                match base_property.cmp(property_to_add) {
+                    Ordering::Less => {
+                        // The base prop comes first.
 
-                    let ignore_property = remove_properties
-                        .binary_search_by(|probe| probe.cmp(base_prop))
-                        .is_ok();
+                        let ignore_property = remove_properties
+                            .binary_search_by(|probe| probe.cmp(base_property))
+                            .is_ok();
 
-                    if !ignore_property {
-                        base_prop.hash(&mut hasher);
-                        prop_count += 1;
+                        if !ignore_property {
+                            base_property.hash(&mut hasher);
+                            prop_count += 1;
+                        }
+
+                        base_props.next();
                     }
+                    Ordering::Equal => {
+                        base_property.hash(&mut hasher);
+                        prop_count += 1;
 
-                    base_props.next();
-                }
-                Ordering::Equal => {
-                    base_prop.hash(&mut hasher);
-                    prop_count += 1;
+                        add_iter.next();
+                        base_props.next();
+                    }
+                    Ordering::Greater => {
+                        // We should choose the property to add.
+                        property_to_add.hash(&mut hasher);
+                        prop_count += 1;
 
-                    add_iter.next();
-                    base_props.next();
+                        add_iter.next();
+                    }
                 }
-                Ordering::Greater => {
-                    // We should choose the property to add.
-                    add_property.hash(&mut hasher);
-                    prop_count += 1;
-
-                    add_iter.next();
-                }
-            },
+            }
         }
     }
 
