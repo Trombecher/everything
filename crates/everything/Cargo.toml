@@ -7,3 +7,5 @@ edition = "2024"
 ulid = "1.2.1"
 labuf = { git = "https://github.com/Trombecher/labuf" }
 everything_structures = { path = "../everything_structures" }
+tracing = "0.1.44"
+tracing-test = { version = "0.2.6", features = ["no-env-filter"] }

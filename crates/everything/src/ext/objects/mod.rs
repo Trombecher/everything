@@ -2,10 +2,10 @@
 mod tests;
 
 use everything_structures::{Object, Property, Structure};
+use tracing::{Level, instrument};
 
 use crate::{
     ctx::EvaluationContext,
-    debug_depth_count::DebugDepthCount,
     ext::{NodeType, StructureExt},
     query::query_values,
 };
@@ -182,14 +182,11 @@ impl ObjectExt for Object {
         current_pick
     }
 
+    #[instrument(skip(knowledge))]
     fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Object {
-        println!("{}eval({self:?}, _, {ctx:?})", "    ".repeat(DEPTH.get()));
-
-        DEPTH.inc();
-
         // TODO: better panic msgs
 
-        let result = match self.node_type(knowledge) {
+        match self.node_type(knowledge) {
             Some(NodeType::Count) => {
                 let qr = query_values(knowledge, self, Object::NODE_COUNT, ctx);
                 let value = qr.iter().next().unwrap().eval(knowledge, ctx);
@@ -340,13 +337,10 @@ impl ObjectExt for Object {
             }
             Some(ty) => todo!("{ty:?} not impl"),
             None => self.clone(),
-        };
-
-        DEPTH.dec();
-
-        result
+        }
     }
 
+    #[instrument(skip(knowledge), level = Level::DEBUG)]
     fn call(
         &self,
         knowledge: &Structure,
@@ -396,5 +390,3 @@ impl ObjectExt for Object {
         }
     }
 }
-
-static DEPTH: DebugDepthCount = DebugDepthCount::new();

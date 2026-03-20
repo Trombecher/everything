@@ -4,16 +4,15 @@ mod tests;
 use std::marker::PhantomData;
 
 use everything_structures::{Object, Property, Structure, ValuesIter};
+use tracing::instrument;
 
 use crate::ctx::EvaluationContext;
-use crate::debug_depth_count::DebugDepthCount;
 use crate::{
     base,
     ext::{ObjectExt, StructureExt},
 };
 
-static QUERY_DEPTH: DebugDepthCount = DebugDepthCount::new();
-
+#[instrument(skip(knowledge))]
 pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
@@ -31,22 +30,16 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
-            QUERY_DEPTH.inc();
-
             let result = QueryValuesResult::Single(match subject {
                 // TODO: review this for abstract objects
                 Object::Abstract(_) => None,
                 Object::Structure(s) => s.is_knowledge().is_ok().then_some(&EMPTY_OBJECT),
             });
 
-            QUERY_DEPTH.dec();
-
             return result;
         }
         _ => {}
     }
-
-    QUERY_DEPTH.inc();
 
     let maybe_constraint_query = query_values(knowledge, &tag, Object::AXIOMATIC, ctx);
     let maybe_constraint = maybe_constraint_query.iter().next();
@@ -54,7 +47,7 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     let maybe_computation_function_query = query_values(knowledge, &tag, Object::COMPUTED, ctx);
     let maybe_computation_function = maybe_computation_function_query.iter().next();
 
-    let result = match (maybe_constraint, maybe_computation_function) {
+    match (maybe_constraint, maybe_computation_function) {
         (Some(_), None) => {
             // Tag is axiomatic.
 
@@ -83,11 +76,7 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
 
             QueryValuesResult::Single(None)
         }
-    };
-
-    QUERY_DEPTH.dec();
-
-    result
+    }
 }
 
 pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'item> {
