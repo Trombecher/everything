@@ -5,8 +5,8 @@ use everything_structures::{Object, Property, Structure};
 use tracing::instrument;
 
 use crate::{
-    ctx::EvaluationContext,
-    ext::{NodeType, StructureExt},
+    ctx::{EvaluationContext, FunctionContext},
+    ext::{NodeType, ObjectForm, StatementForm, StructureExt},
     query::query_values,
 };
 
@@ -48,6 +48,12 @@ pub trait ObjectExt {
         // NODE_CALL_PARAMETER = 27,
         // NODE_CALL = 28,
     );
+
+    /// Extracts the first [Self::NODE_COUNT] from `self`.
+    fn node_count(&self, knowledge: &Structure) -> Option<Object>;
+
+    /// Extracts the first [Self::COMPUTED] from `self`.
+    fn computed_body(&self, knowledge: &Structure) -> Option<Object>;
 
     fn capture(
         &self,
@@ -95,6 +101,14 @@ pub trait ObjectExt {
     ) -> Object;
 
     fn to_natural_number(&self, knowledge: &Structure) -> Option<usize>;
+
+    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<usize>;
+
+    fn node_literal(&self, knowledge: &Structure) -> Option<Object>;
+
+    fn statement_form(&self, knowledge: &Structure) -> StatementForm;
+
+    fn node_query(&self, knowledge: &Structure) -> Option<Object>;
 }
 
 impl ObjectExt for Object {
@@ -191,6 +205,99 @@ impl ObjectExt for Object {
         current_pick
     }
 
+    fn node_count(&self, knowledge: &Structure) -> Option<Object> {
+        let qr = query_values(
+            knowledge,
+            self,
+            Object::NODE_COUNT,
+            &mut EvaluationContext::default(),
+        );
+
+        qr.iter().next().cloned()
+    }
+
+    fn computed_body(&self, knowledge: &Structure) -> Option<Object> {
+        let qr = query_values(
+            knowledge,
+            self,
+            Object::COMPUTED,
+            // We can pass in an empty evaluation context because it won't be used
+            // (COMPUTED is axiomatic and therefore won't need the compuation
+            // pipeline).
+            &mut EvaluationContext::default(),
+        );
+
+        qr.iter().next().cloned()
+    }
+
+    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<usize> {
+        let depth_qr = query_values(
+            knowledge,
+            self,
+            Object::NODE_PARAMETER,
+            // We won't need that.
+            &mut EvaluationContext::default(),
+        );
+
+        depth_qr
+            .iter()
+            .next()
+            .and_then(|depth| depth.to_natural_number(knowledge))
+    }
+
+    fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
+        let qr = query_values(
+            knowledge,
+            self,
+            Object::NODE_LITERAL,
+            &mut EvaluationContext::default(),
+        );
+
+        qr.iter().next().cloned()
+    }
+
+    fn statement_form(&self, knowledge: &Structure) -> StatementForm {
+        let subject_qr = query_values(
+            knowledge,
+            self,
+            Object::STATEMENT_SUBJECT,
+            &mut EvaluationContext::default(),
+        );
+        let subject: ObjectForm = subject_qr.iter().next().cloned().into();
+
+        let tag_qr = query_values(
+            knowledge,
+            self,
+            Object::STATEMENT_TAG,
+            &mut EvaluationContext::default(),
+        );
+        let tag: ObjectForm = tag_qr.iter().next().cloned().into();
+
+        let value_qr = query_values(
+            knowledge,
+            self,
+            Object::STATEMENT_VALUE,
+            &mut EvaluationContext::default(),
+        );
+        let value: ObjectForm = value_qr.iter().next().cloned().into();
+
+        StatementForm {
+            subject,
+            tag,
+            value,
+        }
+    }
+
+    fn node_query(&self, knowledge: &Structure) -> Option<Object> {
+        let qr = query_values(
+            knowledge,
+            self,
+            Object::NODE_QUERY,
+            &mut EvaluationContext::default(),
+        );
+        qr.iter().next().cloned()
+    }
+
     fn capture(
         &self,
         knowledge: &Structure,
@@ -199,40 +306,15 @@ impl ObjectExt for Object {
     ) -> Object {
         match self.node_type(knowledge) {
             Some(NodeType::Computed) => {
-                let qr = query_values(
+                Structure::new_computed(self.computed_body(knowledge).unwrap().capture(
                     knowledge,
-                    self,
-                    Object::COMPUTED,
-                    // We can pass in an empty evaluation context because it won't be used
-                    // (COMPUTED is axiomatic and therefore won't need the compuation
-                    // pipeline).
-                    &mut EvaluationContext::default(),
-                );
-
-                let captured_body =
-                    qr.iter()
-                        .next()
-                        .unwrap()
-                        .clone()
-                        .capture(knowledge, additional_depth + 1, ctx);
-
-                Structure::new_computed(body).into()
+                    additional_depth + 1,
+                    ctx,
+                ))
+                .into()
             }
             Some(NodeType::Parameter) => {
-                let depth_qr = query_values(
-                    knowledge,
-                    self,
-                    Object::NODE_PARAMETER,
-                    // We won't need that.
-                    &mut EvaluationContext::default(),
-                );
-
-                let depth = depth_qr
-                    .iter()
-                    .next()
-                    .unwrap()
-                    .to_natural_number(knowledge)
-                    .unwrap();
+                let depth = self.node_parameter_depth(knowledge).unwrap();
 
                 if depth >= additional_depth {
                     // The min additional depth is 1.
@@ -247,7 +329,12 @@ impl ObjectExt for Object {
                     self.clone()
                 }
             }
-            Some(NodeType::And) => {}
+            Some(NodeType::Count) => Structure::new_node_count(
+                self.node_count(knowledge)
+                    .unwrap()
+                    .capture(knowledge, additional_depth, ctx),
+            )
+            .into(),
             None => self.clone(),
         }
     }
@@ -257,17 +344,18 @@ impl ObjectExt for Object {
         // TODO: better panic msgs
 
         match self.node_type(knowledge) {
-            Some(NodeType::Count) => {
-                let qr = query_values(knowledge, self, Object::NODE_COUNT, ctx);
-                let value = qr.iter().next().unwrap().eval(knowledge, ctx);
-
-                Object::natural_number(value.property_count())
-            }
+            Some(NodeType::Count) => Object::natural_number(
+                self.node_count(knowledge)
+                    .expect("NodeType::Count asserts that this exists")
+                    .eval(knowledge, ctx)
+                    .property_count(),
+            ),
             Some(NodeType::Query) => {
                 // TODO: adjust constraint for query
-
-                let qr = query_values(knowledge, self, Object::NODE_QUERY, ctx);
-                let query_form = qr.iter().next().unwrap();
+                let statement_form = self
+                    .node_query(knowledge)
+                    .expect("Node::Query expects this")
+                    .statement_form(knowledge);
 
                 let subject_qr =
                     query_values(knowledge, query_form, Object::STATEMENT_SUBJECT, ctx);
@@ -276,8 +364,6 @@ impl ObjectExt for Object {
                     .next()
                     .expect("cannot query with no subject")
                     .eval(knowledge, ctx);
-
-                // ctx.parameters.push(subject.clone());
 
                 let tag_qr = query_values(knowledge, query_form, Object::STATEMENT_TAG, ctx);
                 let tag = tag_qr
@@ -309,27 +395,10 @@ impl ObjectExt for Object {
                     actual_qr.collect_to_set()
                 }
             }
-            Some(NodeType::Literal) => {
-                let qr = query_values(knowledge, self, Object::NODE_LITERAL, ctx);
-                qr.iter().next().unwrap().clone()
-            }
-            Some(NodeType::Computed) => {
-                let qr = query_values(knowledge, self, Object::COMPUTED, ctx);
-                let new_body = qr.iter().next().unwrap().clone().eval(knowledge, ctx);
-
-                // Capture/reify parameters and functions of the evaluation context.
-                new_body.capture(knowledge, 1, ctx)
-            }
+            Some(NodeType::Literal) => self.node_literal(knowledge).unwrap(),
+            Some(NodeType::Computed) => self.capture(knowledge, 0, ctx),
             Some(NodeType::Parameter) => {
-                let depth_qr = query_values(knowledge, self, Object::NODE_PARAMETER, ctx);
-                let depth = depth_qr
-                    .iter()
-                    .next()
-                    .unwrap()
-                    .to_natural_number(knowledge)
-                    .unwrap();
-
-                ctx.parameter_value(depth)
+                ctx.parameter_value(self.node_parameter_depth(knowledge).unwrap())
             }
             Some(NodeType::Equal) => {
                 let qr = query_values(knowledge, self, Object::NODE_EQUAL, ctx);
@@ -414,13 +483,14 @@ impl ObjectExt for Object {
                     query_values(knowledge, self, Object::COMPUTED, &mut Default::default());
                 let body = body_qr.iter().next().unwrap();
 
-                ctx.functions.push(self.clone());
-                ctx.parameters.push(parameter);
+                ctx.push(FunctionContext {
+                    function: self.clone(),
+                    parameter,
+                });
 
                 let result = body.call(knowledge, next_parameters, ctx);
 
-                ctx.parameters.pop();
-                ctx.functions.pop();
+                ctx.pop();
 
                 result
             } else {

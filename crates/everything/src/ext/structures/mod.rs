@@ -16,6 +16,15 @@ pub enum ObjectForm {
     Specific(Object),
 }
 
+impl From<Option<Object>> for ObjectForm {
+    fn from(value: Option<Object>) -> Self {
+        match value {
+            None => Self::Any,
+            Some(object) => Self::Specific(object),
+        }
+    }
+}
+
 #[derive(PartialEq, Clone, Debug)]
 pub struct StatementForm {
     pub subject: ObjectForm,
