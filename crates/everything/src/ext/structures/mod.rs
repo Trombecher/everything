@@ -152,6 +152,8 @@ impl StructureExt for Structure {
 
             let mut ctx = EvaluationContext::default();
 
+            println!("CALLING CF {constraint_function:?}");
+
             let result = constraint_function
                 .call(self, statement.subject, &mut ctx)
                 .call(self, statement.value, &mut ctx);

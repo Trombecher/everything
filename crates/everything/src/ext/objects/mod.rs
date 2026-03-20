@@ -5,6 +5,7 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::{
     ctx::EvaluationContext,
+    debug_depth_count::DebugDepthCount,
     ext::{NodeType, StructureExt},
     query::query_values,
 };
@@ -182,9 +183,13 @@ impl ObjectExt for Object {
     }
 
     fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Object {
+        println!("{}eval({self:?}, _, {ctx:?})", "    ".repeat(DEPTH.get()));
+
+        DEPTH.inc();
+
         // TODO: better panic msgs
 
-        match self.node_type(knowledge) {
+        let result = match self.node_type(knowledge) {
             Some(NodeType::Count) => {
                 let qr = query_values(knowledge, self, Object::NODE_COUNT, ctx);
                 let value = qr.iter().next().unwrap().eval(knowledge, ctx);
@@ -265,10 +270,10 @@ impl ObjectExt for Object {
                     .to_natural_number(knowledge)
                     .unwrap();
 
-                ctx.parameters
-                    .get(ctx.functions.len() - 1 - depth)
-                    .cloned()
-                    .unwrap_or(Structure::EMPTY.into())
+                match ctx.parameters.get(ctx.functions.len() - 1 - depth) {
+                    Some(value) => value.clone(),
+                    None => self.clone(),
+                }
             }
             Some(NodeType::Equal) => {
                 let qr = query_values(knowledge, self, Object::NODE_EQUAL, ctx);
@@ -335,7 +340,11 @@ impl ObjectExt for Object {
             }
             Some(ty) => todo!("{ty:?} not impl"),
             None => self.clone(),
-        }
+        };
+
+        DEPTH.dec();
+
+        result
     }
 
     fn call(
@@ -387,3 +396,5 @@ impl ObjectExt for Object {
         }
     }
 }
+
+static DEPTH: DebugDepthCount = DebugDepthCount::new();
