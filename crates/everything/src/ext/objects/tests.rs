@@ -190,8 +190,8 @@ fn eval_query() {
                     value: Object::KNOWLEDGE
                 },
                 Property {
-                    tag: Object::COMPUTED,
-                    value: Structure::EMPTY.into()
+                    tag: Object::SUCCESSOR_OF,
+                    value: Object::ZERO
                 }
             ])
             .into(),

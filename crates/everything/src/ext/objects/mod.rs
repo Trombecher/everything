@@ -208,16 +208,21 @@ impl ObjectExt for Object {
                 ctx.parameters.push(subject.clone());
 
                 let tag_qr = query_values(knowledge, query_form, Object::STATEMENT_TAG, ctx);
-                let tag = tag_qr.iter().next().expect("cannot query with no tag");
+                let tag = tag_qr
+                    .iter()
+                    .next()
+                    .expect("cannot query with no tag")
+                    .eval(knowledge, ctx);
 
                 let value_qr = query_values(knowledge, query_form, Object::STATEMENT_VALUE, ctx);
-                let value = value_qr.iter().next();
+                let value = value_qr
+                    .iter()
+                    .next()
+                    .map(|value| value.eval(knowledge, ctx));
 
-                let actual_qr = query_values(knowledge, &subject, tag.clone(), ctx);
+                let actual_qr = query_values(knowledge, &subject, tag, ctx);
 
                 if let Some(value) = value {
-                    let value = value.eval(knowledge, ctx);
-
                     // This is just equal to `NODE_EXISTS`.
 
                     for item in actual_qr.iter() {
@@ -303,10 +308,10 @@ impl ObjectExt for Object {
                 ctx.parameters.push(subject.clone());
 
                 let tag_qr = query_values(knowledge, exists_form, Object::STATEMENT_TAG, ctx);
-                let tag = tag_qr.iter().next();
+                let tag = tag_qr.iter().next().map(|o| o.eval(knowledge, ctx));
 
                 let value_qr = query_values(knowledge, exists_form, Object::STATEMENT_VALUE, ctx);
-                let value = value_qr.iter().next();
+                let value = value_qr.iter().next().map(|o| o.eval(knowledge, ctx));
 
                 match (tag, value) {
                     // I think this should be fine.
@@ -314,7 +319,7 @@ impl ObjectExt for Object {
                     (Some(tag), None) => {
                         // Now we only need to check if one value exists.
 
-                        let values_qr = query_values(knowledge, &subject, tag.clone(), ctx);
+                        let values_qr = query_values(knowledge, &subject, tag, ctx);
 
                         Object::from_bool(values_qr.iter().next().is_some())
                     }
@@ -323,8 +328,8 @@ impl ObjectExt for Object {
                     (Some(tag), Some(value)) => {
                         // TODO: perf
 
-                        let values_qr = query_values(knowledge, &subject, tag.clone(), ctx);
-                        Object::from_bool(values_qr.iter().find(|v| *v == value).is_some())
+                        let values_qr = query_values(knowledge, &subject, tag, ctx);
+                        Object::from_bool(values_qr.iter().find(|v| **v == value).is_some())
                     }
                 }
             }
@@ -346,7 +351,6 @@ impl ObjectExt for Object {
             let body = body_qr.iter().next().unwrap();
 
             let parameter = parameter.eval(knowledge, ctx);
-            println!("evaluating {body:?} with {parameter:?}");
 
             ctx.functions.push(self.clone());
             ctx.parameters.push(parameter);
@@ -358,8 +362,6 @@ impl ObjectExt for Object {
 
             result
         } else {
-            println!("hopefully this is not called\n  {self:?}\n  {parameter:?}");
-
             // Ignore parameter and eval `self`.
             self.eval(knowledge, ctx)
         }
