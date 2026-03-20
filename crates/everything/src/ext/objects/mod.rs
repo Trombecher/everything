@@ -205,7 +205,7 @@ impl ObjectExt for Object {
                     .expect("cannot query with no subject")
                     .eval(knowledge, ctx);
 
-                ctx.parameters.push(subject.clone());
+                // ctx.parameters.push(subject.clone());
 
                 let tag_qr = query_values(knowledge, query_form, Object::STATEMENT_TAG, ctx);
                 let tag = tag_qr
@@ -302,10 +302,10 @@ impl ObjectExt for Object {
                 let subject = subject_qr
                     .iter()
                     .next()
-                    .expect("cannot query exists with no subject")
+                    .expect("cannot query exists with no subject (not yet)")
                     .eval(knowledge, ctx);
 
-                ctx.parameters.push(subject.clone());
+                // ctx.parameters.push(subject.clone());
 
                 let tag_qr = query_values(knowledge, exists_form, Object::STATEMENT_TAG, ctx);
                 let tag = tag_qr.iter().next().map(|o| o.eval(knowledge, ctx));
