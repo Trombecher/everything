@@ -17,6 +17,7 @@ macro_rules! define_abstract {
 }
 
 pub trait ObjectExt {
+    fn node_exists(&self, knowledge: &Structure) -> Option<Object>;
     // DO NOT CHANGE THESE!
     define_abstract!(
         CONTAINS = 1,
@@ -298,6 +299,16 @@ impl ObjectExt for Object {
         qr.iter().next().cloned()
     }
 
+    fn node_exists(&self, knowledge: &Structure) -> Option<Object> {
+        let qr = query_values(
+            knowledge,
+            self,
+            Object::NODE_EXISTS,
+            &mut EvaluationContext::default(),
+        );
+        qr.iter().next().cloned()
+    }
+
     fn capture(
         &self,
         knowledge: &Structure,
@@ -335,6 +346,7 @@ impl ObjectExt for Object {
                     .capture(knowledge, additional_depth, ctx),
             )
             .into(),
+            Some(ty) => todo!("Cannot capture {ty:?}"),
             None => self.clone(),
         }
     }
@@ -352,31 +364,22 @@ impl ObjectExt for Object {
             ),
             Some(NodeType::Query) => {
                 // TODO: adjust constraint for query
+
                 let statement_form = self
                     .node_query(knowledge)
                     .expect("Node::Query expects this")
                     .statement_form(knowledge);
 
-                let subject_qr =
-                    query_values(knowledge, query_form, Object::STATEMENT_SUBJECT, ctx);
-                let subject = subject_qr
-                    .iter()
-                    .next()
+                let subject = Option::<Object>::from(statement_form.subject)
                     .expect("cannot query with no subject")
                     .eval(knowledge, ctx);
 
-                let tag_qr = query_values(knowledge, query_form, Object::STATEMENT_TAG, ctx);
-                let tag = tag_qr
-                    .iter()
-                    .next()
+                let tag = Option::<Object>::from(statement_form.tag)
                     .expect("cannot query with no tag")
                     .eval(knowledge, ctx);
 
-                let value_qr = query_values(knowledge, query_form, Object::STATEMENT_VALUE, ctx);
-                let value = value_qr
-                    .iter()
-                    .next()
-                    .map(|value| value.eval(knowledge, ctx));
+                let value =
+                    Option::<Object>::from(statement_form.value).map(|c| c.eval(knowledge, ctx));
 
                 let actual_qr = query_values(knowledge, &subject, tag, ctx);
 
@@ -424,24 +427,21 @@ impl ObjectExt for Object {
             Some(NodeType::Exists) => {
                 // TODO: discuss exists form
 
-                let qr = query_values(knowledge, self, Object::NODE_EXISTS, ctx);
-                let exists_form = qr.iter().next().unwrap();
+                let StatementForm {
+                    subject,
+                    tag,
+                    value,
+                } = self
+                    .node_exists(knowledge)
+                    .expect("NodeType::Exists asserts this")
+                    .statement_form(knowledge);
 
-                let subject_qr =
-                    query_values(knowledge, exists_form, Object::STATEMENT_SUBJECT, ctx);
-                let subject = subject_qr
-                    .iter()
-                    .next()
+                let subject = Option::<Object>::from(subject)
                     .expect("cannot query exists with no subject (not yet)")
                     .eval(knowledge, ctx);
 
-                // ctx.parameters.push(subject.clone());
-
-                let tag_qr = query_values(knowledge, exists_form, Object::STATEMENT_TAG, ctx);
-                let tag = tag_qr.iter().next().map(|o| o.eval(knowledge, ctx));
-
-                let value_qr = query_values(knowledge, exists_form, Object::STATEMENT_VALUE, ctx);
-                let value = value_qr.iter().next().map(|o| o.eval(knowledge, ctx));
+                let tag = Option::<Object>::from(tag).map(|tag| tag.eval(knowledge, ctx));
+                let value = Option::<Object>::from(value).map(|tag| tag.eval(knowledge, ctx));
 
                 match (tag, value) {
                     // I think this should be fine.

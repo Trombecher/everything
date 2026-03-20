@@ -25,6 +25,15 @@ impl From<Option<Object>> for ObjectForm {
     }
 }
 
+impl From<ObjectForm> for Option<Object> {
+    fn from(value: ObjectForm) -> Self {
+        match value {
+            ObjectForm::Any => None,
+            ObjectForm::Specific(object) => Some(object),
+        }
+    }
+}
+
 #[derive(PartialEq, Clone, Debug)]
 pub struct StatementForm {
     pub subject: ObjectForm,
