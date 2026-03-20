@@ -14,7 +14,7 @@ use crate::{
 
 static QUERY_DEPTH: DebugDepthCount = DebugDepthCount::new();
 
-pub(crate) fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
+pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
     tag: Object,

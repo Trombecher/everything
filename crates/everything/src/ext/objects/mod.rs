@@ -358,6 +358,8 @@ impl ObjectExt for Object {
 
             result
         } else {
+            println!("hopefully this is not called\n  {self:?}\n  {parameter:?}");
+
             // Ignore parameter and eval `self`.
             self.eval(knowledge, ctx)
         }

@@ -15,8 +15,8 @@ pub struct Parser<I: Iterator<Item = Span<FilteredToken>>> {
 }
 
 macro_rules! bail {
-    ($range:expr, $($arg:expr),+) => {
-        return Err(Box::new(ErrorInfo {message: format!($($arg),+), range: $range }))
+    ($token:expr, $($arg:expr),+) => {
+        return Err(Box::new(ErrorInfo {message: format!($($arg),+), found: $token }))
     };
 }
 
@@ -35,7 +35,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
                 value: FilteredToken::OpeningBrace,
                 ..
             }) => {}
-            token => bail!(token.map(|s| s.range), "expected {{"),
+            token => bail!(token, "expected {{"),
         }
 
         self.parse_structure_continue()
@@ -56,7 +56,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
                     value: FilteredToken::OpeningParenthesis,
                     ..
                 }) => {}
-                token => bail!(token.map(|s| s.range), "expected '(' or '}}'"),
+                token => bail!(token, "expected '(' or '}}'"),
             }
 
             let tag = self.parse_object()?;
@@ -66,7 +66,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
                     value: FilteredToken::Comma,
                     ..
                 }) => {}
-                token => bail!(token.map(|s| s.range), "expected ','"),
+                token => bail!(token, "expected ','"),
             }
 
             let value = self.parse_object()?;
@@ -78,7 +78,16 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
                     value: FilteredToken::ClosingParenthesis,
                     ..
                 }) => {}
-                token => bail!(token.map(|s| s.range), "expected ')', got: {:?}", token),
+                token => bail!(token, "expected ')', got: {:?}", token),
+            }
+
+            // Skip trailing or seperating commas
+            if let Some(Span {
+                value: FilteredToken::Comma,
+                ..
+            }) = self.tokens.peek()
+            {
+                self.tokens.next();
             }
         }
 
@@ -95,7 +104,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
                 value: FilteredToken::OpeningBrace,
                 ..
             }) => Ok(Object::Structure(self.parse_structure_continue()?)),
-            token => bail!(token.map(|s| s.range), "expected @<<id>> or '{{'"),
+            token => bail!(token, "expected @<<id>> or '{{'"),
         }
     }
 }

@@ -1,0 +1,9 @@
+[package]
+name = "playground"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+everything = { path = "../everything" }
+everything_structures = { path = "../everything_structures" }
+everything_structures_ff = { path = "../everything_structures_ff" }
