@@ -38,11 +38,32 @@ pub enum KnowledgeError {
 
 /// Nice-to-have functions for [Structure]s.
 pub trait StructureExt {
+    /// Creates a new set.
+    ///
+    /// ```plain
+    /// {(CONTAINS, ...) (CONTAINS, ...) ...}
+    /// ```
+    fn new_set<const N: usize>(items: [Object; N]) -> Self;
+
+    /// Creates a _not_ node.
+    ///
+    /// ```plain
+    /// {(NODE_NOT, ...)}
+    /// ```
     fn new_node_not(node: Object) -> Self;
-    /// Constructs a query node.
+
+    /// Creates a query node.
+    ///
+    /// ```plain
+    /// {(NODE_QUERY, ...)}
+    /// ```
     fn new_node_query(node: Object) -> Self;
 
-    /// Constructs a count node.
+    /// Creates a count node.
+    ///
+    /// ```plain
+    /// {(NODE_COUNT, ...)}
+    /// ```
     fn new_node_count(node: Object) -> Self;
 
     /// Constructs a parameter node.
@@ -69,6 +90,9 @@ pub trait StructureExt {
     fn new_node_xor<const N: usize>(nodes: [Object; N]) -> Self;
 
     fn new_node_literal(object: Object) -> Self;
+
+    /// Creates a new query node, set up for value querying.
+    fn new_node_query_values(subject: Object, tag: Object) -> Self;
 }
 
 impl StructureExt for Structure {
@@ -267,6 +291,32 @@ impl StructureExt for Structure {
             tag: Object::NODE_QUERY,
             value: query,
         }])
+    }
+
+    fn new_node_query_values(subject: Object, tag: Object) -> Self {
+        Self::new(&mut [Property {
+            tag: Object::NODE_QUERY,
+            value: Structure::new(&mut [
+                Property {
+                    tag: Object::STATEMENT_SUBJECT,
+                    value: subject,
+                },
+                Property {
+                    tag: Object::STATEMENT_TAG,
+                    value: tag,
+                },
+            ])
+            .into(),
+        }])
+    }
+
+    fn new_set<const N: usize>(items: [Object; N]) -> Self {
+        let mut properties = items.map(|node| Property {
+            tag: Object::CONTAINS,
+            value: node,
+        });
+
+        Self::new(&mut properties)
     }
 
     fn new_node_or<const N: usize>(nodes: [Object; N]) -> Self {

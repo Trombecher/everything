@@ -32,18 +32,9 @@ fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> O
     Structure::new_node_equal([
         Object::natural_number(1),
         Structure::new_node_count(
-            Structure::new_node_query(
-                Structure::new(&mut [
-                    Property {
-                        tag: Object::STATEMENT_SUBJECT,
-                        value: Structure::new_node_parameter(parameter_depth).into(),
-                    },
-                    Property {
-                        tag: Object::STATEMENT_TAG,
-                        value: tag,
-                    },
-                ])
-                .into(),
+            Structure::new_node_query_values(
+                Structure::new_node_parameter(parameter_depth).into(),
+                tag,
             )
             .into(),
         )

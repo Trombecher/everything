@@ -175,3 +175,29 @@ fn eval_count() {
         Object::natural_number(2)
     );
 }
+
+#[test]
+fn eval_query() {
+    assert_eq!(
+        Object::Structure(Structure::new_node_query_values(
+            Structure::new(&mut [
+                Property {
+                    tag: Object::CONTAINS,
+                    value: Object::ZERO
+                },
+                Property {
+                    tag: Object::CONTAINS,
+                    value: Object::KNOWLEDGE
+                },
+                Property {
+                    tag: Object::COMPUTED,
+                    value: Structure::EMPTY.into()
+                }
+            ])
+            .into(),
+            Structure::new_node_literal(Object::CONTAINS).into()
+        ))
+        .eval(&BASE, &mut Default::default()),
+        Structure::new_set([Object::KNOWLEDGE, Object::ZERO]).into(),
+    );
+}
