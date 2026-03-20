@@ -7,7 +7,7 @@ use crate::{
     base::BASE,
     ctx::EvaluationContext,
     ext::{ObjectExt, Statement},
-    query::query_values,
+    query::query_values_axiomatically,
 };
 
 #[derive(PartialEq, Clone, Debug)]
@@ -149,24 +149,16 @@ impl StructureExt for Structure {
                 .parse_statement()
                 .expect("found a structure which is not a statement");
 
-            // Get constraint function from tag for value:
-            let constraint_qr = query_values(
-                self,
-                statement.tag,
-                Object::AXIOMATIC,
-                &mut Default::default(),
-            );
-
-            let constraint_function = match constraint_qr.iter().next() {
-                Some(c) => c,
-                None => {
-                    return Err(KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                        subject: ObjectForm::Specific(statement.tag.clone()),
-                        tag: ObjectForm::Specific(Object::AXIOMATIC),
-                        value: ObjectForm::Any,
-                    }));
-                }
-            };
+            let constraint_function =
+                query_values_axiomatically(self, statement.tag, Object::AXIOMATIC)
+                    .next()
+                    .ok_or_else(|| {
+                        KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+                            subject: ObjectForm::Specific(statement.tag.clone()),
+                            tag: ObjectForm::Specific(Object::AXIOMATIC),
+                            value: ObjectForm::Any,
+                        })
+                    })?;
 
             let arguments = [statement.subject.clone(), statement.value.clone()];
 
@@ -190,25 +182,16 @@ impl StructureExt for Structure {
                 Object::Abstract(_) => Ok(()),
                 Object::Structure(structure) => {
                     for Property { tag, value } in structure.as_ref() {
-                        let constraint_qr = query_values(
-                            knowledge,
-                            tag,
-                            Object::AXIOMATIC,
-                            &mut Default::default(),
-                        );
-
-                        let constraint_function = match constraint_qr.iter().next() {
-                            Some(f) => f,
-                            None => {
-                                return Err(KnowledgeError::NeedsToBeTrueButIsFalse(
-                                    StatementForm {
+                        let constraint_function =
+                            query_values_axiomatically(knowledge, tag, Object::AXIOMATIC)
+                                .next()
+                                .ok_or_else(|| {
+                                    KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
                                         subject: ObjectForm::Specific(tag.clone()),
                                         tag: ObjectForm::Specific(Object::AXIOMATIC),
                                         value: ObjectForm::Any,
-                                    },
-                                ));
-                            }
-                        };
+                                    })
+                                })?;
 
                         let parameters = [subject.clone(), value.clone()];
 

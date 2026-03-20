@@ -7,7 +7,7 @@ use tracing::instrument;
 use crate::{
     ctx::{EvaluationContext, FunctionContext},
     ext::{NodeType, ObjectForm, StatementForm, StructureExt},
-    query::query_values,
+    query::{query_values, query_values_axiomatically},
 };
 
 macro_rules! define_abstract {
@@ -189,9 +189,10 @@ impl ObjectExt for Object {
         for node_type in NodeType::ALL {
             let node_type_object: Object = node_type.into();
 
-            // We do not need an evaluation context because all node types are axiomatic.
-            let query = query_values(knowledge, self, node_type_object, &mut Default::default());
-            let there_are_values = query.iter().next().is_some();
+            // All node types are axiomatic.
+            let there_are_values = query_values_axiomatically(knowledge, self, node_type_object)
+                .next()
+                .is_some();
 
             if there_are_values {
                 if current_pick.is_some() {
@@ -207,80 +208,46 @@ impl ObjectExt for Object {
     }
 
     fn node_count(&self, knowledge: &Structure) -> Option<Object> {
-        let qr = query_values(
-            knowledge,
-            self,
-            Object::NODE_COUNT,
-            &mut EvaluationContext::default(),
-        );
-
-        qr.iter().next().cloned()
+        query_values_axiomatically(knowledge, self, Object::NODE_COUNT)
+            .next()
+            .cloned()
     }
 
     fn computed_body(&self, knowledge: &Structure) -> Option<Object> {
-        let qr = query_values(
-            knowledge,
-            self,
-            Object::COMPUTED,
-            // We can pass in an empty evaluation context because it won't be used
-            // (COMPUTED is axiomatic and therefore won't need the compuation
-            // pipeline).
-            &mut EvaluationContext::default(),
-        );
-
-        qr.iter().next().cloned()
+        query_values_axiomatically(knowledge, self, Object::COMPUTED)
+            .next()
+            .cloned()
     }
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<usize> {
-        let depth_qr = query_values(
-            knowledge,
-            self,
-            Object::NODE_PARAMETER,
-            // We won't need that.
-            &mut EvaluationContext::default(),
-        );
-
-        depth_qr
-            .iter()
+        query_values_axiomatically(knowledge, self, Object::NODE_PARAMETER)
             .next()
             .and_then(|depth| depth.to_natural_number(knowledge))
     }
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
-        let qr = query_values(
-            knowledge,
-            self,
-            Object::NODE_LITERAL,
-            &mut EvaluationContext::default(),
-        );
-
-        qr.iter().next().cloned()
+        query_values_axiomatically(knowledge, self, Object::NODE_LITERAL)
+            .next()
+            .cloned()
     }
 
     fn statement_form(&self, knowledge: &Structure) -> StatementForm {
-        let subject_qr = query_values(
-            knowledge,
-            self,
-            Object::STATEMENT_SUBJECT,
-            &mut EvaluationContext::default(),
-        );
-        let subject: ObjectForm = subject_qr.iter().next().cloned().into();
+        let subject: ObjectForm =
+            query_values_axiomatically(knowledge, self, Object::STATEMENT_SUBJECT)
+                .next()
+                .cloned()
+                .into();
 
-        let tag_qr = query_values(
-            knowledge,
-            self,
-            Object::STATEMENT_TAG,
-            &mut EvaluationContext::default(),
-        );
-        let tag: ObjectForm = tag_qr.iter().next().cloned().into();
+        let tag: ObjectForm = query_values_axiomatically(knowledge, self, Object::STATEMENT_TAG)
+            .next()
+            .cloned()
+            .into();
 
-        let value_qr = query_values(
-            knowledge,
-            self,
-            Object::STATEMENT_VALUE,
-            &mut EvaluationContext::default(),
-        );
-        let value: ObjectForm = value_qr.iter().next().cloned().into();
+        let value: ObjectForm =
+            query_values_axiomatically(knowledge, self, Object::STATEMENT_VALUE)
+                .next()
+                .cloned()
+                .into();
 
         StatementForm {
             subject,
@@ -290,23 +257,15 @@ impl ObjectExt for Object {
     }
 
     fn node_query(&self, knowledge: &Structure) -> Option<Object> {
-        let qr = query_values(
-            knowledge,
-            self,
-            Object::NODE_QUERY,
-            &mut EvaluationContext::default(),
-        );
-        qr.iter().next().cloned()
+        query_values_axiomatically(knowledge, self, Object::NODE_QUERY)
+            .next()
+            .cloned()
     }
 
     fn node_exists(&self, knowledge: &Structure) -> Option<Object> {
-        let qr = query_values(
-            knowledge,
-            self,
-            Object::NODE_EXISTS,
-            &mut EvaluationContext::default(),
-        );
-        qr.iter().next().cloned()
+        query_values_axiomatically(knowledge, self, Object::NODE_EXISTS)
+            .next()
+            .cloned()
     }
 
     fn capture(
@@ -404,23 +363,23 @@ impl ObjectExt for Object {
                 ctx.parameter_value(self.node_parameter_depth(knowledge).unwrap())
             }
             Some(NodeType::Equal) => {
-                let qr = query_values(knowledge, self, Object::NODE_EQUAL, ctx);
-                let mut expressions = qr.iter().map(|value| value.eval(knowledge, ctx));
+                let mut values = query_values_axiomatically(knowledge, self, Object::NODE_EQUAL)
+                    .map(|value| value.eval(knowledge, ctx));
 
-                let first = expressions.next().unwrap();
-                let equal = expressions.all(|object| object == first);
+                let first = values.next().unwrap();
+                let equal = values.all(|object| object == first);
 
                 Object::from_bool(equal)
             }
             Some(NodeType::Or) => {
-                let qr = query_values(knowledge, self, Object::NODE_OR, ctx);
-                let mut values = qr.iter().map(|value| value.eval(knowledge, ctx));
+                let mut values = query_values_axiomatically(knowledge, self, Object::NODE_OR)
+                    .map(|value| value.eval(knowledge, ctx));
 
                 Object::from_bool(values.any(|o| o.is_truthy()))
             }
             Some(NodeType::And) => {
-                let qr = query_values(knowledge, self, Object::NODE_AND, ctx);
-                let mut values = qr.iter().map(|value| value.eval(knowledge, ctx));
+                let mut values = query_values_axiomatically(knowledge, self, Object::NODE_AND)
+                    .map(|value| value.eval(knowledge, ctx));
 
                 Object::from_bool(values.all(|value| value.is_truthy()))
             }
@@ -475,28 +434,23 @@ impl ObjectExt for Object {
         parameters: &[Object],
         ctx: &mut EvaluationContext,
     ) -> Object {
-        if let Some((parameter, next_parameters)) = parameters.split_first() {
-            if let Some(NodeType::Computed) = self.node_type(knowledge) {
-                let parameter = parameter.eval(knowledge, ctx);
+        if let Some((parameter, next_parameters)) = parameters.split_first()
+            && let Some(NodeType::Computed) = self.node_type(knowledge)
+        {
+            let parameter = parameter.eval(knowledge, ctx);
 
-                let body_qr =
-                    query_values(knowledge, self, Object::COMPUTED, &mut Default::default());
-                let body = body_qr.iter().next().unwrap();
+            let body = self.computed_body(knowledge).unwrap();
 
-                ctx.push(FunctionContext {
-                    function: self.clone(),
-                    parameter,
-                });
+            ctx.push(FunctionContext {
+                function: self.clone(),
+                parameter,
+            });
 
-                let result = body.call(knowledge, next_parameters, ctx);
+            let result = body.call(knowledge, next_parameters, ctx);
 
-                ctx.pop();
+            ctx.pop();
 
-                result
-            } else {
-                // Ignore parameter and eval `self`.
-                self.eval(knowledge, ctx)
-            }
+            result
         } else {
             self.eval(knowledge, ctx)
         }
@@ -506,19 +460,10 @@ impl ObjectExt for Object {
         if self == &Object::ZERO {
             Some(0)
         } else {
-            let qr = query_values(
-                knowledge,
-                self,
-                Object::SUCCESSOR_OF,
-                &mut Default::default(),
-            );
-
-            // TODO: maybe validate that there is only one.
-            if let Some(successor_of) = qr.iter().next() {
-                successor_of.to_natural_number(knowledge).map(|n| n + 1)
-            } else {
-                None
-            }
+            query_values_axiomatically(knowledge, self, Object::SUCCESSOR_OF)
+                .next()
+                .and_then(|inner| inner.to_natural_number(knowledge))
+                .map(|n| n + 1)
         }
     }
 }

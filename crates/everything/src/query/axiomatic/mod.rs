@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use everything_structures::{Object, Structure, ValuesIter};
+use tracing::instrument;
 
 use crate::{base, ext::ObjectExt, query::EMPTY_STRUCTURE};
 
@@ -9,6 +10,7 @@ mod tests;
 
 /// Values from an axiomatic query.
 #[derive(Clone)]
+#[must_use]
 pub enum AxiomaticQueryValues<'knowledge: 'item, 'subject: 'item, 'item> {
     Static(Option<&'static Object>),
     Borrowed(AxiomaticBorrowedQueryValues<'knowledge, 'subject, 'item>),
@@ -100,6 +102,8 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
 ///
 /// * `tag` and all downstream tags are assumed to be axiomatic.
 /// * `knowledge` is a superset of [crate::base::BASE].
+#[instrument(skip(knowledge))]
+#[inline]
 pub fn query_values_axiomatically<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
