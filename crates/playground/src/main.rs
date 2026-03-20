@@ -9,13 +9,13 @@ fn main() {
         .with(HierarchicalLayer::new(4))
         .init();
 
-    let f: Object = parse_structure("{(@3, {(@3, {(@15, {(@10, @9)})})})}")
+    let f: Object = parse_structure("{(@3, {(@15, {(@10, @9)})})}")
         .unwrap()
         .into();
 
-    let parameter = Object::Abstract(1337);
+    let mut ctx = EvaluationContext::default();
 
-    let result = f.call(&BASE, &parameter, &mut EvaluationContext::default());
+    let result = f.call(&BASE, &[Object::Abstract(1337), Object::ZERO], &mut ctx);
 
     println!("{result:?}");
 }

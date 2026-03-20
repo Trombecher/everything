@@ -150,11 +150,10 @@ impl StructureExt for Structure {
                 }
             };
 
-            let mut ctx = EvaluationContext::default();
+            let arguments = [statement.subject.clone(), statement.value.clone()];
 
-            let result = constraint_function
-                .call(self, statement.subject, &mut ctx)
-                .call(self, statement.value, &mut ctx);
+            let result =
+                constraint_function.call(self, &arguments, &mut EvaluationContext::default());
 
             if !result.is_truthy() {
                 return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
@@ -193,11 +192,13 @@ impl StructureExt for Structure {
                             }
                         };
 
-                        let mut ctx = EvaluationContext::default();
+                        let parameters = [subject.clone(), value.clone()];
 
-                        let result = constraint_function
-                            .call(knowledge, subject, &mut ctx)
-                            .call(knowledge, value, &mut ctx);
+                        let result = constraint_function.call(
+                            knowledge,
+                            &parameters,
+                            &mut EvaluationContext::default(),
+                        );
 
                         if !result.is_truthy() {
                             return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {

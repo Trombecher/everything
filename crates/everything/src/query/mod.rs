@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+use std::array;
 use std::marker::PhantomData;
 
 use everything_structures::{Object, Property, Structure, ValuesIter};
@@ -67,7 +68,7 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
             })
         }
         (None, Some(computation_function)) => {
-            let result = computation_function.call(knowledge, subject, ctx);
+            let result = computation_function.call(knowledge, array::from_ref(subject), ctx);
             QueryValuesResult::ComputationResult(result)
         }
         _ => {

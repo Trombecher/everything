@@ -2,7 +2,7 @@
 mod tests;
 
 use everything_structures::{Object, Property, Structure};
-use tracing::{Level, instrument};
+use tracing::instrument;
 
 use crate::{
     ctx::EvaluationContext,
@@ -49,6 +49,13 @@ pub trait ObjectExt {
         // NODE_CALL = 28,
     );
 
+    fn capture(
+        &self,
+        knowledge: &Structure,
+        additional_depth: usize,
+        ctx: &EvaluationContext,
+    ) -> Object;
+
     fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Object;
 
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
@@ -78,10 +85,12 @@ pub trait ObjectExt {
 
     fn is_truthy(&self) -> bool;
 
+    /// Calls `self` with a list of parameters.
+    /// If none are provided, `self` will just be evaluated.
     fn call(
         &self,
         knowledge: &Structure,
-        parameter: &Object,
+        parameters: &[Object],
         ctx: &mut EvaluationContext,
     ) -> Object;
 
@@ -182,6 +191,67 @@ impl ObjectExt for Object {
         current_pick
     }
 
+    fn capture(
+        &self,
+        knowledge: &Structure,
+        additional_depth: usize,
+        ctx: &EvaluationContext,
+    ) -> Object {
+        match self.node_type(knowledge) {
+            Some(NodeType::Computed) => {
+                let qr = query_values(
+                    knowledge,
+                    self,
+                    Object::COMPUTED,
+                    // We can pass in an empty evaluation context because it won't be used
+                    // (COMPUTED is axiomatic and therefore won't need the compuation
+                    // pipeline).
+                    &mut EvaluationContext::default(),
+                );
+
+                let captured_body =
+                    qr.iter()
+                        .next()
+                        .unwrap()
+                        .clone()
+                        .capture(knowledge, additional_depth + 1, ctx);
+
+                Structure::new_computed(body).into()
+            }
+            Some(NodeType::Parameter) => {
+                let depth_qr = query_values(
+                    knowledge,
+                    self,
+                    Object::NODE_PARAMETER,
+                    // We won't need that.
+                    &mut EvaluationContext::default(),
+                );
+
+                let depth = depth_qr
+                    .iter()
+                    .next()
+                    .unwrap()
+                    .to_natural_number(knowledge)
+                    .unwrap();
+
+                if depth >= additional_depth {
+                    // The min additional depth is 1.
+                    // So when the parameter depth is 1 it will refer to
+                    // captured parameters at an additional depth of 1.
+
+                    ctx.parameter_value(depth)
+                } else {
+                    // This parameter refers to some inner, bound function,
+                    // so keep it.
+
+                    self.clone()
+                }
+            }
+            Some(NodeType::And) => {}
+            None => self.clone(),
+        }
+    }
+
     #[instrument(skip(knowledge))]
     fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Object {
         // TODO: better panic msgs
@@ -244,19 +314,11 @@ impl ObjectExt for Object {
                 qr.iter().next().unwrap().clone()
             }
             Some(NodeType::Computed) => {
-                // TODO: look at this
-
-                ctx.functions.push(self.clone());
-
                 let qr = query_values(knowledge, self, Object::COMPUTED, ctx);
                 let new_body = qr.iter().next().unwrap().clone().eval(knowledge, ctx);
 
-                ctx.functions.pop();
-
-                // TODO: Debate if we should clone `self`
-                // (and adjust props) or do this:
-
-                Structure::new_computed(new_body).into()
+                // Capture/reify parameters and functions of the evaluation context.
+                new_body.capture(knowledge, 1, ctx)
             }
             Some(NodeType::Parameter) => {
                 let depth_qr = query_values(knowledge, self, Object::NODE_PARAMETER, ctx);
@@ -267,10 +329,7 @@ impl ObjectExt for Object {
                     .to_natural_number(knowledge)
                     .unwrap();
 
-                match ctx.parameters.get(ctx.functions.len() - 1 - depth) {
-                    Some(value) => value.clone(),
-                    None => self.clone(),
-                }
+                ctx.parameter_value(depth)
             }
             Some(NodeType::Equal) => {
                 let qr = query_values(knowledge, self, Object::NODE_EQUAL, ctx);
@@ -340,32 +399,35 @@ impl ObjectExt for Object {
         }
     }
 
-    #[instrument(skip(knowledge), level = Level::DEBUG)]
+    #[instrument(skip(knowledge))]
     fn call(
         &self,
         knowledge: &Structure,
-        parameter: &Object,
+        parameters: &[Object],
         ctx: &mut EvaluationContext,
     ) -> Object {
-        if let Some(NodeType::Computed) = self.node_type(knowledge) {
-            // `self` is a function yay
+        if let Some((parameter, next_parameters)) = parameters.split_first() {
+            if let Some(NodeType::Computed) = self.node_type(knowledge) {
+                let parameter = parameter.eval(knowledge, ctx);
 
-            let body_qr = query_values(knowledge, self, Object::COMPUTED, &mut Default::default());
-            let body = body_qr.iter().next().unwrap();
+                let body_qr =
+                    query_values(knowledge, self, Object::COMPUTED, &mut Default::default());
+                let body = body_qr.iter().next().unwrap();
 
-            let parameter = parameter.eval(knowledge, ctx);
+                ctx.functions.push(self.clone());
+                ctx.parameters.push(parameter);
 
-            ctx.functions.push(self.clone());
-            ctx.parameters.push(parameter);
+                let result = body.call(knowledge, next_parameters, ctx);
 
-            let result = body.eval(knowledge, ctx);
+                ctx.parameters.pop();
+                ctx.functions.pop();
 
-            ctx.parameters.pop();
-            ctx.functions.pop();
-
-            result
+                result
+            } else {
+                // Ignore parameter and eval `self`.
+                self.eval(knowledge, ctx)
+            }
         } else {
-            // Ignore parameter and eval `self`.
             self.eval(knowledge, ctx)
         }
     }

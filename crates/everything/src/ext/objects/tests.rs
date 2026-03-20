@@ -90,7 +90,7 @@ fn call() {
     let f: Object = Structure::new_computed(Structure::new_node_parameter(0).into()).into();
 
     assert_eq!(
-        f.call(&BASE, &Object::ZERO, &mut Default::default()),
+        f.call(&BASE, &[Object::ZERO], &mut Default::default()),
         Object::ZERO
     );
 }
