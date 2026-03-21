@@ -4,7 +4,7 @@ mod tests;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use everything_structures::{Object, Property, Structure};
-use tracing::{dispatcher, instrument};
+use tracing::instrument;
 
 use crate::{
     base::BASE,
@@ -278,7 +278,7 @@ impl StructureExt for Structure {
     fn new_node_parameter(depth: usize) -> Self {
         Self::new(&mut [Property {
             tag: Object::NODE_PARAMETER,
-            value: Object::natural_number(depth),
+            value: Object::new_natural_number(depth),
         }])
     }
 

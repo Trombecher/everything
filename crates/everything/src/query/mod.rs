@@ -10,8 +10,6 @@ use tracing::instrument;
 use crate::ctx::EvaluationContext;
 use crate::ext::{ObjectExt, StructureExt};
 
-use crate::base::IS_NATURAL_NUMBER;
-
 pub use axiomatic::*;
 
 enum InitialMatch<'a> {

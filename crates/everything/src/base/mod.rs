@@ -30,7 +30,7 @@ fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
 
 fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> Object {
     Structure::new_node_equal([
-        Object::natural_number(1),
+        Object::new_natural_number(1),
         Structure::new_node_count(
             Structure::new_node_query_values(
                 Structure::new_node_parameter(parameter_depth).into(),

@@ -7,14 +7,14 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tracing_tree::HierarchicalLayer;
 
 fn main() {
+    /*
     tracing_subscriber::registry()
         .with(HierarchicalLayer::new(4))
         .init();
-
-    let f: Object = parse_structure("{(@10, {(@10, @9)})}").unwrap().into();
+     */
 
     let now = Instant::now();
-    let is_valid = f.is_valid(&BASE, false);
+    let is_valid = Object::new_natural_number(1000).is_valid(&BASE, false);
 
     println!("is valid: {:?} in {:?}", is_valid, now.elapsed());
 }

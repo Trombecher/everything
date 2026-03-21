@@ -68,12 +68,9 @@ pub trait ObjectExt {
 
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
 
-    #[deprecated]
-    fn is_only_natural_number(&self) -> bool;
-
     /// Constructs a natural number object using
     /// repeated succ.
-    fn natural_number(n: usize) -> Self;
+    fn new_natural_number(n: usize) -> Self;
 
     /// Returns the number of properties this object has.
     /// For abstract objects, this returns zero.
@@ -135,33 +132,13 @@ impl ObjectExt for Object {
         }
     }
 
-    fn is_only_natural_number(&self) -> bool {
-        match self {
-            &Object::ZERO => true,
-            Object::Structure(s) => {
-                if let [
-                    Property {
-                        tag: Object::SUCCESSOR_OF,
-                        value,
-                    },
-                ] = s.as_ref()
-                {
-                    value.is_only_natural_number()
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        }
-    }
-
-    fn natural_number(n: usize) -> Self {
+    fn new_natural_number(n: usize) -> Self {
         if n == 0 {
             Object::ZERO
         } else {
             Structure::new(&mut [Property {
                 tag: Object::SUCCESSOR_OF,
-                value: Self::natural_number(n - 1),
+                value: Self::new_natural_number(n - 1),
             }])
             .into()
         }
@@ -207,30 +184,14 @@ impl ObjectExt for Object {
 
     #[instrument(skip(knowledge), ret)]
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType> {
-        // TODO: maybe be more optimistic about `self` by
-        // terminating on first match.
-
-        let mut current_pick = None;
-
-        for node_type in NodeType::ALL {
-            let node_type_object: Object = node_type.into();
-
-            // All node types are axiomatic.
-            let there_are_values = query_values_axiomatically(knowledge, self, node_type_object)
-                .next()
-                .is_some();
-
-            if there_are_values {
-                if current_pick.is_some() {
-                    // multiple node types apply
-                    return None;
-                }
-
-                current_pick = Some(node_type);
-            }
-        }
-
-        current_pick
+        NodeType::ALL
+            .into_iter()
+            .filter_map(|node_type| {
+                query_values_axiomatically(knowledge, self, node_type.into())
+                    .next()
+                    .map(|_| node_type)
+            })
+            .next()
     }
 
     fn node_count(&self, knowledge: &Structure) -> Option<Object> {
@@ -366,7 +327,7 @@ impl ObjectExt for Object {
         // TODO: better panic msgs
 
         match self.node_type(knowledge) {
-            Some(NodeType::Count) => Object::natural_number(
+            Some(NodeType::Count) => Object::new_natural_number(
                 self.node_count(knowledge)
                     .expect("NodeType::Count asserts that this exists")
                     .eval(knowledge, ctx)
