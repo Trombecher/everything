@@ -3,7 +3,6 @@ use std::assert_matches;
 use tracing_test::traced_test;
 
 #[test]
-#[traced_test]
 fn base_is_knowledge() {
     assert_matches!(BASE.is_knowledge(), Ok(_));
 }

@@ -434,6 +434,14 @@ impl ObjectExt for Object {
                     }
                 }
             }
+            Some(NodeType::Not) => {
+                let value = query_values_axiomatically(knowledge, self, Object::NODE_NOT)
+                    .next()
+                    .unwrap()
+                    .eval(knowledge, ctx);
+
+                Object::from_bool(!value.is_truthy())
+            }
             Some(ty) => todo!("{ty:?} not impl"),
             None if let Object::Structure(structure) = self => structure
                 .as_ref()
