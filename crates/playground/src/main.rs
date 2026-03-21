@@ -15,11 +15,7 @@ fn main() {
 
     let mut ctx = EvaluationContext::default();
 
-    let result = f.call(
-        &BASE,
-        &[Object::Abstract(1337), Object::Abstract(5345349)],
-        &mut ctx,
-    );
+    let result = f.call(&BASE, &[Object::Abstract(1337)], &mut ctx);
 
     println!("{result:?}");
 }

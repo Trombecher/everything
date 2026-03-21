@@ -288,12 +288,12 @@ impl ObjectExt for Object {
             Some(NodeType::Parameter) => {
                 let depth = self.node_parameter_depth(knowledge).unwrap();
 
-                if depth >= additional_depth {
+                if let Some(offset_depth) = depth.checked_sub(additional_depth) {
                     // The min additional depth is 1.
                     // So when the parameter depth is 1 it will refer to
                     // captured parameters at an additional depth of 1.
 
-                    ctx.parameter_value(depth)
+                    ctx.parameter_value(offset_depth)
                 } else {
                     // This parameter refers to some inner, bound function,
                     // so keep it.

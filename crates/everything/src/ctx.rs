@@ -1,4 +1,5 @@
 use everything_structures::{Object, Structure};
+use tracing::instrument;
 
 #[derive(Debug, Clone, Default)]
 pub struct EvaluationContext {
@@ -6,6 +7,7 @@ pub struct EvaluationContext {
 }
 
 impl EvaluationContext {
+    #[instrument(ret)]
     pub fn parameter_value(&self, relative_depth: usize) -> Object {
         self.stack
             .len()
