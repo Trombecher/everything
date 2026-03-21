@@ -2,6 +2,7 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::{
     base::BASE,
+    ctx::EvaluationContext,
     ext::{NodeType, ObjectExt, StructureExt},
 };
 
@@ -199,5 +200,29 @@ fn eval_query() {
         ))
         .eval(&BASE, &mut Default::default()),
         Structure::new_set([Object::KNOWLEDGE, Object::ZERO]).into(),
+    );
+}
+
+#[test]
+fn eval_set_items() {
+    let f: Object = Structure::new_computed(
+        Structure::new_computed(
+            Structure::new_set([
+                Structure::new_node_parameter(0).into(),
+                Structure::new_node_parameter(1).into(),
+            ])
+            .into(),
+        )
+        .into(),
+    )
+    .into();
+
+    assert_eq!(
+        f.call(
+            &BASE,
+            &[Object::Abstract(1337), Object::Abstract(1338)],
+            &mut EvaluationContext::default(),
+        ),
+        Structure::new_set([Object::Abstract(1337), Object::Abstract(1338)]).into()
     );
 }
