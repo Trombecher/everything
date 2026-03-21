@@ -183,6 +183,7 @@ impl ObjectExt for Object {
         }
     }
 
+    #[instrument(skip(knowledge), ret)]
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType> {
         let mut current_pick = None;
 
@@ -268,6 +269,7 @@ impl ObjectExt for Object {
             .cloned()
     }
 
+    #[instrument(skip(knowledge), ret)]
     fn capture(
         &self,
         knowledge: &Structure,
@@ -310,7 +312,7 @@ impl ObjectExt for Object {
         }
     }
 
-    #[instrument(skip(knowledge))]
+    #[instrument(skip(knowledge), ret)]
     fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Object {
         // TODO: better panic msgs
 
@@ -427,7 +429,7 @@ impl ObjectExt for Object {
         }
     }
 
-    #[instrument(skip(knowledge))]
+    #[instrument(skip(knowledge), ret)]
     fn call(
         &self,
         knowledge: &Structure,
@@ -456,6 +458,7 @@ impl ObjectExt for Object {
         }
     }
 
+    #[instrument(skip(knowledge), ret)]
     fn to_natural_number(&self, knowledge: &Structure) -> Option<usize> {
         if self == &Object::ZERO {
             Some(0)

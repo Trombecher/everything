@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt::Debug, marker::PhantomData};
 
 use everything_structures::{Object, Structure, ValuesIter};
 use tracing::instrument;
@@ -28,6 +28,14 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
                 axiomatic_borrowed_query_values.next()
             }
         }
+    }
+}
+
+impl<'knowledge: 'item, 'subject: 'item, 'item> Debug
+    for AxiomaticQueryValues<'knowledge, 'subject, 'item>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.clone()).finish()
     }
 }
 
@@ -102,7 +110,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
 ///
 /// * `tag` and all downstream tags are assumed to be axiomatic.
 /// * `knowledge` is a superset of [crate::base::BASE].
-#[instrument(skip(knowledge))]
+#[instrument(skip(knowledge), ret)]
 #[inline]
 pub fn query_values_axiomatically<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
