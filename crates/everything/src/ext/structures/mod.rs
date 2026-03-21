@@ -1,7 +1,10 @@
 #[cfg(test)]
 mod tests;
 
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use everything_structures::{Object, Property, Structure};
+use tracing::{dispatcher, instrument};
 
 use crate::{
     base::BASE,
@@ -115,13 +118,22 @@ pub trait StructureExt {
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
 }
 
+static COUNT: AtomicUsize = AtomicUsize::new(0);
+
 impl StructureExt for Structure {
     fn has_exactly_one_value_on(&self, tag: Object) -> bool {
         let mut values = self.values(tag);
         values.next().is_some() && values.next().is_none()
     }
 
+    #[instrument(skip(knowledge), ret)]
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
+        if COUNT.load(Ordering::Relaxed) >= 20 {
+            panic!("stop.")
+        }
+
+        COUNT.fetch_add(1, Ordering::Relaxed);
+
         for Property { tag, value } in self.as_ref() {
             let constraint_function = query_values_axiomatically(knowledge, tag, Object::AXIOMATIC)
                 .next()

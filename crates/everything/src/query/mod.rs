@@ -10,6 +10,8 @@ use tracing::instrument;
 use crate::ctx::EvaluationContext;
 use crate::ext::{ObjectExt, StructureExt};
 
+use crate::base::IS_NATURAL_NUMBER;
+
 pub use axiomatic::*;
 
 enum InitialMatch<'a> {
@@ -40,6 +42,11 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
                 }));
 
             return result;
+        }
+        (_, tag) if tag == &*IS_NATURAL_NUMBER => {
+            return QueryValuesResult::ComputationResult({
+                Object::from_bool(subject.is_natural_number(knowledge))
+            });
         }
         _ => {
             let maybe_constraint =

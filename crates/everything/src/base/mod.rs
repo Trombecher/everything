@@ -122,7 +122,7 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                             .into(),
                         )
                         .into(),
-                        unique_constraint_for(Object::SUCCESSOR_OF, 1),
+                        common_unique_constraint_expression(Object::SUCCESSOR_OF, 1),
                     ])
                     .into(),
                 )

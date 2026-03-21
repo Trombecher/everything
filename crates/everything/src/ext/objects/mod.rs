@@ -68,6 +68,7 @@ pub trait ObjectExt {
 
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
 
+    #[deprecated]
     fn is_only_natural_number(&self) -> bool;
 
     /// Constructs a natural number object using
@@ -113,9 +114,27 @@ pub trait ObjectExt {
     fn node_query(&self, knowledge: &Structure) -> Option<Object>;
 
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
+
+    fn is_natural_number(&self, knowledge: &Structure) -> bool;
 }
 
 impl ObjectExt for Object {
+    fn is_natural_number(&self, knowledge: &Structure) -> bool {
+        if self == &Self::ZERO {
+            return true;
+        }
+
+        let mut successor_of = query_values_axiomatically(knowledge, self, Self::SUCCESSOR_OF);
+
+        if let Some(first) = successor_of.next()
+            && successor_of.next().is_none()
+        {
+            first.is_natural_number(knowledge)
+        } else {
+            false
+        }
+    }
+
     fn is_only_natural_number(&self) -> bool {
         match self {
             &Object::ZERO => true,
@@ -307,14 +326,38 @@ impl ObjectExt for Object {
                     self.clone()
                 }
             }
-            Some(NodeType::Count) => Structure::new_node_count(
-                self.node_count(knowledge)
-                    .unwrap()
-                    .capture(knowledge, additional_depth, ctx),
-            )
-            .into(),
-            Some(ty) => todo!("Cannot capture {ty:?}"),
-            None => self.clone(),
+            _ => match self {
+                Object::Abstract(a) => Object::Abstract(*a),
+                Object::Structure(structure) => structure
+                    .as_ref()
+                    .iter()
+                    .map(|property| {
+                        let value = property.value.capture(knowledge, additional_depth, ctx);
+
+                        let result = if property.value == value {
+                            Ok(())
+                        } else {
+                            value.is_valid(knowledge, false)
+                        };
+
+                        match result {
+                            Ok(()) => Ok(Property {
+                                tag: property.tag.clone(),
+                                value,
+                            }),
+                            // TODO: debate box
+                            Err(error) => Err((value, Box::new(error))),
+                        }
+                    })
+                    .transpose_into_fallible()
+                    .collect::<Vec<_>>()
+                    .map(|mut properties| Object::Structure(Structure::new(&mut properties)))
+                    .unwrap_or_else(|(o, error)| {
+                        warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
+
+                        Object::Structure(Structure::EMPTY)
+                    }),
+            },
         }
     }
 
@@ -437,7 +480,13 @@ impl ObjectExt for Object {
                 .map(|property| {
                     let value = property.value.eval(knowledge, ctx);
 
-                    match value.is_valid(knowledge, false) {
+                    let result = if property.value == value {
+                        Ok(())
+                    } else {
+                        value.is_valid(knowledge, false)
+                    };
+
+                    match result {
                         Ok(()) => Ok(Property {
                             tag: property.tag.clone(),
                             value,

@@ -1,4 +1,4 @@
-use everything::{base::BASE, ctx::EvaluationContext, ext::ObjectExt};
+use everything::{base::BASE, ext::ObjectExt};
 use everything_structures::Object;
 use everything_structures_ff::parse_structure;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -9,18 +9,7 @@ fn main() {
         .with(HierarchicalLayer::new(4))
         .init();
 
-    let f: Object =
-        parse_structure("{(@3, {(@3, {(@1, {(@15, @9)}), (@1, {(@15, {(@10, @9)})})})})}")
-            .unwrap()
-            .into();
+    let f: Object = parse_structure("{(@10, @9)}").unwrap().into();
 
-    let mut ctx = EvaluationContext::default();
-
-    let result = f.call(
-        &BASE,
-        &[Object::Abstract(1337), Object::Abstract(1338)],
-        &mut ctx,
-    );
-
-    println!("{result:?}");
+    println!("is valid: {:?}", f.is_valid(&BASE, false));
 }
