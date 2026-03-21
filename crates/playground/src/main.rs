@@ -7,11 +7,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tracing_tree::HierarchicalLayer;
 
 fn main() {
-    /*
     tracing_subscriber::registry()
         .with(HierarchicalLayer::new(4))
         .init();
-     */
 
     let f: Object = parse_structure("{(@10, {(@10, @9)})}").unwrap().into();
 
