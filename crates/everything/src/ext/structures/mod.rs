@@ -111,12 +111,48 @@ pub trait StructureExt {
 
     /// Creates a new query node, set up for value querying.
     fn new_node_query_values(subject: Object, tag: Object) -> Self;
+
+    fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
 }
 
 impl StructureExt for Structure {
     fn has_exactly_one_value_on(&self, tag: Object) -> bool {
         let mut values = self.values(tag);
         values.next().is_some() && values.next().is_none()
+    }
+
+    fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
+        for Property { tag, value } in self.as_ref() {
+            let constraint_function = query_values_axiomatically(knowledge, tag, Object::AXIOMATIC)
+                .next()
+                .ok_or_else(|| {
+                    KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+                        subject: ObjectForm::Specific(tag.clone()),
+                        tag: ObjectForm::Specific(Object::AXIOMATIC),
+                        value: ObjectForm::Any,
+                    })
+                })?;
+
+            let parameters = [self.clone().into(), value.clone()];
+
+            let result =
+                constraint_function.call(knowledge, &parameters, &mut EvaluationContext::default());
+
+            if !result.is_truthy() {
+                return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
+                    subject: self.clone().into(),
+                    tag: tag.clone(),
+                    value: value.clone(),
+                });
+            }
+
+            if recursive {
+                tag.is_valid(knowledge, true)?;
+                value.is_valid(knowledge, true)?;
+            }
+        }
+
+        Ok(())
     }
 
     fn is_knowledge(&self) -> Result<(), KnowledgeError> {
@@ -174,52 +210,7 @@ impl StructureExt for Structure {
             }
         }
 
-        fn check_for_all_tag_values(
-            subject: &Object,
-            knowledge: &Structure,
-        ) -> Result<(), KnowledgeError> {
-            match subject {
-                Object::Abstract(_) => Ok(()),
-                Object::Structure(structure) => {
-                    for Property { tag, value } in structure.as_ref() {
-                        let constraint_function =
-                            query_values_axiomatically(knowledge, tag, Object::AXIOMATIC)
-                                .next()
-                                .ok_or_else(|| {
-                                    KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                                        subject: ObjectForm::Specific(tag.clone()),
-                                        tag: ObjectForm::Specific(Object::AXIOMATIC),
-                                        value: ObjectForm::Any,
-                                    })
-                                })?;
-
-                        let parameters = [subject.clone(), value.clone()];
-
-                        let result = constraint_function.call(
-                            knowledge,
-                            &parameters,
-                            &mut EvaluationContext::default(),
-                        );
-
-                        if !result.is_truthy() {
-                            return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
-                                subject: subject.clone(),
-                                tag: tag.clone(),
-                                value: value.clone(),
-                            });
-                        }
-
-                        check_for_all_tag_values(tag, knowledge)?;
-                        check_for_all_tag_values(value, knowledge)?;
-                    }
-
-                    Ok(())
-                }
-            }
-        }
-
-        let subject = Object::Structure(self.clone());
-        check_for_all_tag_values(&subject, self)
+        self.is_valid(self, true)
     }
 
     fn is_statement(&self) -> bool {

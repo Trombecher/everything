@@ -2,11 +2,12 @@
 mod tests;
 
 use everything_structures::{Object, Property, Structure};
-use tracing::instrument;
+use fallible_iterator::{FallibleIterator, IteratorExt};
+use tracing::{instrument, warn};
 
 use crate::{
     ctx::{EvaluationContext, FunctionContext},
-    ext::{NodeType, ObjectForm, StatementForm, StructureExt},
+    ext::{KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt},
     query::{query_values, query_values_axiomatically},
 };
 
@@ -110,6 +111,8 @@ pub trait ObjectExt {
     fn statement_form(&self, knowledge: &Structure) -> StatementForm;
 
     fn node_query(&self, knowledge: &Structure) -> Option<Object>;
+
+    fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
 }
 
 impl ObjectExt for Object {
@@ -185,6 +188,9 @@ impl ObjectExt for Object {
 
     #[instrument(skip(knowledge), ret)]
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType> {
+        // TODO: maybe be more optimistic about `self` by
+        // terminating on first match.
+
         let mut current_pick = None;
 
         for node_type in NodeType::ALL {
@@ -425,6 +431,29 @@ impl ObjectExt for Object {
                 }
             }
             Some(ty) => todo!("{ty:?} not impl"),
+            None if let Object::Structure(structure) = self => structure
+                .as_ref()
+                .iter()
+                .map(|property| {
+                    let value = property.value.eval(knowledge, ctx);
+
+                    match value.is_valid(knowledge, false) {
+                        Ok(()) => Ok(Property {
+                            tag: property.tag.clone(),
+                            value,
+                        }),
+                        // TODO: debate box
+                        Err(error) => Err((value, Box::new(error))),
+                    }
+                })
+                .transpose_into_fallible()
+                .collect::<Vec<_>>()
+                .map(|mut properties| Object::Structure(Structure::new(&mut properties)))
+                .unwrap_or_else(|(o, error)| {
+                    warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
+
+                    Object::Structure(Structure::EMPTY)
+                }),
             None => self.clone(),
         }
     }
@@ -467,6 +496,13 @@ impl ObjectExt for Object {
                 .next()
                 .and_then(|inner| inner.to_natural_number(knowledge))
                 .map(|n| n + 1)
+        }
+    }
+
+    fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
+        match self {
+            Self::Abstract(_) => Ok(()),
+            Self::Structure(structure) => structure.is_valid(knowledge, recursive),
         }
     }
 }
