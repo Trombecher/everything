@@ -26,13 +26,20 @@ impl Knowledge {
     /// (subject, tag) -> (value)
     /// ```
     #[inline]
-    #[must_use]
     pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
         &'knowledge self,
         subject: &'subject Object,
         tag: Object,
     ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
         query::values(self.structure(), subject, tag, &mut Default::default())
+    }
+
+    pub fn query_subjects_axiomatically(
+        &self,
+        tag: Object,
+        value: Object,
+    ) -> impl Iterator<Item = &Object> {
+        query::subjects_axiomatically(&self.0, tag, value)
     }
 }
 
