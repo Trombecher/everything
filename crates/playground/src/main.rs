@@ -1,20 +1,35 @@
-use std::time::Instant;
+use std::{array, time::Instant};
 
-use everything::{base::BASE, ext::ObjectExt};
-use everything_structures::Object;
+use everything::{
+    base::BASE,
+    ctx::EvaluationContext,
+    ext::{ObjectExt, StructureExt},
+    query::query_values_axiomatically,
+};
+use everything_structures::{Object, Structure};
 use everything_structures_ff::parse_structure;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tracing_tree::HierarchicalLayer;
 
 fn main() {
-    /*
     tracing_subscriber::registry()
         .with(HierarchicalLayer::new(4))
         .init();
-     */
 
-    let now = Instant::now();
-    let is_valid = Object::new_natural_number(1000).is_valid(&BASE, false);
+    let subject: Object = parse_structure("{(@15, @9)}").unwrap().into();
 
-    println!("is valid: {:?} in {:?}", is_valid, now.elapsed());
+    let tag = Object::NODE_PARAMETER;
+
+    let tag_constraint = query_values_axiomatically(&BASE, &tag, Object::AXIOMATIC)
+        .next()
+        .unwrap();
+
+    let value = query_values_axiomatically(&BASE, &subject, Object::NODE_PARAMETER)
+        .next()
+        .unwrap()
+        .clone();
+
+    let result = tag_constraint.call(&BASE, &[subject, value], &mut EvaluationContext::default());
+
+    println!("{result:?}")
 }

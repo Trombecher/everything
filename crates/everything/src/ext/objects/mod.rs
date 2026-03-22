@@ -93,6 +93,8 @@ pub trait ObjectExt {
 
     /// Calls `self` with a list of parameters.
     /// If none are provided, `self` will just be evaluated.
+    ///
+    /// Node that it does not evaluate any parameters.
     fn call(
         &self,
         knowledge: &Structure,
@@ -486,13 +488,11 @@ impl ObjectExt for Object {
         if let Some((parameter, next_parameters)) = parameters.split_first()
             && let Some(NodeType::Computed) = self.node_type(knowledge)
         {
-            let parameter = parameter.eval(knowledge, ctx);
-
             let body = self.computed_body(knowledge).unwrap();
 
             ctx.push(FunctionContext {
                 function: self.clone(),
-                parameter,
+                parameter: parameter.clone(),
             });
 
             let result = body.call(knowledge, next_parameters, ctx);
