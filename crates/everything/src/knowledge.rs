@@ -2,7 +2,7 @@ use everything_structures::{Object, Structure};
 
 use crate::{
     ext::{KnowledgeError, StructureExt},
-    query::{QueryValuesResult, query_values},
+    query::{self, QueryValuesResult},
 };
 
 #[derive(Clone)]
@@ -20,7 +20,11 @@ impl Knowledge {
         &self.0
     }
 
-    /// Query the knowledge.
+    /// Query the knowledge. Query format:
+    ///
+    /// ```plain
+    /// (subject, tag) -> (value)
+    /// ```
     #[inline]
     #[must_use]
     pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
@@ -28,7 +32,7 @@ impl Knowledge {
         subject: &'subject Object,
         tag: Object,
     ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
-        query_values(self.structure(), subject, tag, &mut Default::default())
+        query::values(self.structure(), subject, tag, &mut Default::default())
     }
 }
 

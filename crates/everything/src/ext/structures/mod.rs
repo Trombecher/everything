@@ -8,7 +8,7 @@ use crate::{
     base::BASE,
     ctx::EvaluationContext,
     ext::{ObjectExt, Statement},
-    query::query_values_axiomatically,
+    query,
 };
 
 #[derive(PartialEq, Clone, Debug)]
@@ -127,15 +127,16 @@ impl StructureExt for Structure {
     #[instrument(skip(knowledge), ret)]
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
         for Property { tag, value } in self.as_ref() {
-            let constraint_function = query_values_axiomatically(knowledge, tag, Object::AXIOMATIC)
-                .next()
-                .ok_or_else(|| {
-                    KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                        subject: ObjectForm::Specific(tag.clone()),
-                        tag: ObjectForm::Specific(Object::AXIOMATIC),
-                        value: ObjectForm::Any,
-                    })
-                })?;
+            let constraint_function =
+                query::values_axiomatically(knowledge, tag, Object::AXIOMATIC)
+                    .next()
+                    .ok_or_else(|| {
+                        KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+                            subject: ObjectForm::Specific(tag.clone()),
+                            tag: ObjectForm::Specific(Object::AXIOMATIC),
+                            value: ObjectForm::Any,
+                        })
+                    })?;
 
             let parameters = [self.clone().into(), value.clone()];
 
@@ -190,7 +191,7 @@ impl StructureExt for Structure {
                 .expect("found a structure which is not a statement");
 
             let constraint_function =
-                query_values_axiomatically(self, statement.tag, Object::AXIOMATIC)
+                query::values_axiomatically(self, statement.tag, Object::AXIOMATIC)
                     .next()
                     .ok_or_else(|| {
                         KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {

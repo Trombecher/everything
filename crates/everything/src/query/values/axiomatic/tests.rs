@@ -1,6 +1,6 @@
 use everything_structures::{Object, Property, Structure};
 
-use crate::{base::BASE, ext::ObjectExt, query::query_values_axiomatically};
+use crate::{base::BASE, ext::ObjectExt, query::values::values_axiomatically};
 
 #[test]
 fn structure_props() {
@@ -20,7 +20,7 @@ fn structure_props() {
     ])
     .into();
 
-    let mut values = query_values_axiomatically(&BASE, &structure, Object::CONTAINS);
+    let mut values = values_axiomatically(&BASE, &structure, Object::CONTAINS);
 
     assert_eq!(values.next(), Some(&Object::Abstract(4242)));
     assert_eq!(values.next(), Some(&Object::Abstract(6969)));

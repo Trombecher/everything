@@ -3,7 +3,7 @@ use std::{fmt::Debug, marker::PhantomData};
 use everything_structures::{Object, Structure, ValuesIter};
 use tracing::instrument;
 
-use crate::{base, ext::ObjectExt, query::EMPTY_STRUCTURE};
+use crate::{base, ext::ObjectExt, query::values::EMPTY_STRUCTURE};
 
 #[cfg(test)]
 mod tests;
@@ -112,7 +112,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
 /// * `knowledge` is a superset of [crate::base::BASE].
 #[instrument(skip(knowledge), ret)]
 #[inline]
-pub fn query_values_axiomatically<'knowledge: 'item, 'subject: 'item, 'item>(
+pub fn values_axiomatically<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
     tag: Object,

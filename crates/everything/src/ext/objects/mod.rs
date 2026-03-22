@@ -8,7 +8,7 @@ use tracing::{instrument, warn};
 use crate::{
     ctx::{EvaluationContext, FunctionContext},
     ext::{KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt},
-    query::{query_values, query_values_axiomatically},
+    query,
 };
 
 macro_rules! define_abstract {
@@ -123,7 +123,7 @@ impl ObjectExt for Object {
             return true;
         }
 
-        let mut successor_of = query_values_axiomatically(knowledge, self, Self::SUCCESSOR_OF);
+        let mut successor_of = query::values_axiomatically(knowledge, self, Self::SUCCESSOR_OF);
 
         if let Some(first) = successor_of.next()
             && successor_of.next().is_none()
@@ -189,7 +189,7 @@ impl ObjectExt for Object {
         NodeType::ALL
             .into_iter()
             .filter_map(|node_type| {
-                query_values_axiomatically(knowledge, self, node_type.into())
+                query::values_axiomatically(knowledge, self, node_type.into())
                     .next()
                     .map(|_| node_type)
             })
@@ -197,43 +197,43 @@ impl ObjectExt for Object {
     }
 
     fn node_count(&self, knowledge: &Structure) -> Option<Object> {
-        query_values_axiomatically(knowledge, self, Object::NODE_COUNT)
+        query::values_axiomatically(knowledge, self, Object::NODE_COUNT)
             .next()
             .cloned()
     }
 
     fn computed_body(&self, knowledge: &Structure) -> Option<Object> {
-        query_values_axiomatically(knowledge, self, Object::COMPUTED)
+        query::values_axiomatically(knowledge, self, Object::COMPUTED)
             .next()
             .cloned()
     }
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<usize> {
-        query_values_axiomatically(knowledge, self, Object::NODE_PARAMETER)
+        query::values_axiomatically(knowledge, self, Object::NODE_PARAMETER)
             .next()
             .and_then(|depth| depth.to_natural_number(knowledge))
     }
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
-        query_values_axiomatically(knowledge, self, Object::NODE_LITERAL)
+        query::values_axiomatically(knowledge, self, Object::NODE_LITERAL)
             .next()
             .cloned()
     }
 
     fn statement_form(&self, knowledge: &Structure) -> StatementForm {
         let subject: ObjectForm =
-            query_values_axiomatically(knowledge, self, Object::STATEMENT_SUBJECT)
+            query::values_axiomatically(knowledge, self, Object::STATEMENT_SUBJECT)
                 .next()
                 .cloned()
                 .into();
 
-        let tag: ObjectForm = query_values_axiomatically(knowledge, self, Object::STATEMENT_TAG)
+        let tag: ObjectForm = query::values_axiomatically(knowledge, self, Object::STATEMENT_TAG)
             .next()
             .cloned()
             .into();
 
         let value: ObjectForm =
-            query_values_axiomatically(knowledge, self, Object::STATEMENT_VALUE)
+            query::values_axiomatically(knowledge, self, Object::STATEMENT_VALUE)
                 .next()
                 .cloned()
                 .into();
@@ -246,13 +246,13 @@ impl ObjectExt for Object {
     }
 
     fn node_query(&self, knowledge: &Structure) -> Option<Object> {
-        query_values_axiomatically(knowledge, self, Object::NODE_QUERY)
+        query::values_axiomatically(knowledge, self, Object::NODE_QUERY)
             .next()
             .cloned()
     }
 
     fn node_exists(&self, knowledge: &Structure) -> Option<Object> {
-        query_values_axiomatically(knowledge, self, Object::NODE_EXISTS)
+        query::values_axiomatically(knowledge, self, Object::NODE_EXISTS)
             .next()
             .cloned()
     }
@@ -354,7 +354,7 @@ impl ObjectExt for Object {
                 let value =
                     Option::<Object>::from(statement_form.value).map(|c| c.eval(knowledge, ctx));
 
-                let actual_qr = query_values(knowledge, &subject, tag, ctx);
+                let actual_qr = query::values(knowledge, &subject, tag, ctx);
 
                 if let Some(value) = value {
                     // This is just equal to `NODE_EXISTS`.
@@ -377,7 +377,7 @@ impl ObjectExt for Object {
                 ctx.parameter_value(self.node_parameter_depth(knowledge).unwrap())
             }
             Some(NodeType::Equal) => {
-                let mut values = query_values_axiomatically(knowledge, self, Object::NODE_EQUAL)
+                let mut values = query::values_axiomatically(knowledge, self, Object::NODE_EQUAL)
                     .map(|value| value.eval(knowledge, ctx));
 
                 let first = values.next().unwrap();
@@ -386,13 +386,13 @@ impl ObjectExt for Object {
                 Object::from_bool(equal)
             }
             Some(NodeType::Or) => {
-                let mut values = query_values_axiomatically(knowledge, self, Object::NODE_OR)
+                let mut values = query::values_axiomatically(knowledge, self, Object::NODE_OR)
                     .map(|value| value.eval(knowledge, ctx));
 
                 Object::from_bool(values.any(|o| o.is_truthy()))
             }
             Some(NodeType::And) => {
-                let mut values = query_values_axiomatically(knowledge, self, Object::NODE_AND)
+                let mut values = query::values_axiomatically(knowledge, self, Object::NODE_AND)
                     .map(|value| value.eval(knowledge, ctx));
 
                 Object::from_bool(values.all(|value| value.is_truthy()))
@@ -422,7 +422,7 @@ impl ObjectExt for Object {
                     (Some(tag), None) => {
                         // Now we only need to check if one value exists.
 
-                        let values_qr = query_values(knowledge, &subject, tag, ctx);
+                        let values_qr = query::values(knowledge, &subject, tag, ctx);
 
                         Object::from_bool(values_qr.iter().next().is_some())
                     }
@@ -431,13 +431,13 @@ impl ObjectExt for Object {
                     (Some(tag), Some(value)) => {
                         // TODO: perf
 
-                        let values_qr = query_values(knowledge, &subject, tag, ctx);
+                        let values_qr = query::values(knowledge, &subject, tag, ctx);
                         Object::from_bool(values_qr.iter().find(|v| **v == value).is_some())
                     }
                 }
             }
             Some(NodeType::Not) => {
-                let value = query_values_axiomatically(knowledge, self, Object::NODE_NOT)
+                let value = query::values_axiomatically(knowledge, self, Object::NODE_NOT)
                     .next()
                     .unwrap()
                     .eval(knowledge, ctx);
@@ -510,7 +510,7 @@ impl ObjectExt for Object {
         if self == &Object::ZERO {
             Some(0)
         } else {
-            query_values_axiomatically(knowledge, self, Object::SUCCESSOR_OF)
+            query::values_axiomatically(knowledge, self, Object::SUCCESSOR_OF)
                 .next()
                 .and_then(|inner| inner.to_natural_number(knowledge))
                 .map(|n| n + 1)
