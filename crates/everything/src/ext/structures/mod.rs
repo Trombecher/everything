@@ -114,6 +114,8 @@ pub trait StructureExt {
     fn new_node_query_values(subject: Object, tag: Object) -> Self;
 
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
+
+    fn new_statement(subject: Object, tag: Object, value: Object) -> Self;
 }
 
 impl StructureExt for Structure {
@@ -342,5 +344,22 @@ impl StructureExt for Structure {
             tag: Object::NODE_LITERAL,
             value: object,
         }])
+    }
+
+    fn new_statement(subject: Object, tag: Object, value: Object) -> Self {
+        Self::new(&mut [
+            Property {
+                tag: Object::STATEMENT_SUBJECT,
+                value: subject,
+            },
+            Property {
+                tag: Object::STATEMENT_TAG,
+                value: tag,
+            },
+            Property {
+                tag: Object::STATEMENT_VALUE,
+                value,
+            },
+        ])
     }
 }

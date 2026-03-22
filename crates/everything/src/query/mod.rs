@@ -12,9 +12,9 @@ use crate::ext::{ObjectExt, StructureExt};
 
 pub use axiomatic::*;
 
-enum InitialMatch<'a> {
+enum InitialMatch {
     Axiomatic,
-    ComputationFunction(&'a Object),
+    Compute,
     None,
 }
 
@@ -42,15 +42,12 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
             return result;
         }
         _ => {
-            let maybe_constraint =
-                query_values_axiomatically(knowledge, &tag, Object::AXIOMATIC).next();
-
-            let maybe_computation_function =
-                query_values_axiomatically(knowledge, &tag, Object::COMPUTED).next();
-
-            match (maybe_constraint, maybe_computation_function) {
+            match (
+                query_values_axiomatically(knowledge, &tag, Object::AXIOMATIC).next(),
+                query_values_axiomatically(knowledge, &tag, Object::COMPUTED).next(),
+            ) {
                 (Some(_), None) => InitialMatch::Axiomatic,
-                (None, Some(f)) => InitialMatch::ComputationFunction(f),
+                (None, Some(_)) => InitialMatch::Compute,
                 _ => InitialMatch::None,
             }
         }
@@ -60,8 +57,8 @@ pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
         InitialMatch::Axiomatic => {
             QueryValuesResult::Axiomatic(query_values_axiomatically(knowledge, subject, tag))
         }
-        InitialMatch::ComputationFunction(computation_function) => {
-            let result = computation_function.call(knowledge, array::from_ref(subject), ctx);
+        InitialMatch::Compute => {
+            let result = tag.call(knowledge, array::from_ref(subject), ctx);
             QueryValuesResult::ComputationResult(result)
         }
         InitialMatch::None => {
