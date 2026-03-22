@@ -8,7 +8,7 @@ Conceptually, abstract objects derive their semantics through their identifier *
 
 ### Notation
 
-Abstract objects are writting with an `@`. Examples include `@43`, `@4538503485`, and `@2`. Structures are written this way:
+Abstract objects are written with an `@`. Examples include `@43`, `@4538503485`, and `@2`. Structures are written this way:
 
 ```
 {(<<OBJECT>>, <<OBJECT>>) (<<OBJECT>>, <<OBJECT>>) ...}
@@ -58,6 +58,10 @@ A set with no items is "false". A set with one or more items is "true".
 ## Natural Numbers
 
 Everything models the natural numbers with nested successors. The abstract "zero" object is `@9` and the "successor of" tag is `@10`. For example `{(@10, {(@10, @9)})}` would be 2, meaning "successor of successor of 0".
+
+## Knowledge
+
+_Knowledge_ is a set of statements in which every structure is valid. More about validity later.
 
 ## Axiomatic
 
@@ -122,3 +126,6 @@ There are nodes for "and" `@13`, "or" `@20`, "xor" `@21`, and "not" `@22`.
 | `@21` "xor" | `{(@21, ...), (@21, ...)}` | True iff only exactly one value (evaluated) is true |
 | `@22` "not" | `{(@22, ...)}`             | True iff the value (evaluated) is false             |
 
+## Dynamic Queries
+
+The computation can inspect itself and run queries against its own knowledge. For that, there exists the tag `@18` "query". It accepts a value in a form of a statement. 
