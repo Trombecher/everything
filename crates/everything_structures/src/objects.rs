@@ -10,6 +10,21 @@ pub enum Object<R: Registry = GlobalRegistry> {
     Structure(Structure<R>),
 }
 
+impl<R: Registry> Object<R> {
+    pub const ZERO: Self = Self::Abstract(9);
+    pub const SUCCESSOR_OF: Self = Self::Abstract(10);
+
+    pub fn exact_natural_number(&self) -> Option<u128> {
+        if self == &Self::ZERO {
+            Some(0)
+        } else if let Self::Structure(s) = self {
+            s.exact_natural_number().map(Into::into)
+        } else {
+            None
+        }
+    }
+}
+
 impl<R: Registry> PartialEq for Object<R> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

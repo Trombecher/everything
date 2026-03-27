@@ -3,7 +3,7 @@ mod bin;
 mod registries;
 mod str;
 
-use std::{fmt::Debug, hash::Hash};
+use std::{cmp::Ordering, fmt::Debug, hash::Hash, num::NonZeroU128};
 
 pub use any::*;
 pub use bin::*;
@@ -12,12 +12,21 @@ pub use str::*;
 
 #[derive(Clone)]
 pub enum Structure<R: Registry = GlobalRegistry> {
+    NaturalNumber(NonZeroU128),
     Any(AnyStructure<R>),
-    NaturalNumber(u128),
 }
 
-impl<R: Registry> From<u128> for Structure<R> {
-    fn from(value: u128) -> Self {
+impl<R: Registry> Structure<R> {
+    pub fn exact_natural_number(&self) -> Option<NonZeroU128> {
+        match self {
+            Self::Any(any) => any.exact_natural_number(),
+            Self::NaturalNumber(n) => Some(*n),
+        }
+    }
+}
+
+impl<R: Registry> From<NonZeroU128> for Structure<R> {
+    fn from(value: NonZeroU128) -> Self {
         Self::NaturalNumber(value)
     }
 }
@@ -59,8 +68,20 @@ impl<R: Registry> Ord for Structure<R> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
             (Self::Any(any_a), Self::Any(any_b)) => any_a.cmp(any_b),
-            (Self::Any(any_structure), Self::NaturalNumber(_)) => todo!(),
-            (Self::NaturalNumber(_), Self::Any(any_structure)) => todo!(),
+            (Self::Any(any), Self::NaturalNumber(n)) => {
+                if let Some(m) = any.exact_natural_number() {
+                    m.cmp(n)
+                } else {
+                    Ordering::Greater
+                }
+            }
+            (Self::NaturalNumber(m), Self::Any(any)) => {
+                if let Some(n) = any.exact_natural_number() {
+                    m.cmp(&n)
+                } else {
+                    Ordering::Less
+                }
+            }
             (Self::NaturalNumber(m), Self::NaturalNumber(n)) => m.cmp(n),
         }
     }

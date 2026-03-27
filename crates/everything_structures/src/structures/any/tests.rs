@@ -1,5 +1,5 @@
-use crate::{AnyStructure, Object, Property};
-use std::{assert_matches, sync::Arc};
+use crate::{AnyStructure, GlobalRegistry, Object, Property, Structure};
+use std::sync::Arc;
 
 pub const ALICE: Object = Object::Abstract(u128::from_be_bytes(*b"This is Alice!!!"));
 pub const BOB: Object = Object::Abstract(u128::from_be_bytes(*b"This is Bob!!!!!"));
@@ -33,14 +33,14 @@ fn inner_structure() {
 
     let outer = AnyStructure::new(&mut [Property {
         tag: ALICE,
-        value: inner.clone().into(),
+        value: Structure::Any(inner.clone()).into(),
     }]);
 
     assert_eq!(
         outer.as_ref(),
         [Property {
             tag: ALICE,
-            value: inner.into()
+            value: Structure::Any(inner).into()
         }]
     )
 }
@@ -54,7 +54,7 @@ fn remove_props() {
         value: BOB,
     }]);
 
-    assert_matches!(should_be_empty.propeties, None);
+    assert_eq!(should_be_empty.propeties, None);
 }
 
 #[test]
@@ -98,12 +98,12 @@ fn deduping() {
 fn debug() {
     println!("{:?}", alice_bob_structure());
 
-    println!("{:?}", Object::Abstract(42));
+    println!("{:?}", Object::<GlobalRegistry>::Abstract(42));
 }
 
 #[test]
 fn no_values() {
-    assert_matches!(AnyStructure::EMPTY.values(ALICE).next(), None)
+    assert_eq!(AnyStructure::EMPTY.values(ALICE).next(), None)
 }
 
 #[test]
@@ -111,10 +111,10 @@ fn one_value() {
     let s = alice_bob_structure();
 
     let mut alices = s.values(ALICE);
-    assert_matches!(alices.next(), Some(&BOB));
-    assert_matches!(alices.next(), None);
+    assert_eq!(alices.next(), Some(&BOB));
+    assert_eq!(alices.next(), None);
 
-    assert_matches!(s.values(BOB).next(), None);
+    assert_eq!(s.values(BOB).next(), None);
 }
 
 #[test]
@@ -131,14 +131,14 @@ fn multiple_values() {
     ]);
 
     let mut alices = s.values(ALICE);
-    assert_matches!(alices.next(), Some(&ALICE));
-    assert_matches!(alices.next(), Some(&BOB));
-    assert_matches!(alices.next(), None);
+    assert_eq!(alices.next(), Some(&ALICE));
+    assert_eq!(alices.next(), Some(&BOB));
+    assert_eq!(alices.next(), None);
 }
 
 #[test]
 fn no_tags() {
-    assert_matches!(AnyStructure::EMPTY.tags(&ALICE).next(), None);
+    assert_eq!(AnyStructure::EMPTY.tags(&ALICE).next(), None);
 }
 
 #[test]
@@ -146,10 +146,10 @@ fn one_tag() {
     let s = alice_bob_structure();
 
     let mut tags_that_have_bob = s.tags(&BOB);
-    assert_matches!(tags_that_have_bob.next(), Some(&ALICE));
-    assert_matches!(tags_that_have_bob.next(), None);
+    assert_eq!(tags_that_have_bob.next(), Some(&ALICE));
+    assert_eq!(tags_that_have_bob.next(), None);
 
-    assert_matches!(s.tags(&ALICE).next(), None);
+    assert_eq!(s.tags(&ALICE).next(), None);
 }
 
 #[test]
@@ -166,9 +166,9 @@ fn multiple_tags() {
     ]);
 
     let mut tags_that_have_alice = s.tags(&ALICE);
-    assert_matches!(tags_that_have_alice.next(), Some(&ALICE));
-    assert_matches!(tags_that_have_alice.next(), Some(&BOB));
-    assert_matches!(tags_that_have_alice.next(), None);
+    assert_eq!(tags_that_have_alice.next(), Some(&ALICE));
+    assert_eq!(tags_that_have_alice.next(), Some(&BOB));
+    assert_eq!(tags_that_have_alice.next(), None);
 }
 
 #[test]

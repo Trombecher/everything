@@ -5,6 +5,7 @@ use std::{
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
+    num::NonZeroU128,
     slice,
     sync::Arc,
 };
@@ -141,6 +142,20 @@ impl<R: Registry> AnyStructure<R> {
     #[must_use]
     pub fn is_subset_of(&self, other: &Self) -> bool {
         self.as_ref().iter().all(|property| other.has(property))
+    }
+
+    /// Returns the natural number representation of
+    /// this structure if it has no additional props.
+    pub fn exact_natural_number(&self) -> Option<NonZeroU128> {
+        if let [Property { tag, value }] = self.as_ref()
+            && tag == &Object::SUCCESSOR_OF
+        {
+            value
+                .exact_natural_number()
+                .and_then(|n| NonZeroU128::new(n.checked_add(1).unwrap()))
+        } else {
+            None
+        }
     }
 }
 

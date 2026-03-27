@@ -29,8 +29,6 @@ pub trait ObjectExt {
         STATEMENT_VALUE = 6,
         STATEMENT = 7,
         KNOWLEDGE = 8,
-        ZERO = 9,
-        SUCCESSOR_OF = 10,
         // NODE_FUNCTION_BODY = 11,
         NODE_LITERAL = 12,
         NODE_AND = 13,
