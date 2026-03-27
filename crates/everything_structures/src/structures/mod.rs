@@ -2,6 +2,8 @@ mod any;
 mod bin;
 mod registries;
 mod str;
+#[cfg(test)]
+mod tests;
 
 use std::{cmp::Ordering, fmt::Debug, hash::Hash, num::NonZeroU128};
 
@@ -49,8 +51,18 @@ impl<R: Registry> Debug for Structure<R> {
 impl<R: Registry> PartialEq for Structure<R> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Any(l0), Self::Any(r0)) => l0 == r0,
-            (Self::NaturalNumber(l0), Self::NaturalNumber(r0)) => l0 == r0,
+            (Self::NaturalNumber(m), Self::NaturalNumber(n)) => m == n,
+            (Self::Any(any_a), Self::Any(any_b)) => any_a == any_b,
+            (Self::NaturalNumber(m), Self::Any(any))
+                if let Some(n) = any.exact_natural_number() =>
+            {
+                *m == n
+            }
+            (Self::Any(any), Self::NaturalNumber(n))
+                if let Some(m) = any.exact_natural_number() =>
+            {
+                m == *n
+            }
             _ => false,
         }
     }
