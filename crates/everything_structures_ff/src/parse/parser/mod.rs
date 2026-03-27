@@ -3,7 +3,7 @@ mod tests;
 
 use std::iter::Peekable;
 
-use everything_structures::{Object, Property, Structure};
+use everything_structures::{AnyStructure, Object, Property, Structure};
 
 use crate::{
     Span,
@@ -91,7 +91,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
             }
         }
 
-        Ok(Structure::EMPTY.add(&mut properties))
+        Ok(Structure::Any(AnyStructure::new(&mut properties)))
     }
 
     fn parse_object(&mut self) -> Result<Object, Error> {

@@ -1,6 +1,6 @@
 //! Tests for the parser.
 
-use everything_structures::{Object, Property, Structure};
+use everything_structures::{AnyStructure, Object, Property, Structure};
 use std::assert_matches;
 
 use crate::{
@@ -42,10 +42,10 @@ fn parse_structure_continue() {
 
     assert_eq!(
         parser.parse_structure_continue(),
-        Ok(Structure::new(&mut [Property {
+        Ok(Structure::Any(AnyStructure::new(&mut [Property {
             tag: Object::Abstract(1),
             value: Object::Abstract(9)
-        }]))
+        }])))
     );
 
     assert_matches!(parser.tokens.peek(), None);
