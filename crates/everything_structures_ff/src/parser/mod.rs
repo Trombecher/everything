@@ -1,26 +1,35 @@
 #[cfg(test)]
 mod tests;
 
-use std::iter::Peekable;
+use core::iter::Peekable;
 
+use alloc::{boxed::Box, vec::Vec};
 use everything_structures::{AnyStructure, Object, Property, Structure};
 
-use crate::{
-    Span,
-    parse::{Error, ErrorInfo, filtered::FilteredToken},
-};
+pub type Error<'source> = Box<ErrorInfo<'source>>;
 
-pub struct Parser<I: Iterator<Item = Span<FilteredToken>>> {
+#[derive(PartialEq, Debug, Clone)]
+pub struct ErrorInfo<'source> {
+    pub found: Option<Span<FilteredToken<'source>>>,
+    pub expected: &'static str,
+}
+
+use crate::{FilteredToken, Span};
+
+pub struct Parser<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> {
     tokens: Peekable<I>,
 }
 
 macro_rules! bail {
-    ($token:expr, $($arg:expr),+) => {
-        return Err(Box::new(ErrorInfo {message: format!($($arg),+), found: $token }))
+    ($token:expr, $expected:literal) => {
+        return Err(Box::new(ErrorInfo {
+            expected: $expected,
+            found: $token,
+        }))
     };
 }
 
-impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
+impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, I> {
     #[must_use]
     #[inline]
     pub fn new(tokens: I) -> Self {
@@ -29,7 +38,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
         }
     }
 
-    pub fn parse_structure(&mut self) -> Result<Structure, Error> {
+    pub fn parse_structure(&mut self) -> Result<Structure, Error<'source>> {
         match self.tokens.next() {
             Some(Span {
                 value: FilteredToken::OpeningBrace,
@@ -41,7 +50,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
         self.parse_structure_continue()
     }
 
-    fn parse_structure_continue(&mut self) -> Result<Structure, Error> {
+    fn parse_structure_continue(&mut self) -> Result<Structure, Error<'source>> {
         let mut properties = Vec::new();
 
         loop {
@@ -78,7 +87,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
                     value: FilteredToken::ClosingParenthesis,
                     ..
                 }) => {}
-                token => bail!(token, "expected ')', got: {:?}", token),
+                token => bail!(token, "expected ')'"),
             }
 
             // Skip trailing or seperating commas
@@ -94,7 +103,7 @@ impl<I: Iterator<Item = Span<FilteredToken>>> Parser<I> {
         Ok(Structure::Any(AnyStructure::new(&mut properties)))
     }
 
-    fn parse_object(&mut self) -> Result<Object, Error> {
+    fn parse_object(&mut self) -> Result<Object, Error<'source>> {
         match self.tokens.next() {
             Some(Span {
                 value: FilteredToken::Abstract(id),

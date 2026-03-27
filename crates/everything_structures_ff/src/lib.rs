@@ -1,14 +1,24 @@
-pub mod lex;
-pub mod parse;
+#![feature(str_from_raw_parts)]
+#![no_std]
 
-use std::ops::Range;
+extern crate alloc;
+
+mod chars;
+mod filtered_tokens;
+mod parser;
+mod spanify;
+mod tokenizer;
+mod tokens;
+
+use core::ops::Range;
+
+pub use filtered_tokens::*;
+pub use parser::*;
+pub use spanify::*;
+pub use tokenizer::*;
+pub use tokens::*;
 
 use everything_structures::Structure;
-
-use crate::{
-    lex::tokenize,
-    parse::{Error, FilteredTokens, Parser},
-};
 
 pub type SourceIndex = u32;
 
@@ -19,6 +29,8 @@ pub struct Span<T> {
 }
 
 pub fn parse_structure(input: &str) -> Result<Structure, Error> {
-    let mut parser = Parser::new(FilteredTokens::new(tokenize(input), input));
+    let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(
+        input.chars(),
+    ))));
     parser.parse_structure()
 }

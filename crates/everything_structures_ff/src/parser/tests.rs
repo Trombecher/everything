@@ -1,12 +1,8 @@
 //! Tests for the parser.
 
 use everything_structures::{AnyStructure, Object, Property, Structure};
-use std::assert_matches;
 
-use crate::{
-    Span,
-    parse::{FilteredToken, Parser},
-};
+use crate::{FilteredToken, Parser, Span};
 
 #[test]
 fn parse_structure_continue() {
@@ -48,7 +44,7 @@ fn parse_structure_continue() {
         }])))
     );
 
-    assert_matches!(parser.tokens.peek(), None);
+    assert_eq!(parser.tokens.peek(), None);
 }
 
 #[test]
@@ -63,5 +59,5 @@ fn parse_object() {
 
     assert_eq!(parser.parse_object(), Ok(Object::Abstract(20)));
 
-    assert_matches!(parser.tokens.peek(), None);
+    assert_eq!(parser.tokens.peek(), None);
 }
