@@ -6,7 +6,7 @@ use core::{
     str::{self, Chars},
 };
 
-use crate::{Digit, Digits, SourceIndex, Token, chars::PeekableChars};
+use crate::{Digit, Digits, Token, chars::PeekableChars};
 
 #[inline]
 #[must_use]
@@ -44,13 +44,10 @@ impl<'source> Iterator for Tokenizer<'source> {
 
         match self.chars.next() {
             Some(c) if is_whitespace(c) => {
-                let mut length: SourceIndex = 1;
-
                 while let Some(c) = self.chars.peek()
                     && is_whitespace(c)
                 {
                     self.chars.next();
-                    length += 1;
                 }
 
                 Some(Token::Whitespace(unsafe {

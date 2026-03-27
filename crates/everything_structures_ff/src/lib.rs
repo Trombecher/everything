@@ -28,7 +28,7 @@ pub struct Span<T> {
     pub value: T,
 }
 
-pub fn parse_structure(input: &str) -> Result<Structure, Error> {
+pub fn parse_structure<'source>(input: &'source str) -> Result<Structure, Error<'source>> {
     let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(
         input.chars(),
     ))));

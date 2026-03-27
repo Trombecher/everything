@@ -94,7 +94,12 @@ impl From<Digits<'_>> for u128 {
 }
 
 impl<'source> Digits<'source> {
+    /// Transmutes a `&[u8]` into a `&[Digit]` inside `Self`.
+    ///
+    /// # SAFETY
+    ///
+    /// You must guarantee that the input slice is only ASCII digit bytes.
     pub const unsafe fn new_unchecked(digits: &'source [u8]) -> Self {
-        Self(unsafe { transmute(digits) })
+        Self(unsafe { transmute::<&[u8], &[Digit]>(digits) })
     }
 }
