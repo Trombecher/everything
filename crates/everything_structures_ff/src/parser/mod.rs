@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use core::iter::Peekable;
+use core::{iter::Peekable, num::NonZeroU128};
 
 use alloc::{boxed::Box, vec::Vec};
 use everything_structures::{AnyStructure, Object, Property, Structure};
@@ -43,11 +43,13 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
             Some(Span {
                 value: FilteredToken::OpeningBrace,
                 ..
-            }) => {}
-            token => bail!(token, "expected {{"),
+            }) => self.parse_structure_continue(),
+            Some(Span {
+                value: FilteredToken::NaturalNumber(n),
+                ..
+            }) if let Some(n) = NonZeroU128::new(n) => Ok(Structure::NaturalNumber(n)),
+            token => bail!(token, "expected '{{' or a positive integer"),
         }
-
-        self.parse_structure_continue()
     }
 
     fn parse_structure_continue(&mut self) -> Result<Structure, Error<'source>> {
@@ -113,6 +115,13 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
                 value: FilteredToken::OpeningBrace,
                 ..
             }) => Ok(Object::Structure(self.parse_structure_continue()?)),
+            Some(Span {
+                value: FilteredToken::NaturalNumber(n),
+                ..
+            }) => match NonZeroU128::new(n) {
+                Some(n) => Ok(Object::Structure(Structure::NaturalNumber(n))),
+                None => Ok(Object::ZERO),
+            },
             token => bail!(token, "expected @<<id>> or '{{'"),
         }
     }

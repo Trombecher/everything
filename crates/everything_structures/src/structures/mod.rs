@@ -42,8 +42,8 @@ impl<R: Registry> From<AnyStructure<R>> for Structure<R> {
 impl<R: Registry> Debug for Structure<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Any(arg0) => f.debug_tuple("Any").field(arg0).finish(),
-            Self::NaturalNumber(arg0) => f.debug_tuple("NaturalNumber").field(arg0).finish(),
+            Self::Any(any) => any.fmt(f),
+            Self::NaturalNumber(n) => n.fmt(f),
         }
     }
 }
