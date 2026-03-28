@@ -8,8 +8,6 @@ mod parser;
 mod tokenizer;
 mod tokens;
 
-use core::ops::Range;
-
 pub use filtered_tokens::*;
 pub use parser::*;
 use parser_tools::Spanify;
