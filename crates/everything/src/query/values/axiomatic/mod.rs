@@ -67,6 +67,8 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
             };
 
             let statement_subject = statement
+                .any()
+                .unwrap()
                 .values(Object::STATEMENT_SUBJECT)
                 .next()
                 .expect(":/");
@@ -75,13 +77,20 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
                 continue;
             }
 
-            let statement_tag = statement.values(Object::STATEMENT_TAG).next().expect(":/");
+            let statement_tag = statement
+                .any()
+                .unwrap()
+                .values(Object::STATEMENT_TAG)
+                .next()
+                .expect(":/");
 
             if statement_tag != &self.tag {
                 continue;
             }
 
             let statement_value = statement
+                .any()
+                .unwrap()
                 .values(Object::STATEMENT_VALUE)
                 .next()
                 .expect(":/");
@@ -91,7 +100,10 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
             // need to dedup here.
 
             if let Object::Structure(structure) = &self.subject
-                && structure.has_by_ref(statement_tag, statement_value)
+                && structure
+                    .any()
+                    .unwrap()
+                    .has_by_ref(statement_tag, statement_value)
             {
                 continue;
             }

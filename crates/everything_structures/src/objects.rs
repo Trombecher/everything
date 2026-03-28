@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, fmt, hash::Hash};
+use std::{cmp::Ordering, fmt, hash::Hash, num::NonZeroU128};
 
 use crate::{GlobalRegistry, Registry, structures::Structure};
 
@@ -13,6 +13,13 @@ pub enum Object<R: Registry = GlobalRegistry> {
 impl<R: Registry> Object<R> {
     pub const ZERO: Self = Self::Abstract(9);
     pub const SUCCESSOR_OF: Self = Self::Abstract(10);
+
+    pub fn new_natural_number(n: u128) -> Self {
+        match NonZeroU128::new(n) {
+            None => Self::ZERO,
+            Some(n) => Self::Structure(Structure::NaturalNumber(n)),
+        }
+    }
 
     pub fn exact_natural_number(&self) -> Option<u128> {
         if self == &Self::ZERO {

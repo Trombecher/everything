@@ -25,6 +25,13 @@ impl<R: Registry> Structure<R> {
             Self::NaturalNumber(n) => Some(*n),
         }
     }
+
+    pub fn any(&self) -> Option<&AnyStructure<R>> {
+        match self {
+            Self::NaturalNumber(_) => None,
+            Self::Any(any) => Some(any),
+        }
+    }
 }
 
 impl<R: Registry> From<NonZeroU128> for Structure<R> {

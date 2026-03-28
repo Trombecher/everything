@@ -4,7 +4,7 @@ mod tests;
 
 use std::array;
 
-use everything_structures::{Object, Property, Structure, ValuesIter};
+use everything_structures::{AnyStructure, Object, Property, Structure, ValuesIter};
 use tracing::instrument;
 
 use crate::ctx::EvaluationContext;
@@ -75,7 +75,7 @@ pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'item> {
     ComputationResult(Object),
 }
 
-static EMPTY_STRUCTURE: Structure = Structure::EMPTY;
+static EMPTY_STRUCTURE: AnyStructure = AnyStructure::EMPTY;
 static EMPTY_OBJECT: Object = Object::Structure(Structure::EMPTY);
 
 impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'subject, 'item> {

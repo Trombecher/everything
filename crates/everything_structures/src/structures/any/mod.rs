@@ -160,7 +160,7 @@ impl<R: Registry> AnyStructure<R> {
 }
 
 #[derive(Clone)]
-pub struct ValuesIter<'props, R: Registry> {
+pub struct ValuesIter<'props, R: Registry = GlobalRegistry> {
     props: slice::Iter<'props, Property<R>>,
     tag: Object<R>,
     done: bool,
