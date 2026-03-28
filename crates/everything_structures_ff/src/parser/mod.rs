@@ -5,6 +5,7 @@ use core::{iter::Peekable, num::NonZeroU128};
 
 use alloc::{boxed::Box, vec::Vec};
 use everything_structures::{AnyStructure, Object, Property, Structure};
+use parser_tools::Span;
 
 pub type Error<'source> = Box<ErrorInfo<'source>>;
 
@@ -14,7 +15,7 @@ pub struct ErrorInfo<'source> {
     pub expected: &'static str,
 }
 
-use crate::{FilteredToken, Span};
+use crate::FilteredToken;
 
 pub struct Parser<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> {
     tokens: Peekable<I>,

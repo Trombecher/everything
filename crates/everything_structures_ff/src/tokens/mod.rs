@@ -1,5 +1,7 @@
 use core::mem::transmute;
 
+use parser_tools::TokenLength;
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Token<'source> {
     /// `@<<DIGITS>>`
@@ -33,14 +35,14 @@ pub enum Token<'source> {
     NaturalNumber(Digits<'source>),
 }
 
-impl<'source> Token<'source> {
-    pub const fn length(self) -> usize {
+impl<'source> TokenLength for Token<'source> {
+    fn length(&self) -> u32 {
         match self {
-            Self::Abstract(Digits(digits)) => digits.len() + 1,
-            Self::Whitespace(ws) => ws.len(),
-            Self::Invalid(i) => i.len(),
-            Self::LineComment(lc) => lc.len(),
-            Self::NaturalNumber(Digits(digits)) => digits.len(),
+            Self::Abstract(Digits(digits)) => digits.len() as u32 + 1,
+            Self::Whitespace(ws) => ws.len() as u32,
+            Self::Invalid(i) => i.len() as u32,
+            Self::LineComment(lc) => lc.len() as u32,
+            Self::NaturalNumber(Digits(digits)) => digits.len() as u32,
             _ => 1,
         }
     }

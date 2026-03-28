@@ -1,8 +1,9 @@
 use core::iter::Peekable;
 
 use everything_structures::AbstractId;
+use parser_tools::Span;
 
-use crate::{Span, Token};
+use crate::Token;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FilteredToken<'source> {

@@ -188,6 +188,7 @@ name = "everything_structures_ff"
 version = "0.1.0"
 dependencies = [
  "everything_structures",
+ "parser_tools",
 ]
 
 [[package]]
@@ -311,6 +312,11 @@ dependencies = [
  "smallvec",
  "windows-link",
 ]
+
+[[package]]
+name = "parser_tools"
+version = "0.1.1"
+source = "git+https://codeberg.org/Trombecher/parser_tools#647c0ab7eefa30306623f59fcb72f2f556735b91"
 
 [[package]]
 name = "pin-project-lite"

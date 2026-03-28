@@ -1,8 +1,9 @@
 //! Tests for the parser.
 
 use everything_structures::{AnyStructure, Object, Property, Structure};
+use parser_tools::Span;
 
-use crate::{FilteredToken, Parser, Span};
+use crate::{FilteredToken, Parser};
 
 #[test]
 fn parse_structure_continue() {

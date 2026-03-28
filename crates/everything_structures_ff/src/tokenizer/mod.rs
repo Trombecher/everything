@@ -6,7 +6,9 @@ use core::{
     str::{self, Chars},
 };
 
-use crate::{Digit, Digits, Token, chars::PeekableChars};
+use parser_tools::PeekableChars;
+
+use crate::{Digit, Digits, Token};
 
 #[inline]
 #[must_use]
