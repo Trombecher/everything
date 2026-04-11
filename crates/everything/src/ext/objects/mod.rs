@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use everything_structures::{Object, Property, Structure};
+use everything_structures::{AnyStructure, Object, Property, Structure};
 use fallible_iterator::{FallibleIterator, IteratorExt};
 use tracing::{instrument, warn};
 
@@ -29,8 +29,6 @@ pub trait ObjectExt {
         STATEMENT_VALUE = 6,
         STATEMENT = 7,
         KNOWLEDGE = 8,
-        ZERO = 9,
-        SUCCESSOR_OF = 10,
         // NODE_FUNCTION_BODY = 11,
         NODE_LITERAL = 12,
         NODE_AND = 13,
@@ -68,28 +66,12 @@ pub trait ObjectExt {
 
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
 
-    /// Constructs a natural number object using
-    /// repeated succ.
-    fn new_natural_number(n: usize) -> Self;
-
-    /// Returns the number of properties this object has.
-    /// For abstract objects, this returns zero.
-    fn property_count(&self) -> usize;
-
-    /// Converts a boolean to an object.
-    ///
-    /// ```plain
-    /// true |-> {(@1, {})}
-    /// false |-> {}
-    /// ```
-    fn from_bool(b: bool) -> Object;
-
-    /// Constructs a new set containing only `self`.
-    fn to_set_of_self(self) -> Structure;
+    /// Counts how many items are in the set `self`.
+    fn item_count(&self, knowledge: &Structure) -> usize;
 
     fn structure(&self) -> Option<&Structure>;
 
-    fn is_truthy(&self) -> bool;
+    fn is_truthy(&self, knowledge: &Structure) -> bool;
 
     /// Calls `self` with a list of parameters.
     /// If none are provided, `self` will just be evaluated.
@@ -134,39 +116,8 @@ impl ObjectExt for Object {
         }
     }
 
-    fn new_natural_number(n: usize) -> Self {
-        if n == 0 {
-            Object::ZERO
-        } else {
-            Structure::new(&mut [Property {
-                tag: Object::SUCCESSOR_OF,
-                value: Self::new_natural_number(n - 1),
-            }])
-            .into()
-        }
-    }
-
-    fn property_count(&self) -> usize {
-        match self {
-            Object::Abstract(_) => 0,
-            Object::Structure(structure) => structure.as_ref().len(),
-        }
-    }
-
-    fn from_bool(b: bool) -> Self {
-        if b {
-            Self::to_set_of_self(Structure::EMPTY.into())
-        } else {
-            Structure::EMPTY
-        }
-        .into()
-    }
-
-    fn to_set_of_self(self) -> Structure {
-        Structure::new(&mut [Property {
-            tag: Object::CONTAINS,
-            value: self,
-        }])
+    fn item_count(&self, knowledge: &Structure) -> usize {
+        query::values_axiomatically(knowledge, self, Object::CONTAINS).count()
     }
 
     fn structure(&self) -> Option<&Structure> {
@@ -176,12 +127,10 @@ impl ObjectExt for Object {
         }
     }
 
-    // TODO: discuss abstract objects
-    fn is_truthy(&self) -> bool {
-        match self {
-            Self::Abstract(_) => false,
-            Self::Structure(structure) => !structure.as_ref().is_empty(),
-        }
+    fn is_truthy(&self, knowledge: &Structure) -> bool {
+        query::values_axiomatically(knowledge, self, Object::CONTAINS)
+            .next()
+            .is_some()
     }
 
     #[instrument(skip(knowledge), ret)]
@@ -290,8 +239,11 @@ impl ObjectExt for Object {
                 }
             }
             _ => match self {
-                Object::Abstract(a) => Object::Abstract(*a),
-                Object::Structure(structure) => structure
+                Self::Abstract(a) => Object::Abstract(*a),
+                Self::Structure(Structure::NaturalNumber(n)) => {
+                    Self::Structure(Structure::NaturalNumber(*n))
+                }
+                Self::Structure(Structure::Any(structure)) => structure
                     .as_ref()
                     .iter()
                     .map(|property| {
@@ -314,26 +266,28 @@ impl ObjectExt for Object {
                     })
                     .transpose_into_fallible()
                     .collect::<Vec<_>>()
-                    .map(|mut properties| Object::Structure(Structure::new(&mut properties)))
+                    .map(|mut properties| {
+                        Self::Structure(Structure::Any(AnyStructure::new(&mut properties)))
+                    })
                     .unwrap_or_else(|(o, error)| {
                         warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                        Object::Structure(Structure::EMPTY)
+                        Structure::Any(AnyStructure::EMPTY).into()
                     }),
             },
         }
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Object {
+    fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Self {
         // TODO: better panic msgs
 
         match self.node_type(knowledge) {
-            Some(NodeType::Count) => Object::new_natural_number(
+            Some(NodeType::Count) => Self::new_natural_number(
                 self.node_count(knowledge)
                     .expect("NodeType::Count asserts that this exists")
                     .eval(knowledge, ctx)
-                    .property_count(),
+                    .item_count(knowledge) as u128,
             ),
             Some(NodeType::Query) => {
                 // TODO: adjust constraint for query

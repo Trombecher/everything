@@ -3,9 +3,9 @@ mod tests;
 
 use std::sync::LazyLock;
 
-use everything_structures::{Object, Property, Structure};
+use everything_structures::{AnyStructure, Object, Property, Structure};
 
-use crate::ext::{ObjectExt, StructureExt};
+use crate::ext::{ObjectExt, Statement, StructureExt};
 
 fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
     Property {
@@ -92,16 +92,9 @@ pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
 });
 
 pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
-    Structure::new(&mut [
-        stmt_to_prop(
-            Object::CONTAINS,
-            Object::AXIOMATIC,
-            Structure::new(&mut [Property {
-                tag: Object::CONTAINS,
-                value: Structure::EMPTY.into(),
-            }])
+    Structure::new_set([
+        Structure::new_statement(Object::CONTAINS, Object::AXIOMATIC, Object::from_bool(true))
             .into(),
-        ),
         stmt_to_prop(
             Object::SUCCESSOR_OF,
             Object::AXIOMATIC,

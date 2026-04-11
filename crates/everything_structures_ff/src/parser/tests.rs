@@ -1,12 +1,9 @@
 //! Tests for the parser.
 
-use everything_structures::{Object, Property, Structure};
-use std::assert_matches;
+use everything_structures::{AnyStructure, Object, Property, Structure};
+use parser_tools::Span;
 
-use crate::{
-    Span,
-    parse::{FilteredToken, Parser},
-};
+use crate::{FilteredToken, Parser};
 
 #[test]
 fn parse_structure_continue() {
@@ -42,13 +39,13 @@ fn parse_structure_continue() {
 
     assert_eq!(
         parser.parse_structure_continue(),
-        Ok(Structure::new(&mut [Property {
+        Ok(Structure::Any(AnyStructure::new(&mut [Property {
             tag: Object::Abstract(1),
             value: Object::Abstract(9)
-        }]))
+        }])))
     );
 
-    assert_matches!(parser.tokens.peek(), None);
+    assert_eq!(parser.tokens.peek(), None);
 }
 
 #[test]
@@ -63,5 +60,5 @@ fn parse_object() {
 
     assert_eq!(parser.parse_object(), Ok(Object::Abstract(20)));
 
-    assert_matches!(parser.tokens.peek(), None);
+    assert_eq!(parser.tokens.peek(), None);
 }

@@ -202,6 +202,7 @@ name = "everything_structures_ff"
 version = "0.1.0"
 dependencies = [
  "everything_structures",
+ "parser_tools",
 ]
 
 [[package]]
@@ -327,6 +328,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "parser_tools"
+version = "0.1.1"
+source = "git+https://codeberg.org/Trombecher/parser_tools#647c0ab7eefa30306623f59fcb72f2f556735b91"
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -336,7 +342,6 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 name = "playground"
 version = "0.1.0"
 dependencies = [
- "everything",
  "everything_structures",
  "everything_structures_ff",
  "tracing",

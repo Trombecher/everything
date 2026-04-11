@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 everything_structures = { path = "../everything_structures" }
+parser_tools = { git = "https://codeberg.org/Trombecher/parser_tools" }
