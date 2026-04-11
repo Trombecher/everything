@@ -128,4 +128,11 @@ There are nodes for "and" `@13`, "or" `@20`, "xor" `@21`, and "not" `@22`.
 
 ## Dynamic Queries
 
-The computation can inspect itself and run queries against its own knowledge. For that, there exists the tag `@18` "query". It accepts a value in a form of a statement. 
+The computation can inspect itself and run queries against its own knowledge. For that, there exists the tag `@18` "query". It accepts a value in a form of a statement. The statement may omit subject, tag, and/or value. These are the behaviours:
+
+| Query Statement Form                | Returns                                                                              | 
+|:-----------------------------------:|:------------------------------------------------------------------------------------:|
+| `{(@4, ...), (@5, ...), (@6, ...)}` | true if this statement exists or the value is in the set returned by the computation |
+| `{(@4, ...), (@5, ...)}`            | A set of all values or the computation result of the tag on the subject              |
+
+More will follow.
