@@ -11,8 +11,20 @@ pub enum Object<R: Registry = GlobalRegistry> {
 }
 
 impl<R: Registry> Object<R> {
+    /// The abstract object 0.
     pub const ZERO: Self = Self::Abstract(9);
+
+    /// Denotes that the current object is a successor of some child number.
     pub const SUCCESSOR_OF: Self = Self::Abstract(10);
+
+    /// The empty array.
+    pub const EMPTY_ARRAY: Self = Self::Abstract(2312);
+
+    /// The slot for the item value in an array.
+    pub const ARRAY_ITEM: Self = Self::Abstract(5347);
+
+    /// Denotes the array rest.
+    pub const ARRAY_REST: Self = Self::Abstract(4353);
 
     pub fn new_natural_number(n: u128) -> Self {
         match NonZeroU128::new(n) {

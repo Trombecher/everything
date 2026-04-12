@@ -8,8 +8,10 @@ use std::{
 
 use dashmap::DashMap;
 
-use crate::{AnyStructure, Property};
+use crate::{AnyStructure, BlobStructure, Property};
 
+/// The ability for a type to provide backing allocations for
+/// structures.
 pub trait Registry: Sized {
     fn remove(&self, s: &AnyStructure<Self>);
 
@@ -19,6 +21,10 @@ pub trait Registry: Sized {
         remove_properties: &mut [Property<Self>],
         add_properties: &mut [Property<Self>],
     ) -> AnyStructure<Self>;
+
+    fn resolve_blob(&self, blob: &[u8]) -> BlobStructure<Self>;
+
+    fn remove_blob(&self, blob: BlobStructure<Self>);
 }
 
 #[derive(Clone, Debug)]
@@ -26,6 +32,8 @@ pub struct GlobalRegistry;
 
 static GLOBAL_ENTRIES: LazyLock<DashMap<u64, Arc<[Property<GlobalRegistry>]>>> =
     LazyLock::new(DashMap::new);
+
+static GLOBAL_BLOBS: LazyLock<DashMap<u64, Arc<[u8]>>> = LazyLock::new(DashMap::new);
 
 impl Registry for GlobalRegistry {
     fn remove(&self, s: &AnyStructure<Self>) {
@@ -61,7 +69,7 @@ impl Registry for GlobalRegistry {
         if let Some(x) = GLOBAL_ENTRIES.get(&hash) {
             return AnyStructure {
                 propeties: Some(Arc::clone(&x)),
-                registry: GlobalRegistry,
+                registry: Self,
             };
         }
 
@@ -73,8 +81,50 @@ impl Registry for GlobalRegistry {
 
         AnyStructure {
             propeties: Some(new_props),
-            registry: GlobalRegistry,
+            registry: Self,
         }
+    }
+
+    fn resolve_blob(&self, slice: &[u8]) -> BlobStructure<Self> {
+        if slice.len() == 0 {
+            return BlobStructure {
+                data: None,
+                registry: Self,
+            };
+        }
+
+        let mut hasher = DefaultHasher::new();
+        slice.hash(&mut hasher);
+        let hash_of_slice = hasher.finish();
+
+        if let Some(blob) = GLOBAL_BLOBS.get(&hash_of_slice) {
+            BlobStructure {
+                data: Some(Arc::clone(&blob)),
+                registry: Self,
+            }
+        } else {
+            // Entry does not yet exist.
+            let data = Arc::clone_from_ref(slice);
+
+            GLOBAL_BLOBS.insert(hash_of_slice, Arc::clone(&data));
+
+            BlobStructure {
+                data: Some(data),
+                registry: Self,
+            }
+        }
+    }
+
+    fn remove_blob(&self, blob: BlobStructure<Self>) {
+        if blob.as_ref().len() == 0 {
+            return;
+        }
+
+        let mut hasher = DefaultHasher::new();
+        blob.hash(&mut hasher);
+        let hash_of_blob = hasher.finish();
+
+        GLOBAL_BLOBS.remove(&hash_of_blob);
     }
 }
 

@@ -1,20 +1,29 @@
 mod any;
 mod bin;
 mod registries;
-mod str;
 #[cfg(test)]
 mod tests;
+mod text;
 
-use std::{cmp::Ordering, fmt::Debug, hash::Hash, num::NonZeroU128};
+use std::{
+    cmp::Ordering,
+    fmt::{Debug, Pointer},
+    hash::Hash,
+    num::NonZeroU128,
+};
 
 pub use any::*;
 pub use bin::*;
 pub use registries::*;
-pub use str::*;
+pub use text::*;
 
+/// A structure is a set of properties. Natural numbers, text, and binary data
+/// can be stored more efficiently than an [AnyStructure].
 #[derive(Clone)]
 pub enum Structure<R: Registry = GlobalRegistry> {
     NaturalNumber(NonZeroU128),
+    Binary(BlobStructure<R>),
+    Text(TextStructure<R>),
     Any(AnyStructure<R>),
 }
 
@@ -23,6 +32,7 @@ impl<R: Registry> Structure<R> {
         match self {
             Self::Any(any) => any.exact_natural_number(),
             Self::NaturalNumber(n) => Some(*n),
+            _ => None,
         }
     }
 
@@ -30,6 +40,7 @@ impl<R: Registry> Structure<R> {
         match self {
             Self::NaturalNumber(_) => None,
             Self::Any(any) => Some(any),
+            _ => None,
         }
     }
 }
@@ -51,6 +62,8 @@ impl<R: Registry> Debug for Structure<R> {
         match self {
             Self::Any(any) => any.fmt(f),
             Self::NaturalNumber(n) => n.fmt(f),
+            Self::Text(t) => t.fmt(f),
+            Self::Binary(b) => b.fmt(f),
         }
     }
 }
@@ -109,5 +122,7 @@ impl<R: Registry> Ord for Structure<R> {
 impl<R: Registry> Hash for Structure<R> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
+
+        // TODO
     }
 }
