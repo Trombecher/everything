@@ -98,7 +98,7 @@ fn deduping() {
 fn debug() {
     println!("{:?}", alice_bob_structure());
 
-    println!("{:?}", Object::<GlobalRegistry>::Abstract(42));
+    println!("{:?}", Object::Abstract(42));
 }
 
 #[test]

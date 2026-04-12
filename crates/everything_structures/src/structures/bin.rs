@@ -1,14 +1,11 @@
-use std::{hash::Hash, sync::Arc};
+use std::{cmp::Ordering, fmt::Debug, hash::Hash, sync::Arc};
 
-use crate::Registry;
-
-#[derive(Clone, Debug)]
-pub struct BlobStructure<R: Registry> {
+#[derive(Clone, Eq)]
+pub struct BlobStructure {
     pub(super) data: Option<Arc<[u8]>>,
-    pub(super) registry: R,
 }
 
-impl<R: Registry> AsRef<[u8]> for BlobStructure<R> {
+impl AsRef<[u8]> for BlobStructure {
     fn as_ref(&self) -> &[u8] {
         match &self.data {
             Some(data) => &data,
@@ -17,13 +14,19 @@ impl<R: Registry> AsRef<[u8]> for BlobStructure<R> {
     }
 }
 
-impl<R: Registry> Hash for BlobStructure<R> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.as_ref().hash(state);
+impl Debug for BlobStructure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_ref().fmt(f)
     }
 }
 
-impl<R: Registry> PartialEq for BlobStructure<R> {
+impl Hash for BlobStructure {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.data.as_ref().map(Arc::as_ptr).hash(state);
+    }
+}
+
+impl PartialEq for BlobStructure {
     fn eq(&self, other: &Self) -> bool {
         match (&self.data, &other.data) {
             (None, None) => true,
@@ -33,16 +36,17 @@ impl<R: Registry> PartialEq for BlobStructure<R> {
     }
 }
 
-impl<R: Registry> Eq for BlobStructure<R> {}
-
-impl<R: Registry> PartialOrd for BlobStructure<R> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+impl PartialOrd for BlobStructure {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<R: Registry> Ord for BlobStructure<R> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.as_ref().cmp(other.as_ref())
+impl Ord for BlobStructure {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.data
+            .as_ref()
+            .map(Arc::as_ptr)
+            .cmp(&other.data.as_ref().map(Arc::as_ptr))
     }
 }

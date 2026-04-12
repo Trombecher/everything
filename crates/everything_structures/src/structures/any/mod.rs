@@ -10,40 +10,25 @@ use std::{
     sync::Arc,
 };
 
-use crate::{GlobalRegistry, Object, Property, structures::registries::Registry};
+use crate::{GlobalRegistry, Object, Property};
 
 #[derive(Clone)]
-pub struct AnyStructure<R: Registry = GlobalRegistry> {
-    pub(super) propeties: Option<Arc<[Property<R>]>>,
-    pub(super) registry: R,
+pub struct AnyStructure {
+    pub(super) propeties: Option<Arc<[Property]>>,
 }
 
-impl AnyStructure<GlobalRegistry> {
-    pub const EMPTY: Self = Self {
-        propeties: None,
-        registry: GlobalRegistry,
-    };
+impl AnyStructure {
+    pub const EMPTY: Self = Self { propeties: None };
 
     #[must_use]
     #[inline]
     pub fn new(properties: &mut [Property]) -> Self {
         Self::EMPTY.add(properties)
     }
-}
-
-impl<R: Registry> AnyStructure<R> {
-    #[inline]
-    #[must_use]
-    pub fn empty(registry: R) -> Self {
-        Self {
-            propeties: None,
-            registry,
-        }
-    }
 
     /// Checks if the AnyStructure has this property.
     #[must_use]
-    pub fn has(&self, property: &Property<R>) -> bool {
+    pub fn has(&self, property: &Property) -> bool {
         match &self.propeties {
             None => false,
             Some(properties) => properties.binary_search(property).is_ok(),
@@ -51,7 +36,7 @@ impl<R: Registry> AnyStructure<R> {
     }
 
     #[must_use]
-    pub fn has_by_ref(&self, tag: &Object<R>, value: &Object<R>) -> bool {
+    pub fn has_by_ref(&self, tag: &Object, value: &Object) -> bool {
         match &self.propeties {
             None => false,
             Some(properties) => properties
@@ -63,25 +48,17 @@ impl<R: Registry> AnyStructure<R> {
         }
     }
 
-    /// Creates a new AnyStructure from the given properties
-    /// by adding them to the empty AnyStructure.
-    #[must_use]
-    #[inline]
-    pub fn new_in(properties: &mut [Property<R>], registry: R) -> Self {
-        Self::empty(registry).add(properties)
-    }
-
     /// Adds the given properties to this AnyStructure.
     #[inline]
     #[must_use]
-    pub fn add(&self, properties: &mut [Property<R>]) -> Self {
+    pub fn add(&self, properties: &mut [Property]) -> Self {
         self.change(&mut [], properties)
     }
 
     /// Removes the given properties from this AnyStructure.
     #[inline]
     #[must_use]
-    pub fn remove(&self, properties: &mut [Property<R>]) -> Self {
+    pub fn remove(&self, properties: &mut [Property]) -> Self {
         self.change(properties, &mut [])
     }
 
@@ -97,17 +74,16 @@ impl<R: Registry> AnyStructure<R> {
     #[must_use]
     pub fn change(
         &self,
-        remove_properties: &mut [Property<R>],
-        add_properties: &mut [Property<R>],
-    ) -> AnyStructure<R> {
-        self.registry
-            .resolve(self, remove_properties, add_properties)
+        remove_properties: &mut [Property],
+        add_properties: &mut [Property],
+    ) -> AnyStructure {
+        GlobalRegistry.resolve(self, remove_properties, add_properties)
     }
 
     /// Returns an iterator over all values that this tag has
     /// in this AnyStructure.
     #[must_use]
-    pub fn values<'props>(&'props self, tag: Object<R>) -> ValuesIter<'props, R> {
+    pub fn values<'props>(&'props self, tag: Object) -> ValuesIter<'props> {
         let properties = self.as_ref();
         let start = properties.partition_point(|property| property.tag < tag);
 
@@ -120,7 +96,7 @@ impl<R: Registry> AnyStructure<R> {
 
     /// Returns an iterator over all tags that this value has
     /// in this AnyStructure.
-    pub fn tags(&self, value: &Object<R>) -> impl Iterator<Item = &Object<R>> {
+    pub fn tags(&self, value: &Object) -> impl Iterator<Item = &Object> {
         self.as_ref()
             .iter()
             .filter_map(move |property| (&property.value == value).then_some(&property.tag))
@@ -128,10 +104,7 @@ impl<R: Registry> AnyStructure<R> {
 
     /// Merges the properties of `self` and `other` into a new AnyStructure.
     #[must_use]
-    pub fn union(&self, other: &Self) -> Self
-    where
-        R: Clone,
-    {
+    pub fn union(&self, other: &Self) -> Self {
         let mut add_properties = Box::clone_from_ref(other.as_ref());
 
         self.add(&mut add_properties)
@@ -160,14 +133,14 @@ impl<R: Registry> AnyStructure<R> {
 }
 
 #[derive(Clone)]
-pub struct ValuesIter<'props, R: Registry = GlobalRegistry> {
-    props: slice::Iter<'props, Property<R>>,
-    tag: Object<R>,
+pub struct ValuesIter<'props> {
+    props: slice::Iter<'props, Property>,
+    tag: Object,
     done: bool,
 }
 
-impl<'props, R: Registry> Iterator for ValuesIter<'props, R> {
-    type Item = &'props Object<R>;
+impl<'props> Iterator for ValuesIter<'props> {
+    type Item = &'props Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -186,7 +159,7 @@ impl<'props, R: Registry> Iterator for ValuesIter<'props, R> {
     }
 }
 
-impl<R: Registry> fmt::Debug for AnyStructure<R> {
+impl fmt::Debug for AnyStructure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_set();
 
@@ -200,8 +173,8 @@ impl<R: Registry> fmt::Debug for AnyStructure<R> {
     }
 }
 
-impl<R: Registry> AsRef<[Property<R>]> for AnyStructure<R> {
-    fn as_ref(&self) -> &[Property<R>] {
+impl AsRef<[Property]> for AnyStructure {
+    fn as_ref(&self) -> &[Property] {
         match &self.propeties {
             None => &[],
             Some(x) => x,
@@ -209,13 +182,13 @@ impl<R: Registry> AsRef<[Property<R>]> for AnyStructure<R> {
     }
 }
 
-impl<R: Registry> Hash for AnyStructure<R> {
+impl Hash for AnyStructure {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.propeties.as_ref().map(Arc::as_ptr).hash(state);
     }
 }
 
-impl<R: Registry> PartialEq for AnyStructure<R> {
+impl PartialEq for AnyStructure {
     fn eq(&self, other: &Self) -> bool {
         match (&self.propeties, &other.propeties) {
             (None, None) => true,
@@ -225,15 +198,15 @@ impl<R: Registry> PartialEq for AnyStructure<R> {
     }
 }
 
-impl<R: Registry> Eq for AnyStructure<R> {}
+impl Eq for AnyStructure {}
 
-impl<R: Registry> PartialOrd for AnyStructure<R> {
+impl PartialOrd for AnyStructure {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<R: Registry> Ord for AnyStructure<R> {
+impl Ord for AnyStructure {
     fn cmp(&self, other: &Self) -> Ordering {
         match (&self.propeties, &other.propeties) {
             (None, None) => Ordering::Equal,
@@ -246,7 +219,7 @@ impl<R: Registry> Ord for AnyStructure<R> {
     }
 }
 
-impl<R: Registry> Drop for AnyStructure<R> {
+impl Drop for AnyStructure {
     fn drop(&mut self) {
         if let Some(props) = &self.propeties
             && Arc::strong_count(props) == 2
@@ -257,7 +230,7 @@ impl<R: Registry> Drop for AnyStructure<R> {
             // only reference and thus will deallocate
             // after drop.
 
-            self.registry.remove(self);
+            GlobalRegistry.remove(self);
         }
     }
 }

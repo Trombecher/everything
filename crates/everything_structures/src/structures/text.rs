@@ -1,8 +1,8 @@
-use crate::{BlobStructure, GlobalRegistry, Registry};
+use crate::BlobStructure;
 
 /// Represents an array of unicode characters.
-#[derive(Clone)]
-pub struct TextStructure<R: Registry = GlobalRegistry>(BlobStructure<R>);
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TextStructure(BlobStructure);
 
 impl AsRef<str> for TextStructure {
     fn as_ref(&self) -> &str {

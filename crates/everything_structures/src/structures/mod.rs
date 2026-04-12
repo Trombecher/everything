@@ -20,14 +20,14 @@ pub use text::*;
 /// A structure is a set of properties. Natural numbers, text, and binary data
 /// can be stored more efficiently than an [AnyStructure].
 #[derive(Clone)]
-pub enum Structure<R: Registry = GlobalRegistry> {
+pub enum Structure {
     NaturalNumber(NonZeroU128),
-    Binary(BlobStructure<R>),
-    Text(TextStructure<R>),
-    Any(AnyStructure<R>),
+    Binary(BlobStructure),
+    Text(TextStructure),
+    Any(AnyStructure),
 }
 
-impl<R: Registry> Structure<R> {
+impl Structure {
     pub fn exact_natural_number(&self) -> Option<NonZeroU128> {
         match self {
             Self::Any(any) => any.exact_natural_number(),
@@ -36,7 +36,7 @@ impl<R: Registry> Structure<R> {
         }
     }
 
-    pub fn any(&self) -> Option<&AnyStructure<R>> {
+    pub fn any(&self) -> Option<&AnyStructure> {
         match self {
             Self::NaturalNumber(_) => None,
             Self::Any(any) => Some(any),
@@ -45,19 +45,19 @@ impl<R: Registry> Structure<R> {
     }
 }
 
-impl<R: Registry> From<NonZeroU128> for Structure<R> {
+impl From<NonZeroU128> for Structure {
     fn from(value: NonZeroU128) -> Self {
         Self::NaturalNumber(value)
     }
 }
 
-impl<R: Registry> From<AnyStructure<R>> for Structure<R> {
-    fn from(value: AnyStructure<R>) -> Self {
+impl From<AnyStructure> for Structure {
+    fn from(value: AnyStructure) -> Self {
         Self::Any(value)
     }
 }
 
-impl<R: Registry> Debug for Structure<R> {
+impl Debug for Structure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Any(any) => any.fmt(f),
@@ -68,9 +68,11 @@ impl<R: Registry> Debug for Structure<R> {
     }
 }
 
-impl<R: Registry> PartialEq for Structure<R> {
+impl PartialEq for Structure {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (Self::Binary(a), Self::Binary(b)) => a == b,
+            (Self::Text(a), Self::Text(b)) => a == b,
             (Self::NaturalNumber(m), Self::NaturalNumber(n)) => m == n,
             (Self::Any(any_a), Self::Any(any_b)) => any_a == any_b,
             (Self::NaturalNumber(m), Self::Any(any))
@@ -88,15 +90,15 @@ impl<R: Registry> PartialEq for Structure<R> {
     }
 }
 
-impl<R: Registry> Eq for Structure<R> {}
+impl Eq for Structure {}
 
-impl<R: Registry> PartialOrd for Structure<R> {
+impl PartialOrd for Structure {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<R: Registry> Ord for Structure<R> {
+impl Ord for Structure {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
             (Self::Any(any_a), Self::Any(any_b)) => any_a.cmp(any_b),
@@ -119,7 +121,7 @@ impl<R: Registry> Ord for Structure<R> {
     }
 }
 
-impl<R: Registry> Hash for Structure<R> {
+impl Hash for Structure {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         core::mem::discriminant(self).hash(state);
 

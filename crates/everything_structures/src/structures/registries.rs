@@ -10,46 +10,28 @@ use dashmap::DashMap;
 
 use crate::{AnyStructure, BlobStructure, Property};
 
-/// The ability for a type to provide backing allocations for
-/// structures.
-pub trait Registry: Sized {
-    fn remove(&self, s: &AnyStructure<Self>);
-
-    fn resolve(
-        &self,
-        base: &AnyStructure<Self>,
-        remove_properties: &mut [Property<Self>],
-        add_properties: &mut [Property<Self>],
-    ) -> AnyStructure<Self>;
-
-    fn resolve_blob(&self, blob: &[u8]) -> BlobStructure<Self>;
-
-    fn remove_blob(&self, blob: BlobStructure<Self>);
-}
-
 #[derive(Clone, Debug)]
 pub struct GlobalRegistry;
 
-static GLOBAL_ENTRIES: LazyLock<DashMap<u64, Arc<[Property<GlobalRegistry>]>>> =
-    LazyLock::new(DashMap::new);
+static GLOBAL_PROPERTIES: LazyLock<DashMap<u64, Arc<[Property]>>> = LazyLock::new(DashMap::new);
 
 static GLOBAL_BLOBS: LazyLock<DashMap<u64, Arc<[u8]>>> = LazyLock::new(DashMap::new);
 
-impl Registry for GlobalRegistry {
-    fn remove(&self, s: &AnyStructure<Self>) {
+impl GlobalRegistry {
+    pub(crate) fn remove(&self, s: &AnyStructure) {
         let mut hasher = DefaultHasher::new();
         s.hash(&mut hasher);
         let hash = hasher.finish();
 
-        GLOBAL_ENTRIES.remove(&hash);
+        GLOBAL_PROPERTIES.remove(&hash);
     }
 
-    fn resolve(
+    pub(crate) fn resolve(
         &self,
-        base: &AnyStructure<Self>,
-        remove_properties: &mut [Property<Self>],
-        mut add_properties: &mut [Property<Self>],
-    ) -> AnyStructure<Self> {
+        base: &AnyStructure,
+        remove_properties: &mut [Property],
+        mut add_properties: &mut [Property],
+    ) -> AnyStructure {
         // Prepare properties
         remove_properties.sort();
 
@@ -60,16 +42,12 @@ impl Registry for GlobalRegistry {
 
         if hash_of_nothing() == hash {
             // Empty structure.
-            return AnyStructure {
-                propeties: None,
-                registry: GlobalRegistry,
-            };
+            return AnyStructure { propeties: None };
         }
 
-        if let Some(x) = GLOBAL_ENTRIES.get(&hash) {
+        if let Some(x) = GLOBAL_PROPERTIES.get(&hash) {
             return AnyStructure {
                 propeties: Some(Arc::clone(&x)),
-                registry: Self,
             };
         }
 
@@ -77,20 +55,16 @@ impl Registry for GlobalRegistry {
         // so we have to create it.
 
         let new_props = allocate_new_structure(base, remove_properties, add_properties, prop_count);
-        GLOBAL_ENTRIES.insert(hash, Arc::clone(&new_props));
+        GLOBAL_PROPERTIES.insert(hash, Arc::clone(&new_props));
 
         AnyStructure {
             propeties: Some(new_props),
-            registry: Self,
         }
     }
 
-    fn resolve_blob(&self, slice: &[u8]) -> BlobStructure<Self> {
+    fn resolve_blob(&self, slice: &[u8]) -> BlobStructure {
         if slice.len() == 0 {
-            return BlobStructure {
-                data: None,
-                registry: Self,
-            };
+            return BlobStructure { data: None };
         }
 
         let mut hasher = DefaultHasher::new();
@@ -100,7 +74,6 @@ impl Registry for GlobalRegistry {
         if let Some(blob) = GLOBAL_BLOBS.get(&hash_of_slice) {
             BlobStructure {
                 data: Some(Arc::clone(&blob)),
-                registry: Self,
             }
         } else {
             // Entry does not yet exist.
@@ -108,14 +81,11 @@ impl Registry for GlobalRegistry {
 
             GLOBAL_BLOBS.insert(hash_of_slice, Arc::clone(&data));
 
-            BlobStructure {
-                data: Some(data),
-                registry: Self,
-            }
+            BlobStructure { data: Some(data) }
         }
     }
 
-    fn remove_blob(&self, blob: BlobStructure<Self>) {
+    fn remove_blob(&self, blob: BlobStructure) {
         if blob.as_ref().len() == 0 {
             return;
         }
@@ -130,10 +100,10 @@ impl Registry for GlobalRegistry {
 
 /// Hashes the given structure will changes applied
 /// and returns `(hash, prop_count)`
-fn hash_of_new_structure<R: Registry>(
-    base: &AnyStructure<R>,
-    remove_properties: &[Property<R>],
-    add_properties: &[Property<R>],
+fn hash_of_new_structure(
+    base: &AnyStructure,
+    remove_properties: &[Property],
+    add_properties: &[Property],
 ) -> (u64, usize) {
     let mut hasher = DefaultHasher::new();
     let mut prop_count = 0_usize;
@@ -209,13 +179,13 @@ fn hash_of_nothing() -> u64 {
     hasher.finish()
 }
 
-fn allocate_new_structure<R: Registry + Clone>(
-    base: &AnyStructure<R>,
-    remove_properties: &[Property<R>],
-    add_properties: &[Property<R>],
+fn allocate_new_structure(
+    base: &AnyStructure,
+    remove_properties: &[Property],
+    add_properties: &[Property],
     prop_count: usize,
-) -> Arc<[Property<R>]> {
-    let mut new_props: Arc<[MaybeUninit<Property<R>>]> = Arc::new_uninit_slice(prop_count);
+) -> Arc<[Property]> {
+    let mut new_props: Arc<[MaybeUninit<Property>]> = Arc::new_uninit_slice(prop_count);
     let mut new_props_iter = Arc::get_mut(&mut new_props).unwrap().iter_mut();
 
     let mut base_props = base.as_ref().iter().peekable();

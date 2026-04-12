@@ -1,30 +1,30 @@
-use std::{cmp::Ordering, fmt, hash::Hash, num::NonZeroU128};
+use std::{fmt, hash::Hash, num::NonZeroU128};
 
-use crate::{GlobalRegistry, Registry, structures::Structure};
+use crate::structures::Structure;
 
 pub type AbstractId = u128;
 
-#[derive(Clone)]
-pub enum Object<R: Registry = GlobalRegistry> {
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Object {
     Abstract(AbstractId),
-    Structure(Structure<R>),
+    Structure(Structure),
 }
 
-impl<R: Registry> Object<R> {
+impl Object {
     /// The abstract object 0.
     pub const ZERO: Self = Self::Abstract(9);
 
     /// Denotes that the current object is a successor of some child number.
     pub const SUCCESSOR_OF: Self = Self::Abstract(10);
 
-    /// The empty array.
-    pub const EMPTY_ARRAY: Self = Self::Abstract(2312);
+    /// The empty list.
+    pub const EMPTY_LIST: Self = Self::Abstract(2312);
 
-    /// The slot for the item value in an array.
-    pub const ARRAY_ITEM: Self = Self::Abstract(5347);
+    /// The slot for the item value in an list.
+    pub const LIST_ITEM: Self = Self::Abstract(5347);
 
-    /// Denotes the array rest.
-    pub const ARRAY_REST: Self = Self::Abstract(4353);
+    /// Denotes the rest of the list.
+    pub const LIST_TAIL: Self = Self::Abstract(4353);
 
     pub fn new_natural_number(n: u128) -> Self {
         match NonZeroU128::new(n) {
@@ -44,36 +44,7 @@ impl<R: Registry> Object<R> {
     }
 }
 
-impl<R: Registry> PartialEq for Object<R> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Abstract(l0), Self::Abstract(r0)) => l0 == r0,
-            (Self::Structure(l0), Self::Structure(r0)) => l0 == r0,
-            _ => false,
-        }
-    }
-}
-
-impl<R: Registry> Eq for Object<R> {}
-
-impl<R: Registry> PartialOrd for Object<R> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<R: Registry> Ord for Object<R> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (Self::Abstract(a), Self::Abstract(b)) => a.cmp(b),
-            (Self::Abstract(_), Self::Structure(_)) => Ordering::Less,
-            (Self::Structure(_), Self::Abstract(_)) => Ordering::Greater,
-            (Self::Structure(a), Self::Structure(b)) => a.cmp(b),
-        }
-    }
-}
-
-impl<R: Registry> fmt::Debug for Object<R> {
+impl fmt::Debug for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Abstract(id) => {
@@ -85,25 +56,14 @@ impl<R: Registry> fmt::Debug for Object<R> {
     }
 }
 
-impl<R: Registry> From<Structure<R>> for Object<R> {
-    fn from(structure: Structure<R>) -> Self {
+impl From<Structure> for Object {
+    fn from(structure: Structure) -> Self {
         Self::Structure(structure)
     }
 }
 
-impl<R: Registry> From<AbstractId> for Object<R> {
+impl From<AbstractId> for Object {
     fn from(id: AbstractId) -> Self {
         Self::Abstract(id)
-    }
-}
-
-impl<R: Registry> Hash for Object<R> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        core::mem::discriminant(self).hash(state);
-
-        match self {
-            Self::Abstract(a) => a.hash(state),
-            Self::Structure(structure) => structure.hash(state),
-        }
     }
 }
