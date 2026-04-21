@@ -7,7 +7,7 @@ const BOB: Object = Object::Abstract(888_888_888);
 
 #[test]
 fn has_exactly_one_value_on() {
-    assert!(!Structure::EMPTY.has_exactly_one_value_on(ALICE));
+    assert!(!Structure::Empty.has_exactly_one_value_on(ALICE));
 
     assert!(
         Structure::new(&mut [Property {

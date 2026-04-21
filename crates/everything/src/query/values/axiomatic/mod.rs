@@ -9,7 +9,7 @@ use crate::{base, ext::ObjectExt};
 mod tests;
 
 /// Values from an axiomatic query.
-pub type AxiomaticQueryValues<'knowledge: 'item, 'subject: 'item, 'item> =
+pub type AxiomaticQueryValues<'knowledge, 'subject, 'item> =
     FixedOrMore<AxiomaticBorrowedQueryValues<'knowledge, 'subject, 'item>>;
 
 #[derive(Clone)]

@@ -19,20 +19,20 @@ pub enum ObjectForm<'a> {
     Specific(Cow<'a, Object>),
 }
 
-impl<'a> From<Option<Object>> for ObjectForm<'a> {
-    fn from(value: Option<Object>) -> Self {
+impl<'a> From<Option<Cow<'a, Object>>> for ObjectForm<'a> {
+    fn from(value: Option<Cow<'a, Object>>) -> Self {
         match value {
             None => Self::Any,
-            Some(object) => Self::Specific(Cow::Owned(object)),
+            Some(cow) => Self::Specific(cow),
         }
     }
 }
 
-impl<'a> From<ObjectForm<'a>> for Option<Object> {
-    fn from(value: ObjectForm) -> Self {
+impl<'a> From<ObjectForm<'a>> for Option<Cow<'a, Object>> {
+    fn from(value: ObjectForm<'a>) -> Self {
         match value {
             ObjectForm::Any => None,
-            ObjectForm::Specific(object) => Some(object.into_owned()),
+            ObjectForm::Specific(object) => Some(object),
         }
     }
 }
@@ -129,7 +129,7 @@ impl StructureExt for Structure {
             Self::new_set([Structure::Empty.into()])
         } else {
             // `{}`
-            Structure::Empty.into()
+            Structure::Empty
         }
     }
 
@@ -152,8 +152,8 @@ impl StructureExt for Structure {
                     .next()
                     .ok_or_else(|| {
                         KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(property.tag.clone()),
-                            tag: ObjectForm::Specific(Object::AXIOMATIC),
+                            subject: ObjectForm::Specific(Cow::Owned(property.tag.clone())),
+                            tag: ObjectForm::Specific(Cow::Owned(Object::AXIOMATIC)),
                             value: ObjectForm::Any,
                         })
                     })?;
@@ -215,8 +215,10 @@ impl StructureExt for Structure {
                     .next()
                     .ok_or_else(|| {
                         KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(statement.tag.clone().into_owned()),
-                            tag: ObjectForm::Specific(Object::AXIOMATIC),
+                            subject: ObjectForm::Specific(Cow::Owned(
+                                statement.tag.clone().into_owned(),
+                            )),
+                            tag: ObjectForm::Specific(Cow::Owned(Object::AXIOMATIC)),
                             value: ObjectForm::Any,
                         })
                     })?;

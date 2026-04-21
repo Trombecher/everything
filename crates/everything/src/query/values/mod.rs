@@ -73,6 +73,7 @@ pub fn values<'knowledge: 'item, 'subject: 'item, 'item>(
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'item> {
     Axiomatic(AxiomaticQueryValues<'knowledge, 'subject, 'item>),
     ComputationResult(Object),

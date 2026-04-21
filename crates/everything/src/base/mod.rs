@@ -7,27 +7,6 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::ext::{ObjectExt, StructureExt};
 
-fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
-    Property {
-        tag: Object::CONTAINS,
-        value: Structure::new(&mut [
-            Property {
-                tag: Object::STATEMENT_SUBJECT,
-                value: subject,
-            },
-            Property {
-                tag: Object::STATEMENT_TAG,
-                value: tag,
-            },
-            Property {
-                tag: Object::STATEMENT_VALUE,
-                value,
-            },
-        ])
-        .into(),
-    }
-}
-
 fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> Object {
     Structure::new_node_equal([
         Object::new_natural_number(1),
@@ -93,9 +72,13 @@ pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
 
 pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
     Structure::new_set([
-        Structure::new_statement(Object::CONTAINS, Object::AXIOMATIC, Object::from_bool(true))
-            .into(),
-        stmt_to_prop(
+        Structure::new_statement(
+            Object::CONTAINS,
+            Object::AXIOMATIC,
+            Structure::new_bool(true).into(),
+        )
+        .into(),
+        Structure::new_statement(
             Object::SUCCESSOR_OF,
             Object::AXIOMATIC,
             Structure::new_computed(
@@ -122,46 +105,54 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                 .into(),
             )
             .into(),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::AXIOMATIC,
             Object::AXIOMATIC,
             AXIOMATIC_AXIOMATIC_CONSTRAINT.clone(),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::COMPUTED,
             Object::AXIOMATIC,
             unique_constraint_for(Object::COMPUTED, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::STATEMENT_SUBJECT,
             Object::AXIOMATIC,
             unique_constraint_for(Object::STATEMENT_SUBJECT, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::STATEMENT_TAG,
             Object::AXIOMATIC,
             unique_constraint_for(Object::STATEMENT_TAG, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::STATEMENT_VALUE,
             Object::AXIOMATIC,
             unique_constraint_for(Object::STATEMENT_VALUE, 0),
-        ),
+        )
+        .into(),
         // TODO: statement, knowledge, tag
 
         // --------------------- NODES ---------------------
-        stmt_to_prop(
+        Structure::new_statement(
             Object::NODE_LITERAL,
             Object::AXIOMATIC,
             unique_constraint_for(Object::NODE_LITERAL, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::NODE_COUNT,
             Object::AXIOMATIC,
             unique_constraint_for(Object::NODE_COUNT, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::NODE_PARAMETER,
             Object::AXIOMATIC,
             Structure::new_computed(
@@ -189,42 +180,50 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                 .into(),
             )
             .into(),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::NODE_AND,
             Object::AXIOMATIC,
             more_than_1_constraint_for(Object::NODE_AND, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::NODE_OR,
             Object::AXIOMATIC,
             more_than_1_constraint_for(Object::NODE_OR, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::NODE_XOR,
             Object::AXIOMATIC,
             more_than_1_constraint_for(Object::NODE_XOR, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::NODE_EQUAL,
             Object::AXIOMATIC,
             more_than_1_constraint_for(Object::NODE_EQUAL, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::NODE_EXISTS,
             Object::AXIOMATIC,
             unique_constraint_for(Object::NODE_EXISTS, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::NODE_QUERY,
             Object::AXIOMATIC,
             unique_constraint_for(Object::NODE_QUERY, 0),
-        ),
-        stmt_to_prop(
+        )
+        .into(),
+        Structure::new_statement(
             Object::NODE_NOT,
             Object::AXIOMATIC,
             unique_constraint_for(Object::NODE_NOT, 0),
-        ),
+        )
+        .into(),
         // TODO: node
     ])
 });

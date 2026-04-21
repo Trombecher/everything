@@ -1,6 +1,8 @@
+use std::borrow::Cow;
+
 use everything_structures::{Object, Property, Structure};
 
-use crate::{base::BASE, ext::ObjectExt, query::values::values_axiomatically};
+use crate::{base::BASE, ext::ObjectExt, query};
 
 #[test]
 fn structure_props() {
@@ -20,10 +22,10 @@ fn structure_props() {
     ])
     .into();
 
-    let mut values = values_axiomatically(&BASE, &structure, Object::CONTAINS);
+    let mut values = query::values_axiomatically(&BASE, &structure, Object::CONTAINS);
 
-    assert_eq!(values.next(), Some(&Object::Abstract(4242)));
-    assert_eq!(values.next(), Some(&Object::Abstract(6969)));
+    assert_eq!(values.next(), Some(Cow::Owned(Object::Abstract(4242))));
+    assert_eq!(values.next(), Some(Cow::Owned(Object::Abstract(6969))));
     assert_eq!(values.next(), None);
     assert_eq!(values.next(), None);
 }

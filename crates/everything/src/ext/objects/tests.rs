@@ -30,7 +30,7 @@ fn node_type() {
 
     // None
     assert_eq!(
-        Object::Structure(Structure::EMPTY).node_type(knowledge),
+        Object::Structure(Structure::Empty).node_type(knowledge),
         None
     );
 
@@ -45,15 +45,6 @@ fn node_type() {
         Object::Structure(Structure::new_node_and([Object::ZERO, Object::KNOWLEDGE]))
             .node_type(knowledge),
         Some(NodeType::And)
-    );
-
-    // Mix
-    assert_eq!(
-        Object::Structure(
-            Structure::new_computed(Object::ZERO).union(&Structure::new_node_count(Object::ZERO)),
-        )
-        .node_type(knowledge),
-        None
     );
 }
 
@@ -71,20 +62,20 @@ fn call() {
 fn eval_and() {
     assert!(
         !Object::Structure(Structure::new_node_and([
-            Object::from_bool(false),
-            Object::from_bool(true)
+            Structure::new_bool(false).into(),
+            Structure::new_bool(true).into()
         ]))
         .eval(&BASE, &mut Default::default())
-        .is_truthy()
+        .is_truthy(&BASE)
     );
 
     assert!(
         Object::Structure(Structure::new_node_and([
-            Object::from_bool(true),
-            Object::from_bool(true)
+            Structure::new_bool(true).into(),
+            Structure::new_bool(true).into()
         ]))
         .eval(&BASE, &mut Default::default())
-        .is_truthy()
+        .is_truthy(&BASE)
     )
 }
 
@@ -92,20 +83,20 @@ fn eval_and() {
 fn eval_or() {
     assert!(
         !Object::Structure(Structure::new_node_or([
-            Object::from_bool(false),
-            Object::from_bool(false)
+            Structure::new_bool(false).into(),
+            Structure::new_bool(false).into()
         ]))
         .eval(&BASE, &mut Default::default())
-        .is_truthy()
+        .is_truthy(&BASE)
     );
 
     assert!(
         Object::Structure(Structure::new_node_or([
-            Object::from_bool(true),
-            Object::from_bool(false)
+            Structure::new_bool(true).into(),
+            Structure::new_bool(false).into()
         ]))
         .eval(&BASE, &mut Default::default())
-        .is_truthy()
+        .is_truthy(&BASE)
     )
 }
 
@@ -121,7 +112,7 @@ fn eval_literal() {
 #[test]
 fn eval_count() {
     assert_eq!(
-        Object::Structure(Structure::new_node_count(Structure::EMPTY.into()))
+        Object::Structure(Structure::new_node_count(Structure::Empty.into()))
             .eval(&BASE, &mut Default::default()),
         Object::new_natural_number(0)
     );

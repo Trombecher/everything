@@ -106,7 +106,10 @@ pub trait ObjectExt {
         knowledge: &'knowledge Structure,
     ) -> Option<Cow<'item, Object>>;
 
-    fn statement_form(&self, knowledge: &Structure) -> StatementForm;
+    fn statement_form<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> StatementForm<'item>;
 
     fn node_query<'knowledge: 'item, 'subject: 'item, 'item>(
         &'subject self,
@@ -191,22 +194,22 @@ impl ObjectExt for Object {
         query::values_axiomatically(knowledge, self, Object::NODE_LITERAL).next()
     }
 
-    fn statement_form(&self, knowledge: &Structure) -> StatementForm {
+    fn statement_form<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> StatementForm<'item> {
         let subject: ObjectForm =
             query::values_axiomatically(knowledge, self, Object::STATEMENT_SUBJECT)
                 .next()
-                .cloned()
                 .into();
 
         let tag: ObjectForm = query::values_axiomatically(knowledge, self, Object::STATEMENT_TAG)
             .next()
-            .cloned()
             .into();
 
         let value: ObjectForm =
             query::values_axiomatically(knowledge, self, Object::STATEMENT_VALUE)
                 .next()
-                .cloned()
                 .into();
 
         StatementForm {
@@ -319,19 +322,20 @@ impl ObjectExt for Object {
 
                 let statement_form = self
                     .node_query(knowledge)
-                    .expect("Node::Query expects this")
-                    .statement_form(knowledge);
+                    .expect("Node::Query expects this");
 
-                let subject = Option::<Object>::from(statement_form.subject)
+                let statement_form = statement_form.statement_form(knowledge);
+
+                let subject = Option::<Cow<Object>>::from(statement_form.subject)
                     .expect("cannot query with no subject")
                     .eval(knowledge, ctx);
 
-                let tag = Option::<Object>::from(statement_form.tag)
+                let tag = Option::<Cow<Object>>::from(statement_form.tag)
                     .expect("cannot query with no tag")
                     .eval(knowledge, ctx);
 
-                let value =
-                    Option::<Object>::from(statement_form.value).map(|c| c.eval(knowledge, ctx));
+                let value = Option::<Cow<Object>>::from(statement_form.value)
+                    .map(|c| c.eval(knowledge, ctx));
 
                 let actual_qr = query::values(knowledge, &subject, tag, ctx);
 
@@ -350,7 +354,7 @@ impl ObjectExt for Object {
                     actual_qr.collect_to_set()
                 }
             }
-            Some(NodeType::Literal) => self.node_literal(knowledge).unwrap(),
+            Some(NodeType::Literal) => self.node_literal(knowledge).unwrap().into_owned(),
             Some(NodeType::Computed) => self.capture(knowledge, 0, ctx),
             Some(NodeType::Parameter) => {
                 ctx.parameter_value(self.node_parameter_depth(knowledge).unwrap())
@@ -362,38 +366,39 @@ impl ObjectExt for Object {
                 let first = values.next().unwrap();
                 let equal = values.all(|object| object == first);
 
-                Object::from_bool(equal)
+                Structure::new_bool(equal).into()
             }
             Some(NodeType::Or) => {
                 let mut values = query::values_axiomatically(knowledge, self, Object::NODE_OR)
                     .map(|value| value.eval(knowledge, ctx));
 
-                Object::from_bool(values.any(|o| o.is_truthy()))
+                Structure::new_bool(values.any(|o| o.is_truthy(knowledge))).into()
             }
             Some(NodeType::And) => {
                 let mut values = query::values_axiomatically(knowledge, self, Object::NODE_AND)
                     .map(|value| value.eval(knowledge, ctx));
 
-                Object::from_bool(values.all(|value| value.is_truthy()))
+                Structure::new_bool(values.all(|value| value.is_truthy(knowledge))).into()
             }
             Some(NodeType::Exists) => {
                 // TODO: discuss exists form
+
+                let statement_form = self
+                    .node_exists(knowledge)
+                    .expect("NodeType::Exists asserts this");
 
                 let StatementForm {
                     subject,
                     tag,
                     value,
-                } = self
-                    .node_exists(knowledge)
-                    .expect("NodeType::Exists asserts this")
-                    .statement_form(knowledge);
+                } = statement_form.statement_form(knowledge);
 
-                let subject = Option::<Object>::from(subject)
+                let subject = Option::<Cow<Object>>::from(subject)
                     .expect("cannot query exists with no subject (not yet)")
                     .eval(knowledge, ctx);
 
-                let tag = Option::<Object>::from(tag).map(|tag| tag.eval(knowledge, ctx));
-                let value = Option::<Object>::from(value).map(|tag| tag.eval(knowledge, ctx));
+                let tag = Option::<Cow<Object>>::from(tag).map(|tag| tag.eval(knowledge, ctx));
+                let value = Option::<Cow<Object>>::from(value).map(|tag| tag.eval(knowledge, ctx));
 
                 match (tag, value) {
                     // I think this should be fine.
