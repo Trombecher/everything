@@ -10,47 +10,30 @@ use std::{
     sync::Arc,
 };
 
-use crate::{GlobalRegistry, Object, Property};
+use crate::{Object, Property, structures::registry};
 
 /// An arbitrary structure that is NOT exactly a natural number,
 /// an array of characters, or binary data.
 #[derive(Clone)]
 pub struct AnyStructure {
-    pub(super) properties: Option<Arc<[Property]>>,
+    pub(super) properties: Arc<[Property]>,
 }
 
 impl AnyStructure {
-    #[must_use]
-    pub const unsafe fn new_unchecked(properties: Option<Arc<[Property]>>) -> Self {
-        Self { properties }
-    }
-
-    #[must_use]
-    #[inline]
-    pub fn new(properties: &mut [Property]) -> Self {
-        Self::EMPTY.add(properties)
-    }
-
     /// Checks if the AnyStructure has this property.
     #[must_use]
     pub fn has(&self, property: &Property) -> bool {
-        match &self.properties {
-            None => false,
-            Some(properties) => properties.binary_search(property).is_ok(),
-        }
+        self.properties.binary_search(property).is_ok()
     }
 
     #[must_use]
     pub fn has_by_ref(&self, tag: &Object, value: &Object) -> bool {
-        match &self.properties {
-            None => false,
-            Some(properties) => properties
-                .binary_search_by(|property| match property.tag.cmp(tag) {
-                    Ordering::Equal => property.value.cmp(value),
-                    ordering => ordering,
-                })
-                .is_ok(),
-        }
+        self.properties
+            .binary_search_by(|property| match property.tag.cmp(tag) {
+                Ordering::Equal => property.value.cmp(value),
+                ordering => ordering,
+            })
+            .is_ok()
     }
 
     /// Returns an iterator over all values that this tag has
@@ -73,14 +56,6 @@ impl AnyStructure {
         self.as_ref()
             .iter()
             .filter_map(move |property| (&property.value == value).then_some(&property.tag))
-    }
-
-    /// Merges the properties of `self` and `other` into a new AnyStructure.
-    #[must_use]
-    pub fn union(&self, other: &Self) -> Self {
-        let mut add_properties = Box::clone_from_ref(other.as_ref());
-
-        self.add(&mut add_properties)
     }
 
     /// Determines if `self` is a subset of `other` by checking
@@ -134,40 +109,25 @@ impl<'props> Iterator for ValuesIter<'props> {
 
 impl fmt::Debug for AnyStructure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut debug = f.debug_set();
-
-        if let Some(props) = &self.properties {
-            for prop in props.iter() {
-                debug.entry(prop);
-            }
-        }
-
-        debug.finish()
+        self.properties.fmt(f)
     }
 }
 
 impl AsRef<[Property]> for AnyStructure {
     fn as_ref(&self) -> &[Property] {
-        match &self.properties {
-            None => &[],
-            Some(x) => x,
-        }
+        &self.properties
     }
 }
 
 impl Hash for AnyStructure {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.properties.as_ref().map(Arc::as_ptr).hash(state);
+        Arc::as_ptr(&self.properties).hash(state);
     }
 }
 
 impl PartialEq for AnyStructure {
     fn eq(&self, other: &Self) -> bool {
-        match (&self.properties, &other.properties) {
-            (None, None) => true,
-            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
-            _ => false,
-        }
+        Arc::ptr_eq(&self.properties, &other.properties)
     }
 }
 
@@ -181,29 +141,29 @@ impl PartialOrd for AnyStructure {
 
 impl Ord for AnyStructure {
     fn cmp(&self, other: &Self) -> Ordering {
-        match (&self.properties, &other.properties) {
-            (None, None) => Ordering::Equal,
-            (None, Some(_)) => Ordering::Less,
-            (Some(_), None) => Ordering::Greater,
-            (Some(a), Some(b)) => Arc::as_ptr(a)
-                .cast::<()>()
-                .cmp(&Arc::as_ptr(b).cast::<()>()),
-        }
+        // Reasons why we can do this:
+        //
+        // * all property allocations are non-zero in size.
+        // * all property allocations are unique (via registry)
+        //
+        // Therefore, the pointers are unique.
+
+        Arc::as_ptr(&self.properties)
+            .cast::<()>()
+            .cmp(&Arc::as_ptr(&other.properties).cast::<()>())
     }
 }
 
 impl Drop for AnyStructure {
     fn drop(&mut self) {
-        if let Some(props) = &self.properties
-            && Arc::strong_count(props) == 2
-        {
+        if Arc::strong_count(&self.properties) == 2 {
             // We and the registry are the only ones
             // that have a ref. When removing this AnyStructure
             // from the registry, `self` will be the
             // only reference and thus will deallocate
             // after drop.
 
-            GlobalRegistry.remove(self);
+            registry::remove(self);
         }
     }
 }

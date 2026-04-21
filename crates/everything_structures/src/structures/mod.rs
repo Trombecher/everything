@@ -1,6 +1,6 @@
 mod any;
 mod bin;
-mod registries;
+mod registry;
 #[cfg(test)]
 mod tests;
 mod text;
@@ -10,20 +10,24 @@ use std::{
     borrow::Cow,
     fmt::{Debug, Pointer},
     hash::Hash,
+    mem::replace,
     num::NonZeroU128,
 };
 
 pub use any::*;
 pub use bin::*;
-pub use registries::*;
+pub use registry::*;
 pub use text::*;
 
 use crate::{Object, Property};
 
-/// A structure is a set of properties. Natural numbers, text, and binary data
-/// are stored more efficiently than an [AnyStructure].
+/// A structure is a set of properties. Natural numbers, text, binary data,
+/// and the structure with no properties are stored more efficiently than an [AnyStructure].
+/// These are called specializations.
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Structure {
+    /// The empty structure.
+    Empty,
     /// Optimized storage for `{(@SUCCESSOR_OF, n)}` where n is an exact natural number.
     NaturalNumber(NonZeroU128),
     Binary(BlobStructure),
@@ -32,11 +36,9 @@ pub enum Structure {
 }
 
 impl Structure {
-    pub const EMPTY: Self = Self::Any(AnyStructure { properties: None });
-
     #[must_use]
     pub fn new(properties: &mut [Property]) -> Self {
-        Self::EMPTY.add(properties)
+        Self::Empty.add(properties)
     }
 
     /// Adds the given properties to this structure.
@@ -66,26 +68,7 @@ impl Structure {
         remove_properties: &mut [Property],
         add_properties: &mut [Property],
     ) -> Structure {
-        /*
-        match (self, &remove_properties, &add_properties) {
-            (_, [], []) => self.clone(),
-            (
-                Self::NaturalNumber(_),
-                [],
-                [
-                    Property {
-                        tag: Object::SUCCESSOR_OF,
-                        value: o,
-                    },
-                ],
-            ) if let Some(new_n) = o.exact_natural_number() => {
-                Self::NaturalNumber(NonZeroU128::new(new_n.checked_add(1).unwrap()).unwrap())
-            }
-            _ => todo!(),
-        };
-         */
-
-        GlobalRegistry.resolve(self, remove_properties, add_properties)
+        registry::resolve(self, remove_properties, add_properties)
     }
 
     pub fn any(&self) -> Option<&AnyStructure> {
@@ -98,11 +81,26 @@ impl Structure {
     /// Returns an iterator over all properties:
     pub fn properties(&self) -> Properties {
         match self {
-            Structure::NaturalNumber(n) => Properties::NaturalNumber(Some(*n)),
-            Structure::Binary(_) => todo!(),
-            Structure::Text(_) => todo!(),
-            Structure::Any(any_structure) => Properties::Any(any_structure.as_ref().iter()),
+            Self::Empty => Properties::None,
+            Self::NaturalNumber(n) => Properties::One(Property {
+                tag: Object::SUCCESSOR_OF,
+                value: Object::new_natural_number(n.get() - 1),
+            }),
+            Self::Binary(_) => todo!(),
+            Self::Text(_) => todo!(),
+            Self::Any(any_structure) => Properties::Any(any_structure.as_ref().iter()),
         }
+    }
+
+    /// Merges the properties of `self` and `other` into a new AnyStructure.
+    #[must_use]
+    pub fn union(&self, other: &Self) -> Self {
+        let mut add_properties = other
+            .properties()
+            .map(|property| property.into_owned())
+            .collect::<Vec<_>>();
+
+        self.add(add_properties.as_mut_slice())
     }
 }
 
@@ -121,6 +119,7 @@ impl From<AnyStructure> for Structure {
 impl Debug for Structure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Empty => <[(); 0] as std::fmt::Debug>::fmt(&[], f),
             Self::Any(any) => any.fmt(f),
             Self::NaturalNumber(n) => n.fmt(f),
             Self::Text(t) => t.fmt(f),
@@ -129,9 +128,11 @@ impl Debug for Structure {
     }
 }
 
+#[derive(Clone)]
 pub enum Properties<'structure> {
+    None,
+    One(Property),
     Any(slice::Iter<'structure, Property>),
-    NaturalNumber(Option<NonZeroU128>),
 }
 
 impl<'structure> Iterator for Properties<'structure> {
@@ -139,13 +140,20 @@ impl<'structure> Iterator for Properties<'structure> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Properties::Any(iter) => iter.next().map(Cow::Borrowed),
-            Properties::NaturalNumber(property) => property.take().map(|n| {
-                Cow::Owned(Property {
-                    tag: Object::SUCCESSOR_OF,
-                    value: Object::new_natural_number(n.get() - 1),
-                })
-            }),
+            Self::None => None,
+            Self::One(_) => match replace(self, Self::None) {
+                Self::One(property) => Some(Cow::Owned(property)),
+                _ => unreachable!(),
+            },
+            Self::Any(iter) => iter.next().map(Cow::Borrowed),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            Self::Any(iter) => iter.size_hint(),
+            Self::None => (0, Some(0)),
+            Self::One(_) => (1, Some(1)),
         }
     }
 }
