@@ -36,8 +36,8 @@ impl Object {
     pub fn exact_natural_number(&self) -> Option<u128> {
         if self == &Self::ZERO {
             Some(0)
-        } else if let Self::Structure(s) = self {
-            s.exact_natural_number().map(Into::into)
+        } else if let Self::Structure(Structure::NaturalNumber(n)) = self {
+            Some(n.get())
         } else {
             None
         }

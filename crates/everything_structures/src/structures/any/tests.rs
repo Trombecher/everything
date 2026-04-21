@@ -1,4 +1,4 @@
-use crate::{AnyStructure, GlobalRegistry, Object, Property, Structure};
+use crate::{AnyStructure, Object, Property, Structure};
 use std::sync::Arc;
 
 pub const ALICE: Object = Object::Abstract(u128::from_be_bytes(*b"This is Alice!!!"));
@@ -54,7 +54,7 @@ fn remove_props() {
         value: BOB,
     }]);
 
-    assert_eq!(should_be_empty.propeties, None);
+    assert_eq!(should_be_empty.properties, None);
 }
 
 #[test]
@@ -89,8 +89,8 @@ fn deduping() {
     let structure_b = alice_bob_structure();
 
     assert!(Arc::ptr_eq(
-        structure_a.propeties.as_ref().unwrap(),
-        structure_b.propeties.as_ref().unwrap()
+        structure_a.properties.as_ref().unwrap(),
+        structure_b.properties.as_ref().unwrap()
     ))
 }
 

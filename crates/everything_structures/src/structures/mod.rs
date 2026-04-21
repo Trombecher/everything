@@ -5,8 +5,9 @@ mod registries;
 mod tests;
 mod text;
 
+use core::slice;
 use std::{
-    cmp::Ordering,
+    borrow::Cow,
     fmt::{Debug, Pointer},
     hash::Hash,
     num::NonZeroU128,
@@ -17,10 +18,13 @@ pub use bin::*;
 pub use registries::*;
 pub use text::*;
 
+use crate::{Object, Property};
+
 /// A structure is a set of properties. Natural numbers, text, and binary data
-/// can be stored more efficiently than an [AnyStructure].
-#[derive(Clone)]
+/// are stored more efficiently than an [AnyStructure].
+#[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Structure {
+    /// Optimized storage for `{(@SUCCESSOR_OF, n)}` where n is an exact natural number.
     NaturalNumber(NonZeroU128),
     Binary(BlobStructure),
     Text(TextStructure),
@@ -28,19 +32,76 @@ pub enum Structure {
 }
 
 impl Structure {
-    pub fn exact_natural_number(&self) -> Option<NonZeroU128> {
-        match self {
-            Self::Any(any) => any.exact_natural_number(),
-            Self::NaturalNumber(n) => Some(*n),
-            _ => None,
-        }
+    pub const EMPTY: Self = Self::Any(AnyStructure { properties: None });
+
+    #[must_use]
+    pub fn new(properties: &mut [Property]) -> Self {
+        Self::EMPTY.add(properties)
+    }
+
+    /// Adds the given properties to this structure.
+    #[must_use]
+    pub fn add(&self, properties: &mut [Property]) -> Self {
+        self.change(&mut [], properties)
+    }
+
+    /// Removes the given properties from this structure.
+    #[must_use]
+    pub fn remove(&self, properties: &mut [Property]) -> Self {
+        self.change(properties, &mut [])
+    }
+
+    /// Modifies this AnyStructure by adding and removing properties.
+    /// Returns the modified AnyStructure.
+    ///
+    /// The properties need to be mutable because this method needs to
+    /// reorder and dedup changes in-place to avoid unneccessary
+    /// allocations.
+    ///
+    /// Note that first all indicated properties are removed from
+    /// the AnyStructure and then all indicated properties are added.
+    #[must_use]
+    pub fn change(
+        &self,
+        remove_properties: &mut [Property],
+        add_properties: &mut [Property],
+    ) -> Structure {
+        /*
+        match (self, &remove_properties, &add_properties) {
+            (_, [], []) => self.clone(),
+            (
+                Self::NaturalNumber(_),
+                [],
+                [
+                    Property {
+                        tag: Object::SUCCESSOR_OF,
+                        value: o,
+                    },
+                ],
+            ) if let Some(new_n) = o.exact_natural_number() => {
+                Self::NaturalNumber(NonZeroU128::new(new_n.checked_add(1).unwrap()).unwrap())
+            }
+            _ => todo!(),
+        };
+         */
+
+        GlobalRegistry.resolve(self, remove_properties, add_properties)
     }
 
     pub fn any(&self) -> Option<&AnyStructure> {
         match self {
-            Self::NaturalNumber(_) => None,
             Self::Any(any) => Some(any),
             _ => None,
+        }
+    }
+
+    /// Returns an iterator over all properties:
+    pub fn properties(&self) -> Properties {
+        match self {
+            Structure::NaturalNumber(n) => Properties::NaturalNumber(Some(*n)),
+            Structure::Binary(_) => todo!(),
+            Structure::Text(_) => todo!(),
+            Structure::Any(any_structure) => Properties::Any(any_structure.as_ref().iter()),
         }
     }
 }
@@ -68,63 +129,23 @@ impl Debug for Structure {
     }
 }
 
-impl PartialEq for Structure {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Binary(a), Self::Binary(b)) => a == b,
-            (Self::Text(a), Self::Text(b)) => a == b,
-            (Self::NaturalNumber(m), Self::NaturalNumber(n)) => m == n,
-            (Self::Any(any_a), Self::Any(any_b)) => any_a == any_b,
-            (Self::NaturalNumber(m), Self::Any(any))
-                if let Some(n) = any.exact_natural_number() =>
-            {
-                *m == n
-            }
-            (Self::Any(any), Self::NaturalNumber(n))
-                if let Some(m) = any.exact_natural_number() =>
-            {
-                m == *n
-            }
-            _ => false,
+pub enum Properties<'structure> {
+    Any(slice::Iter<'structure, Property>),
+    NaturalNumber(Option<NonZeroU128>),
+}
+
+impl<'structure> Iterator for Properties<'structure> {
+    type Item = Cow<'structure, Property>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Properties::Any(iter) => iter.next().map(Cow::Borrowed),
+            Properties::NaturalNumber(property) => property.take().map(|n| {
+                Cow::Owned(Property {
+                    tag: Object::SUCCESSOR_OF,
+                    value: Object::new_natural_number(n.get() - 1),
+                })
+            }),
         }
-    }
-}
-
-impl Eq for Structure {}
-
-impl PartialOrd for Structure {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Structure {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match (self, other) {
-            (Self::Any(any_a), Self::Any(any_b)) => any_a.cmp(any_b),
-            (Self::Any(any), Self::NaturalNumber(n)) => {
-                if let Some(m) = any.exact_natural_number() {
-                    m.cmp(n)
-                } else {
-                    Ordering::Greater
-                }
-            }
-            (Self::NaturalNumber(m), Self::Any(any)) => {
-                if let Some(n) = any.exact_natural_number() {
-                    m.cmp(&n)
-                } else {
-                    Ordering::Less
-                }
-            }
-            (Self::NaturalNumber(m), Self::NaturalNumber(n)) => m.cmp(n),
-        }
-    }
-}
-
-impl Hash for Structure {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        core::mem::discriminant(self).hash(state);
-
-        // TODO
     }
 }

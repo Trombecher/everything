@@ -1,5 +1,6 @@
 use std::{
     assert_matches,
+    borrow::Cow,
     cmp::Ordering,
     hash::{DefaultHasher, Hash, Hasher},
     mem::MaybeUninit,
@@ -8,7 +9,7 @@ use std::{
 
 use dashmap::DashMap;
 
-use crate::{AnyStructure, BlobStructure, Property};
+use crate::{AnyStructure, BlobStructure, Property, Structure};
 
 #[derive(Clone, Debug)]
 pub struct GlobalRegistry;
@@ -28,10 +29,10 @@ impl GlobalRegistry {
 
     pub(crate) fn resolve(
         &self,
-        base: &AnyStructure,
+        base: &Structure,
         remove_properties: &mut [Property],
         mut add_properties: &mut [Property],
-    ) -> AnyStructure {
+    ) -> Structure {
         // Prepare properties
         remove_properties.sort();
 
@@ -42,13 +43,18 @@ impl GlobalRegistry {
 
         if hash_of_nothing() == hash {
             // Empty structure.
-            return AnyStructure { propeties: None };
+            return Structure::EMPTY;
         }
 
         if let Some(x) = GLOBAL_PROPERTIES.get(&hash) {
-            return AnyStructure {
-                propeties: Some(Arc::clone(&x)),
-            };
+            // Because this structure was already registered in
+            // the global properties, it has to be an "any"
+            // and not a specialization. Therefore it is safe to
+            // return this:
+
+            return Structure::Any(AnyStructure {
+                properties: Some(Arc::clone(&x)),
+            });
         }
 
         // The structure does not exist yet,
@@ -58,7 +64,7 @@ impl GlobalRegistry {
         GLOBAL_PROPERTIES.insert(hash, Arc::clone(&new_props));
 
         AnyStructure {
-            propeties: Some(new_props),
+            properties: Some(new_props),
         }
     }
 
@@ -101,19 +107,19 @@ impl GlobalRegistry {
 /// Hashes the given structure will changes applied
 /// and returns `(hash, prop_count)`
 fn hash_of_new_structure(
-    base: &AnyStructure,
+    base: &Structure,
     remove_properties: &[Property],
     add_properties: &[Property],
 ) -> (u64, usize) {
     let mut hasher = DefaultHasher::new();
     let mut prop_count = 0_usize;
 
-    let mut base_props = base.as_ref().iter().peekable();
+    let mut base_props = base.properties().peekable();
     let mut add_iter = add_properties.iter().peekable();
 
     // Calculate hash
     loop {
-        match (base_props.peek().copied(), add_iter.peek().copied()) {
+        match (base_props.peek(), add_iter.peek()) {
             (None, None) => break,
             (None, Some(property_to_add)) => {
                 // There are no base props so
@@ -136,13 +142,13 @@ fn hash_of_new_structure(
                 base_props.next();
             }
             (Some(base_property), Some(property_to_add)) => {
-                match base_property.cmp(property_to_add) {
+                match base_property.as_ref().cmp(property_to_add) {
                     Ordering::Less => {
-                        // The base prop comes first.
+                        // The base prop comes first. That's
+                        // why we just add it.
 
-                        let ignore_property = remove_properties
-                            .binary_search_by(|probe| probe.cmp(base_property))
-                            .is_ok();
+                        let ignore_property =
+                            remove_properties.binary_search(base_property).is_ok();
 
                         if !ignore_property {
                             base_property.hash(&mut hasher);
@@ -152,6 +158,8 @@ fn hash_of_new_structure(
                         base_props.next();
                     }
                     Ordering::Equal => {
+                        // Both properties are equal
+
                         base_property.hash(&mut hasher);
                         prop_count += 1;
 
@@ -180,7 +188,7 @@ fn hash_of_nothing() -> u64 {
 }
 
 fn allocate_new_structure(
-    base: &AnyStructure,
+    base: &Structure,
     remove_properties: &[Property],
     add_properties: &[Property],
     prop_count: usize,

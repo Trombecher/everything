@@ -12,13 +12,18 @@ use std::{
 
 use crate::{GlobalRegistry, Object, Property};
 
+/// An arbitrary structure that is NOT exactly a natural number,
+/// an array of characters, or binary data.
 #[derive(Clone)]
 pub struct AnyStructure {
-    pub(super) propeties: Option<Arc<[Property]>>,
+    pub(super) properties: Option<Arc<[Property]>>,
 }
 
 impl AnyStructure {
-    pub const EMPTY: Self = Self { propeties: None };
+    #[must_use]
+    pub const unsafe fn new_unchecked(properties: Option<Arc<[Property]>>) -> Self {
+        Self { properties }
+    }
 
     #[must_use]
     #[inline]
@@ -29,7 +34,7 @@ impl AnyStructure {
     /// Checks if the AnyStructure has this property.
     #[must_use]
     pub fn has(&self, property: &Property) -> bool {
-        match &self.propeties {
+        match &self.properties {
             None => false,
             Some(properties) => properties.binary_search(property).is_ok(),
         }
@@ -37,7 +42,7 @@ impl AnyStructure {
 
     #[must_use]
     pub fn has_by_ref(&self, tag: &Object, value: &Object) -> bool {
-        match &self.propeties {
+        match &self.properties {
             None => false,
             Some(properties) => properties
                 .binary_search_by(|property| match property.tag.cmp(tag) {
@@ -46,38 +51,6 @@ impl AnyStructure {
                 })
                 .is_ok(),
         }
-    }
-
-    /// Adds the given properties to this AnyStructure.
-    #[inline]
-    #[must_use]
-    pub fn add(&self, properties: &mut [Property]) -> Self {
-        self.change(&mut [], properties)
-    }
-
-    /// Removes the given properties from this AnyStructure.
-    #[inline]
-    #[must_use]
-    pub fn remove(&self, properties: &mut [Property]) -> Self {
-        self.change(properties, &mut [])
-    }
-
-    /// Modifies this AnyStructure by adding and removing properties.
-    /// Returns the modified AnyStructure.
-    ///
-    /// The properties need to be mutable because this method needs to
-    /// reorder and dedup changes in-place to avoid unneccessary
-    /// allocations.
-    ///
-    /// Note that first all indicated properties are removed from
-    /// the AnyStructure and then all indicated properties are added.
-    #[must_use]
-    pub fn change(
-        &self,
-        remove_properties: &mut [Property],
-        add_properties: &mut [Property],
-    ) -> AnyStructure {
-        GlobalRegistry.resolve(self, remove_properties, add_properties)
     }
 
     /// Returns an iterator over all values that this tag has
@@ -163,7 +136,7 @@ impl fmt::Debug for AnyStructure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_set();
 
-        if let Some(props) = &self.propeties {
+        if let Some(props) = &self.properties {
             for prop in props.iter() {
                 debug.entry(prop);
             }
@@ -175,7 +148,7 @@ impl fmt::Debug for AnyStructure {
 
 impl AsRef<[Property]> for AnyStructure {
     fn as_ref(&self) -> &[Property] {
-        match &self.propeties {
+        match &self.properties {
             None => &[],
             Some(x) => x,
         }
@@ -184,13 +157,13 @@ impl AsRef<[Property]> for AnyStructure {
 
 impl Hash for AnyStructure {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.propeties.as_ref().map(Arc::as_ptr).hash(state);
+        self.properties.as_ref().map(Arc::as_ptr).hash(state);
     }
 }
 
 impl PartialEq for AnyStructure {
     fn eq(&self, other: &Self) -> bool {
-        match (&self.propeties, &other.propeties) {
+        match (&self.properties, &other.properties) {
             (None, None) => true,
             (Some(a), Some(b)) => Arc::ptr_eq(a, b),
             _ => false,
@@ -208,7 +181,7 @@ impl PartialOrd for AnyStructure {
 
 impl Ord for AnyStructure {
     fn cmp(&self, other: &Self) -> Ordering {
-        match (&self.propeties, &other.propeties) {
+        match (&self.properties, &other.properties) {
             (None, None) => Ordering::Equal,
             (None, Some(_)) => Ordering::Less,
             (Some(_), None) => Ordering::Greater,
@@ -221,7 +194,7 @@ impl Ord for AnyStructure {
 
 impl Drop for AnyStructure {
     fn drop(&mut self) {
-        if let Some(props) = &self.propeties
+        if let Some(props) = &self.properties
             && Arc::strong_count(props) == 2
         {
             // We and the registry are the only ones
