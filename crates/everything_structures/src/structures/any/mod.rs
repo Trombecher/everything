@@ -1,12 +1,11 @@
 #[cfg(test)]
 mod tests;
 
+use core::slice;
 use std::{
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
-    num::NonZeroU128,
-    slice,
     sync::Arc,
 };
 
@@ -19,25 +18,25 @@ pub struct AnyStructure {
 }
 
 impl AnyStructure {
-    /// Returns an iterator over all tags that this value has
-    /// in this AnyStructure.
-    pub fn tags(&self, value: &Object) -> impl Iterator<Item = &Object> {
-        self.as_ref()
-            .iter()
-            .filter_map(move |property| (&property.value == value).then_some(&property.tag))
+    /// Returns an iterator over all values that this tag has
+    /// in `self`.
+    pub fn values<'properties>(&'properties self, tag: Object) -> AnyStructureValues<'properties> {
+        let start = self
+            .properties
+            .partition_point(|property| property.tag < tag);
+
+        AnyStructureValues {
+            props: self.properties[start..].iter(),
+            tag,
+            done: false,
+        }
     }
 
-    /// Returns the natural number representation of
-    /// this structure if it has no additional props.
-    pub fn exact_natural_number(&self) -> Option<NonZeroU128> {
-        if let [Property { tag, value }] = self.as_ref()
-            && tag == &Object::SUCCESSOR_OF
-        {
-            value
-                .exact_natural_number()
-                .and_then(|n| NonZeroU128::new(n.checked_add(1).unwrap()))
-        } else {
-            None
+    /// Returns an iterator of all tags that this value has in `self`.
+    pub fn tags<'properties>(&'properties self, value: Object) -> AnyStructureTags<'properties> {
+        AnyStructureTags {
+            properties: self.properties.iter(),
+            value,
         }
     }
 }
@@ -100,5 +99,55 @@ impl Drop for AnyStructure {
 
             registry::remove(self);
         }
+    }
+}
+
+/// Iterator over values for a tag in an [AnyStructure].
+#[derive(Clone)]
+pub struct AnyStructureValues<'props> {
+    props: slice::Iter<'props, Property>,
+    tag: Object,
+    done: bool,
+}
+
+impl<'props> Iterator for AnyStructureValues<'props> {
+    type Item = &'props Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            None
+        } else if let Some(property) = self.props.next() {
+            if property.tag == self.tag {
+                Some(&property.value)
+            } else {
+                self.done = true;
+
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct AnyStructureTags<'properties> {
+    properties: slice::Iter<'properties, Property>,
+    value: Object,
+}
+
+impl<'properties> Iterator for AnyStructureTags<'properties> {
+    type Item = &'properties Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for next in &mut self.properties {
+            if next.value != self.value {
+                continue;
+            }
+
+            return Some(&next.tag);
+        }
+
+        None
     }
 }

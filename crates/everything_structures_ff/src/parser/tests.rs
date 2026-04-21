@@ -1,6 +1,6 @@
 //! Tests for the parser.
 
-use everything_structures::{AnyStructure, Object, Property, Structure};
+use everything_structures::{Object, Property, Structure};
 use parser_tools::Span;
 
 use crate::{FilteredToken, Parser};
@@ -39,10 +39,10 @@ fn parse_structure_continue() {
 
     assert_eq!(
         parser.parse_structure_continue(),
-        Ok(Structure::Any(AnyStructure::new(&mut [Property {
+        Ok(Structure::new(&mut [Property {
             tag: Object::Abstract(1),
             value: Object::Abstract(9)
-        }])))
+        }]))
     );
 
     assert_eq!(parser.tokens.peek(), None);

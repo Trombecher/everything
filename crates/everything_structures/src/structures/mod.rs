@@ -107,9 +107,7 @@ impl Structure {
             Structure::NaturalNumber(non_zero) => property == &Property::successor_of(*non_zero),
             Structure::Binary(_) => todo!(),
             Structure::Text(_) => todo!(),
-            Structure::Any(any_structure) => {
-                any_structure.properties.binary_search(property).is_ok()
-            }
+            Structure::Any(any_structure) => any_structure.as_ref().binary_search(property).is_ok(),
         }
     }
 
@@ -124,7 +122,7 @@ impl Structure {
             Structure::Binary(_) => todo!(),
             Structure::Text(_) => todo!(),
             Structure::Any(any) => any
-                .properties
+                .as_ref()
                 .binary_search_by(|property| {
                     property
                         .tag
@@ -145,28 +143,34 @@ impl Structure {
     /// Returns an iterator over all values that this tag has
     /// in `self`.
     #[must_use]
-    pub fn values<'props>(&'props self, tag: Object) -> ValuesIter<'props> {
+    pub fn values<'props>(&'props self, tag: Object) -> StructureValues<'props> {
         match self {
             Structure::NaturalNumber(non_zero) if tag == Object::SUCCESSOR_OF => {
-                ValuesIter::One(Cow::Owned(Property::successor_of(*non_zero).value))
+                StructureValues::One(Cow::Owned(Property::successor_of(*non_zero).value))
             }
             Structure::Binary(_) => todo!(),
             Structure::Text(_) => todo!(),
             Structure::Any(any_structure) => {
-                let start = any_structure
-                    .properties
-                    .partition_point(|property| property.tag < tag);
-
-                ValuesIter::More(
-                    AnyValuesIter {
-                        props: any_structure.properties[start..].iter(),
-                        tag,
-                        done: false,
-                    }
-                    .map(Cow::Borrowed),
-                )
+                StructureValues::More(any_structure.values(tag).map(Cow::Borrowed))
             }
-            _ => ValuesIter::None,
+            _ => StructureValues::None,
+        }
+    }
+
+    /// Returns an iterator over all tags that this value has in `self`.
+    pub fn tags<'properties>(&'properties self, value: Object) -> StructureTags<'properties> {
+        match self {
+            Structure::NaturalNumber(non_zero)
+                if Property::successor_of(*non_zero).value == value =>
+            {
+                StructureTags::One(Cow::Owned(Object::SUCCESSOR_OF))
+            }
+            Structure::Binary(_) => todo!(),
+            Structure::Text(_) => todo!(),
+            Structure::Any(any_structure) => {
+                StructureTags::More(any_structure.tags(value).map(Cow::Borrowed))
+            }
+            _ => FixedOrMore::None,
         }
     }
 }
@@ -214,34 +218,10 @@ pub type Properties<'structure> = FixedOrMore<
     >,
 >;
 
-pub type ValuesIter<'properties> = FixedOrMore<
-    Map<AnyValuesIter<'properties>, fn(&'properties Object) -> Cow<'properties, Object>>,
+pub type StructureValues<'properties> = FixedOrMore<
+    Map<AnyStructureValues<'properties>, fn(&'properties Object) -> Cow<'properties, Object>>,
 >;
 
-/// Iterator over values for a tag in an [AnyStructure].
-#[derive(Clone)]
-pub struct AnyValuesIter<'props> {
-    props: slice::Iter<'props, Property>,
-    tag: Object,
-    done: bool,
-}
-
-impl<'props> Iterator for AnyValuesIter<'props> {
-    type Item = &'props Object;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            None
-        } else if let Some(property) = self.props.next() {
-            if property.tag == self.tag {
-                Some(&property.value)
-            } else {
-                self.done = true;
-
-                None
-            }
-        } else {
-            None
-        }
-    }
-}
+pub type StructureTags<'properties> = FixedOrMore<
+    Map<AnyStructureTags<'properties>, fn(&'properties Object) -> Cow<'properties, Object>>,
+>;

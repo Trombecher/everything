@@ -38,8 +38,11 @@ impl<More: Iterator> Iterator for FixedOrMore<More> {
             Self::None => None,
             Self::One(item) | Self::Two(_, item) => unsafe {
                 let data_ptr: *const More::Item = item;
-
                 let disc_ptr = self as *mut Self as *mut u8;
+
+                // We don't need a `.unchecked_sub(1)` because the
+                // compiler is smart enough to realize that the
+                // discriminant is non-zero.
                 *disc_ptr -= 1;
 
                 Some(std::ptr::read(data_ptr))

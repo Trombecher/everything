@@ -1,3 +1,7 @@
+//! The _registry_ is a global arena of structures. It serves
+//! as a de-duplicator, such that no equal structure is allocated
+//! twice.
+
 use std::{
     assert_matches,
     cmp::Ordering,
@@ -123,7 +127,7 @@ pub fn resolve(
 }
 
 fn resolve_blob(slice: &[u8]) -> BlobStructure {
-    if slice.len() == 0 {
+    if slice.is_empty() {
         return BlobStructure { data: None };
     }
 
@@ -146,7 +150,7 @@ fn resolve_blob(slice: &[u8]) -> BlobStructure {
 }
 
 fn remove_blob(blob: BlobStructure) {
-    if blob.as_ref().len() == 0 {
+    if blob.as_ref().is_empty() {
         return;
     }
 

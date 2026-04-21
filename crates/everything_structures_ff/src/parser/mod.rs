@@ -4,7 +4,7 @@ mod tests;
 use core::{iter::Peekable, num::NonZeroU128};
 
 use alloc::{boxed::Box, vec::Vec};
-use everything_structures::{AnyStructure, Object, Property, Structure};
+use everything_structures::{Object, Property, Structure};
 use parser_tools::Span;
 
 pub type Error<'source> = Box<ErrorInfo<'source>>;
@@ -103,7 +103,7 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
             }
         }
 
-        Ok(Structure::Any(AnyStructure::new(&mut properties)))
+        Ok(Structure::new(&mut properties))
     }
 
     fn parse_object(&mut self) -> Result<Object, Error<'source>> {

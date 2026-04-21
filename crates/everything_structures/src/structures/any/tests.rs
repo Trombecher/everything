@@ -1,5 +1,5 @@
 use crate::{Object, Property, Structure};
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 pub const ALICE: Object = Object::Abstract(u128::from_be_bytes(*b"This is Alice!!!"));
 pub const BOB: Object = Object::Abstract(u128::from_be_bytes(*b"This is Bob!!!!!"));
@@ -111,7 +111,7 @@ fn one_value() {
     let s = alice_bob_structure();
 
     let mut alices = s.values(ALICE);
-    assert_eq!(alices.next(), Some(&BOB));
+    assert_eq!(alices.next(), Some(Cow::Borrowed(&BOB)));
     assert_eq!(alices.next(), None);
 
     assert_eq!(s.values(BOB).next(), None);
