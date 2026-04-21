@@ -1,11 +1,11 @@
-use crate::{AnyStructure, Object, Property, Structure};
+use crate::{Object, Property, Structure};
 use std::sync::Arc;
 
 pub const ALICE: Object = Object::Abstract(u128::from_be_bytes(*b"This is Alice!!!"));
 pub const BOB: Object = Object::Abstract(u128::from_be_bytes(*b"This is Bob!!!!!"));
 
-fn alice_bob_structure() -> AnyStructure {
-    AnyStructure::new(&mut [Property {
+fn alice_bob_structure() -> Structure {
+    Structure::new(&mut [Property {
         tag: ALICE,
         value: BOB,
     }])
@@ -13,13 +13,13 @@ fn alice_bob_structure() -> AnyStructure {
 
 #[test]
 fn empty_structure() {
-    assert_eq!(AnyStructure::new(&mut []), AnyStructure::EMPTY);
+    assert_eq!(Structure::new(&mut []), []);
 }
 
 #[test]
 fn one_structure() {
     assert_eq!(
-        alice_bob_structure().as_ref(),
+        alice_bob_structure(),
         [Property {
             tag: ALICE,
             value: BOB
@@ -31,16 +31,16 @@ fn one_structure() {
 fn inner_structure() {
     let inner = alice_bob_structure();
 
-    let outer = AnyStructure::new(&mut [Property {
+    let outer = Structure::new(&mut [Property {
         tag: ALICE,
-        value: Structure::Any(inner.clone()).into(),
+        value: inner.clone().into(),
     }]);
 
     assert_eq!(
-        outer.as_ref(),
+        outer,
         [Property {
             tag: ALICE,
-            value: Structure::Any(inner).into()
+            value: inner.into()
         }]
     )
 }
@@ -54,7 +54,7 @@ fn remove_props() {
         value: BOB,
     }]);
 
-    assert_eq!(should_be_empty.properties, None);
+    assert_eq!(should_be_empty, []);
 }
 
 #[test]
@@ -89,8 +89,8 @@ fn deduping() {
     let structure_b = alice_bob_structure();
 
     assert!(Arc::ptr_eq(
-        structure_a.properties.as_ref().unwrap(),
-        structure_b.properties.as_ref().unwrap()
+        &structure_a.any().unwrap().properties,
+        &structure_b.any().unwrap().properties
     ))
 }
 
@@ -103,7 +103,7 @@ fn debug() {
 
 #[test]
 fn no_values() {
-    assert_eq!(AnyStructure::EMPTY.values(ALICE).next(), None)
+    assert_eq!(Structure::Empty.values(ALICE).next(), None)
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn one_value() {
 
 #[test]
 fn multiple_values() {
-    let s = AnyStructure::new(&mut [
+    let s = Structure::new(&mut [
         Property {
             tag: ALICE,
             value: ALICE,
@@ -138,7 +138,7 @@ fn multiple_values() {
 
 #[test]
 fn no_tags() {
-    assert_eq!(AnyStructure::EMPTY.tags(&ALICE).next(), None);
+    assert_eq!(Structure::EMPTY.tags(&ALICE).next(), None);
 }
 
 #[test]
@@ -154,7 +154,7 @@ fn one_tag() {
 
 #[test]
 fn multiple_tags() {
-    let s = AnyStructure::new(&mut [
+    let s = Structure::new(&mut [
         Property {
             tag: ALICE,
             value: ALICE,
@@ -174,14 +174,14 @@ fn multiple_tags() {
 #[test]
 fn union() {
     let a = alice_bob_structure();
-    let b = AnyStructure::new(&mut [Property {
+    let b = Structure::new(&mut [Property {
         tag: BOB,
         value: ALICE,
     }]);
 
     assert_eq!(
         a.union(&b),
-        AnyStructure::new(&mut [
+        Structure::new(&mut [
             Property {
                 tag: ALICE,
                 value: BOB
@@ -203,5 +203,5 @@ fn subsets() {
         }]))
     );
 
-    assert!(!alice_bob_structure().is_subset_of(&AnyStructure::EMPTY))
+    assert!(!alice_bob_structure().is_subset_of(&Structure::EMPTY))
 }

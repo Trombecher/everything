@@ -20,22 +20,6 @@ pub struct AnyStructure {
 }
 
 impl AnyStructure {
-    /// Checks if the AnyStructure has this property.
-    #[must_use]
-    pub fn has(&self, property: &Property) -> bool {
-        self.properties.binary_search(property).is_ok()
-    }
-
-    #[must_use]
-    pub fn has_by_ref(&self, tag: &Object, value: &Object) -> bool {
-        self.properties
-            .binary_search_by(|property| match property.tag.cmp(tag) {
-                Ordering::Equal => property.value.cmp(value),
-                ordering => ordering,
-            })
-            .is_ok()
-    }
-
     /// Returns an iterator over all values that this tag has
     /// in this AnyStructure.
     #[must_use]
@@ -56,13 +40,6 @@ impl AnyStructure {
         self.as_ref()
             .iter()
             .filter_map(move |property| (&property.value == value).then_some(&property.tag))
-    }
-
-    /// Determines if `self` is a subset of `other` by checking
-    /// if `other` has every property of `self`.
-    #[must_use]
-    pub fn is_subset_of(&self, other: &Self) -> bool {
-        self.as_ref().iter().all(|property| other.has(property))
     }
 
     /// Returns the natural number representation of

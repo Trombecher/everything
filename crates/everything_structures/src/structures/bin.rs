@@ -8,7 +8,7 @@ pub struct BlobStructure {
 impl AsRef<[u8]> for BlobStructure {
     fn as_ref(&self) -> &[u8] {
         match &self.data {
-            Some(data) => &data,
+            Some(data) => data,
             None => &[],
         }
     }

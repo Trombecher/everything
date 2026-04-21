@@ -79,13 +79,10 @@ impl Structure {
     }
 
     /// Returns an iterator over all properties:
-    pub fn properties(&self) -> Properties {
+    pub fn properties<'structure>(&'structure self) -> Properties<'structure> {
         match self {
             Self::Empty => Properties::None,
-            Self::NaturalNumber(n) => Properties::One(Property {
-                tag: Object::SUCCESSOR_OF,
-                value: Object::new_natural_number(n.get() - 1),
-            }),
+            Self::NaturalNumber(n) => Properties::One(Property::successor_of(*n)),
             Self::Binary(_) => todo!(),
             Self::Text(_) => todo!(),
             Self::Any(any_structure) => Properties::Any(any_structure.as_ref().iter()),
@@ -95,12 +92,52 @@ impl Structure {
     /// Merges the properties of `self` and `other` into a new AnyStructure.
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
-        let mut add_properties = other
-            .properties()
-            .map(|property| property.into_owned())
-            .collect::<Vec<_>>();
+        let mut add_properties = other.properties().map(Cow::into_owned).collect::<Vec<_>>();
 
         self.add(add_properties.as_mut_slice())
+    }
+
+    /// Checks if `self` has this property.
+    #[must_use]
+    pub fn has(&self, property: &Property) -> bool {
+        match self {
+            Structure::Empty => false,
+            Structure::NaturalNumber(non_zero) => property == &Property::successor_of(*non_zero),
+            Structure::Binary(_) => todo!(),
+            Structure::Text(_) => todo!(),
+            Structure::Any(any_structure) => {
+                any_structure.properties.binary_search(property).is_ok()
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn has_by_ref(&self, tag: &Object, value: &Object) -> bool {
+        match self {
+            Structure::Empty => false,
+            Structure::NaturalNumber(non_zero) => {
+                let self_as_property = Property::successor_of(*non_zero);
+                &self_as_property.tag == tag && &self_as_property.value == value
+            }
+            Structure::Binary(_) => todo!(),
+            Structure::Text(_) => todo!(),
+            Structure::Any(any) => any
+                .properties
+                .binary_search_by(|property| {
+                    property
+                        .tag
+                        .cmp(tag)
+                        .then_with(|| property.value.cmp(value))
+                })
+                .is_ok(),
+        }
+    }
+
+    /// Determines if `self` is a subset of `other` by checking
+    /// if `other` has every property of `self`.
+    #[must_use]
+    pub fn is_subset_of(&self, other: &Self) -> bool {
+        self.properties().all(|property| other.has(&property))
     }
 }
 
@@ -125,6 +162,18 @@ impl Debug for Structure {
             Self::Text(t) => t.fmt(f),
             Self::Binary(b) => b.fmt(f),
         }
+    }
+}
+
+impl<const N: usize> PartialEq<[Property; N]> for Structure {
+    fn eq(&self, other: &[Property; N]) -> bool {
+        self == other.as_slice()
+    }
+}
+
+impl PartialEq<[Property]> for Structure {
+    fn eq(&self, other: &[Property]) -> bool {
+        self.properties().eq(other.iter().map(Cow::Borrowed))
     }
 }
 

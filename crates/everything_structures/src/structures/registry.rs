@@ -12,9 +12,8 @@ use dashmap::DashMap;
 use crate::{AnyStructure, BlobStructure, Object, Property, Structure};
 
 enum Specialization {
+    Empty,
     NaturalNumber(NonZeroU128),
-    Binary(()),
-    Text(()),
     // TODO: do these
 }
 
@@ -49,6 +48,7 @@ impl StructureMetaInfo {
     #[must_use]
     pub fn specialization(&self) -> Option<Specialization> {
         match self {
+            Self { prop_count: 0, .. } => Some(Specialization::Empty),
             Self {
                 prop_count: 1,
                 current_natural_number: Some(n),
@@ -88,9 +88,13 @@ pub fn resolve(
 
     let info = structure_meta_info(base, remove_properties, add_properties);
 
-    if info.prop_count == 0 {
-        // The resulting structure is the empty structure.
-        return Structure::Empty;
+    match info.specialization() {
+        Some(Specialization::Empty) => return Structure::Empty,
+        Some(Specialization::NaturalNumber(n)) => return Structure::NaturalNumber(n),
+        None => {
+            // We have no specialization, so we just
+            // allocate that.
+        }
     }
 
     let hash = info.final_hash();
@@ -222,12 +226,6 @@ fn structure_meta_info(
     }
 
     info
-}
-
-#[inline(always)]
-fn hash_of_nothing() -> u64 {
-    let hasher = DefaultHasher::new();
-    hasher.finish()
 }
 
 fn allocate_new_structure(
