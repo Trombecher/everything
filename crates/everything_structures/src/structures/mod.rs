@@ -32,6 +32,7 @@ pub enum Structure {
     NaturalNumber(NonZeroU128),
     Binary(BlobStructure),
     Text(TextStructure),
+    /// Any structure, a structure that is not a specialization.
     Any(AnyStructure),
 }
 

@@ -131,25 +131,25 @@ fn multiple_values() {
     ]);
 
     let mut alices = s.values(ALICE);
-    assert_eq!(alices.next(), Some(&ALICE));
-    assert_eq!(alices.next(), Some(&BOB));
+    assert_eq!(alices.next(), Some(Cow::Borrowed(&ALICE)));
+    assert_eq!(alices.next(), Some(Cow::Borrowed(&BOB)));
     assert_eq!(alices.next(), None);
 }
 
 #[test]
 fn no_tags() {
-    assert_eq!(Structure::Empty.tags(&ALICE).next(), None);
+    assert_eq!(Structure::Empty.tags(ALICE).next(), None);
 }
 
 #[test]
 fn one_tag() {
     let s = alice_bob_structure();
 
-    let mut tags_that_have_bob = s.tags(&BOB);
-    assert_eq!(tags_that_have_bob.next(), Some(&ALICE));
+    let mut tags_that_have_bob = s.tags(BOB);
+    assert_eq!(tags_that_have_bob.next(), Some(Cow::Borrowed(&ALICE)));
     assert_eq!(tags_that_have_bob.next(), None);
 
-    assert_eq!(s.tags(&ALICE).next(), None);
+    assert_eq!(s.tags(ALICE).next(), None);
 }
 
 #[test]
@@ -165,9 +165,9 @@ fn multiple_tags() {
         },
     ]);
 
-    let mut tags_that_have_alice = s.tags(&ALICE);
-    assert_eq!(tags_that_have_alice.next(), Some(&ALICE));
-    assert_eq!(tags_that_have_alice.next(), Some(&BOB));
+    let mut tags_that_have_alice = s.tags(ALICE);
+    assert_eq!(tags_that_have_alice.next(), Some(Cow::Borrowed(&ALICE)));
+    assert_eq!(tags_that_have_alice.next(), Some(Cow::Borrowed(&BOB)));
     assert_eq!(tags_that_have_alice.next(), None);
 }
 
@@ -203,5 +203,5 @@ fn subsets() {
         }]))
     );
 
-    assert!(!alice_bob_structure().is_subset_of(&Structure::EMPTY))
+    assert!(!alice_bob_structure().is_subset_of(&Structure::Empty))
 }
