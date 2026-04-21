@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests;
 
-use everything_structures::{AnyStructure, Object, Property, Structure};
+use std::borrow::Cow;
+
+use everything_structures::{Object, Property, Structure};
 use fallible_iterator::{FallibleIterator, IteratorExt};
 use tracing::{instrument, warn};
 
@@ -18,7 +20,6 @@ macro_rules! define_abstract {
 }
 
 pub trait ObjectExt {
-    fn node_exists(&self, knowledge: &Structure) -> Option<Object>;
     // DO NOT CHANGE THESE!
     define_abstract!(
         CONTAINS = 1,
@@ -49,11 +50,23 @@ pub trait ObjectExt {
         // NODE_CALL = 28,
     );
 
+    /// Extracts the first [Self::NODE_EXISTS] from `self`.
+    fn node_exists<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Object>>;
+
     /// Extracts the first [Self::NODE_COUNT] from `self`.
-    fn node_count(&self, knowledge: &Structure) -> Option<Object>;
+    fn node_count<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Object>>;
 
     /// Extracts the first [Self::COMPUTED] from `self`.
-    fn computed_body(&self, knowledge: &Structure) -> Option<Object>;
+    fn computed_body<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Object>>;
 
     fn capture(
         &self,
@@ -88,11 +101,17 @@ pub trait ObjectExt {
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<usize>;
 
-    fn node_literal(&self, knowledge: &Structure) -> Option<Object>;
+    fn node_literal<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Object>>;
 
     fn statement_form(&self, knowledge: &Structure) -> StatementForm;
 
-    fn node_query(&self, knowledge: &Structure) -> Option<Object>;
+    fn node_query<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Object>>;
 
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
 
@@ -145,16 +164,18 @@ impl ObjectExt for Object {
             .next()
     }
 
-    fn node_count(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Object::NODE_COUNT)
-            .next()
-            .cloned()
+    fn node_count<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Object>> {
+        query::values_axiomatically(knowledge, self, Object::NODE_COUNT).next()
     }
 
-    fn computed_body(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Object::COMPUTED)
-            .next()
-            .cloned()
+    fn computed_body<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Object>> {
+        query::values_axiomatically(knowledge, self, Object::COMPUTED).next()
     }
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<usize> {
@@ -163,10 +184,11 @@ impl ObjectExt for Object {
             .and_then(|depth| depth.to_natural_number(knowledge))
     }
 
-    fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Object::NODE_LITERAL)
-            .next()
-            .cloned()
+    fn node_literal<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Object>> {
+        query::values_axiomatically(knowledge, self, Object::NODE_LITERAL).next()
     }
 
     fn statement_form(&self, knowledge: &Structure) -> StatementForm {
@@ -194,16 +216,18 @@ impl ObjectExt for Object {
         }
     }
 
-    fn node_query(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Object::NODE_QUERY)
-            .next()
-            .cloned()
+    fn node_query<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Self>> {
+        query::values_axiomatically(knowledge, self, Object::NODE_QUERY).next()
     }
 
-    fn node_exists(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Object::NODE_EXISTS)
-            .next()
-            .cloned()
+    fn node_exists<'knowledge: 'item, 'subject: 'item, 'item>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> Option<Cow<'item, Self>> {
+        query::values_axiomatically(knowledge, self, Object::NODE_EXISTS).next()
     }
 
     #[instrument(skip(knowledge), ret)]
@@ -243,6 +267,9 @@ impl ObjectExt for Object {
                 Self::Structure(Structure::NaturalNumber(n)) => {
                     Self::Structure(Structure::NaturalNumber(*n))
                 }
+                Self::Structure(Structure::Empty) => Structure::Empty.into(),
+                Self::Structure(Structure::Binary(_)) => todo!(),
+                Self::Structure(Structure::Text(_)) => todo!(),
                 Self::Structure(Structure::Any(structure)) => structure
                     .as_ref()
                     .iter()
@@ -266,13 +293,11 @@ impl ObjectExt for Object {
                     })
                     .transpose_into_fallible()
                     .collect::<Vec<_>>()
-                    .map(|mut properties| {
-                        Self::Structure(Structure::Any(AnyStructure::new(&mut properties)))
-                    })
+                    .map(|mut properties| Self::Structure(Structure::new(&mut properties)))
                     .unwrap_or_else(|(o, error)| {
                         warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                        Structure::Any(AnyStructure::EMPTY).into()
+                        Structure::Empty.into()
                     }),
             },
         }
@@ -314,12 +339,12 @@ impl ObjectExt for Object {
                     // This is just equal to `NODE_EXISTS`.
 
                     for item in actual_qr.iter() {
-                        if item == &value {
-                            return Object::from_bool(true);
+                        if item.as_ref() == &value {
+                            return Structure::new_bool(true).into();
                         }
                     }
 
-                    Object::from_bool(false)
+                    Structure::new_bool(false).into()
                 } else {
                     // Collect all values into a set.
                     actual_qr.collect_to_set()
@@ -372,21 +397,22 @@ impl ObjectExt for Object {
 
                 match (tag, value) {
                     // I think this should be fine.
-                    (None, None) => Object::from_bool(true),
+                    (None, None) => Structure::new_bool(true).into(),
                     (Some(tag), None) => {
                         // Now we only need to check if one value exists.
 
                         let values_qr = query::values(knowledge, &subject, tag, ctx);
 
-                        Object::from_bool(values_qr.iter().next().is_some())
+                        Structure::new_bool(values_qr.iter().next().is_some()).into()
                     }
                     // TODO: ?
-                    (None, Some(_)) => Object::from_bool(true),
+                    (None, Some(_)) => Structure::new_bool(true).into(),
                     (Some(tag), Some(value)) => {
                         // TODO: perf
 
                         let values_qr = query::values(knowledge, &subject, tag, ctx);
-                        Object::from_bool(values_qr.iter().find(|v| **v == value).is_some())
+                        Structure::new_bool(values_qr.iter().find(|v| **v == value).is_some())
+                            .into()
                     }
                 }
             }
@@ -396,12 +422,11 @@ impl ObjectExt for Object {
                     .unwrap()
                     .eval(knowledge, ctx);
 
-                Object::from_bool(!value.is_truthy())
+                Structure::new_bool(!value.is_truthy(knowledge)).into()
             }
             Some(ty) => todo!("{ty:?} not impl"),
             None if let Object::Structure(structure) = self => structure
-                .as_ref()
-                .iter()
+                .properties()
                 .map(|property| {
                     let value = property.value.eval(knowledge, ctx);
 
@@ -426,7 +451,7 @@ impl ObjectExt for Object {
                 .unwrap_or_else(|(o, error)| {
                     warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                    Object::Structure(Structure::EMPTY)
+                    Structure::Empty.into()
                 }),
             None => self.clone(),
         }

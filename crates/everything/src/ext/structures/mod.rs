@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests;
 
-use everything_structures::{AnyStructure, Object, Property, Structure};
+use std::borrow::Cow;
+
+use everything_structures::{Object, Property, Structure};
 use tracing::instrument;
 
 use crate::{
@@ -12,42 +14,42 @@ use crate::{
 };
 
 #[derive(PartialEq, Clone, Debug)]
-pub enum ObjectForm {
+pub enum ObjectForm<'a> {
     Any,
-    Specific(Object),
+    Specific(Cow<'a, Object>),
 }
 
-impl From<Option<Object>> for ObjectForm {
+impl<'a> From<Option<Object>> for ObjectForm<'a> {
     fn from(value: Option<Object>) -> Self {
         match value {
             None => Self::Any,
-            Some(object) => Self::Specific(object),
+            Some(object) => Self::Specific(Cow::Owned(object)),
         }
     }
 }
 
-impl From<ObjectForm> for Option<Object> {
+impl<'a> From<ObjectForm<'a>> for Option<Object> {
     fn from(value: ObjectForm) -> Self {
         match value {
             ObjectForm::Any => None,
-            ObjectForm::Specific(object) => Some(object),
+            ObjectForm::Specific(object) => Some(object.into_owned()),
         }
     }
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct StatementForm {
-    pub subject: ObjectForm,
-    pub tag: ObjectForm,
-    pub value: ObjectForm,
+pub struct StatementForm<'a> {
+    pub subject: ObjectForm<'a>,
+    pub tag: ObjectForm<'a>,
+    pub value: ObjectForm<'a>,
 }
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum KnowledgeError {
     IsNotSupersetOfBase,
     SubjectIsNotStatementStructure(Object),
-    NeedsToBeTrueButIsFalse(StatementForm),
-    NeedsToBeFalseButIsTrue(StatementForm),
+    NeedsToBeTrueButIsFalse(StatementForm<'static>),
+    NeedsToBeFalseButIsTrue(StatementForm<'static>),
     ValueOnSubjectDoesNotMatchTagsConstraint {
         subject: Object,
         tag: Object,
@@ -86,7 +88,7 @@ pub trait StructureExt {
     fn new_node_count(node: Object) -> Self;
 
     /// Constructs a parameter node.
-    fn new_node_parameter(depth: u128) -> Self;
+    fn new_node_parameter(depth: usize) -> Self;
 
     fn new_node_exists(statement: Object) -> Self;
 
@@ -96,7 +98,7 @@ pub trait StructureExt {
 
     fn is_statement(&self) -> bool;
 
-    fn parse_statement<'a>(&'a self, knowledge: &Structure) -> Option<Statement<'a>>;
+    fn parse_statement<'a>(&'a self) -> Option<Statement<'a>>;
 
     fn new_computed(body: Object) -> Self;
 
@@ -124,10 +126,10 @@ impl StructureExt for Structure {
     fn new_bool(b: bool) -> Self {
         if b {
             // `{(@1, {})}`
-            Self::new_set([Structure::Any(AnyStructure::EMPTY).into()])
+            Self::new_set([Structure::Empty.into()])
         } else {
             // `{}`
-            AnyStructure::EMPTY.into()
+            Structure::Empty.into()
         }
     }
 
@@ -144,24 +146,19 @@ impl StructureExt for Structure {
 
     #[instrument(skip(knowledge), ret)]
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
-        let properties = match self {
-            Self::Any(any) => any.as_ref(),
-            Self::NaturalNumber(_) => return Ok(()),
-        };
-
-        for Property { tag, value } in properties {
+        for property in self.properties() {
             let constraint_function =
-                query::values_axiomatically(knowledge, tag, Object::AXIOMATIC)
+                query::values_axiomatically(knowledge, &property.tag, Object::AXIOMATIC)
                     .next()
                     .ok_or_else(|| {
                         KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(tag.clone()),
+                            subject: ObjectForm::Specific(property.tag.clone()),
                             tag: ObjectForm::Specific(Object::AXIOMATIC),
                             value: ObjectForm::Any,
                         })
                     })?;
 
-            let parameters = [self.clone().into(), value.clone()];
+            let parameters = [self.clone().into(), property.value.clone()];
 
             let result =
                 constraint_function.call(knowledge, &parameters, &mut EvaluationContext::default());
@@ -169,14 +166,14 @@ impl StructureExt for Structure {
             if !result.is_truthy(knowledge) {
                 return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
                     subject: self.clone().into(),
-                    tag: tag.clone(),
-                    value: value.clone(),
+                    tag: property.tag.clone(),
+                    value: property.value.clone(),
                 });
             }
 
             if recursive {
-                tag.is_valid(knowledge, true)?;
-                value.is_valid(knowledge, true)?;
+                property.tag.is_valid(knowledge, true)?;
+                property.value.is_valid(knowledge, true)?;
             }
         }
 
@@ -193,13 +190,13 @@ impl StructureExt for Structure {
         // in `self` is a statement.
 
         for contains_object in self.values(Object::CONTAINS) {
-            if let Object::Structure(contains_structure) = contains_object
+            if let Object::Structure(contains_structure) = contains_object.as_ref()
                 && contains_structure.is_statement()
             {
             } else {
                 // TODO: review this for abstracts
                 return Err(KnowledgeError::SubjectIsNotStatementStructure(
-                    contains_object.clone(),
+                    contains_object.into_owned(),
                 ));
             }
         }
@@ -214,26 +211,29 @@ impl StructureExt for Structure {
                 .expect("found a structure which is not a statement");
 
             let constraint_function =
-                query::values_axiomatically(self, statement.tag, Object::AXIOMATIC)
+                query::values_axiomatically(self, &statement.tag, Object::AXIOMATIC)
                     .next()
                     .ok_or_else(|| {
                         KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(statement.tag.clone()),
+                            subject: ObjectForm::Specific(statement.tag.clone().into_owned()),
                             tag: ObjectForm::Specific(Object::AXIOMATIC),
                             value: ObjectForm::Any,
                         })
                     })?;
 
-            let arguments = [statement.subject.clone(), statement.value.clone()];
+            let arguments = [
+                statement.subject.clone().into_owned(),
+                statement.value.clone().into_owned(),
+            ];
 
             let result =
                 constraint_function.call(self, &arguments, &mut EvaluationContext::default());
 
             if !result.is_truthy(self) {
                 return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
-                    subject: statement.subject.clone(),
-                    tag: statement.tag.clone(),
-                    value: statement.value.clone(),
+                    subject: statement.subject.into_owned(),
+                    tag: statement.tag.into_owned(),
+                    value: statement.value.into_owned(),
                 });
             }
         }
@@ -247,8 +247,7 @@ impl StructureExt for Structure {
             && self.has_exactly_one_value_on(Object::STATEMENT_VALUE)
     }
 
-    fn parse_statement<'a>(&'a self, knowledge: &Structure) -> Option<Statement<'a>> {
-        let subject = query::values_axiomatically(knowledge, subject, tag)
+    fn parse_statement<'a>(&'a self) -> Option<Statement<'a>> {
         let subject = self.values(Object::STATEMENT_SUBJECT).next()?;
         let tag = self.values(Object::STATEMENT_TAG).next()?;
         let value = self.values(Object::STATEMENT_VALUE).next()?;
@@ -261,11 +260,10 @@ impl StructureExt for Structure {
     }
 
     fn new_computed(body: Object) -> Self {
-        AnyStructure::new(&mut [Property {
+        Self::new(&mut [Property {
             tag: Object::COMPUTED,
             value: body,
         }])
-        .into()
     }
 
     fn new_node_equal<const N: usize>(nodes: [Object; N]) -> Self {
@@ -274,7 +272,7 @@ impl StructureExt for Structure {
             value: node,
         });
 
-        AnyStructure::new(&mut properties).into()
+        Self::new(&mut properties)
     }
 
     fn new_node_and<const N: usize>(nodes: [Object; N]) -> Self {
@@ -283,45 +281,41 @@ impl StructureExt for Structure {
             value: node,
         });
 
-        AnyStructure::new(&mut properties).into()
+        Self::new(&mut properties)
     }
 
     fn new_node_exists(statement_node: Object) -> Self {
-        AnyStructure::new(&mut [Property {
+        Self::new(&mut [Property {
             tag: Object::NODE_EXISTS,
             value: statement_node,
         }])
-        .into()
     }
 
-    fn new_node_parameter(depth: u128) -> Self {
-        AnyStructure::new(&mut [Property {
+    fn new_node_parameter(depth: usize) -> Self {
+        Self::new(&mut [Property {
             tag: Object::NODE_PARAMETER,
-            value: Object::new_natural_number(depth),
+            value: Object::new_natural_number(depth as u128),
         }])
-        .into()
     }
 
     fn new_node_count(node: Object) -> Self {
-        AnyStructure::new(&mut [Property {
+        Self::new(&mut [Property {
             tag: Object::NODE_COUNT,
             value: node,
         }])
-        .into()
     }
 
     fn new_node_query(query: Object) -> Self {
-        AnyStructure::new(&mut [Property {
+        Self::new(&mut [Property {
             tag: Object::NODE_QUERY,
             value: query,
         }])
-        .into()
     }
 
     fn new_node_query_values(subject: Object, tag: Object) -> Self {
-        AnyStructure::new(&mut [Property {
+        Self::new(&mut [Property {
             tag: Object::NODE_QUERY,
-            value: Self::Any(AnyStructure::new(&mut [
+            value: Self::new(&mut [
                 Property {
                     tag: Object::STATEMENT_SUBJECT,
                     value: subject,
@@ -330,10 +324,9 @@ impl StructureExt for Structure {
                     tag: Object::STATEMENT_TAG,
                     value: tag,
                 },
-            ]))
+            ])
             .into(),
         }])
-        .into()
     }
 
     fn new_set<const N: usize>(items: [Object; N]) -> Self {
@@ -342,7 +335,7 @@ impl StructureExt for Structure {
             value: node,
         });
 
-        AnyStructure::new(&mut properties).into()
+        Self::new(&mut properties)
     }
 
     fn new_node_or<const N: usize>(nodes: [Object; N]) -> Self {
@@ -351,7 +344,7 @@ impl StructureExt for Structure {
             value: node,
         });
 
-        AnyStructure::new(&mut properties).into()
+        Self::new(&mut properties)
     }
 
     fn new_node_xor<const N: usize>(nodes: [Object; N]) -> Self {
@@ -360,27 +353,25 @@ impl StructureExt for Structure {
             value: node,
         });
 
-        AnyStructure::new(&mut properties).into()
+        Self::new(&mut properties)
     }
 
     fn new_node_not(node: Object) -> Self {
-        AnyStructure::new(&mut [Property {
+        Self::new(&mut [Property {
             tag: Object::NODE_NOT,
             value: node,
         }])
-        .into()
     }
 
     fn new_node_literal(object: Object) -> Self {
-        AnyStructure::new(&mut [Property {
+        Self::new(&mut [Property {
             tag: Object::NODE_LITERAL,
             value: object,
         }])
-        .into()
     }
 
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self {
-        AnyStructure::new(&mut [
+        Self::new(&mut [
             Property {
                 tag: Object::STATEMENT_SUBJECT,
                 value: subject,
@@ -394,6 +385,5 @@ impl StructureExt for Structure {
                 value,
             },
         ])
-        .into()
     }
 }

@@ -4,6 +4,8 @@
 mod objects;
 mod structures;
 
+use std::borrow::Cow;
+
 pub use objects::*;
 pub use structures::*;
 
@@ -12,9 +14,9 @@ use everything_structures::{Object, Structure};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement<'a> {
-    pub subject: &'a Object,
-    pub tag: &'a Object,
-    pub value: &'a Object,
+    pub subject: Cow<'a, Object>,
+    pub tag: Cow<'a, Object>,
+    pub value: Cow<'a, Object>,
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]

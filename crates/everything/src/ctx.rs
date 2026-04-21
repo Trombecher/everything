@@ -13,7 +13,7 @@ impl EvaluationContext {
             .len()
             .checked_sub(1 + relative_depth)
             .map(|index| self.stack.get(index).unwrap().parameter.clone())
-            .unwrap_or(Object::Structure(Structure::EMPTY))
+            .unwrap_or(Object::Structure(Structure::Empty))
     }
 
     pub fn push(&mut self, fc: FunctionContext) {

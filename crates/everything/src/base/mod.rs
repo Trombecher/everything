@@ -3,9 +3,9 @@ mod tests;
 
 use std::sync::LazyLock;
 
-use everything_structures::{AnyStructure, Object, Property, Structure};
+use everything_structures::{Object, Property, Structure};
 
-use crate::ext::{ObjectExt, Statement, StructureExt};
+use crate::ext::{ObjectExt, StructureExt};
 
 fn stmt_to_prop(subject: Object, tag: Object, value: Object) -> Property {
     Property {

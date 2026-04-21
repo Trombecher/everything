@@ -3,8 +3,9 @@ mod axiomatic;
 mod tests;
 
 use std::array;
+use std::borrow::Cow;
 
-use everything_structures::{AnyStructure, AnyStructureValues, Object, Property, Structure};
+use everything_structures::{Object, Property, Structure, StructureValues};
 use tracing::instrument;
 
 use crate::ctx::EvaluationContext;
@@ -18,12 +19,15 @@ enum InitialMatch {
     None,
 }
 
+/// Returns an iterator over all axiomatic and computed values
+/// of the given `subject` with the given `tag` in the given `knowledge`
+/// and `context`.
 #[instrument(skip(knowledge))]
 pub fn values<'knowledge: 'item, 'subject: 'item, 'item>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
     tag: Object,
-    ctx: &mut EvaluationContext,
+    context: &mut EvaluationContext,
 ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
     let initial_match = match (subject, &tag) {
         (&Object::AXIOMATIC, &Object::AXIOMATIC)
@@ -32,14 +36,13 @@ pub fn values<'knowledge: 'item, 'subject: 'item, 'item>(
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
-            let result =
-                QueryValuesResult::Axiomatic(AxiomaticQueryValues::Static(match subject {
-                    // TODO: review this for abstract objects
-                    Object::Abstract(_) => None,
-                    Object::Structure(s) => s.is_knowledge().is_ok().then_some(&EMPTY_OBJECT),
-                }));
-
-            return result;
+            return QueryValuesResult::Axiomatic(match subject {
+                Object::Structure(s) if s.is_knowledge().is_ok() => {
+                    AxiomaticQueryValues::One(Cow::Owned(Object::Structure(Structure::Empty)))
+                }
+                // TODO: review this for abstract objects
+                _ => AxiomaticQueryValues::None,
+            });
         }
         _ => {
             match (
@@ -58,14 +61,14 @@ pub fn values<'knowledge: 'item, 'subject: 'item, 'item>(
             QueryValuesResult::Axiomatic(values_axiomatically(knowledge, subject, tag))
         }
         InitialMatch::Compute => {
-            let result = tag.call(knowledge, array::from_ref(subject), ctx);
+            let result = tag.call(knowledge, array::from_ref(subject), context);
             QueryValuesResult::ComputationResult(result)
         }
         InitialMatch::None => {
             // In case that there is none or both,
             // tag is not a `Tag` so we can return nothing.
 
-            QueryValuesResult::Axiomatic(AxiomaticQueryValues::Static(None))
+            QueryValuesResult::Axiomatic(AxiomaticQueryValues::None)
         }
     }
 }
@@ -75,20 +78,17 @@ pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'item> {
     ComputationResult(Object),
 }
 
-static EMPTY_STRUCTURE: AnyStructure = AnyStructure::EMPTY;
-static EMPTY_OBJECT: Object = Object::Structure(Structure::EMPTY);
-
 impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'subject, 'item> {
     pub fn iter<'query>(&'query self) -> QueryValues<'query, 'knowlege, 'subject, 'item> {
         match self {
             Self::Axiomatic(axiomatic_iter) => QueryValues::Axiomatic(axiomatic_iter.clone()),
             Self::ComputationResult(object) => {
-                let structure = match object {
-                    Object::Abstract(_) => &EMPTY_STRUCTURE,
-                    Object::Structure(structure) => structure,
+                let values = match object {
+                    Object::Abstract(_) => StructureValues::None,
+                    Object::Structure(structure) => structure.values(Object::CONTAINS),
                 };
 
-                QueryValues::ComputationResult(structure.values(Object::CONTAINS))
+                QueryValues::ComputationResult(values)
             }
         }
     }
@@ -101,7 +101,7 @@ impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'sub
                 let mut properties: Vec<_> = axiomatic_iter
                     .map(|value| Property {
                         tag: Object::CONTAINS,
-                        value: value.clone(),
+                        value: value.into_owned(),
                     })
                     .collect();
 
@@ -114,13 +114,13 @@ impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'sub
 
 pub enum QueryValues<'query_result: 'item, 'knowledge: 'item, 'subject: 'item, 'item> {
     Axiomatic(AxiomaticQueryValues<'knowledge, 'subject, 'item>),
-    ComputationResult(AnyStructureValues<'query_result>),
+    ComputationResult(StructureValues<'query_result>),
 }
 
 impl<'query, 'knowledge: 'item, 'subject: 'item, 'item> Iterator
     for QueryValues<'query, 'knowledge, 'subject, 'item>
 {
-    type Item = &'item Object;
+    type Item = Cow<'item, Object>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {

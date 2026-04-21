@@ -37,6 +37,7 @@ pub enum Structure {
 }
 
 impl Structure {
+    /// Creates a structure from the given properties.
     #[must_use]
     pub fn new(properties: &mut [Property]) -> Self {
         Self::Empty.add(properties)
@@ -72,6 +73,8 @@ impl Structure {
         registry::resolve(self, remove_properties, add_properties)
     }
 
+    /// Returns `Some(_)` if `self` is an [AnyStructure];
+    /// else `None`.
     pub fn any(&self) -> Option<&AnyStructure> {
         match self {
             Self::Any(any) => Some(any),

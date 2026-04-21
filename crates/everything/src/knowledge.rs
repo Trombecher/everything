@@ -34,6 +34,7 @@ impl Knowledge {
         query::values(self.structure(), subject, tag, &mut Default::default())
     }
 
+    /*
     pub fn query_subjects_axiomatically(
         &self,
         tag: Object,
@@ -41,6 +42,7 @@ impl Knowledge {
     ) -> impl Iterator<Item = &Object> {
         query::subjects_axiomatically(&self.0, tag, value)
     }
+     */
 }
 
 impl TryFrom<Structure> for Knowledge {

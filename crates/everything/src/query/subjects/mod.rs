@@ -1,31 +1,39 @@
+use std::borrow::Cow;
+
 use everything_structures::{Object, Structure};
 
 use crate::ext::ObjectExt;
 
-pub fn subjects_axiomatically(
-    knowledge: &Structure,
+pub fn subjects_axiomatically<'knowledge>(
+    knowledge: &'knowledge Structure,
     tag: Object,
     value: Object,
-) -> impl Iterator<Item = &Object> {
-    knowledge
-        .as_ref()
-        .iter()
-        .filter_map(|property| (property.tag == Object::CONTAINS).then_some(&property.value))
-        .filter_map(move |statement| {
-            let statement = statement.structure().unwrap();
+) -> impl Iterator<Item = Cow<'knowledge, Object>> {
+    knowledge.properties().filter_map(move |property| {
+        if property.tag != Object::CONTAINS {
+            return None;
+        }
 
-            let statement_tag = statement.values(Object::STATEMENT_TAG).next().unwrap();
+        let statement = property.value.structure().unwrap();
 
-            if statement_tag != &tag {
-                return None;
-            }
+        let statement_tag = statement.values(Object::STATEMENT_TAG).next().unwrap();
 
-            let statement_value = statement.values(Object::STATEMENT_VALUE).next().unwrap();
+        if statement_tag.as_ref() != &tag {
+            return None;
+        }
 
-            if statement_value != &value {
-                return None;
-            }
+        let statement_value = statement.values(Object::STATEMENT_VALUE).next().unwrap();
 
-            Some(statement.values(Object::STATEMENT_SUBJECT).next().unwrap())
-        })
+        if statement_value.as_ref() != &value {
+            return None;
+        }
+
+        Some(Cow::Owned(
+            statement
+                .values(Object::STATEMENT_SUBJECT)
+                .next()
+                .unwrap()
+                .into_owned(),
+        ))
+    })
 }

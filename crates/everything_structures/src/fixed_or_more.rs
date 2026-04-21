@@ -1,6 +1,9 @@
+use std::fmt::Debug;
+
 /// An iterator that can yield nothing, one item, two items,
 /// or more items.
 #[repr(u8)]
+#[derive(Clone)]
 pub enum FixedOrMore<More: Iterator> {
     None = 0,
     One(More::Item) = 1,
@@ -57,5 +60,14 @@ impl<More: Iterator> Iterator for FixedOrMore<More> {
             FixedOrMore::Two(_, _) => (2, Some(2)),
             FixedOrMore::More(more) => more.size_hint(),
         }
+    }
+}
+
+impl<More: Iterator + Clone> Debug for FixedOrMore<More>
+where
+    More::Item: Debug + Clone,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.clone()).finish()
     }
 }

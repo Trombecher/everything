@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use everything_structures::Object;
 
 use crate::{
@@ -12,7 +14,7 @@ fn basic() {
 
     let qr = values::values(&BASE, &ax, Object::AXIOMATIC, &mut Default::default());
 
-    let res: Vec<&Object> = qr.iter().collect();
+    let res: Vec<_> = qr.iter().collect();
 
-    assert_eq!(res, [&*AXIOMATIC_AXIOMATIC_CONSTRAINT]);
+    assert_eq!(res, [Cow::Borrowed(&*AXIOMATIC_AXIOMATIC_CONSTRAINT)]);
 }
