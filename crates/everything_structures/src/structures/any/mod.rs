@@ -12,28 +12,13 @@ use std::{
 
 use crate::{Object, Property, structures::registry};
 
-/// An arbitrary structure that is NOT exactly a natural number,
-/// an array of characters, or binary data.
+/// An arbitrary structure with no specialization.
 #[derive(Clone)]
 pub struct AnyStructure {
     pub(super) properties: Arc<[Property]>,
 }
 
 impl AnyStructure {
-    /// Returns an iterator over all values that this tag has
-    /// in this AnyStructure.
-    #[must_use]
-    pub fn values<'props>(&'props self, tag: Object) -> ValuesIter<'props> {
-        let properties = self.as_ref();
-        let start = properties.partition_point(|property| property.tag < tag);
-
-        ValuesIter {
-            props: properties[start..].iter(),
-            tag,
-            done: false,
-        }
-    }
-
     /// Returns an iterator over all tags that this value has
     /// in this AnyStructure.
     pub fn tags(&self, value: &Object) -> impl Iterator<Item = &Object> {
@@ -51,33 +36,6 @@ impl AnyStructure {
             value
                 .exact_natural_number()
                 .and_then(|n| NonZeroU128::new(n.checked_add(1).unwrap()))
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct ValuesIter<'props> {
-    props: slice::Iter<'props, Property>,
-    tag: Object,
-    done: bool,
-}
-
-impl<'props> Iterator for ValuesIter<'props> {
-    type Item = &'props Object;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            None
-        } else if let Some(property) = self.props.next() {
-            if property.tag == self.tag {
-                Some(&property.value)
-            } else {
-                self.done = true;
-
-                None
-            }
         } else {
             None
         }

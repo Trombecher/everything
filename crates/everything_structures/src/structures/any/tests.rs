@@ -138,7 +138,7 @@ fn multiple_values() {
 
 #[test]
 fn no_tags() {
-    assert_eq!(Structure::EMPTY.tags(&ALICE).next(), None);
+    assert_eq!(Structure::Empty.tags(&ALICE).next(), None);
 }
 
 #[test]

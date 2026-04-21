@@ -10,7 +10,7 @@ use std::{
     borrow::Cow,
     fmt::{Debug, Pointer},
     hash::Hash,
-    mem::replace,
+    iter::Map,
     num::NonZeroU128,
 };
 
@@ -19,7 +19,7 @@ pub use bin::*;
 pub use registry::*;
 pub use text::*;
 
-use crate::{Object, Property};
+use crate::{Object, Property, fixed_or_more::FixedOrMore};
 
 /// A structure is a set of properties. Natural numbers, text, binary data,
 /// and the structure with no properties are stored more efficiently than an [AnyStructure].
@@ -82,10 +82,12 @@ impl Structure {
     pub fn properties<'structure>(&'structure self) -> Properties<'structure> {
         match self {
             Self::Empty => Properties::None,
-            Self::NaturalNumber(n) => Properties::One(Property::successor_of(*n)),
+            Self::NaturalNumber(n) => Properties::One(Cow::Owned(Property::successor_of(*n))),
             Self::Binary(_) => todo!(),
             Self::Text(_) => todo!(),
-            Self::Any(any_structure) => Properties::Any(any_structure.as_ref().iter()),
+            Self::Any(any_structure) => {
+                Properties::More(any_structure.as_ref().iter().map(Cow::Borrowed))
+            }
         }
     }
 
@@ -139,6 +141,34 @@ impl Structure {
     pub fn is_subset_of(&self, other: &Self) -> bool {
         self.properties().all(|property| other.has(&property))
     }
+
+    /// Returns an iterator over all values that this tag has
+    /// in `self`.
+    #[must_use]
+    pub fn values<'props>(&'props self, tag: Object) -> ValuesIter<'props> {
+        match self {
+            Structure::NaturalNumber(non_zero) if tag == Object::SUCCESSOR_OF => {
+                ValuesIter::One(Cow::Owned(Property::successor_of(*non_zero).value))
+            }
+            Structure::Binary(_) => todo!(),
+            Structure::Text(_) => todo!(),
+            Structure::Any(any_structure) => {
+                let start = any_structure
+                    .properties
+                    .partition_point(|property| property.tag < tag);
+
+                ValuesIter::More(
+                    AnyValuesIter {
+                        props: any_structure.properties[start..].iter(),
+                        tag,
+                        done: false,
+                    }
+                    .map(Cow::Borrowed),
+                )
+            }
+            _ => ValuesIter::None,
+        }
+    }
 }
 
 impl From<NonZeroU128> for Structure {
@@ -177,32 +207,41 @@ impl PartialEq<[Property]> for Structure {
     }
 }
 
+pub type Properties<'structure> = FixedOrMore<
+    std::iter::Map<
+        slice::Iter<'structure, Property>,
+        fn(&'structure Property) -> Cow<'structure, Property>,
+    >,
+>;
+
+pub type ValuesIter<'properties> = FixedOrMore<
+    Map<AnyValuesIter<'properties>, fn(&'properties Object) -> Cow<'properties, Object>>,
+>;
+
+/// Iterator over values for a tag in an [AnyStructure].
 #[derive(Clone)]
-pub enum Properties<'structure> {
-    None,
-    One(Property),
-    Any(slice::Iter<'structure, Property>),
+pub struct AnyValuesIter<'props> {
+    props: slice::Iter<'props, Property>,
+    tag: Object,
+    done: bool,
 }
 
-impl<'structure> Iterator for Properties<'structure> {
-    type Item = Cow<'structure, Property>;
+impl<'props> Iterator for AnyValuesIter<'props> {
+    type Item = &'props Object;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::None => None,
-            Self::One(_) => match replace(self, Self::None) {
-                Self::One(property) => Some(Cow::Owned(property)),
-                _ => unreachable!(),
-            },
-            Self::Any(iter) => iter.next().map(Cow::Borrowed),
-        }
-    }
+        if self.done {
+            None
+        } else if let Some(property) = self.props.next() {
+            if property.tag == self.tag {
+                Some(&property.value)
+            } else {
+                self.done = true;
 
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            Self::Any(iter) => iter.size_hint(),
-            Self::None => (0, Some(0)),
-            Self::One(_) => (1, Some(1)),
+                None
+            }
+        } else {
+            None
         }
     }
 }

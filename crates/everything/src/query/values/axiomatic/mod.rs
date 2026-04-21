@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use everything_structures::{Object, Structure, ValuesIter};
+use everything_structures::{AnyValuesIter, Object, Structure};
 use tracing::instrument;
 
 use crate::{base, ext::ObjectExt, query::values::EMPTY_STRUCTURE};
@@ -41,8 +41,8 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Debug
 
 #[derive(Clone)]
 pub struct AxiomaticBorrowedQueryValues<'knowledge: 'item, 'subject: 'item, 'item> {
-    values_from_subject: ValuesIter<'subject>,
-    statements: ValuesIter<'knowledge>,
+    values_from_subject: AnyValuesIter<'subject>,
+    statements: AnyValuesIter<'knowledge>,
     subject: &'subject Object,
     tag: Object,
     _yield: PhantomData<&'item Object>,

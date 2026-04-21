@@ -4,7 +4,7 @@ mod tests;
 
 use std::array;
 
-use everything_structures::{AnyStructure, Object, Property, Structure, ValuesIter};
+use everything_structures::{AnyStructure, AnyValuesIter, Object, Property, Structure};
 use tracing::instrument;
 
 use crate::ctx::EvaluationContext;
@@ -114,7 +114,7 @@ impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'sub
 
 pub enum QueryValues<'query_result: 'item, 'knowledge: 'item, 'subject: 'item, 'item> {
     Axiomatic(AxiomaticQueryValues<'knowledge, 'subject, 'item>),
-    ComputationResult(ValuesIter<'query_result>),
+    ComputationResult(AnyValuesIter<'query_result>),
 }
 
 impl<'query, 'knowledge: 'item, 'subject: 'item, 'item> Iterator
