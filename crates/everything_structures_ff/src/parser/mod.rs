@@ -4,7 +4,7 @@ mod tests;
 use core::{iter::Peekable, num::NonZeroU128};
 
 use alloc::{boxed::Box, vec::Vec};
-use everything_structures::{Object, Property, Structure};
+use everything_structures::{Abstract, Object, Property, Structure};
 use parser_tools::Span;
 
 pub type Error<'source> = Box<ErrorInfo<'source>>;
@@ -121,7 +121,7 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
                 ..
             }) => match NonZeroU128::new(n) {
                 Some(n) => Ok(Object::Structure(Structure::NaturalNumber(n))),
-                None => Ok(Object::ZERO),
+                None => Ok(Object::Abstract(Abstract::ZERO)),
             },
             token => bail!(token, "expected @<<id>> or '{{'"),
         }

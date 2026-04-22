@@ -1,13 +1,13 @@
 use core::iter::Peekable;
 
-use everything_structures::AbstractId;
+use everything_structures::Abstract;
 use parser_tools::Span;
 
 use crate::Token;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FilteredToken<'source> {
-    Abstract(AbstractId),
+    Abstract(Abstract),
     NaturalNumber(u128),
     OpeningParenthesis,
     ClosingParenthesis,
@@ -22,7 +22,7 @@ impl<'source> TryFrom<Token<'source>> for FilteredToken<'source> {
 
     fn try_from(token: Token<'source>) -> Result<Self, Self::Error> {
         match token {
-            Token::Abstract(digits) => Ok(Self::Abstract(digits.into())),
+            Token::Abstract(digits) => Ok(Self::Abstract(Abstract(digits.into()))),
             Token::OpeningParenthesis => Ok(Self::OpeningParenthesis),
             Token::ClosingParenthesis => Ok(Self::ClosingParenthesis),
             Token::OpeningBrace => Ok(Self::OpeningBrace),
