@@ -7,11 +7,13 @@ use std::{
 
 use dashmap::DashMap;
 
+use crate::{Byte, Object, Property, Structure};
+
 static GLOBAL_BINARY_DATA: LazyLock<DashMap<u64, Arc<[u8]>>> = LazyLock::new(DashMap::new);
 
 #[derive(Clone, Eq)]
 pub struct BytesStructure {
-    // An empty
+    // This will not be empty.
     data: Arc<[u8]>,
 }
 
@@ -53,6 +55,30 @@ impl BytesStructure {
             GLOBAL_BINARY_DATA.insert(hash_of_bytes, Arc::clone(&arc));
 
             Some(Self { data: arc })
+        }
+    }
+
+    /// Returns the head of the bytes.
+    #[must_use]
+    pub fn head(&self) -> Byte {
+        unsafe { Byte(*self.data.first().unwrap_unchecked()) }
+    }
+
+    #[must_use]
+    pub fn has(&self, property: &Property) -> bool {
+        match property.tag {
+            Object::LIST_ITEM => property.value == Object::Structure(Structure::Byte(self.head())),
+            Object::LIST_TAIL if let Object::Structure(Structure::Empty) = property.value => {
+                // Tail is empty
+                self.as_ref().len() == 1
+            }
+            Object::LIST_TAIL
+                if let Object::Structure(Structure::Bytes(tail)) = &property.value =>
+            {
+                // Tail is non empty
+                tail.as_ref() == &self.as_ref()[1..]
+            }
+            _ => false,
         }
     }
 }

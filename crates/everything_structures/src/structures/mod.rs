@@ -1,5 +1,6 @@
 mod any;
-mod bin;
+mod byte;
+mod bytes;
 mod registry;
 #[cfg(test)]
 mod tests;
@@ -9,8 +10,8 @@ use core::slice;
 use std::{borrow::Cow, fmt::Debug, hash::Hash, iter::Map, num::NonZeroU128};
 
 pub use any::*;
-pub use bin::*;
-pub use registry::*;
+pub use byte::*;
+pub use bytes::*;
 pub use text::*;
 
 use crate::{Object, Property, fixed_or_more::FixedOrMore};
@@ -23,15 +24,16 @@ pub enum Structure {
     /// The empty structure `{}`.
     Empty,
 
-    /// A natural number of this form `{(@SUCCESSOR_OF, n)}` where n is an exact natural number.
+    /// A natural number of this form `{(@SUCCESSOR_OF, <NaturalNumber> | @ZERO)}`
+    /// where n is an exact natural number.
     NaturalNumber(NonZeroU128),
 
     /// A list of bytes.
     ///
     /// ```plain
     /// {
-    ///     (LIST_ITEM, <byte>),
-    ///     (LIST_ITEM, <binary>)
+    ///     (@LIST_ITEM, <byte>),
+    ///     (@LIST_ITEM, <binary>)
     /// }
     /// ```
     Bytes(BytesStructure),
@@ -40,8 +42,8 @@ pub enum Structure {
     ///
     /// ```plain
     /// {
-    ///     (LIST_ITEM, <char>),
-    ///     (LIST_TAIL, <text>)
+    ///     (@LIST_ITEM, <char>),
+    ///     (@LIST_TAIL, <text>)
     /// }
     /// ```
     Text(TextStructure),
@@ -51,17 +53,17 @@ pub enum Structure {
     ///
     /// ```plain
     /// {
-    ///     (BIT_SLOT_0, BIT_0 | BIT_1),
-    ///     (BIT_SLOT_1, BIT_0 | BIT_1),
-    ///     (BIT_SLOT_2, BIT_0 | BIT_1),
-    ///     (BIT_SLOT_3, BIT_0 | BIT_1),
-    ///     (BIT_SLOT_4, BIT_0 | BIT_1),
-    ///     (BIT_SLOT_5, BIT_0 | BIT_1),
-    ///     (BIT_SLOT_6, BIT_0 | BIT_1),
-    ///     (BIT_SLOT_7, BIT_0 | BIT_1)
+    ///     (@BIT_SLOT_0, @BIT_0 | @BIT_1),
+    ///     (@BIT_SLOT_1, @BIT_0 | @BIT_1),
+    ///     (@BIT_SLOT_2, @BIT_0 | @BIT_1),
+    ///     (@BIT_SLOT_3, @BIT_0 | @BIT_1),
+    ///     (@BIT_SLOT_4, @BIT_0 | @BIT_1),
+    ///     (@BIT_SLOT_5, @BIT_0 | @BIT_1),
+    ///     (@BIT_SLOT_6, @BIT_0 | @BIT_1),
+    ///     (@BIT_SLOT_7, @BIT_0 | @BIT_1)
     /// }
     /// ```
-    Byte(u8),
+    Byte(Byte),
 
     /// A character. It is of this form: `{(@CODE_POINT, n)}` where n is a natural number
     /// which is at most 0x10FFFF and not in the range 0xD800 (including) to 0xDFFF (excluding).
@@ -128,6 +130,7 @@ impl Structure {
                 Properties::More(any_structure.as_ref().iter().map(Cow::Borrowed))
             }
             Self::Character(c) => Properties::One(Cow::Owned(Property::character(*c))),
+            Self::Byte(byte) => todo!(),
         }
     }
 
@@ -146,9 +149,10 @@ impl Structure {
             Self::Empty => false,
             Self::NaturalNumber(non_zero) => property == &Property::successor_of(*non_zero),
             Self::Character(c) => property == &Property::character(*c),
-            Self::Bytes(_) => todo!(),
+            Self::Bytes(bytes) => bytes.has(property),
             Self::Text(_) => todo!(),
-            Self::Any(any_structure) => any_structure.as_ref().binary_search(property).is_ok(),
+            Self::Any(any) => any.has(property),
+            Self::Byte(_) => todo!(),
         }
     }
 
@@ -238,7 +242,8 @@ impl Debug for Structure {
             Self::NaturalNumber(n) => n.fmt(f),
             Self::Text(t) => t.fmt(f),
             Self::Bytes(b) => b.fmt(f),
-            Self::Character(c) => c.fmt(f),
+            Self::Character(c) => write!(f, "'{c}'"),
+            Self::Byte(b) => b.fmt(f),
         }
     }
 }

@@ -39,6 +39,11 @@ impl AnyStructure {
             value,
         }
     }
+
+    #[must_use]
+    pub fn has(&self, property: &Property) -> bool {
+        self.properties.binary_search(property).is_ok()
+    }
 }
 
 impl fmt::Debug for AnyStructure {
