@@ -26,6 +26,9 @@ impl Object {
     /// Denotes the rest of the list.
     pub const LIST_TAIL: Self = Self::Abstract(4353);
 
+    /// Denotes the value of the character.
+    pub const CODE_POINT: Self = Self::Abstract(4353);
+
     pub fn new_natural_number(n: u128) -> Self {
         match NonZeroU128::new(n) {
             None => Self::ZERO,

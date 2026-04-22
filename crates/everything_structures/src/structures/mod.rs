@@ -6,13 +6,7 @@ mod tests;
 mod text;
 
 use core::slice;
-use std::{
-    borrow::Cow,
-    fmt::{Debug, Pointer},
-    hash::Hash,
-    iter::Map,
-    num::NonZeroU128,
-};
+use std::{borrow::Cow, fmt::Debug, hash::Hash, iter::Map, num::NonZeroU128};
 
 pub use any::*;
 pub use bin::*;
@@ -26,12 +20,53 @@ use crate::{Object, Property, fixed_or_more::FixedOrMore};
 /// These are called specializations.
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Structure {
-    /// The empty structure.
+    /// The empty structure `{}`.
     Empty,
-    /// Optimized storage for `{(@SUCCESSOR_OF, n)}` where n is an exact natural number.
+
+    /// A natural number of this form `{(@SUCCESSOR_OF, n)}` where n is an exact natural number.
     NaturalNumber(NonZeroU128),
-    Binary(BlobStructure),
+
+    /// A list of bytes.
+    ///
+    /// ```plain
+    /// {
+    ///     (LIST_ITEM, <byte>),
+    ///     (LIST_ITEM, <binary>)
+    /// }
+    /// ```
+    Bytes(BytesStructure),
+
+    /// A list of characters.
+    ///
+    /// ```plain
+    /// {
+    ///     (LIST_ITEM, <char>),
+    ///     (LIST_TAIL, <text>)
+    /// }
+    /// ```
     Text(TextStructure),
+
+    /// A byte is specialized storage for eight slots for bits.
+    /// The LSB corresponds to slot 0.
+    ///
+    /// ```plain
+    /// {
+    ///     (BIT_SLOT_0, BIT_0 | BIT_1),
+    ///     (BIT_SLOT_1, BIT_0 | BIT_1),
+    ///     (BIT_SLOT_2, BIT_0 | BIT_1),
+    ///     (BIT_SLOT_3, BIT_0 | BIT_1),
+    ///     (BIT_SLOT_4, BIT_0 | BIT_1),
+    ///     (BIT_SLOT_5, BIT_0 | BIT_1),
+    ///     (BIT_SLOT_6, BIT_0 | BIT_1),
+    ///     (BIT_SLOT_7, BIT_0 | BIT_1)
+    /// }
+    /// ```
+    Byte(u8),
+
+    /// A character. It is of this form: `{(@CODE_POINT, n)}` where n is a natural number
+    /// which is at most 0x10FFFF and not in the range 0xD800 (including) to 0xDFFF (excluding).
+    Character(char),
+
     /// Any structure, a structure that is not a specialization.
     Any(AnyStructure),
 }
@@ -87,11 +122,12 @@ impl Structure {
         match self {
             Self::Empty => Properties::None,
             Self::NaturalNumber(n) => Properties::One(Cow::Owned(Property::successor_of(*n))),
-            Self::Binary(_) => todo!(),
+            Self::Bytes(_) => todo!(),
             Self::Text(_) => todo!(),
             Self::Any(any_structure) => {
                 Properties::More(any_structure.as_ref().iter().map(Cow::Borrowed))
             }
+            Self::Character(c) => Properties::One(Cow::Owned(Property::character(*c))),
         }
     }
 
@@ -107,25 +143,26 @@ impl Structure {
     #[must_use]
     pub fn has(&self, property: &Property) -> bool {
         match self {
-            Structure::Empty => false,
-            Structure::NaturalNumber(non_zero) => property == &Property::successor_of(*non_zero),
-            Structure::Binary(_) => todo!(),
-            Structure::Text(_) => todo!(),
-            Structure::Any(any_structure) => any_structure.as_ref().binary_search(property).is_ok(),
+            Self::Empty => false,
+            Self::NaturalNumber(non_zero) => property == &Property::successor_of(*non_zero),
+            Self::Character(c) => property == &Property::character(*c),
+            Self::Bytes(_) => todo!(),
+            Self::Text(_) => todo!(),
+            Self::Any(any_structure) => any_structure.as_ref().binary_search(property).is_ok(),
         }
     }
 
     #[must_use]
     pub fn has_by_ref(&self, tag: &Object, value: &Object) -> bool {
         match self {
-            Structure::Empty => false,
-            Structure::NaturalNumber(non_zero) => {
+            Self::Empty => false,
+            Self::NaturalNumber(non_zero) => {
                 let self_as_property = Property::successor_of(*non_zero);
                 &self_as_property.tag == tag && &self_as_property.value == value
             }
-            Structure::Binary(_) => todo!(),
-            Structure::Text(_) => todo!(),
-            Structure::Any(any) => any
+            Self::Bytes(_) => todo!(),
+            Self::Text(_) => todo!(),
+            Self::Any(any) => any
                 .as_ref()
                 .binary_search_by(|property| {
                     property
@@ -134,6 +171,10 @@ impl Structure {
                         .then_with(|| property.value.cmp(value))
                 })
                 .is_ok(),
+            Self::Character(c) => {
+                let self_as_property = Property::character(*c);
+                &self_as_property.tag == tag && &self_as_property.value == value
+            }
         }
     }
 
@@ -149,12 +190,12 @@ impl Structure {
     #[must_use]
     pub fn values<'props>(&'props self, tag: Object) -> StructureValues<'props> {
         match self {
-            Structure::NaturalNumber(non_zero) if tag == Object::SUCCESSOR_OF => {
+            Self::NaturalNumber(non_zero) if tag == Object::SUCCESSOR_OF => {
                 StructureValues::One(Cow::Owned(Property::successor_of(*non_zero).value))
             }
-            Structure::Binary(_) => todo!(),
-            Structure::Text(_) => todo!(),
-            Structure::Any(any_structure) => {
+            Self::Bytes(_) => todo!(),
+            Self::Text(_) => todo!(),
+            Self::Any(any_structure) => {
                 StructureValues::More(any_structure.values(tag).map(Cow::Borrowed))
             }
             _ => StructureValues::None,
@@ -164,14 +205,12 @@ impl Structure {
     /// Returns an iterator over all tags that this value has in `self`.
     pub fn tags<'properties>(&'properties self, value: Object) -> StructureTags<'properties> {
         match self {
-            Structure::NaturalNumber(non_zero)
-                if Property::successor_of(*non_zero).value == value =>
-            {
+            Self::NaturalNumber(non_zero) if Property::successor_of(*non_zero).value == value => {
                 StructureTags::One(Cow::Owned(Object::SUCCESSOR_OF))
             }
-            Structure::Binary(_) => todo!(),
-            Structure::Text(_) => todo!(),
-            Structure::Any(any_structure) => {
+            Self::Bytes(_) => todo!(),
+            Self::Text(_) => todo!(),
+            Self::Any(any_structure) => {
                 StructureTags::More(any_structure.tags(value).map(Cow::Borrowed))
             }
             _ => FixedOrMore::None,
@@ -194,11 +233,12 @@ impl From<AnyStructure> for Structure {
 impl Debug for Structure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Empty => <[(); 0] as std::fmt::Debug>::fmt(&[], f),
+            Self::Empty => f.write_str("{}"),
             Self::Any(any) => any.fmt(f),
             Self::NaturalNumber(n) => n.fmt(f),
             Self::Text(t) => t.fmt(f),
-            Self::Binary(b) => b.fmt(f),
+            Self::Bytes(b) => b.fmt(f),
+            Self::Character(c) => c.fmt(f),
         }
     }
 }

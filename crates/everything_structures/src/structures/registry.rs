@@ -13,12 +13,20 @@ use std::{
 
 use dashmap::DashMap;
 
-use crate::{AnyStructure, BlobStructure, Object, Property, Structure};
+use crate::{AnyStructure, BytesStructure, Object, Property, Structure, TextStructure};
 
-enum Specialization {
+enum Specialization<'info> {
     Empty,
     NaturalNumber(NonZeroU128),
-    // TODO: do these
+    Character(char),
+    Binary {
+        head: u8,
+        tail: &'info BytesStructure,
+    },
+    Text {
+        head: char,
+        tail: &'info TextStructure,
+    },
 }
 
 #[derive(Default)]
@@ -26,18 +34,40 @@ struct StructureMetaInfo {
     hasher: DefaultHasher,
     prop_count: usize,
     current_natural_number: Option<NonZeroU128>,
+    current_code_point: Option<char>,
+    current_list_item: Option<Object>,
+    current_list_tail: Option<Object>,
     // TODO: more
 }
 
 impl StructureMetaInfo {
     pub fn add_property(&mut self, property: &Property) {
-        if property.tag == Object::SUCCESSOR_OF
-            && let Some(number_property_is_successor_of) = property.value.exact_natural_number()
-        {
-            // FIXME: this will only be useful when the prop count is at 0.
+        match property.tag {
+            Object::SUCCESSOR_OF
+                if let Some(number_property_is_successor_of) =
+                    property.value.exact_natural_number() =>
+            {
+                // FIXME: this will only be useful when the prop count is at 0.
 
-            self.current_natural_number =
-                NonZeroU128::new(number_property_is_successor_of.checked_add(1).unwrap())
+                self.current_natural_number =
+                    NonZeroU128::new(number_property_is_successor_of.checked_add(1).unwrap())
+            }
+            Object::CODE_POINT
+                if let Some(int) = property.value.exact_natural_number()
+                    && int <= u32::MAX as u128
+                    && let Ok(c) = char::try_from(int as u32) =>
+            {
+                self.current_code_point = Some(c);
+            }
+            Object::LIST_ITEM => {
+                self.current_list_item = Some(property.value.clone());
+            }
+            Object::LIST_TAIL => {
+                self.current_list_tail = Some(property.value.clone());
+            }
+            _ => {
+                // Do nothing special.
+            }
         }
 
         property.hash(&mut self.hasher);
@@ -49,8 +79,9 @@ impl StructureMetaInfo {
         self.hasher.finish()
     }
 
+    /// Returns the specialization type.
     #[must_use]
-    pub fn specialization(&self) -> Option<Specialization> {
+    pub fn specialization<'info>(&'info self) -> Option<Specialization<'info>> {
         match self {
             Self { prop_count: 0, .. } => Some(Specialization::Empty),
             Self {
@@ -58,6 +89,32 @@ impl StructureMetaInfo {
                 current_natural_number: Some(n),
                 ..
             } => Some(Specialization::NaturalNumber(*n)),
+            Self {
+                prop_count: 1,
+                current_code_point: Some(c),
+                ..
+            } => Some(Specialization::Character(*c)),
+            Self {
+                prop_count: 2,
+                current_list_item: Some(item),
+                current_list_tail: Some(tail),
+                ..
+            } if let Some(head) = item.exact_natural_number()
+                && head <= 255
+                && let Object::Structure(Structure::Bytes(binary)) = tail =>
+            {
+                Some(Specialization::Binary {
+                    head: head as u8,
+                    tail: binary,
+                })
+            }
+            Self {
+                prop_count: 2,
+                current_list_item: Some(item),
+                current_list_tail: Some(tail),
+                ..
+            } if let Object::Structure(Structure::Character(head)) = item
+                && Object::Structure(Stru) => {}
             // TODO: more
             _ => None,
         }
@@ -68,8 +125,6 @@ impl StructureMetaInfo {
 pub struct GlobalRegistry;
 
 static GLOBAL_PROPERTIES: LazyLock<DashMap<u64, Arc<[Property]>>> = LazyLock::new(DashMap::new);
-
-static GLOBAL_BLOBS: LazyLock<DashMap<u64, Arc<[u8]>>> = LazyLock::new(DashMap::new);
 
 pub fn remove(s: &AnyStructure) {
     let mut hasher = DefaultHasher::new();
@@ -95,6 +150,14 @@ pub fn resolve(
     match info.specialization() {
         Some(Specialization::Empty) => return Structure::Empty,
         Some(Specialization::NaturalNumber(n)) => return Structure::NaturalNumber(n),
+        Some(Specialization::Character(c)) => return Structure::Character(c),
+        Some(Specialization::Text { head, tail }) => {
+            return Structure::Text(TextStructure::from_tail(head, tail.as_ref()));
+        }
+        Some(Specialization::Binary { head, tail }) => {
+            // This unwrap is safe because [head].len() > 0.
+            return Structure::Bytes(BytesStructure::from_parts(&[head], tail.as_ref()).unwrap());
+        }
         None => {
             // We have no specialization, so we just
             // allocate that.
@@ -124,41 +187,6 @@ pub fn resolve(
     Structure::Any(AnyStructure {
         properties: new_properties,
     })
-}
-
-fn resolve_blob(slice: &[u8]) -> BlobStructure {
-    if slice.is_empty() {
-        return BlobStructure { data: None };
-    }
-
-    let mut hasher = DefaultHasher::new();
-    slice.hash(&mut hasher);
-    let hash_of_slice = hasher.finish();
-
-    if let Some(blob) = GLOBAL_BLOBS.get(&hash_of_slice) {
-        BlobStructure {
-            data: Some(Arc::clone(&blob)),
-        }
-    } else {
-        // Entry does not yet exist.
-        let data = Arc::clone_from_ref(slice);
-
-        GLOBAL_BLOBS.insert(hash_of_slice, Arc::clone(&data));
-
-        BlobStructure { data: Some(data) }
-    }
-}
-
-fn remove_blob(blob: BlobStructure) {
-    if blob.as_ref().is_empty() {
-        return;
-    }
-
-    let mut hasher = DefaultHasher::new();
-    blob.hash(&mut hasher);
-    let hash_of_blob = hasher.finish();
-
-    GLOBAL_BLOBS.remove(&hash_of_blob);
 }
 
 /// Calculates meta information about the structure with all

@@ -3,7 +3,7 @@ use std::num::NonZeroU128;
 use crate::{Object, Property, Structure};
 
 #[test]
-fn equality() {
+fn specialization() {
     assert_eq!(
         Structure::NaturalNumber(NonZeroU128::new(1).unwrap()),
         Structure::new(&mut [Property {

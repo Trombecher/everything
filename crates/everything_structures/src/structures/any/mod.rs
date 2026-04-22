@@ -90,7 +90,9 @@ impl Ord for AnyStructure {
 
 impl Drop for AnyStructure {
     fn drop(&mut self) {
-        if Arc::strong_count(&self.properties) == 2 {
+        let ref_count = Arc::strong_count(&self.properties);
+
+        if ref_count == 2 {
             // We and the registry are the only ones
             // that have a ref. When removing this AnyStructure
             // from the registry, `self` will be the
@@ -98,6 +100,8 @@ impl Drop for AnyStructure {
             // after drop.
 
             registry::remove(self);
+        } else if ref_count == 1 {
+            unreachable!("the registry does not know of us!")
         }
     }
 }

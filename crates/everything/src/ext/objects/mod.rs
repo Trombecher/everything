@@ -271,7 +271,7 @@ impl ObjectExt for Object {
                     Self::Structure(Structure::NaturalNumber(*n))
                 }
                 Self::Structure(Structure::Empty) => Structure::Empty.into(),
-                Self::Structure(Structure::Binary(_)) => todo!(),
+                Self::Structure(Structure::Bytes(_)) => todo!(),
                 Self::Structure(Structure::Text(_)) => todo!(),
                 Self::Structure(Structure::Any(structure)) => structure
                     .as_ref()
