@@ -118,7 +118,7 @@ impl Structure {
         }
     }
 
-    /// Returns an iterator over all properties:
+    /// Returns an iterator over all properties of `self`.
     pub fn properties<'structure>(&'structure self) -> StructureProperties<'structure> {
         match self {
             Self::Empty => StructureProperties::Empty,

@@ -90,7 +90,9 @@ impl StructureMetaInfo {
     }
 
     #[must_use]
-    pub fn final_hash(&self) -> u64 {
+    pub fn final_hash(&mut self) -> u64 {
+        // Write property count to prevent prefix collisions.
+        self.hasher.write_usize(self.prop_count);
         self.hasher.finish()
     }
 
@@ -160,7 +162,7 @@ pub fn resolve(
     add_properties = add_properties.partition_dedup().0;
     add_properties.sort();
 
-    let info = structure_meta_info(base, remove_properties, add_properties);
+    let mut info = structure_meta_info(base, remove_properties, add_properties);
 
     match info.specialization() {
         Some(Specialization::Empty) => return Structure::Empty,
@@ -206,6 +208,8 @@ pub fn resolve(
 
 /// Calculates meta information about the structure with all
 /// specified properties removed and then all specified properties added.
+///
+/// Both `remove_properties` and `add_properties` must be sorted.
 fn structure_meta_info(
     base: &Structure,
     remove_properties: &[Property],
