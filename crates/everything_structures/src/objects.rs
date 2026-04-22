@@ -24,7 +24,7 @@ impl Object {
     pub const LIST_TAIL: Self = Self::Abstract(4353);
 
     /// Denotes the value of the character.
-    pub const CODE_POINT: Self = Self::Abstract(4353);
+    pub const CODE_POINT: Self = Self::Abstract(6969);
 
     /// Denotes the bit zero/off/no.
     pub const BIT_0: Self = Self::Abstract(9843);

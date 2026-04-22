@@ -114,3 +114,15 @@ impl From<bool> for Bit {
         if value { Self::One } else { Self::Zero }
     }
 }
+
+impl TryFrom<&Object> for Bit {
+    type Error = ();
+
+    fn try_from(object: &Object) -> Result<Self, Self::Error> {
+        match object {
+            &Object::BIT_0 => Ok(Self::Zero),
+            &Object::BIT_1 => Ok(Self::One),
+            _ => Err(()),
+        }
+    }
+}

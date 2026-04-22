@@ -13,7 +13,15 @@ use std::{
 
 use dashmap::DashMap;
 
-use crate::{AnyStructure, BytesStructure, Object, Property, Structure, TextStructure};
+use crate::{AnyStructure, Bit, BytesStructure, Object, Property, Structure, TextStructure};
+
+#[derive(Default)]
+enum Occurance<T> {
+    #[default]
+    NoneYet,
+    Some(T),
+    SomeIgnored,
+}
 
 enum Specialization<'info> {
     Empty,
@@ -33,37 +41,66 @@ enum Specialization<'info> {
 struct StructureMetaInfo {
     hasher: DefaultHasher,
     prop_count: usize,
-    current_natural_number: Option<NonZeroU128>,
-    current_code_point: Option<char>,
-    current_list_item: Option<Object>,
-    current_list_tail: Option<Object>,
-    // TODO: more
+    last_successor_of: Occurance<u128>,
+    last_code_point: Occurance<char>,
+    last_list_item: Occurance<Object>,
+    last_list_tail: Occurance<Object>,
+    last_bit_slots: [Occurance<Bit>; 8],
 }
 
 impl StructureMetaInfo {
     pub fn add_property(&mut self, property: &Property) {
         match property.tag {
-            Object::SUCCESSOR_OF
-                if let Some(number_property_is_successor_of) =
-                    property.value.exact_natural_number() =>
-            {
-                // FIXME: this will only be useful when the prop count is at 0.
-
-                self.current_natural_number =
-                    NonZeroU128::new(number_property_is_successor_of.checked_add(1).unwrap())
+            Object::SUCCESSOR_OF => {
+                self.last_successor_of = if let Some(predecessor) =
+                    property.value.exact_natural_number()
+                    && self.prop_count == 0
+                {
+                    Occurance::Some(predecessor)
+                } else {
+                    Occurance::SomeIgnored
+                }
             }
-            Object::CODE_POINT
-                if let Some(int) = property.value.exact_natural_number()
+            Object::CODE_POINT => {
+                self.last_code_point = if self.prop_count == 0
+                    && let Some(int) = property.value.exact_natural_number()
                     && int <= u32::MAX as u128
-                    && let Ok(c) = char::try_from(int as u32) =>
+                    && let Ok(c) = char::try_from(int as u32)
+                {
+                    Occurance::Some(c)
+                } else {
+                    Occurance::SomeIgnored
+                }
+            }
+            Object::LIST_ITEM if self.prop_count < 2 => {
+                self.last_list_item = Occurance::Some(property.value.clone());
+            }
+            Object::LIST_TAIL if self.prop_count < 2 => {
+                self.last_list_tail = Occurance::Some(property.value.clone());
+            }
+            Object::BIT_SLOT_0
+            | Object::BIT_SLOT_1
+            | Object::BIT_SLOT_2
+            | Object::BIT_SLOT_3
+            | Object::BIT_SLOT_4
+            | Object::BIT_SLOT_5
+            | Object::BIT_SLOT_6
+            | Object::BIT_SLOT_7
+                if self.prop_count < 8
+                    && let Ok(bit) = Bit::try_from(&property.value) =>
             {
-                self.current_code_point = Some(c);
-            }
-            Object::LIST_ITEM => {
-                self.current_list_item = Some(property.value.clone());
-            }
-            Object::LIST_TAIL => {
-                self.current_list_tail = Some(property.value.clone());
+                // TODO: outsource this
+                self.last_bit_slots[match property.tag {
+                    Object::BIT_SLOT_0 => 0,
+                    Object::BIT_SLOT_1 => 1,
+                    Object::BIT_SLOT_2 => 2,
+                    Object::BIT_SLOT_3 => 3,
+                    Object::BIT_SLOT_4 => 4,
+                    Object::BIT_SLOT_5 => 5,
+                    Object::BIT_SLOT_6 => 6,
+                    Object::BIT_SLOT_7 => 7,
+                    _ => unreachable!(),
+                }] = Occurance::Some(bit);
             }
             _ => {
                 // Do nothing special.
@@ -85,19 +122,17 @@ impl StructureMetaInfo {
         match self {
             Self { prop_count: 0, .. } => Some(Specialization::Empty),
             Self {
-                prop_count: 1,
-                current_natural_number: Some(n),
+                last_successor_of: Occurance::Some(n),
                 ..
             } => Some(Specialization::NaturalNumber(*n)),
             Self {
-                prop_count: 1,
-                current_code_point: Some(c),
+                last_code_point: Occurance::Some(c),
                 ..
             } => Some(Specialization::Character(*c)),
             Self {
                 prop_count: 2,
-                current_list_item: Some(item),
-                current_list_tail: Some(tail),
+                last_list_item: Occurance::Some(item),
+                last_list_tail: Occurance::Some(tail),
                 ..
             } if let Some(head) = item.exact_natural_number()
                 && head <= 255
@@ -110,11 +145,14 @@ impl StructureMetaInfo {
             }
             Self {
                 prop_count: 2,
-                current_list_item: Some(item),
-                current_list_tail: Some(tail),
+                last_list_item: Some(item),
+                last_list_tail: Some(tail),
                 ..
             } if let Object::Structure(Structure::Character(head)) = item
-                && Object::Structure(Stru) => {}
+                && let Object::Structure(Structure::Text(tail)) = tail =>
+            {
+                Some(Specialization::Text { head: *head, tail })
+            }
             // TODO: more
             _ => None,
         }
