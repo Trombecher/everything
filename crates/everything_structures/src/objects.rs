@@ -1,6 +1,6 @@
 use std::{fmt, hash::Hash, num::NonZeroU128};
 
-use crate::{Bit, structures::Structure};
+use crate::{Bit, Byte, structures::Structure};
 
 pub type AbstractId = u128;
 
@@ -77,17 +77,35 @@ impl From<Structure> for Object {
     }
 }
 
-impl From<AbstractId> for Object {
-    fn from(id: AbstractId) -> Self {
-        Self::Abstract(id)
-    }
-}
-
 impl From<Bit> for Object {
     fn from(value: Bit) -> Self {
         match value {
             Bit::Zero => Self::BIT_0,
             Bit::One => Self::BIT_1,
         }
+    }
+}
+
+impl From<char> for Object {
+    fn from(value: char) -> Self {
+        Self::from(Structure::from(value))
+    }
+}
+
+impl From<&[u8]> for Object {
+    fn from(slice: &[u8]) -> Self {
+        Self::Structure(Structure::from(slice))
+    }
+}
+
+impl From<&str> for Object {
+    fn from(slice: &str) -> Self {
+        Self::Structure(Structure::from(slice))
+    }
+}
+
+impl From<Byte> for Object {
+    fn from(value: Byte) -> Self {
+        Self::Structure(Structure::from(value))
     }
 }

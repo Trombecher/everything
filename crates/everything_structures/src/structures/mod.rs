@@ -6,7 +6,6 @@ mod registry;
 mod tests;
 mod text;
 
-use core::slice;
 use std::{borrow::Cow, fmt::Debug, hash::Hash, iter::Map, num::NonZeroU128};
 
 pub use any::*;
@@ -120,17 +119,15 @@ impl Structure {
     }
 
     /// Returns an iterator over all properties:
-    pub fn properties<'structure>(&'structure self) -> Properties<'structure> {
+    pub fn properties<'structure>(&'structure self) -> StructureProperties<'structure> {
         match self {
-            Self::Empty => Properties::None,
+            Self::Empty => StructureProperties::Empty,
             Self::NaturalNumber(n) => Properties::One(Cow::Owned(Property::successor_of(*n))),
-            Self::Bytes(_) => todo!(),
-            Self::Text(_) => todo!(),
-            Self::Any(any_structure) => {
-                Properties::More(any_structure.as_ref().iter().map(Cow::Borrowed))
-            }
+            Self::Bytes(bytes) => StructureProperties::Bytes(bytes.properties()),
+            Self::Text(text) => StructureProperties::Text(text.properties()),
+            Self::Any(any_structure) => StructureProperties::Any(any_structure.properties()),
             Self::Character(c) => Properties::One(Cow::Owned(Property::character(*c))),
-            Self::Byte(byte) => todo!(),
+            Self::Byte(byte) => StructureProperties::Byte(ByteProperties(byte.bits())),
         }
     }
 
@@ -228,9 +225,33 @@ impl From<NonZeroU128> for Structure {
     }
 }
 
+impl From<char> for Structure {
+    fn from(value: char) -> Self {
+        Self::Character(value)
+    }
+}
+
 impl From<AnyStructure> for Structure {
     fn from(value: AnyStructure) -> Self {
         Self::Any(value)
+    }
+}
+
+impl From<&[u8]> for Structure {
+    fn from(slice: &[u8]) -> Self {
+        BytesStructure::new(slice).map_or(Self::Empty, Self::Bytes)
+    }
+}
+
+impl From<&str> for Structure {
+    fn from(slice: &str) -> Self {
+        TextStructure::new(slice).map_or(Self::Empty, Self::Text)
+    }
+}
+
+impl From<Byte> for Structure {
+    fn from(value: Byte) -> Self {
+        Self::Byte(value)
     }
 }
 
@@ -260,12 +281,35 @@ impl PartialEq<[Property]> for Structure {
     }
 }
 
-pub type Properties<'structure> = FixedOrMore<
-    std::iter::Map<
-        slice::Iter<'structure, Property>,
-        fn(&'structure Property) -> Cow<'structure, Property>,
-    >,
->;
+#[derive(Clone)]
+pub enum StructureProperties<'structure> {
+    Empty,
+    SuccessorOf(u128),
+    Byte(ByteProperties),
+    Any(AnyStructureProperties<'structure>),
+    Text(TextStructureProperties<'structure>),
+    Bytes(BytesStructureProperties<'structure>),
+}
+
+impl<'structure> Iterator for StructureProperties<'structure> {
+    type Item = Cow<'structure, Property>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Empty => None,
+            Self::SuccessorOf(n) => {
+                let n = *n;
+
+                *self = Self::Empty;
+                Some(Cow::Owned(Property::successor_of(n)))
+            }
+            Self::Byte(byte_properties) => todo!(),
+            Self::Any(iter) => todo!(),
+            Self::Text(text_structure_properties) => todo!(),
+            Self::Bytes(propeties) => propeties.next().map(Cow::Owned),
+        }
+    }
+}
 
 pub type StructureValues<'properties> = FixedOrMore<
     Map<AnyStructureValues<'properties>, fn(&'properties Object) -> Cow<'properties, Object>>,

@@ -44,6 +44,10 @@ impl AnyStructure {
     pub fn has(&self, property: &Property) -> bool {
         self.properties.binary_search(property).is_ok()
     }
+
+    pub fn properties<'properties>(&'properties self) -> AnyStructureProperties<'properties> {
+        self.properties.iter()
+    }
 }
 
 impl fmt::Debug for AnyStructure {
@@ -160,3 +164,5 @@ impl<'properties> Iterator for AnyStructureTags<'properties> {
         None
     }
 }
+
+pub type AnyStructureProperties<'properties> = slice::Iter<'properties, Property>;

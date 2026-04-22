@@ -146,6 +146,11 @@ impl StructureExt for Structure {
 
     #[instrument(skip(knowledge), ret)]
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
+        if let None = self.any() {
+            // All specializations are valid
+            return Ok(());
+        }
+
         for property in self.properties() {
             let constraint_function =
                 query::values_axiomatically(knowledge, &property.tag, Object::AXIOMATIC)

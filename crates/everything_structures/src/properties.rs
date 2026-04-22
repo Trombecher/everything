@@ -1,4 +1,4 @@
-use std::{fmt, hash::Hash, num::NonZeroU128};
+use std::{fmt, hash::Hash};
 
 use crate::objects::Object;
 
@@ -14,19 +14,37 @@ impl Property {
     /// It will look like this:
     ///
     /// ```plain
-    /// (SUCCESSOR_OF, n - 1)
+    /// (SUCCESSOR_OF, n)
     /// ```
-    pub fn successor_of(n: NonZeroU128) -> Self {
+    #[must_use]
+    pub fn successor_of(n: u128) -> Self {
         Self {
             tag: Object::SUCCESSOR_OF,
-            value: Object::new_natural_number(n.get() - 1),
+            value: Object::new_natural_number(n),
         }
     }
 
+    #[must_use]
     pub fn character(c: char) -> Self {
         Self {
             tag: Object::CODE_POINT,
             value: Object::new_natural_number(c as u32 as u128),
+        }
+    }
+
+    #[must_use]
+    pub fn list_item(item: Object) -> Self {
+        Self {
+            tag: Object::LIST_ITEM,
+            value: item,
+        }
+    }
+
+    #[must_use]
+    pub fn list_tail(tail: Object) -> Self {
+        Self {
+            tag: Object::LIST_TAIL,
+            value: tail,
         }
     }
 }

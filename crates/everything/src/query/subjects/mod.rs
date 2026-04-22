@@ -9,6 +9,9 @@ pub fn subjects_axiomatically<'knowledge>(
     tag: Object,
     value: Object,
 ) -> impl Iterator<Item = Cow<'knowledge, Object>> {
+    // Knowledge will almost never be a specialization
+    // which means that this properties() call is cheap.
+
     knowledge.properties().filter_map(move |property| {
         if property.tag != Object::CONTAINS {
             return None;

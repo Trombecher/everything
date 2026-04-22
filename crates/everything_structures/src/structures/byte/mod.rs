@@ -126,3 +126,14 @@ impl TryFrom<&Object> for Bit {
         }
     }
 }
+
+#[derive(Clone)]
+pub struct ByteProperties(pub BitsOfByte);
+
+impl Iterator for ByteProperties {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(Object::from)
+    }
+}

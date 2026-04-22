@@ -15,14 +15,6 @@ use dashmap::DashMap;
 
 use crate::{AnyStructure, Bit, BytesStructure, Object, Property, Structure, TextStructure};
 
-#[derive(Default)]
-enum Occurance<T> {
-    #[default]
-    NoneYet,
-    Some(T),
-    SomeIgnored,
-}
-
 enum Specialization<'info> {
     Empty,
     NaturalNumber(NonZeroU128),
@@ -41,42 +33,37 @@ enum Specialization<'info> {
 struct StructureMetaInfo {
     hasher: DefaultHasher,
     prop_count: usize,
-    last_successor_of: Occurance<u128>,
-    last_code_point: Occurance<char>,
-    last_list_item: Occurance<Object>,
-    last_list_tail: Occurance<Object>,
-    last_bit_slots: [Occurance<Bit>; 8],
+    last_successor_of: Option<u128>,
+    last_code_point: Option<char>,
+    last_list_item: Option<Object>,
+    last_list_tail: Option<Object>,
+    last_bit_slots: [Option<Bit>; 8],
 }
 
 impl StructureMetaInfo {
     pub fn add_property(&mut self, property: &Property) {
         match property.tag {
             Object::SUCCESSOR_OF => {
-                self.last_successor_of = if let Some(predecessor) =
-                    property.value.exact_natural_number()
+                if let Some(predecessor) = property.value.exact_natural_number()
                     && self.prop_count == 0
                 {
-                    Occurance::Some(predecessor)
-                } else {
-                    Occurance::SomeIgnored
+                    self.last_successor_of = Some(predecessor)
                 }
             }
             Object::CODE_POINT => {
-                self.last_code_point = if self.prop_count == 0
+                if self.prop_count == 0
                     && let Some(int) = property.value.exact_natural_number()
                     && int <= u32::MAX as u128
                     && let Ok(c) = char::try_from(int as u32)
                 {
-                    Occurance::Some(c)
-                } else {
-                    Occurance::SomeIgnored
+                    self.last_code_point = Some(c)
                 }
             }
             Object::LIST_ITEM if self.prop_count < 2 => {
-                self.last_list_item = Occurance::Some(property.value.clone());
+                self.last_list_item = Some(property.value.clone());
             }
             Object::LIST_TAIL if self.prop_count < 2 => {
-                self.last_list_tail = Occurance::Some(property.value.clone());
+                self.last_list_tail = Some(property.value.clone());
             }
             Object::BIT_SLOT_0
             | Object::BIT_SLOT_1
@@ -100,7 +87,7 @@ impl StructureMetaInfo {
                     Object::BIT_SLOT_6 => 6,
                     Object::BIT_SLOT_7 => 7,
                     _ => unreachable!(),
-                }] = Occurance::Some(bit);
+                }] = Some(bit);
             }
             _ => {
                 // Do nothing special.
@@ -122,17 +109,19 @@ impl StructureMetaInfo {
         match self {
             Self { prop_count: 0, .. } => Some(Specialization::Empty),
             Self {
-                last_successor_of: Occurance::Some(n),
+                last_successor_of: Some(n),
                 ..
-            } => Some(Specialization::NaturalNumber(*n)),
+            } => Some(Specialization::NaturalNumber(
+                NonZeroU128::new(n.checked_add(1).unwrap()).unwrap(),
+            )),
             Self {
-                last_code_point: Occurance::Some(c),
+                last_code_point: Some(c),
                 ..
             } => Some(Specialization::Character(*c)),
             Self {
                 prop_count: 2,
-                last_list_item: Occurance::Some(item),
-                last_list_tail: Occurance::Some(tail),
+                last_list_item: Some(item),
+                last_list_tail: Some(tail),
                 ..
             } if let Some(head) = item.exact_natural_number()
                 && head <= 255
@@ -190,7 +179,7 @@ pub fn resolve(
         Some(Specialization::NaturalNumber(n)) => return Structure::NaturalNumber(n),
         Some(Specialization::Character(c)) => return Structure::Character(c),
         Some(Specialization::Text { head, tail }) => {
-            return Structure::Text(TextStructure::from_tail(head, tail.as_ref()));
+            return Structure::Text(TextStructure::from_parts(head, tail.as_ref()));
         }
         Some(Specialization::Binary { head, tail }) => {
             // This unwrap is safe because [head].len() > 0.

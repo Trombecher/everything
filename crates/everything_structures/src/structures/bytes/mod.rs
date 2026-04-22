@@ -1,7 +1,11 @@
+#[cfg(test)]
+mod tests;
+
 use std::{
     cmp::Ordering,
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
+    hint::unreachable_unchecked,
     sync::{Arc, LazyLock},
 };
 
@@ -13,13 +17,13 @@ static GLOBAL_BINARY_DATA: LazyLock<DashMap<u64, Arc<[u8]>>> = LazyLock::new(Das
 
 #[derive(Clone, Eq)]
 pub struct BytesStructure {
-    // This will not be empty.
+    /// This will not be empty.
     data: Arc<[u8]>,
 }
 
 impl BytesStructure {
     /// Creates a new binary structure. Returns `None` if the slice is empty
-    /// (which is represented using [crate::Object::LIST_EMPTY])
+    /// (which is represented using [crate::Structure::Empty])
     #[must_use]
     pub fn new(bytes: &[u8]) -> Option<Self> {
         Self::from_parts(bytes, &[])
@@ -58,16 +62,18 @@ impl BytesStructure {
         }
     }
 
-    /// Returns the head of the bytes.
     #[must_use]
-    pub fn head(&self) -> Byte {
-        unsafe { Byte(*self.data.first().unwrap_unchecked()) }
+    pub fn parts(&self) -> (Byte, &[u8]) {
+        let (item, tail) = unsafe { self.data.split_first().unwrap_unchecked() };
+        (Byte(*item), tail)
     }
 
     #[must_use]
     pub fn has(&self, property: &Property) -> bool {
         match property.tag {
-            Object::LIST_ITEM => property.value == Object::Structure(Structure::Byte(self.head())),
+            Object::LIST_ITEM => {
+                property.value == Object::Structure(Structure::Byte(self.parts().0))
+            }
             Object::LIST_TAIL if let Object::Structure(Structure::Empty) = property.value => {
                 // Tail is empty
                 self.as_ref().len() == 1
@@ -76,9 +82,19 @@ impl BytesStructure {
                 if let Object::Structure(Structure::Bytes(tail)) = &property.value =>
             {
                 // Tail is non empty
-                tail.as_ref() == &self.as_ref()[1..]
+                tail.as_ref() == self.parts().1
             }
             _ => false,
+        }
+    }
+
+    pub fn properties<'properties>(&'properties self) -> BytesStructureProperties<'properties> {
+        let (item, tail) = self.parts();
+
+        BytesStructureProperties {
+            item,
+            tail,
+            index: 0,
         }
     }
 }
@@ -135,6 +151,37 @@ impl Drop for BytesStructure {
             GLOBAL_BINARY_DATA.remove(&hash_of_bytes);
         } else if ref_count == 1 {
             unreachable!("this blob was not registered")
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct BytesStructureProperties<'bytes> {
+    item: Byte,
+    tail: &'bytes [u8],
+    index: u8,
+}
+
+impl Iterator for BytesStructureProperties<'_> {
+    type Item = Property;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // TODO: test the order of this
+
+        match self.index {
+            0 => {
+                self.index += 1;
+                Some(Property::list_tail(Object::from(self.tail)))
+            }
+            1 => {
+                self.index += 1;
+                Some(Property::list_item(Object::from(self.item)))
+            }
+            2 => None,
+            _ => unsafe {
+                // SAFETY: this is ok
+                unreachable_unchecked()
+            },
         }
     }
 }

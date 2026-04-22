@@ -3,7 +3,7 @@ mod tests;
 
 use std::borrow::Cow;
 
-use everything_structures::{Object, Property, Structure};
+use everything_structures::{AnyStructure, Object, Property, Structure};
 use fallible_iterator::{FallibleIterator, IteratorExt};
 use tracing::{instrument, warn};
 
@@ -430,7 +430,7 @@ impl ObjectExt for Object {
                 Structure::new_bool(!value.is_truthy(knowledge)).into()
             }
             Some(ty) => todo!("{ty:?} not impl"),
-            None if let Object::Structure(structure) = self => structure
+            None if let Object::Structure(Structure::Any(any_structure)) = self => any_structure
                 .properties()
                 .map(|property| {
                     let value = property.value.eval(knowledge, ctx);
