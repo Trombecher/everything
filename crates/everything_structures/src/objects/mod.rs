@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::{hash::Hash, num::NonZeroU128};
 
 use crate::{Abstract, structures::Structure};
