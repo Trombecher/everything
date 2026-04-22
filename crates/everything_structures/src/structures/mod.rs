@@ -303,8 +303,8 @@ impl<'structure> Iterator for StructureProperties<'structure> {
                 *self = Self::Empty;
                 Some(Cow::Owned(Property::successor_of(n)))
             }
-            Self::Byte(byte_properties) => todo!(),
-            Self::Any(iter) => todo!(),
+            Self::Byte(properties) => properties.next().map(Cow::Owned),
+            Self::Any(properties) => properties.next().map(Cow::Borrowed),
             Self::Text(text_structure_properties) => todo!(),
             Self::Bytes(propeties) => propeties.next().map(Cow::Owned),
         }

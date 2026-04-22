@@ -127,8 +127,23 @@ impl TryFrom<&Object> for Bit {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum BitSlot {
+    Slot0,
+    Slot1,
+    Slot2,
+    Slot3,
+    Slot4,
+    Slot5,
+    Slot6,
+    Slot7,
+}
+
 #[derive(Clone)]
-pub struct ByteProperties(pub BitsOfByte);
+pub struct ByteProperties {
+    byte: Byte,
+    index: Option<BitSlot>,
+}
 
 impl Iterator for ByteProperties {
     type Item = Object;

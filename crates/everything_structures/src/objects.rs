@@ -1,49 +1,17 @@
 use std::{fmt, hash::Hash, num::NonZeroU128};
 
-use crate::{Bit, Byte, structures::Structure};
-
-pub type AbstractId = u128;
+use crate::{Abstract, Bit, BitSlot, Byte, structures::Structure};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Object {
-    Abstract(AbstractId),
+    Abstract(Abstract),
     Structure(Structure),
 }
 
 impl Object {
-    /// The abstract object 0.
-    pub const ZERO: Self = Self::Abstract(9);
-
-    /// Denotes that the current object is a successor of some child number.
-    pub const SUCCESSOR_OF: Self = Self::Abstract(10);
-
-    /// The slot for the item value in an list.
-    pub const LIST_ITEM: Self = Self::Abstract(5347);
-
-    /// Denotes the rest of the list.
-    pub const LIST_TAIL: Self = Self::Abstract(4353);
-
-    /// Denotes the value of the character.
-    pub const CODE_POINT: Self = Self::Abstract(6969);
-
-    /// Denotes the bit zero/off/no.
-    pub const BIT_0: Self = Self::Abstract(9843);
-
-    /// Denotes the bit one/on/yes.
-    pub const BIT_1: Self = Self::Abstract(6767);
-
-    pub const BIT_SLOT_0: Self = Self::Abstract(5000);
-    pub const BIT_SLOT_1: Self = Self::Abstract(5001);
-    pub const BIT_SLOT_2: Self = Self::Abstract(5002);
-    pub const BIT_SLOT_3: Self = Self::Abstract(5003);
-    pub const BIT_SLOT_4: Self = Self::Abstract(5004);
-    pub const BIT_SLOT_5: Self = Self::Abstract(5005);
-    pub const BIT_SLOT_6: Self = Self::Abstract(5006);
-    pub const BIT_SLOT_7: Self = Self::Abstract(5007);
-
     pub fn new_natural_number(n: u128) -> Self {
         match NonZeroU128::new(n) {
-            None => Self::ZERO,
+            None => Self::Abstract(Abstract::ZERO),
             Some(n) => Self::Structure(Structure::NaturalNumber(n)),
         }
     }
@@ -107,5 +75,20 @@ impl From<&str> for Object {
 impl From<Byte> for Object {
     fn from(value: Byte) -> Self {
         Self::Structure(Structure::from(value))
+    }
+}
+
+impl From<BitSlot> for Object {
+    fn from(value: BitSlot) -> Self {
+        match value {
+            BitSlot::Slot0 => Object::BIT_SLOT_0,
+            BitSlot::Slot1 => Object::BIT_SLOT_0,
+            BitSlot::Slot2 => Object::BIT_SLOT_0,
+            BitSlot::Slot3 => todo!(),
+            BitSlot::Slot4 => todo!(),
+            BitSlot::Slot5 => todo!(),
+            BitSlot::Slot6 => todo!(),
+            BitSlot::Slot7 => todo!(),
+        }
     }
 }
