@@ -11,7 +11,7 @@ use std::{
 
 use dashmap::DashMap;
 
-use crate::{Byte, Object, Property, Structure};
+use crate::{Abstract, Byte, Object, Property, Structure};
 
 static GLOBAL_BINARY_DATA: LazyLock<DashMap<u64, Arc<[u8]>>> = LazyLock::new(DashMap::new);
 
@@ -69,17 +69,19 @@ impl BytesStructure {
     }
 
     #[must_use]
-    pub fn has(&self, property: &Property) -> bool {
-        match property.tag {
-            Object::LIST_ITEM => {
-                property.value == Object::Structure(Structure::Byte(self.parts().0))
+    pub fn has(&self, tag: &Object, value: &Object) -> bool {
+        match tag {
+            Object::Abstract(Abstract::LIST_ITEM) => {
+                value == &Object::Structure(Structure::Byte(self.parts().0))
             }
-            Object::LIST_TAIL if let Object::Structure(Structure::Empty) = property.value => {
+            Object::Abstract(Abstract::LIST_TAIL)
+                if let Object::Structure(Structure::Empty) = value =>
+            {
                 // Tail is empty
                 self.as_ref().len() == 1
             }
-            Object::LIST_TAIL
-                if let Object::Structure(Structure::Bytes(tail)) = &property.value =>
+            Object::Abstract(Abstract::LIST_TAIL)
+                if let Object::Structure(Structure::Bytes(tail)) = &value =>
             {
                 // Tail is non empty
                 tail.as_ref() == self.parts().1
@@ -95,6 +97,17 @@ impl BytesStructure {
             item,
             tail,
             index: 0,
+        }
+    }
+
+    pub fn values<'properties>(
+        &'properties self,
+        tag: Object,
+    ) -> BytesStructureValues<'properties> {
+        match tag {
+            Object::Abstract(Abstract::LIST_ITEM) => BytesStructureValues::ListItem(self.parts().0),
+            Object::Abstract(Abstract::LIST_TAIL) => BytesStructureValues::Tail(self.parts().1),
+            _ => BytesStructureValues::None,
         }
     }
 }
@@ -131,7 +144,9 @@ impl PartialOrd for BytesStructure {
 
 impl Ord for BytesStructure {
     fn cmp(&self, other: &Self) -> Ordering {
-        Arc::as_ptr(&self.data).cmp(&Arc::as_ptr(&other.data))
+        Arc::as_ptr(&self.data)
+            .cast::<()>()
+            .cmp(&Arc::as_ptr(&other.data).cast::<()>())
     }
 }
 
@@ -171,17 +186,50 @@ impl Iterator for BytesStructureProperties<'_> {
         match self.index {
             0 => {
                 self.index += 1;
-                Some(Property::list_tail(Object::from(self.tail)))
+                Some(Property::list_tail(Object::from(Structure::from(
+                    self.tail,
+                ))))
             }
             1 => {
                 self.index += 1;
-                Some(Property::list_item(Object::from(self.item)))
+                Some(Property::list_item(Object::from(Structure::from(
+                    self.item,
+                ))))
             }
             2 => None,
             _ => unsafe {
                 // SAFETY: this is ok
                 unreachable_unchecked()
             },
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum BytesStructureValues<'bytes> {
+    None,
+    ListItem(Byte),
+    Tail(&'bytes [u8]),
+}
+
+impl Iterator for BytesStructureValues<'_> {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::None => None,
+            Self::ListItem(byte) => {
+                let byte = *byte;
+                *self = Self::None;
+
+                Some(Object::from(Structure::from(byte)))
+            }
+            Self::Tail(tail) => {
+                let tail = *tail;
+                *self = Self::None;
+
+                Some(Object::Structure(Structure::from(tail)))
+            }
         }
     }
 }

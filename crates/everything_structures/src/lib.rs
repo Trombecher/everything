@@ -1,5 +1,4 @@
 #![feature(slice_partition_dedup)]
-#![feature(clone_from_ref)]
 
 //! read README
 

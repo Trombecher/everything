@@ -13,7 +13,10 @@ use std::{
 
 use dashmap::DashMap;
 
-use crate::{AnyStructure, Bit, BytesStructure, Object, Property, Structure, TextStructure};
+use crate::{
+    Abstract, AnyStructure, Bit, BitSlot, BytesStructure, Object, Property, Structure,
+    TextStructure,
+};
 
 enum Specialization<'info> {
     Empty,
@@ -43,51 +46,36 @@ struct StructureMetaInfo {
 impl StructureMetaInfo {
     pub fn add_property(&mut self, property: &Property) {
         match property.tag {
-            Object::SUCCESSOR_OF => {
+            Object::Abstract(Abstract::SUCCESSOR_OF) => {
                 if let Some(predecessor) = property.value.exact_natural_number()
                     && self.prop_count == 0
                 {
                     self.last_successor_of = Some(predecessor)
                 }
             }
-            Object::CODE_POINT => {
+            Object::Abstract(Abstract::CODE_POINT) => {
                 if self.prop_count == 0
-                    && let Some(int) = property.value.exact_natural_number()
-                    && int <= u32::MAX as u128
-                    && let Ok(c) = char::try_from(int as u32)
+                    && let Some(maybe_char) = property.value.exact_natural_number()
+                    && maybe_char <= u32::MAX as u128
+                    && let Ok(c) = char::try_from(maybe_char as u32)
                 {
                     self.last_code_point = Some(c)
                 }
             }
-            Object::LIST_ITEM if self.prop_count < 2 => {
+            Object::Abstract(Abstract::LIST_ITEM) if self.prop_count < 2 => {
                 self.last_list_item = Some(property.value.clone());
             }
-            Object::LIST_TAIL if self.prop_count < 2 => {
+            Object::Abstract(Abstract::LIST_TAIL) if self.prop_count < 2 => {
                 self.last_list_tail = Some(property.value.clone());
             }
-            Object::BIT_SLOT_0
-            | Object::BIT_SLOT_1
-            | Object::BIT_SLOT_2
-            | Object::BIT_SLOT_3
-            | Object::BIT_SLOT_4
-            | Object::BIT_SLOT_5
-            | Object::BIT_SLOT_6
-            | Object::BIT_SLOT_7
-                if self.prop_count < 8
-                    && let Ok(bit) = Bit::try_from(&property.value) =>
+            Object::Abstract(maybe_slot)
+                if let Ok(slot) = BitSlot::try_from(maybe_slot)
+                    && self.prop_count < 8
+                    && let Object::Abstract(maybe_bit) = property.value
+                    && let Ok(bit) = Bit::try_from(maybe_bit) =>
             {
                 // TODO: outsource this
-                self.last_bit_slots[match property.tag {
-                    Object::BIT_SLOT_0 => 0,
-                    Object::BIT_SLOT_1 => 1,
-                    Object::BIT_SLOT_2 => 2,
-                    Object::BIT_SLOT_3 => 3,
-                    Object::BIT_SLOT_4 => 4,
-                    Object::BIT_SLOT_5 => 5,
-                    Object::BIT_SLOT_6 => 6,
-                    Object::BIT_SLOT_7 => 7,
-                    _ => unreachable!(),
-                }] = Some(bit);
+                self.last_bit_slots[slot as u8 as usize] = Some(bit);
             }
             _ => {
                 // Do nothing special.
@@ -147,9 +135,6 @@ impl StructureMetaInfo {
         }
     }
 }
-
-#[derive(Clone, Debug)]
-pub struct GlobalRegistry;
 
 static GLOBAL_PROPERTIES: LazyLock<DashMap<u64, Arc<[Property]>>> = LazyLock::new(DashMap::new);
 

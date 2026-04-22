@@ -1,6 +1,6 @@
 use std::{fmt, hash::Hash};
 
-use crate::objects::Object;
+use crate::{Abstract, Bit, BitSlot, objects::Object};
 
 /// A property has a tag and a value, both objects.
 #[derive(Clone, PartialEq, Eq, Ord, Hash, PartialOrd)]
@@ -17,34 +17,42 @@ impl Property {
     /// (SUCCESSOR_OF, n)
     /// ```
     #[must_use]
-    pub fn successor_of(n: u128) -> Self {
+    pub const fn successor_of(n: u128) -> Self {
         Self {
-            tag: Object::SUCCESSOR_OF,
+            tag: Object::Abstract(Abstract::SUCCESSOR_OF),
             value: Object::new_natural_number(n),
         }
     }
 
     #[must_use]
-    pub fn character(c: char) -> Self {
+    pub const fn character(c: char) -> Self {
         Self {
-            tag: Object::CODE_POINT,
+            tag: Object::Abstract(Abstract::CODE_POINT),
             value: Object::new_natural_number(c as u32 as u128),
         }
     }
 
     #[must_use]
-    pub fn list_item(item: Object) -> Self {
+    pub const fn list_item(item: Object) -> Self {
         Self {
-            tag: Object::LIST_ITEM,
+            tag: Object::Abstract(Abstract::LIST_ITEM),
             value: item,
         }
     }
 
     #[must_use]
-    pub fn list_tail(tail: Object) -> Self {
+    pub const fn list_tail(tail: Object) -> Self {
         Self {
-            tag: Object::LIST_TAIL,
+            tag: Object::Abstract(Abstract::LIST_TAIL),
             value: tail,
+        }
+    }
+
+    #[must_use]
+    pub const fn bit_slot(slot: BitSlot, bit: Bit) -> Self {
+        Self {
+            tag: Object::Abstract(slot.to_abstract()),
+            value: Object::Abstract(bit.to_abstract()),
         }
     }
 }

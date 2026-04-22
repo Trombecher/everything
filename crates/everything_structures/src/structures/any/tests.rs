@@ -1,8 +1,8 @@
-use crate::{Object, Property, Structure};
+use crate::{Abstract, Object, Property, Structure};
 use std::{borrow::Cow, sync::Arc};
 
-pub const ALICE: Object = Object::Abstract(u128::from_be_bytes(*b"This is Alice!!!"));
-pub const BOB: Object = Object::Abstract(u128::from_be_bytes(*b"This is Bob!!!!!"));
+pub const ALICE: Object = Object::Abstract(Abstract(u128::from_be_bytes(*b"This is Alice!!!")));
+pub const BOB: Object = Object::Abstract(Abstract(u128::from_be_bytes(*b"This is Bob!!!!!")));
 
 fn alice_bob_structure() -> Structure {
     Structure::new(&mut [Property {
@@ -61,24 +61,8 @@ fn remove_props() {
 fn has() {
     let structure = alice_bob_structure();
 
-    assert!(structure.has(&Property {
-        tag: ALICE,
-        value: BOB
-    }));
-
-    assert!(!structure.has(&Property {
-        tag: ALICE,
-        value: ALICE
-    }))
-}
-
-#[test]
-fn has_by_ref() {
-    let structure = alice_bob_structure();
-
-    assert!(structure.has_by_ref(&ALICE, &BOB));
-
-    assert!(!structure.has_by_ref(&ALICE, &ALICE));
+    assert!(structure.has(&ALICE, &BOB));
+    assert!(!structure.has(&ALICE, &ALICE));
 }
 
 /// This test assures that structurally identical objects
@@ -98,7 +82,7 @@ fn deduping() {
 fn debug() {
     println!("{:?}", alice_bob_structure());
 
-    println!("{:?}", Object::Abstract(42));
+    println!("{:?}", Object::Abstract(Abstract(42)));
 }
 
 #[test]

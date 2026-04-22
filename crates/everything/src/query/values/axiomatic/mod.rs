@@ -73,7 +73,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
             // need to dedup here.
 
             if let Object::Structure(structure) = &self.subject
-                && structure.has_by_ref(statement_tag, statement_value)
+                && structure.has(statement_tag, statement_value)
             {
                 continue;
             }

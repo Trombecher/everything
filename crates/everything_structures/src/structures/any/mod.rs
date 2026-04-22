@@ -40,13 +40,20 @@ impl AnyStructure {
         }
     }
 
-    #[must_use]
-    pub fn has(&self, property: &Property) -> bool {
-        self.properties.binary_search(property).is_ok()
-    }
-
     pub fn properties<'properties>(&'properties self) -> AnyStructureProperties<'properties> {
         self.properties.iter()
+    }
+
+    #[must_use]
+    pub fn has(&self, tag: &Object, value: &Object) -> bool {
+        self.properties
+            .binary_search_by(|property| {
+                property
+                    .tag
+                    .cmp(tag)
+                    .then_with(|| property.value.cmp(value))
+            })
+            .is_ok()
     }
 }
 

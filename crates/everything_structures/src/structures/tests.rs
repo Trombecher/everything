@@ -1,14 +1,11 @@
 use std::num::NonZeroU128;
 
-use crate::{Object, Property, Structure};
+use crate::{Property, Structure};
 
 #[test]
 fn specialization() {
     assert_eq!(
         Structure::NaturalNumber(NonZeroU128::new(1).unwrap()),
-        Structure::new(&mut [Property {
-            tag: Object::SUCCESSOR_OF,
-            value: Object::ZERO
-        }])
+        Structure::new(&mut [Property::successor_of(0)])
     )
 }

@@ -3,7 +3,7 @@ mod tests;
 
 use std::fmt::Debug;
 
-use crate::{Object, Property};
+use crate::{Abstract, Object, Property};
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Byte(pub u8);
@@ -17,56 +17,37 @@ impl Byte {
     }
 
     #[inline]
-    pub fn bit_0(self) -> Bit {
-        Bit::from(self.0 & 1 != 0)
+    #[must_use]
+    pub fn bit(self, slot: BitSlot) -> Bit {
+        Bit::from(self.0 & (1 << (slot as u8)) != 0)
     }
 
-    #[inline]
-    pub fn bit_1(self) -> Bit {
-        Bit::from(self.0 & 2 != 0)
+    pub fn has(self, tag: &Object, value: &Object) -> bool {
+        if let Object::Abstract(a) = tag
+            && let Ok(slot) = BitSlot::try_from(*a)
+            && let Object::Abstract(value) = value
+            && *value == self.bit(slot).into()
+        {
+            true
+        } else {
+            false
+        }
     }
 
-    #[inline]
-    pub fn bit_2(self) -> Bit {
-        Bit::from(self.0 & 4 != 0)
+    pub fn properties(self) -> ByteProperties {
+        ByteProperties {
+            byte: self,
+            next_slot: Some(BitSlot::Slot0),
+        }
     }
 
-    #[inline]
-    pub fn bit_3(self) -> Bit {
-        Bit::from(self.0 & 8 != 0)
-    }
-
-    #[inline]
-    pub fn bit_4(self) -> Bit {
-        Bit::from(self.0 & 16 != 0)
-    }
-
-    #[inline]
-    pub fn bit_5(self) -> Bit {
-        Bit::from(self.0 & 32 != 0)
-    }
-
-    #[inline]
-    pub fn bit_6(self) -> Bit {
-        Bit::from(self.0 & 64 != 0)
-    }
-
-    #[inline]
-    pub fn bit_7(self) -> Bit {
-        Bit::from(self.0 & 128 != 0)
-    }
-
-    pub fn has(self, property: &Property) -> bool {
-        match property.tag {
-            Object::BIT_SLOT_0 => property.value == Object::from(self.bit_0()),
-            Object::BIT_SLOT_1 => property.value == Object::from(self.bit_1()),
-            Object::BIT_SLOT_2 => property.value == Object::from(self.bit_2()),
-            Object::BIT_SLOT_3 => property.value == Object::from(self.bit_3()),
-            Object::BIT_SLOT_4 => property.value == Object::from(self.bit_4()),
-            Object::BIT_SLOT_5 => property.value == Object::from(self.bit_5()),
-            Object::BIT_SLOT_6 => property.value == Object::from(self.bit_6()),
-            Object::BIT_SLOT_7 => property.value == Object::from(self.bit_7()),
-            _ => false,
+    pub fn values(self, tag: Object) -> ByteValues {
+        if let Object::Abstract(tag) = tag
+            && let Ok(slot) = BitSlot::try_from(tag)
+        {
+            ByteValues(Some(self.bit(slot)))
+        } else {
+            ByteValues(None)
         }
     }
 }
@@ -109,21 +90,39 @@ pub enum Bit {
     One,
 }
 
+impl Bit {
+    #[must_use]
+    pub const fn to_abstract(self) -> Abstract {
+        // FIXME: move into From when const traits are stabilized.
+
+        match self {
+            Self::Zero => Abstract::BIT_0,
+            Self::One => Abstract::BIT_1,
+        }
+    }
+}
+
 impl From<bool> for Bit {
     fn from(value: bool) -> Self {
         if value { Self::One } else { Self::Zero }
     }
 }
 
-impl TryFrom<&Object> for Bit {
+impl TryFrom<Abstract> for Bit {
     type Error = ();
 
-    fn try_from(object: &Object) -> Result<Self, Self::Error> {
+    fn try_from(object: Abstract) -> Result<Self, Self::Error> {
         match object {
-            &Object::BIT_0 => Ok(Self::Zero),
-            &Object::BIT_1 => Ok(Self::One),
+            Abstract::BIT_0 => Ok(Self::Zero),
+            Abstract::BIT_1 => Ok(Self::One),
             _ => Err(()),
         }
+    }
+}
+
+impl From<Bit> for Abstract {
+    fn from(value: Bit) -> Self {
+        value.to_abstract()
     }
 }
 
@@ -139,16 +138,92 @@ pub enum BitSlot {
     Slot7,
 }
 
+impl BitSlot {
+    #[must_use]
+    pub const fn to_abstract(self) -> Abstract {
+        // FIXME: move into From when const traits are stabilized.
+
+        match self {
+            Self::Slot0 => Abstract::BIT_SLOT_0,
+            Self::Slot1 => Abstract::BIT_SLOT_1,
+            Self::Slot2 => Abstract::BIT_SLOT_2,
+            Self::Slot3 => Abstract::BIT_SLOT_3,
+            Self::Slot4 => Abstract::BIT_SLOT_4,
+            Self::Slot5 => Abstract::BIT_SLOT_5,
+            Self::Slot6 => Abstract::BIT_SLOT_6,
+            Self::Slot7 => Abstract::BIT_SLOT_7,
+        }
+    }
+
+    #[must_use]
+    pub const fn next(self) -> Option<BitSlot> {
+        // I hope this gets lowered to an `inc`.
+
+        match self {
+            BitSlot::Slot0 => Some(BitSlot::Slot1),
+            BitSlot::Slot1 => Some(BitSlot::Slot2),
+            BitSlot::Slot2 => Some(BitSlot::Slot3),
+            BitSlot::Slot3 => Some(BitSlot::Slot4),
+            BitSlot::Slot4 => Some(BitSlot::Slot5),
+            BitSlot::Slot5 => Some(BitSlot::Slot6),
+            BitSlot::Slot6 => Some(BitSlot::Slot7),
+            BitSlot::Slot7 => None,
+        }
+    }
+}
+
+impl TryFrom<Abstract> for BitSlot {
+    type Error = ();
+
+    fn try_from(a: Abstract) -> Result<Self, Self::Error> {
+        match a {
+            Abstract::BIT_SLOT_0 => Ok(Self::Slot0),
+            Abstract::BIT_SLOT_1 => Ok(Self::Slot1),
+            Abstract::BIT_SLOT_2 => Ok(Self::Slot2),
+            Abstract::BIT_SLOT_3 => Ok(Self::Slot3),
+            Abstract::BIT_SLOT_4 => Ok(Self::Slot4),
+            Abstract::BIT_SLOT_5 => Ok(Self::Slot5),
+            Abstract::BIT_SLOT_6 => Ok(Self::Slot6),
+            Abstract::BIT_SLOT_7 => Ok(Self::Slot7),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<BitSlot> for Abstract {
+    fn from(value: BitSlot) -> Self {
+        value.to_abstract()
+    }
+}
+
 #[derive(Clone)]
 pub struct ByteProperties {
     byte: Byte,
-    index: Option<BitSlot>,
+    next_slot: Option<BitSlot>,
 }
 
 impl Iterator for ByteProperties {
+    type Item = Property;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_slot {
+            Some(slot) => {
+                let bit = self.byte.bit(self.next_slot?);
+                self.next_slot = slot.next();
+                Some(Property::bit_slot(slot, bit))
+            }
+            None => None,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ByteValues(Option<Bit>);
+
+impl Iterator for ByteValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(Object::from)
+        Some(Object::Abstract(Abstract::from(self.0.take()?)))
     }
 }

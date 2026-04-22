@@ -13,7 +13,7 @@ pub use byte::*;
 pub use bytes::*;
 pub use text::*;
 
-use crate::{Object, Property, fixed_or_more::FixedOrMore};
+use crate::{Abstract, Object, Property, fixed_or_more::FixedOrMore};
 
 /// A structure is a set of properties. Natural numbers, text, binary data,
 /// and the structure with no properties are stored more efficiently than an [AnyStructure].
@@ -122,12 +122,12 @@ impl Structure {
     pub fn properties<'structure>(&'structure self) -> StructureProperties<'structure> {
         match self {
             Self::Empty => StructureProperties::Empty,
-            Self::NaturalNumber(n) => Properties::One(Cow::Owned(Property::successor_of(*n))),
+            Self::NaturalNumber(n) => StructureProperties::SuccessorOf(n.get() - 1),
             Self::Bytes(bytes) => StructureProperties::Bytes(bytes.properties()),
             Self::Text(text) => StructureProperties::Text(text.properties()),
             Self::Any(any_structure) => StructureProperties::Any(any_structure.properties()),
-            Self::Character(c) => Properties::One(Cow::Owned(Property::character(*c))),
-            Self::Byte(byte) => StructureProperties::Byte(ByteProperties(byte.bits())),
+            Self::Character(c) => StructureProperties::CodePoint(*c),
+            Self::Byte(byte) => StructureProperties::Byte(byte.properties()),
         }
     }
 
@@ -141,41 +141,21 @@ impl Structure {
 
     /// Checks if `self` has this property.
     #[must_use]
-    pub fn has(&self, property: &Property) -> bool {
-        match self {
-            Self::Empty => false,
-            Self::NaturalNumber(non_zero) => property == &Property::successor_of(*non_zero),
-            Self::Character(c) => property == &Property::character(*c),
-            Self::Bytes(bytes) => bytes.has(property),
-            Self::Text(_) => todo!(),
-            Self::Any(any) => any.has(property),
-            Self::Byte(_) => todo!(),
-        }
-    }
-
-    #[must_use]
-    pub fn has_by_ref(&self, tag: &Object, value: &Object) -> bool {
+    pub fn has(&self, tag: &Object, value: &Object) -> bool {
         match self {
             Self::Empty => false,
             Self::NaturalNumber(non_zero) => {
-                let self_as_property = Property::successor_of(*non_zero);
+                let self_as_property = Property::successor_of(non_zero.get() - 1);
                 &self_as_property.tag == tag && &self_as_property.value == value
             }
-            Self::Bytes(_) => todo!(),
-            Self::Text(_) => todo!(),
-            Self::Any(any) => any
-                .as_ref()
-                .binary_search_by(|property| {
-                    property
-                        .tag
-                        .cmp(tag)
-                        .then_with(|| property.value.cmp(value))
-                })
-                .is_ok(),
+            Self::Bytes(bytes) => bytes.has(tag, value),
+            Self::Text(text) => text.has(tag, value),
+            Self::Any(any) => any.has(tag, value),
             Self::Character(c) => {
                 let self_as_property = Property::character(*c);
                 &self_as_property.tag == tag && &self_as_property.value == value
             }
+            Self::Byte(byte) => byte.has(tag, value),
         }
     }
 
@@ -183,7 +163,8 @@ impl Structure {
     /// if `other` has every property of `self`.
     #[must_use]
     pub fn is_subset_of(&self, other: &Self) -> bool {
-        self.properties().all(|property| other.has(&property))
+        self.properties()
+            .all(|property| other.has(&property.tag, &property.value))
     }
 
     /// Returns an iterator over all values that this tag has
@@ -191,23 +172,29 @@ impl Structure {
     #[must_use]
     pub fn values<'props>(&'props self, tag: Object) -> StructureValues<'props> {
         match self {
-            Self::NaturalNumber(non_zero) if tag == Object::SUCCESSOR_OF => {
-                StructureValues::One(Cow::Owned(Property::successor_of(*non_zero).value))
+            Self::NaturalNumber(non_zero) => {
+                if tag == Object::Abstract(Abstract::SUCCESSOR_OF) {
+                    StructureValues::NaturalNumber(*non_zero)
+                } else {
+                    StructureValues::None
+                }
             }
-            Self::Bytes(_) => todo!(),
-            Self::Text(_) => todo!(),
-            Self::Any(any_structure) => {
-                StructureValues::More(any_structure.values(tag).map(Cow::Borrowed))
-            }
-            _ => StructureValues::None,
+            Self::Bytes(bytes) => StructureValues::Bytes(bytes.values(tag)),
+            Self::Text(text) => StructureValues::Text(text.values(tag)),
+            Self::Any(any_structure) => StructureValues::Any(any_structure.values(tag)),
+            Self::Empty => StructureValues::None,
+            Self::Byte(byte) => StructureValues::Byte(byte.values(tag)),
+            Self::Character(c) => StructureValues::CodePoint(*c),
         }
     }
 
     /// Returns an iterator over all tags that this value has in `self`.
     pub fn tags<'properties>(&'properties self, value: Object) -> StructureTags<'properties> {
         match self {
-            Self::NaturalNumber(non_zero) if Property::successor_of(*non_zero).value == value => {
-                StructureTags::One(Cow::Owned(Object::SUCCESSOR_OF))
+            Self::NaturalNumber(non_zero)
+                if Property::successor_of(non_zero.get() - 1).value == value =>
+            {
+                StructureTags::One(Cow::Owned(Object::Abstract(Abstract::SUCCESSOR_OF)))
             }
             Self::Bytes(_) => todo!(),
             Self::Text(_) => todo!(),
@@ -216,12 +203,6 @@ impl Structure {
             }
             _ => FixedOrMore::None,
         }
-    }
-}
-
-impl From<NonZeroU128> for Structure {
-    fn from(value: NonZeroU128) -> Self {
-        Self::NaturalNumber(value)
     }
 }
 
@@ -285,6 +266,7 @@ impl PartialEq<[Property]> for Structure {
 pub enum StructureProperties<'structure> {
     Empty,
     SuccessorOf(u128),
+    CodePoint(char),
     Byte(ByteProperties),
     Any(AnyStructureProperties<'structure>),
     Text(TextStructureProperties<'structure>),
@@ -299,21 +281,60 @@ impl<'structure> Iterator for StructureProperties<'structure> {
             Self::Empty => None,
             Self::SuccessorOf(n) => {
                 let n = *n;
-
                 *self = Self::Empty;
+
                 Some(Cow::Owned(Property::successor_of(n)))
+            }
+            Self::CodePoint(c) => {
+                let c = *c;
+                *self = Self::Empty;
+
+                Some(Cow::Owned(Property::character(c)))
             }
             Self::Byte(properties) => properties.next().map(Cow::Owned),
             Self::Any(properties) => properties.next().map(Cow::Borrowed),
-            Self::Text(text_structure_properties) => todo!(),
+            Self::Text(properties) => properties.next().map(Cow::Owned),
             Self::Bytes(propeties) => propeties.next().map(Cow::Owned),
         }
     }
 }
 
-pub type StructureValues<'properties> = FixedOrMore<
-    Map<AnyStructureValues<'properties>, fn(&'properties Object) -> Cow<'properties, Object>>,
->;
+#[derive(Clone)]
+pub enum StructureValues<'properties> {
+    None,
+    NaturalNumber(NonZeroU128),
+    CodePoint(char),
+    Byte(ByteValues),
+    Bytes(BytesStructureValues<'properties>),
+    Text(TextStructureValues<'properties>),
+    Any(AnyStructureValues<'properties>),
+}
+
+impl<'properties> Iterator for StructureValues<'properties> {
+    type Item = Cow<'properties, Object>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::None => None,
+            Self::NaturalNumber(n) => {
+                let n = *n;
+                *self = Self::None;
+
+                Some(Cow::Owned(Object::Structure(Structure::NaturalNumber(n))))
+            }
+            Self::CodePoint(c) => {
+                let c = *c;
+                *self = Self::None;
+
+                Some(Cow::Owned(Object::Structure(Structure::from(c))))
+            }
+            Self::Bytes(bytes) => bytes.next().map(Cow::Owned),
+            Self::Text(text) => text.next().map(Cow::Owned),
+            Self::Any(any) => any.next().map(Cow::Borrowed),
+            Self::Byte(byte) => byte.next().map(Cow::Owned),
+        }
+    }
+}
 
 pub type StructureTags<'properties> = FixedOrMore<
     Map<AnyStructureTags<'properties>, fn(&'properties Object) -> Cow<'properties, Object>>,

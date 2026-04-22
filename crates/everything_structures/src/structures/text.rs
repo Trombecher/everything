@@ -1,6 +1,6 @@
 use std::{fmt::Debug, hint::unreachable_unchecked};
 
-use crate::{BytesStructure, Object};
+use crate::{Abstract, BytesStructure, Object, Property, Structure};
 
 /// Represents an array of unicode characters.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -15,7 +15,7 @@ impl TextStructure {
     }
 
     #[must_use]
-    pub fn parts<'text>(&'text self) -> (char, &'text str) {
+    pub fn parts(&self) -> (char, &str) {
         let mut chars = self.as_ref().chars();
         let head = chars.next().unwrap(); // FIXME: this could be unchecked.
 
@@ -38,6 +38,35 @@ impl TextStructure {
             head,
             tail,
             index: 0,
+        }
+    }
+
+    pub fn has(&self, tag: &Object, value: &Object) -> bool {
+        match tag {
+            Object::Abstract(Abstract::LIST_ITEM) => {
+                value == &Object::Structure(Structure::Character(self.parts().0))
+            }
+            Object::Abstract(Abstract::LIST_TAIL)
+                if let Object::Structure(Structure::Empty) = value =>
+            {
+                // Tail is empty
+                self.as_ref().len() == 1
+            }
+            Object::Abstract(Abstract::LIST_TAIL)
+                if let Object::Structure(Structure::Text(tail)) = &value =>
+            {
+                // Tail is non empty
+                tail.as_ref() == self.parts().1
+            }
+            _ => false,
+        }
+    }
+
+    pub fn values<'text>(&'text self, tag: Object) -> TextStructureValues<'text> {
+        match tag {
+            Object::Abstract(Abstract::LIST_ITEM) => TextStructureValues::ListItem(self.parts().0),
+            Object::Abstract(Abstract::LIST_TAIL) => TextStructureValues::Tail(self.parts().1),
+            _ => TextStructureValues::None,
         }
     }
 }
@@ -63,17 +92,23 @@ pub struct TextStructureProperties<'text> {
 }
 
 impl<'text> Iterator for TextStructureProperties<'text> {
-    type Item = Object;
+    type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // TODO: test order
+
         match self.index {
             0 => {
                 self.index += 1;
-                Some(Object::from(self.head))
+                Some(Property::list_tail(Object::from(Structure::from(
+                    self.head,
+                ))))
             }
             1 => {
                 self.index += 1;
-                Some(Object::from(self.tail))
+                Some(Property::list_item(Object::from(Structure::from(
+                    self.tail,
+                ))))
             }
             2 => None,
             _ => unsafe {
@@ -81,6 +116,35 @@ impl<'text> Iterator for TextStructureProperties<'text> {
                 // `index == 2`, index is not incremented.
                 unreachable_unchecked()
             },
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum TextStructureValues<'text> {
+    None,
+    ListItem(char),
+    Tail(&'text str),
+}
+
+impl Iterator for TextStructureValues<'_> {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::None => None,
+            Self::ListItem(c) => {
+                let c = *c;
+                *self = Self::None;
+
+                Some(Object::Structure(Structure::from(c)))
+            }
+            Self::Tail(bytes) => {
+                let bytes = *bytes;
+                *self = Self::None;
+
+                Some(Object::Structure(Structure::from(bytes)))
+            }
         }
     }
 }
