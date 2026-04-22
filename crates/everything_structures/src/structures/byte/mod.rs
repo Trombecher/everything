@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests;
 
-use std::fmt::Debug;
-
 use crate::{Abstract, Object, Property};
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -56,7 +54,7 @@ impl Byte {
     }
 }
 
-impl Debug for Byte {
+impl std::fmt::Debug for Byte {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "b{:X}", self.0)
     }

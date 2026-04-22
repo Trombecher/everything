@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests;
 
-use std::{fmt::Debug, hint::unreachable_unchecked};
-
 use crate::{Abstract, BytesStructure, Object, Property, Structure};
 
 /// Represents an array of unicode characters.
@@ -36,12 +34,7 @@ impl TextStructure {
     /// Iterates over the head and tail values.
     pub fn properties<'text>(&'text self) -> TextStructureProperties<'text> {
         let (head, tail) = self.parts();
-
-        TextStructureProperties {
-            head,
-            tail,
-            index: 0,
-        }
+        TextStructureProperties::TailAndItem(tail, head)
     }
 
     pub fn has(&self, tag: &Object, value: &Object) -> bool {
@@ -81,44 +74,38 @@ impl AsRef<str> for TextStructure {
     }
 }
 
-impl Debug for TextStructure {
+impl std::fmt::Debug for TextStructure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\"{}\"", self.as_ref())
     }
 }
 
 #[derive(Clone)]
-pub struct TextStructureProperties<'text> {
-    head: char,
-    tail: &'text str,
-    index: u8,
+pub enum TextStructureProperties<'text> {
+    TailAndItem(&'text str, char),
+    Tail(&'text str),
+    None,
 }
 
 impl<'text> Iterator for TextStructureProperties<'text> {
     type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO: test order
+        match self {
+            Self::TailAndItem(tail, item) => {
+                let tail = *tail;
+                let item = *item;
+                *self = Self::Tail(tail);
 
-        match self.index {
-            0 => {
-                self.index += 1;
-                Some(Property::list_tail(Object::from(Structure::from(
-                    self.head,
-                ))))
+                Some(Property::list_item(Object::from(Structure::from(item))))
             }
-            1 => {
-                self.index += 1;
-                Some(Property::list_item(Object::from(Structure::from(
-                    self.tail,
-                ))))
+            Self::Tail(tail) => {
+                let tail = *tail;
+                *self = Self::None;
+
+                Some(Property::list_tail(Object::from(Structure::from(tail))))
             }
-            2 => None,
-            _ => unsafe {
-                // SAFETY: this will never be reached because at
-                // `index == 2`, index is not incremented.
-                unreachable_unchecked()
-            },
+            Self::None => None,
         }
     }
 }
