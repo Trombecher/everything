@@ -1,7 +1,7 @@
 //! Module handling abstract objects via [Abstract].
 
 /// An (ideally) globally unique abstract object identifier.
-/// **This number should not contain any semantic meaning.
+/// **This integer should not have any semantic meaning.
 /// Please use ULIDs or some other generator that is a
 /// combination of randomness and time.**
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

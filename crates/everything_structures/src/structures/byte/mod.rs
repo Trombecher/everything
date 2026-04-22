@@ -64,7 +64,7 @@ impl Debug for Byte {
 
 /// A bit can either be [Bit::Zero] or [Bit::One].
 /// This is not used as a specialization.
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Bit {
     Zero,
     One,
@@ -106,7 +106,7 @@ impl From<Bit> for Abstract {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BitSlot {
     Slot0,
     Slot1,
@@ -226,6 +226,7 @@ impl Iterator for ByteValues {
     }
 }
 
+#[derive(PartialEq, Debug)]
 pub struct ByteTags {
     /// The ones will be yielded.
     slots: u8,
@@ -235,9 +236,9 @@ impl Iterator for ByteTags {
     type Item = BitSlot;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let slot_index = self.slots.trailing_zeros() as u8;
-        self.slots &= !(1_u8 << slot_index);
+        let slot_index = self.slots.trailing_zeros();
+        self.slots &= !1_u8.unbounded_shl(slot_index);
 
-        BitSlot::try_from(slot_index).ok()
+        BitSlot::try_from(slot_index as u8).ok()
     }
 }

@@ -1,5 +1,3 @@
-use std::{num::NonZeroU128, sync::Arc};
-
 use crate::{
     Abstract, Byte, BytesStructure, Object, Structure, structures::bytes::GLOBAL_BINARY_DATA,
 };
@@ -59,12 +57,12 @@ fn has() {
 }
 
 #[test]
-fn drop() {
+fn register_and_drop() {
     let count = GLOBAL_BINARY_DATA.len();
 
     {
         let bytes = BytesStructure::from_parts(&[0, 1, 2], &[]).unwrap();
-        assert_eq!(Arc::strong_count(&bytes.data), 2);
+        assert_eq!(bytes.ref_count(), 2);
 
         assert_eq!(GLOBAL_BINARY_DATA.len(), count + 1);
     }

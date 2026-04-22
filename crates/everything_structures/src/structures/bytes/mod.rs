@@ -65,6 +65,13 @@ impl BytesStructure {
         }
     }
 
+    /// Returns the number of strong Arc references
+    /// to the data allocation.
+    #[must_use]
+    pub fn ref_count(&self) -> usize {
+        Arc::strong_count(&self.data)
+    }
+
     #[must_use]
     pub fn parts(&self) -> (Byte, &[u8]) {
         let (item, tail) = unsafe { self.data.split_first().unwrap_unchecked() };
