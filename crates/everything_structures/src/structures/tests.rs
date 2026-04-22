@@ -1,6 +1,6 @@
 use std::num::NonZeroU128;
 
-use crate::{Property, Structure};
+use super::*;
 
 #[test]
 fn specialization() {

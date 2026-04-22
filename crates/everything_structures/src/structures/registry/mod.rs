@@ -2,6 +2,9 @@
 //! as a de-duplicator, such that no equal structure is allocated
 //! twice.
 
+#[cfg(test)]
+mod tests;
+
 use std::{
     assert_matches,
     cmp::Ordering,
