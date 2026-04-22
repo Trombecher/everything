@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::{fmt::Debug, hint::unreachable_unchecked};
 
 use crate::{Abstract, BytesStructure, Object, Property, Structure};
