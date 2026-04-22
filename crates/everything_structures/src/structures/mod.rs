@@ -6,14 +6,14 @@ mod registry;
 mod tests;
 mod text;
 
-use std::{borrow::Cow, fmt::Debug, hash::Hash, iter::Map, num::NonZeroU128};
+use std::{borrow::Cow, fmt::Debug, hash::Hash, num::NonZeroU128};
 
 pub use any::*;
 pub use byte::*;
 pub use bytes::*;
 pub use text::*;
 
-use crate::{Abstract, Object, Property, fixed_or_more::FixedOrMore};
+use crate::{Abstract, Object, Property};
 
 /// A structure is a set of properties. Natural numbers, text, binary data,
 /// and the structure with no properties are stored more efficiently than an [AnyStructure].
@@ -191,17 +191,15 @@ impl Structure {
     /// Returns an iterator over all tags that this value has in `self`.
     pub fn tags<'properties>(&'properties self, value: Object) -> StructureTags<'properties> {
         match self {
+            Self::Empty => StructureTags::None,
             Self::NaturalNumber(non_zero)
                 if Property::successor_of(non_zero.get() - 1).value == value =>
             {
                 StructureTags::One(Cow::Owned(Object::Abstract(Abstract::SUCCESSOR_OF)))
             }
-            Self::Bytes(_) => todo!(),
+            Self::Bytes(bytes) => StructureTags::Bytes(),
             Self::Text(_) => todo!(),
-            Self::Any(any_structure) => {
-                StructureTags::More(any_structure.tags(value).map(Cow::Borrowed))
-            }
-            _ => FixedOrMore::None,
+            Self::Any(any_structure) => StructureTags::Any(any_structure.tags(value)),
         }
     }
 }
@@ -336,6 +334,13 @@ impl<'properties> Iterator for StructureValues<'properties> {
     }
 }
 
-pub type StructureTags<'properties> = FixedOrMore<
-    Map<AnyStructureTags<'properties>, fn(&'properties Object) -> Cow<'properties, Object>>,
->;
+pub enum StructureTags<'properties> {
+    None,
+    SuccessorOf,
+    ListItem,
+    Tail,
+    CodePoint,
+    Any(AnyStructureTags<'properties>),
+}
+
+pub enum ListStructureTags {}
