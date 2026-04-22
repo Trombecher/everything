@@ -217,7 +217,7 @@ impl Iterator for BytesStructureProperties<'_> {
 ///
 /// This iterator is guaranteed to return items in
 /// lexicographical [Ord]er. Also the iterator will
-/// yield exactly two [Object]s.
+/// yield exactly one [Object].
 #[derive(Clone)]
 pub enum BytesStructureValues<'bytes> {
     None,

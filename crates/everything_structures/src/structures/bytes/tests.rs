@@ -80,7 +80,7 @@ fn BytesStructureProperties__next_is_sorted() {
 }
 
 #[test]
-fn BytesStructure__next() {
+fn BytesStructureProperties__next() {
     let mut properties = BytesStructureProperties::TailAndItem(&[69], Byte(42));
 
     assert_eq!(
@@ -100,4 +100,32 @@ fn BytesStructure__next() {
     assert_eq!(properties.next(), None);
     assert_eq!(properties.next(), None);
     assert_eq!(properties.next(), None);
+}
+
+#[test]
+fn BytesStructureValues__next() {
+    let mut values = BytesStructureValues::None;
+    assert_eq!(values.next(), None);
+    assert_eq!(values.next(), None);
+    assert_eq!(values.next(), None);
+
+    let mut values = BytesStructureValues::ListItem(Byte(42));
+    assert_eq!(
+        values.next(),
+        Some(Object::Structure(Structure::Byte(Byte(42))))
+    );
+    assert_eq!(values.next(), None);
+    assert_eq!(values.next(), None);
+    assert_eq!(values.next(), None);
+
+    let mut values = BytesStructureValues::Tail(&[67, 69]);
+    assert_eq!(
+        values.next(),
+        Some(Object::Structure(Structure::Bytes(
+            BytesStructure::new(&[67, 69]).unwrap()
+        )))
+    );
+    assert_eq!(values.next(), None);
+    assert_eq!(values.next(), None);
+    assert_eq!(values.next(), None);
 }
