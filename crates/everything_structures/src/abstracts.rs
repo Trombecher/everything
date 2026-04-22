@@ -1,6 +1,4 @@
-//! Module handling abstract objects.
-
-use std::fmt::Debug;
+//! Module handling abstract objects via [Abstract].
 
 /// An (ideally) globally unique abstract object identifier.
 /// **This number should not contain any semantic meaning.
@@ -31,17 +29,32 @@ impl Abstract {
     /// Denotes the bit one/on/yes.
     pub const BIT_1: Self = Self(6767);
 
+    /// The bit slot with index 0. Also called the _least significant_ bit.
     pub const BIT_SLOT_0: Self = Self(5000);
+
+    /// The bit slot with index 1.
     pub const BIT_SLOT_1: Self = Self(5001);
+
+    /// The bit slot with index 2.
     pub const BIT_SLOT_2: Self = Self(5002);
+
+    /// The bit slot with index 3.
     pub const BIT_SLOT_3: Self = Self(5003);
+
+    /// The bit slot with index 4.
     pub const BIT_SLOT_4: Self = Self(5004);
+
+    /// The bit slot with index 5.
     pub const BIT_SLOT_5: Self = Self(5005);
+
+    /// The bit slot with index 6.
     pub const BIT_SLOT_6: Self = Self(5006);
+
+    /// The bit slot with index 7. Also called the most significant bit.
     pub const BIT_SLOT_7: Self = Self(5007);
 }
 
-impl Debug for Abstract {
+impl std::fmt::Debug for Abstract {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "@{}", self.0)
     }

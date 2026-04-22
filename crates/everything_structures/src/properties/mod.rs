@@ -1,4 +1,7 @@
-use std::{fmt, hash::Hash};
+#[cfg(test)]
+mod tests;
+
+use std::hash::Hash;
 
 use crate::{Abstract, Bit, BitSlot, objects::Object};
 
@@ -57,8 +60,8 @@ impl Property {
     }
 }
 
-impl fmt::Debug for Property {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Debug for Property {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("")
             .field(&self.tag)
             .field(&self.value)
