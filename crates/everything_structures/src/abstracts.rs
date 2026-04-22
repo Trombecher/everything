@@ -15,10 +15,10 @@ impl Abstract {
     pub const SUCCESSOR_OF: Self = Self(10);
 
     /// The slot for the item value in an list.
-    pub const LIST_ITEM: Self = Self(5347);
+    pub const LIST_ITEM: Self = Self(4353);
 
     /// Denotes the rest of the list.
-    pub const LIST_TAIL: Self = Self(4353);
+    pub const LIST_TAIL: Self = Self(4354);
 
     /// Denotes the value of the character.
     pub const CODE_POINT: Self = Self(6969);

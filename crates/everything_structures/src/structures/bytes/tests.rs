@@ -1,9 +1,9 @@
-use crate::{
-    Abstract, Byte, BytesStructure, Object, Structure, structures::bytes::GLOBAL_BINARY_DATA,
-};
+#![allow(non_snake_case)]
+
+use super::*;
 
 #[test]
-fn from_parts() {
+fn BytesStructure__from_parts() {
     assert_eq!(BytesStructure::from_parts(&[], &[]), None);
 
     let bytes = BytesStructure::from_parts(&[0, 1, 2], &[]).unwrap();
@@ -17,14 +17,14 @@ fn from_parts() {
 }
 
 #[test]
-fn parts() {
+fn BytesStructure__parts() {
     let bytes = BytesStructure::from_parts(&[42, 67, 69], &[]).unwrap();
 
     assert_eq!(bytes.parts(), (Byte(42), [67, 69].as_slice()));
 }
 
 #[test]
-fn has() {
+fn BytesStructure__has() {
     assert!(!BytesStructure::new(&[10]).unwrap().has(
         &Object::Abstract(Abstract::BIT_0),
         &Object::Abstract(Abstract(435784))
@@ -57,7 +57,7 @@ fn has() {
 }
 
 #[test]
-fn register_and_drop() {
+fn BytesStructure__register_and_drop() {
     let count = GLOBAL_BINARY_DATA.len();
 
     {
@@ -68,4 +68,36 @@ fn register_and_drop() {
     }
 
     assert_eq!(GLOBAL_BINARY_DATA.len(), count);
+}
+
+/// Test to verify that the properties of [BytesStructure]s
+/// are sorted.
+#[test]
+fn BytesStructureProperties__next_is_sorted() {
+    let properties = BytesStructureProperties::TailAndItem(&[], Byte(0));
+
+    assert!(properties.is_sorted());
+}
+
+#[test]
+fn BytesStructure__next() {
+    let mut properties = BytesStructureProperties::TailAndItem(&[69], Byte(42));
+
+    assert_eq!(
+        properties.next(),
+        Some(Property {
+            tag: Object::Abstract(Abstract::LIST_ITEM),
+            value: Object::Structure(Structure::Byte(Byte(42))),
+        })
+    );
+    assert_eq!(
+        properties.next(),
+        Some(Property {
+            tag: Object::Abstract(Abstract::LIST_TAIL),
+            value: Object::Structure(Structure::Bytes(BytesStructure::new(&[69]).unwrap()))
+        })
+    );
+    assert_eq!(properties.next(), None);
+    assert_eq!(properties.next(), None);
+    assert_eq!(properties.next(), None);
 }

@@ -5,7 +5,6 @@ use std::{
     cmp::Ordering,
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
-    hint::unreachable_unchecked,
     sync::{Arc, LazyLock},
 };
 
@@ -102,12 +101,7 @@ impl BytesStructure {
 
     pub fn properties<'properties>(&'properties self) -> BytesStructureProperties<'properties> {
         let (item, tail) = self.parts();
-
-        BytesStructureProperties {
-            item,
-            tail,
-            index: 0,
-        }
+        BytesStructureProperties::TailAndItem(tail, item)
     }
 
     pub fn values<'properties>(
@@ -180,41 +174,50 @@ impl Drop for BytesStructure {
     }
 }
 
+/// An iterator over the (virtual) properties of
+/// a [BytesStructure]. You can obtain an instance
+/// of this iterator by calling [BytesStructure::properties].
+///
+/// This iterator is guaranteed to return items in
+/// lexicographical [Ord]er.
 #[derive(Clone)]
-pub struct BytesStructureProperties<'bytes> {
-    item: Byte,
-    tail: &'bytes [u8],
-    index: u8,
+pub enum BytesStructureProperties<'bytes> {
+    TailAndItem(&'bytes [u8], Byte),
+    Tail(&'bytes [u8]),
+    None,
 }
 
 impl Iterator for BytesStructureProperties<'_> {
     type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO: test the order of this
+        match self {
+            Self::TailAndItem(tail, item) => {
+                let tail = *tail;
+                let item = *item;
+                *self = Self::Tail(tail);
 
-        match self.index {
-            0 => {
-                self.index += 1;
-                Some(Property::list_tail(Object::from(Structure::from(
-                    self.tail,
-                ))))
+                Some(Property::list_item(Object::from(Structure::from(item))))
             }
-            1 => {
-                self.index += 1;
-                Some(Property::list_item(Object::from(Structure::from(
-                    self.item,
-                ))))
+            Self::Tail(tail) => {
+                let tail = *tail;
+                *self = Self::None;
+
+                Some(Property::list_tail(Object::from(Structure::from(tail))))
             }
-            2 => None,
-            _ => unsafe {
-                // SAFETY: this is ok
-                unreachable_unchecked()
-            },
+            Self::None => None,
         }
     }
 }
 
+/// An iterator over the (virtual) values of
+/// a [BytesStructure] which are associated with a
+/// tag. You can obtain an instance of this
+/// iterator by calling [BytesStructure::values].
+///
+/// This iterator is guaranteed to return items in
+/// lexicographical [Ord]er. Also the iterator will
+/// yield exactly two [Object]s.
 #[derive(Clone)]
 pub enum BytesStructureValues<'bytes> {
     None,
