@@ -50,7 +50,7 @@ impl Abstract {
     /// The bit slot with index 6.
     pub const BIT_SLOT_6: Self = Self(5006);
 
-    /// The bit slot with index 7. Also called the most significant bit.
+    /// The bit slot with index 7. Also called the _most significant_ bit.
     pub const BIT_SLOT_7: Self = Self(5007);
 }
 

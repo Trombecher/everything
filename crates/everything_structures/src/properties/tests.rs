@@ -23,3 +23,5 @@ fn bit_slot() {
 
     // TODO: maybe full coverage
 }
+
+// TODO: maybe add more tests (though these functions are correct I think)

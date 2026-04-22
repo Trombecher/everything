@@ -30,13 +30,16 @@ impl BytesStructure {
     }
 
     pub fn from_parts(a: &[u8], b: &[u8]) -> Option<Self> {
-        if a.is_empty() && b.is_empty() {
+        let total_length = a.len().checked_add(b.len()).expect(":/");
+
+        if total_length == 0 {
             return None;
         }
 
         let mut hasher = DefaultHasher::new();
-        a.hash(&mut hasher);
-        b.hash(&mut hasher);
+        hasher.write_usize(total_length);
+        hasher.write(a);
+        hasher.write(b);
         let hash_of_bytes = hasher.finish();
 
         if let Some(reference) = GLOBAL_BINARY_DATA.get(&hash_of_bytes) {
@@ -45,7 +48,7 @@ impl BytesStructure {
             })
         } else {
             // Entry does not yet exist.
-            let mut arc = Arc::new_uninit_slice(a.len().checked_add(b.len()).expect(":/"));
+            let mut arc = Arc::new_uninit_slice(total_length);
 
             {
                 // Write data of both slices.
