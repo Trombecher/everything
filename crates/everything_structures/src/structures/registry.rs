@@ -236,7 +236,7 @@ fn structure_meta_info(
                 base_properties.next();
             }
             (Some(base_property), Some(property_to_add)) => {
-                match base_property.as_ref().cmp(property_to_add) {
+                match base_property.cmp(property_to_add) {
                     Ordering::Less => {
                         // The base prop comes first. That's
                         // why we just add it.
@@ -304,15 +304,12 @@ fn allocate_new_structure(
                 let ignore_property = remove_properties.binary_search(base_prop).is_ok();
 
                 if !ignore_property {
-                    new_props_iter
-                        .next()
-                        .unwrap()
-                        .write(base_prop.clone().into_owned());
+                    new_props_iter.next().unwrap().write(base_prop.clone());
                 }
 
                 base_props.next();
             }
-            (Some(base_prop), Some(add_prop)) => match base_prop.as_ref().cmp(add_prop) {
+            (Some(base_prop), Some(add_prop)) => match base_prop.cmp(add_prop) {
                 Ordering::Less => {
                     // The base prop comes first.
 
@@ -321,19 +318,13 @@ fn allocate_new_structure(
                         .is_ok();
 
                     if !ignore_property {
-                        new_props_iter
-                            .next()
-                            .unwrap()
-                            .write(base_prop.clone().into_owned());
+                        new_props_iter.next().unwrap().write(base_prop.clone());
                     }
 
                     base_props.next();
                 }
                 Ordering::Equal => {
-                    new_props_iter
-                        .next()
-                        .unwrap()
-                        .write(base_prop.clone().into_owned());
+                    new_props_iter.next().unwrap().write(base_prop.clone());
 
                     add_iter.next();
                     base_props.next();

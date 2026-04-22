@@ -9,13 +9,6 @@ use crate::{Abstract, Object, Property};
 pub struct Byte(pub u8);
 
 impl Byte {
-    pub fn bits(self) -> BitsOfByte {
-        BitsOfByte {
-            byte: self.0,
-            next_byte_index: 0,
-        }
-    }
-
     #[inline]
     #[must_use]
     pub fn bit(self, slot: BitSlot) -> Bit {
@@ -50,35 +43,22 @@ impl Byte {
             ByteValues(None)
         }
     }
+
+    pub fn tags(self, value: Object) -> ByteTags {
+        match value {
+            Object::Abstract(Abstract::BIT_0) => ByteTags {
+                // We invert because we ask for zeroes.
+                slots: !self.0,
+            },
+            Object::Abstract(Abstract::BIT_1) => ByteTags { slots: self.0 },
+            _ => ByteTags { slots: 0 },
+        }
+    }
 }
 
 impl Debug for Byte {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "b{:X}", self.0)
-    }
-}
-
-#[derive(Clone)]
-pub struct BitsOfByte {
-    byte: u8,
-    next_byte_index: u8,
-}
-
-impl Iterator for BitsOfByte {
-    type Item = Bit;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.next_byte_index >= 8 {
-            None
-        } else {
-            // Extract bit.
-            Some(Bit::from(self.byte & (1_u8 << self.next_byte_index) != 0))
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = self.next_byte_index.min(8) as usize;
-        (remaining, Some(remaining))
     }
 }
 
@@ -172,6 +152,24 @@ impl BitSlot {
     }
 }
 
+impl TryFrom<u8> for BitSlot {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Slot0),
+            1 => Ok(Self::Slot1),
+            2 => Ok(Self::Slot2),
+            3 => Ok(Self::Slot3),
+            4 => Ok(Self::Slot4),
+            5 => Ok(Self::Slot5),
+            6 => Ok(Self::Slot6),
+            7 => Ok(Self::Slot7),
+            _ => Err(()),
+        }
+    }
+}
+
 impl TryFrom<Abstract> for BitSlot {
     type Error = ();
 
@@ -225,5 +223,21 @@ impl Iterator for ByteValues {
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(Object::Abstract(Abstract::from(self.0.take()?)))
+    }
+}
+
+pub struct ByteTags {
+    /// The ones will be yielded.
+    slots: u8,
+}
+
+impl Iterator for ByteTags {
+    type Item = BitSlot;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let slot_index = self.slots.trailing_zeros() as u8;
+        self.slots &= !(1_u8 << slot_index);
+
+        BitSlot::try_from(slot_index).ok()
     }
 }

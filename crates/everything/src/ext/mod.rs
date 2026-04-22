@@ -13,8 +13,8 @@ pub use structures::*;
 use everything_structures::{Object, Structure};
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Statement<'a> {
-    pub subject: Cow<'a, Object>,
+pub struct Statement {
+    pub subject: Object,
     pub tag: Cow<'a, Object>,
     pub value: Cow<'a, Object>,
 }

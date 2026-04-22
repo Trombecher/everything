@@ -6,7 +6,7 @@ mod registry;
 mod tests;
 mod text;
 
-use std::{borrow::Cow, fmt::Debug, hash::Hash, num::NonZeroU128};
+use std::{fmt::Debug, hash::Hash, num::NonZeroU128};
 
 pub use any::*;
 pub use byte::*;
@@ -134,7 +134,7 @@ impl Structure {
     /// Merges the properties of `self` and `other` into a new AnyStructure.
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
-        let mut add_properties = other.properties().map(Cow::into_owned).collect::<Vec<_>>();
+        let mut add_properties = other.properties().collect::<Vec<_>>();
 
         self.add(add_properties.as_mut_slice())
     }
@@ -192,14 +192,44 @@ impl Structure {
     pub fn tags<'properties>(&'properties self, value: Object) -> StructureTags<'properties> {
         match self {
             Self::Empty => StructureTags::None,
-            Self::NaturalNumber(non_zero)
-                if Property::successor_of(non_zero.get() - 1).value == value =>
-            {
-                StructureTags::One(Cow::Owned(Object::Abstract(Abstract::SUCCESSOR_OF)))
+            Self::Character(c) => {
+                if value == Object::from(Structure::from(*c)) {
+                    StructureTags::CodePoint
+                } else {
+                    StructureTags::None
+                }
             }
-            Self::Bytes(bytes) => StructureTags::Bytes(),
-            Self::Text(_) => todo!(),
+            Self::NaturalNumber(non_zero) => {
+                if Property::successor_of(non_zero.get() - 1).value == value {
+                    StructureTags::SuccessorOf
+                } else {
+                    StructureTags::None
+                }
+            }
+            Self::Bytes(bytes) => {
+                let (item, tail) = bytes.parts();
+
+                if Object::from(Structure::from(item)) == value {
+                    StructureTags::ListItem
+                } else if bytes.as_ref() == tail {
+                    StructureTags::Tail
+                } else {
+                    StructureTags::None
+                }
+            }
+            Self::Text(text) => {
+                let (item, tail) = text.parts();
+
+                if Object::from(Structure::from(item)) == value {
+                    StructureTags::ListItem
+                } else if text.as_ref() == tail {
+                    StructureTags::Tail
+                } else {
+                    StructureTags::None
+                }
+            }
             Self::Any(any_structure) => StructureTags::Any(any_structure.tags(value)),
+            Self::Byte(byte) => StructureTags::Byte(byte.tags(value)),
         }
     }
 }
@@ -256,7 +286,7 @@ impl<const N: usize> PartialEq<[Property; N]> for Structure {
 
 impl PartialEq<[Property]> for Structure {
     fn eq(&self, other: &[Property]) -> bool {
-        self.properties().eq(other.iter().map(Cow::Borrowed))
+        self.properties().eq_by(other.iter(), |a, b| &a == b)
     }
 }
 
@@ -272,7 +302,7 @@ pub enum StructureProperties<'structure> {
 }
 
 impl<'structure> Iterator for StructureProperties<'structure> {
-    type Item = Cow<'structure, Property>;
+    type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
@@ -281,18 +311,18 @@ impl<'structure> Iterator for StructureProperties<'structure> {
                 let n = *n;
                 *self = Self::Empty;
 
-                Some(Cow::Owned(Property::successor_of(n)))
+                Some(Property::successor_of(n))
             }
             Self::CodePoint(c) => {
                 let c = *c;
                 *self = Self::Empty;
 
-                Some(Cow::Owned(Property::character(c)))
+                Some(Property::character(c))
             }
-            Self::Byte(properties) => properties.next().map(Cow::Owned),
-            Self::Any(properties) => properties.next().map(Cow::Borrowed),
-            Self::Text(properties) => properties.next().map(Cow::Owned),
-            Self::Bytes(propeties) => propeties.next().map(Cow::Owned),
+            Self::Byte(properties) => properties.next(),
+            Self::Any(properties) => properties.next().cloned(),
+            Self::Text(properties) => properties.next(),
+            Self::Bytes(propeties) => propeties.next(),
         }
     }
 }
@@ -309,7 +339,7 @@ pub enum StructureValues<'properties> {
 }
 
 impl<'properties> Iterator for StructureValues<'properties> {
-    type Item = Cow<'properties, Object>;
+    type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
@@ -318,18 +348,18 @@ impl<'properties> Iterator for StructureValues<'properties> {
                 let n = *n;
                 *self = Self::None;
 
-                Some(Cow::Owned(Object::Structure(Structure::NaturalNumber(n))))
+                Some(Object::Structure(Structure::NaturalNumber(n)))
             }
             Self::CodePoint(c) => {
                 let c = *c;
                 *self = Self::None;
 
-                Some(Cow::Owned(Object::Structure(Structure::from(c))))
+                Some(Object::Structure(Structure::from(c)))
             }
-            Self::Bytes(bytes) => bytes.next().map(Cow::Owned),
-            Self::Text(text) => text.next().map(Cow::Owned),
-            Self::Any(any) => any.next().map(Cow::Borrowed),
-            Self::Byte(byte) => byte.next().map(Cow::Owned),
+            Self::Bytes(bytes) => bytes.next(),
+            Self::Text(text) => text.next(),
+            Self::Any(any) => any.next().cloned(),
+            Self::Byte(byte) => byte.next(),
         }
     }
 }
@@ -341,6 +371,33 @@ pub enum StructureTags<'properties> {
     Tail,
     CodePoint,
     Any(AnyStructureTags<'properties>),
+    Byte(ByteTags),
 }
 
-pub enum ListStructureTags {}
+impl Iterator for StructureTags<'_> {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::None => None,
+            Self::SuccessorOf => {
+                *self = Self::None;
+                Some(Object::Abstract(Abstract::SUCCESSOR_OF))
+            }
+            Self::ListItem => {
+                *self = Self::None;
+                Some(Object::Abstract(Abstract::LIST_ITEM))
+            }
+            Self::Tail => {
+                *self = Self::None;
+                Some(Object::Abstract(Abstract::LIST_TAIL))
+            }
+            Self::CodePoint => {
+                *self = Self::None;
+                Some(Object::Abstract(Abstract::CODE_POINT))
+            }
+            Self::Any(any) => any.next().cloned(),
+            Self::Byte(byte) => byte.next().map(|slot| Object::from(Abstract::from(slot))),
+        }
+    }
+}

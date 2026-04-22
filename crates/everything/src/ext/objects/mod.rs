@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests;
-
 use std::borrow::Cow;
 
 use everything_structures::{AnyStructure, Object, Property, Structure};

@@ -1,4 +1,5 @@
 #![feature(slice_partition_dedup)]
+#![feature(iter_order_by)]
 
 //! read README
 

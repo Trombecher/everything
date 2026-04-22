@@ -1,5 +1,5 @@
 use crate::{Abstract, Object, Property, Structure};
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 pub const ALICE: Object = Object::Abstract(Abstract(u128::from_be_bytes(*b"This is Alice!!!")));
 pub const BOB: Object = Object::Abstract(Abstract(u128::from_be_bytes(*b"This is Bob!!!!!")));
@@ -95,7 +95,7 @@ fn one_value() {
     let s = alice_bob_structure();
 
     let mut alices = s.values(ALICE);
-    assert_eq!(alices.next(), Some(Cow::Borrowed(&BOB)));
+    assert_eq!(alices.next(), Some(BOB));
     assert_eq!(alices.next(), None);
 
     assert_eq!(s.values(BOB).next(), None);
@@ -115,8 +115,8 @@ fn multiple_values() {
     ]);
 
     let mut alices = s.values(ALICE);
-    assert_eq!(alices.next(), Some(Cow::Borrowed(&ALICE)));
-    assert_eq!(alices.next(), Some(Cow::Borrowed(&BOB)));
+    assert_eq!(alices.next(), Some(ALICE));
+    assert_eq!(alices.next(), Some(BOB));
     assert_eq!(alices.next(), None);
 }
 
@@ -130,7 +130,7 @@ fn one_tag() {
     let s = alice_bob_structure();
 
     let mut tags_that_have_bob = s.tags(BOB);
-    assert_eq!(tags_that_have_bob.next(), Some(Cow::Borrowed(&ALICE)));
+    assert_eq!(tags_that_have_bob.next(), Some(ALICE));
     assert_eq!(tags_that_have_bob.next(), None);
 
     assert_eq!(s.tags(ALICE).next(), None);
@@ -150,8 +150,8 @@ fn multiple_tags() {
     ]);
 
     let mut tags_that_have_alice = s.tags(ALICE);
-    assert_eq!(tags_that_have_alice.next(), Some(Cow::Borrowed(&ALICE)));
-    assert_eq!(tags_that_have_alice.next(), Some(Cow::Borrowed(&BOB)));
+    assert_eq!(tags_that_have_alice.next(), Some(ALICE));
+    assert_eq!(tags_that_have_alice.next(), Some(BOB));
     assert_eq!(tags_that_have_alice.next(), None);
 }
 
