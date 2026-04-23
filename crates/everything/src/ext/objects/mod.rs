@@ -50,9 +50,9 @@ pub trait ObjectExt {
         ctx: &mut EvaluationContext,
     ) -> Object;
 
-    fn to_natural_number(&self, knowledge: &Structure) -> Option<usize>;
+    fn to_natural_number(&self, knowledge: &Structure) -> Option<u128>;
 
-    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<usize>;
+    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u128>;
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object>;
 
@@ -67,7 +67,9 @@ pub trait ObjectExt {
 
 impl ObjectExt for Object {
     fn is_natural_number(&self, knowledge: &Structure) -> bool {
-        if self == &Self::Abstract(Abstract::ZERO) {
+        if self.exact_natural_number().is_some() {
+            // Fast path of exact natural numbers.
+
             return true;
         }
 
@@ -120,7 +122,7 @@ impl ObjectExt for Object {
         query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::COMPUTED)).next()
     }
 
-    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<usize> {
+    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u128> {
         query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::NODE_PARAMETER))
             .next()
             .and_then(|depth| depth.to_natural_number(knowledge))
@@ -185,7 +187,7 @@ impl ObjectExt for Object {
                 .into()
             }
             Some(NodeType::Parameter) => {
-                let depth = self.node_parameter_depth(knowledge).unwrap();
+                let depth = self.node_parameter_depth(knowledge).unwrap() as usize;
 
                 if let Some(offset_depth) = depth.checked_sub(additional_depth) {
                     // The min additional depth is 1.
@@ -286,7 +288,7 @@ impl ObjectExt for Object {
             Some(NodeType::Literal) => self.node_literal(knowledge).unwrap(),
             Some(NodeType::Computed) => self.capture(knowledge, 0, ctx),
             Some(NodeType::Parameter) => {
-                ctx.parameter_value(self.node_parameter_depth(knowledge).unwrap())
+                ctx.parameter_value(self.node_parameter_depth(knowledge).unwrap() as usize)
             }
             Some(NodeType::Equal) => {
                 let mut values = query::values_axiomatically(
@@ -435,9 +437,10 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn to_natural_number(&self, knowledge: &Structure) -> Option<usize> {
-        if self == &Object::Abstract(Abstract::ZERO) {
-            Some(0)
+    fn to_natural_number(&self, knowledge: &Structure) -> Option<u128> {
+        if let Some(n) = self.exact_natural_number() {
+            // Fast path for exact natural numbers.
+            Some(n)
         } else {
             query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::SUCCESSOR_OF))
                 .next()
