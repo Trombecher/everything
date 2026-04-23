@@ -174,7 +174,7 @@ impl Structure {
         match self {
             Self::NaturalNumber(non_zero) => {
                 if tag == Object::Abstract(Abstract::SUCCESSOR_OF) {
-                    StructureValues::NaturalNumber(*non_zero)
+                    StructureValues::SuccessorOf(non_zero.get() - 1)
                 } else {
                     StructureValues::None
                 }
@@ -330,7 +330,7 @@ impl<'structure> Iterator for StructureProperties<'structure> {
 #[derive(Clone)]
 pub enum StructureValues<'properties> {
     None,
-    NaturalNumber(NonZeroU128),
+    SuccessorOf(u128),
     CodePoint(char),
     Byte(ByteValues),
     Bytes(BytesStructureValues<'properties>),
@@ -344,11 +344,11 @@ impl<'properties> Iterator for StructureValues<'properties> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::None => None,
-            Self::NaturalNumber(n) => {
+            Self::SuccessorOf(n) => {
                 let n = *n;
                 *self = Self::None;
 
-                Some(Object::Structure(Structure::NaturalNumber(n)))
+                Some(Object::new_natural_number(n))
             }
             Self::CodePoint(c) => {
                 let c = *c;

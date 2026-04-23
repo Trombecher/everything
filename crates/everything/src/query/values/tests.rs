@@ -1,5 +1,3 @@
-use core::slice;
-
 use everything_structures::{Abstract, Object};
 
 use crate::{
@@ -17,7 +15,9 @@ fn basic() {
         &mut Default::default(),
     );
 
-    let res: Vec<_> = qr.values().collect();
-
-    assert_eq!(res, slice::from_ref(&*AXIOMATIC_AXIOMATIC_CONSTRAINT));
+    let mut values = qr.values();
+    assert_eq!(values.next(), Some(AXIOMATIC_AXIOMATIC_CONSTRAINT.clone()));
+    assert_eq!(values.next(), None);
+    assert_eq!(values.next(), None);
+    assert_eq!(values.next(), None);
 }
