@@ -1,4 +1,4 @@
-use everything_structures::{Object, Property, Structure};
+use everything_structures::{Abstract, Object, Property, Structure};
 
 use crate::{
     base::BASE,
@@ -8,15 +8,18 @@ use crate::{
 
 #[test]
 fn natural_number() {
-    assert_eq!(Object::new_natural_number(0), Object::ZERO);
+    assert_eq!(
+        Object::new_natural_number(0),
+        Object::Abstract(Abstract::ZERO)
+    );
 
     assert_eq!(
         Object::new_natural_number(2),
         Structure::new(&mut [Property {
-            tag: Object::SUCCESSOR_OF,
+            tag: Object::Abstract(Abstract::SUCCESSOR_OF),
             value: Structure::new(&mut [Property {
-                tag: Object::SUCCESSOR_OF,
-                value: Object::ZERO
+                tag: Object::Abstract(Abstract::SUCCESSOR_OF),
+                value: Object::Abstract(Abstract::ZERO)
             }])
             .into()
         }])
@@ -36,14 +39,18 @@ fn node_type() {
 
     // Single
     assert_eq!(
-        Object::Structure(Structure::new_computed(Object::ZERO)).node_type(knowledge),
+        Object::Structure(Structure::new_computed(Object::Abstract(Abstract::ZERO)))
+            .node_type(knowledge),
         Some(NodeType::Computed)
     );
 
     // Multiple
     assert_eq!(
-        Object::Structure(Structure::new_node_and([Object::ZERO, Object::KNOWLEDGE]))
-            .node_type(knowledge),
+        Object::Structure(Structure::new_node_and([
+            Object::Abstract(Abstract::ZERO),
+            Object::KNOWLEDGE
+        ]))
+        .node_type(knowledge),
         Some(NodeType::And)
     );
 }
@@ -53,8 +60,12 @@ fn call() {
     let f: Object = Structure::new_computed(Structure::new_node_parameter(0).into()).into();
 
     assert_eq!(
-        f.call(&BASE, &[Object::ZERO], &mut Default::default()),
-        Object::ZERO
+        f.call(
+            &BASE,
+            &[Object::Abstract(Abstract::ZERO)],
+            &mut Default::default()
+        ),
+        Object::Abstract(Abstract::ZERO)
     );
 }
 
@@ -103,9 +114,11 @@ fn eval_or() {
 #[test]
 fn eval_literal() {
     assert_eq!(
-        Object::Structure(Structure::new_node_literal(Object::ZERO))
-            .eval(&BASE, &mut Default::default()),
-        Object::ZERO
+        Object::Structure(Structure::new_node_literal(Object::Abstract(
+            Abstract::ZERO
+        )))
+        .eval(&BASE, &mut Default::default()),
+        Object::Abstract(Abstract::ZERO)
     );
 }
 
@@ -123,7 +136,7 @@ fn eval_count() {
                 Structure::new(&mut [
                     Property {
                         tag: Object::CONTAINS,
-                        value: Object::ZERO
+                        value: Object::Abstract(Abstract::ZERO)
                     },
                     Property {
                         tag: Object::CONTAINS,
@@ -146,22 +159,22 @@ fn eval_query() {
             Structure::new(&mut [
                 Property {
                     tag: Object::CONTAINS,
-                    value: Object::ZERO
+                    value: Object::Abstract(Abstract::ZERO)
                 },
                 Property {
                     tag: Object::CONTAINS,
                     value: Object::KNOWLEDGE
                 },
                 Property {
-                    tag: Object::SUCCESSOR_OF,
-                    value: Object::ZERO
+                    tag: Object::Abstract(Abstract::SUCCESSOR_OF),
+                    value: Object::Abstract(Abstract::ZERO)
                 }
             ])
             .into(),
             Structure::new_node_literal(Object::CONTAINS).into()
         ))
         .eval(&BASE, &mut Default::default()),
-        Structure::new_set([Object::KNOWLEDGE, Object::ZERO]).into(),
+        Structure::new_set([Object::KNOWLEDGE, Object::Abstract(Abstract::ZERO)]).into(),
     );
 }
 
@@ -182,9 +195,16 @@ fn eval_set_items() {
     assert_eq!(
         f.call(
             &BASE,
-            &[Object::Abstract(1337), Object::Abstract(1338)],
+            &[
+                Object::Abstract(Abstract(1337)),
+                Object::Abstract(Abstract(1338))
+            ],
             &mut EvaluationContext::default(),
         ),
-        Structure::new_set([Object::Abstract(1337), Object::Abstract(1338)]).into()
+        Structure::new_set([
+            Object::Abstract(Abstract(1337)),
+            Object::Abstract(Abstract(1338))
+        ])
+        .into()
     );
 }

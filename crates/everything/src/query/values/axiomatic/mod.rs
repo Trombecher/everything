@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use everything_structures::{Object, Structure, StructureValues};
 use tracing::instrument;
 
@@ -13,17 +11,14 @@ pub type AxiomaticQueryValues<'knowledge, 'subject, 'item> =
     FixedOrMore<AxiomaticBorrowedQueryValues<'knowledge, 'subject, 'item>>;
 
 #[derive(Clone)]
-pub struct AxiomaticBorrowedQueryValues<'knowledge: 'item, 'subject: 'item, 'item> {
+pub struct AxiomaticBorrowedQueryValues<'knowledge, 'subject> {
     values_from_subject: StructureValues<'subject>,
     statements: StructureValues<'knowledge>,
     subject: &'subject Object,
     tag: Object,
-    _yield: PhantomData<&'item Object>,
 }
 
-impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
-    for AxiomaticBorrowedQueryValues<'knowledge, 'subject, 'item>
-{
+impl<'knowledge, 'subject> Iterator for AxiomaticBorrowedQueryValues<'knowledge, 'subject> {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -117,7 +112,6 @@ pub fn values_axiomatically<'knowledge: 'item, 'subject: 'item, 'item>(
                 statements,
                 subject,
                 tag,
-                _yield: PhantomData,
             })
         }
     }

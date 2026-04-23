@@ -300,7 +300,7 @@ impl ObjectExt for Object {
                     // This is just equal to `NODE_EXISTS`.
 
                     for item in actual_qr.iter() {
-                        if item.as_ref() == &value {
+                        if item == value {
                             return Structure::new_bool(true).into();
                         }
                     }
@@ -373,8 +373,7 @@ impl ObjectExt for Object {
                         // TODO: perf
 
                         let values_qr = query::values(knowledge, &subject, tag, ctx);
-                        Structure::new_bool(values_qr.iter().find(|v| **v == value).is_some())
-                            .into()
+                        Structure::new_bool(values_qr.iter().find(|v| *v == value).is_some()).into()
                     }
                 }
             }
