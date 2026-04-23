@@ -327,6 +327,13 @@ impl<'structure> Iterator for StructureProperties<'structure> {
     }
 }
 
+impl std::fmt::Debug for StructureProperties<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut this = self.clone();
+        f.debug_set().entries(&mut this).finish()
+    }
+}
+
 #[derive(Clone)]
 pub enum StructureValues<'properties> {
     None,
@@ -364,6 +371,14 @@ impl<'properties> Iterator for StructureValues<'properties> {
     }
 }
 
+impl std::fmt::Debug for StructureValues<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut this = self.clone();
+        f.debug_set().entries(&mut this).finish()
+    }
+}
+
+#[derive(Clone)]
 pub enum StructureTags<'properties> {
     None,
     SuccessorOf,
@@ -399,5 +414,12 @@ impl Iterator for StructureTags<'_> {
             Self::Any(any) => any.next().cloned(),
             Self::Byte(byte) => byte.next().map(|slot| Object::from(Abstract::from(slot))),
         }
+    }
+}
+
+impl std::fmt::Debug for StructureTags<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut this = self.clone();
+        f.debug_set().entries(&mut this).finish()
     }
 }

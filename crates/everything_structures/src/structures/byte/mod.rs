@@ -224,7 +224,7 @@ impl Iterator for ByteValues {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ByteTags {
     /// The ones will be yielded.
     slots: u8,
