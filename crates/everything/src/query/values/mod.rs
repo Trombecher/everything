@@ -3,7 +3,6 @@ mod axiomatic;
 mod tests;
 
 use std::array;
-use std::borrow::Cow;
 
 use everything_structures::{Object, Property, Structure, StructureValues};
 use tracing::instrument;
@@ -38,7 +37,7 @@ pub fn values<'knowledge: 'item, 'subject: 'item, 'item>(
 
             return QueryValuesResult::Axiomatic(match subject {
                 Object::Structure(s) if s.is_knowledge().is_ok() => {
-                    AxiomaticQueryValues::One(Cow::Owned(Object::Structure(Structure::Empty)))
+                    AxiomaticQueryValues::One(Object::Structure(Structure::Empty))
                 }
                 // TODO: review this for abstract objects
                 _ => AxiomaticQueryValues::None,
@@ -121,7 +120,7 @@ pub enum QueryValues<'query_result: 'item, 'knowledge: 'item, 'subject: 'item, '
 impl<'query, 'knowledge: 'item, 'subject: 'item, 'item> Iterator
     for QueryValues<'query, 'knowledge, 'subject, 'item>
 {
-    type Item = Cow<'item, Object>;
+    type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {

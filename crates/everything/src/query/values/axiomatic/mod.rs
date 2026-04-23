@@ -1,6 +1,6 @@
-use std::{borrow::Cow, marker::PhantomData};
+use std::marker::PhantomData;
 
-use everything_structures::{FixedOrMore, Object, Structure, StructureValues};
+use everything_structures::{Object, Structure, StructureValues};
 use tracing::instrument;
 
 use crate::{base, ext::ObjectExt};
@@ -24,7 +24,7 @@ pub struct AxiomaticBorrowedQueryValues<'knowledge: 'item, 'subject: 'item, 'ite
 impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
     for AxiomaticBorrowedQueryValues<'knowledge, 'subject, 'item>
 {
-    type Item = Cow<'item, Object>;
+    type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(value) = self.values_from_subject.next() {
@@ -34,7 +34,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
         for statement in self.statements.by_ref() {
             // TODO: better error msg
 
-            let statement = match statement.as_ref() {
+            let statement = match statement {
                 Object::Abstract(_) => panic!(":/"),
                 Object::Structure(structure) => structure,
             };
@@ -78,7 +78,7 @@ impl<'knowledge: 'item, 'subject: 'item, 'item> Iterator
                 continue;
             }
 
-            return Some(Cow::Owned(statement_value.clone()));
+            return Some(statement_value.clone());
         }
 
         None
@@ -101,7 +101,7 @@ pub fn values_axiomatically<'knowledge: 'item, 'subject: 'item, 'item>(
 ) -> AxiomaticQueryValues<'knowledge, 'subject, 'item> {
     match (subject, &tag) {
         (&Object::AXIOMATIC, &Object::AXIOMATIC) => {
-            AxiomaticQueryValues::One(Cow::Borrowed(&base::AXIOMATIC_AXIOMATIC_CONSTRAINT))
+            AxiomaticQueryValues::One(&base::AXIOMATIC_AXIOMATIC_CONSTRAINT)
         }
         (&Object::AXIOMATIC | &Object::COMPUTED, &Object::COMPUTED) => AxiomaticQueryValues::None,
         _ => {

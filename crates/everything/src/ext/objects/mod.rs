@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests;
-use std::borrow::Cow;
 
-use everything_structures::{AnyStructure, Object, Property, Structure};
+use everything_structures::{Abstract, Object, Property, Structure};
 use fallible_iterator::{FallibleIterator, IteratorExt};
 use tracing::{instrument, warn};
 
@@ -14,7 +13,7 @@ use crate::{
 
 macro_rules! define_abstract {
     ($($id:ident = $n:literal),* $(,)?) => {
-        $(const $id: Object = Object::Abstract($n);)*
+        $(const $id: Object = Object::Abstract(Abstract($n));)*
     };
 }
 
@@ -50,22 +49,13 @@ pub trait ObjectExt {
     );
 
     /// Extracts the first [Self::NODE_EXISTS] from `self`.
-    fn node_exists<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Object>>;
+    fn node_exists(&self, knowledge: &Structure) -> Option<Object>;
 
     /// Extracts the first [Self::NODE_COUNT] from `self`.
-    fn node_count<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Object>>;
+    fn node_count(&self, knowledge: &Structure) -> Option<Object>;
 
     /// Extracts the first [Self::COMPUTED] from `self`.
-    fn computed_body<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Object>>;
+    fn computed_body(&self, knowledge: &Structure) -> Option<Object>;
 
     fn capture(
         &self,
@@ -100,20 +90,11 @@ pub trait ObjectExt {
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<usize>;
 
-    fn node_literal<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Object>>;
+    fn node_literal(&self, knowledge: &Structure) -> Option<Object>;
 
-    fn statement_form<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> StatementForm<'item>;
+    fn statement_form(&self, knowledge: &Structure) -> StatementForm;
 
-    fn node_query<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Object>>;
+    fn node_query(&self, knowledge: &Structure) -> Option<Object>;
 
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
 
@@ -122,11 +103,12 @@ pub trait ObjectExt {
 
 impl ObjectExt for Object {
     fn is_natural_number(&self, knowledge: &Structure) -> bool {
-        if self == &Self::ZERO {
+        if self == &Self::Abstract(Abstract::ZERO) {
             return true;
         }
 
-        let mut successor_of = query::values_axiomatically(knowledge, self, Self::SUCCESSOR_OF);
+        let mut successor_of =
+            query::values_axiomatically(knowledge, self, Self::Abstract(Abstract::SUCCESSOR_OF));
 
         if let Some(first) = successor_of.next()
             && successor_of.next().is_none()
@@ -166,17 +148,11 @@ impl ObjectExt for Object {
             .next()
     }
 
-    fn node_count<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Object>> {
+    fn node_count(&self, knowledge: &Structure) -> Option<Object> {
         query::values_axiomatically(knowledge, self, Object::NODE_COUNT).next()
     }
 
-    fn computed_body<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Object>> {
+    fn computed_body(&self, knowledge: &Structure) -> Option<Object> {
         query::values_axiomatically(knowledge, self, Object::COMPUTED).next()
     }
 
@@ -186,17 +162,11 @@ impl ObjectExt for Object {
             .and_then(|depth| depth.to_natural_number(knowledge))
     }
 
-    fn node_literal<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Object>> {
+    fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
         query::values_axiomatically(knowledge, self, Object::NODE_LITERAL).next()
     }
 
-    fn statement_form<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> StatementForm<'item> {
+    fn statement_form(&self, knowledge: &Structure) -> StatementForm {
         let subject: ObjectForm =
             query::values_axiomatically(knowledge, self, Object::STATEMENT_SUBJECT)
                 .next()
@@ -218,17 +188,11 @@ impl ObjectExt for Object {
         }
     }
 
-    fn node_query<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Self>> {
+    fn node_query(&self, knowledge: &Structure) -> Option<Self> {
         query::values_axiomatically(knowledge, self, Object::NODE_QUERY).next()
     }
 
-    fn node_exists<'knowledge: 'item, 'subject: 'item, 'item>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> Option<Cow<'item, Self>> {
+    fn node_exists(&self, knowledge: &Structure) -> Option<Self> {
         query::values_axiomatically(knowledge, self, Object::NODE_EXISTS).next()
     }
 
@@ -265,13 +229,6 @@ impl ObjectExt for Object {
                 }
             }
             _ => match self {
-                Self::Abstract(a) => Object::Abstract(*a),
-                Self::Structure(Structure::NaturalNumber(n)) => {
-                    Self::Structure(Structure::NaturalNumber(*n))
-                }
-                Self::Structure(Structure::Empty) => Structure::Empty.into(),
-                Self::Structure(Structure::Bytes(_)) => todo!(),
-                Self::Structure(Structure::Text(_)) => todo!(),
                 Self::Structure(Structure::Any(structure)) => structure
                     .as_ref()
                     .iter()
@@ -301,6 +258,7 @@ impl ObjectExt for Object {
 
                         Structure::Empty.into()
                     }),
+                _ => self.clone(),
             },
         }
     }
@@ -325,16 +283,16 @@ impl ObjectExt for Object {
 
                 let statement_form = statement_form.statement_form(knowledge);
 
-                let subject = Option::<Cow<Object>>::from(statement_form.subject)
+                let subject = Option::<Object>::from(statement_form.subject)
                     .expect("cannot query with no subject")
                     .eval(knowledge, ctx);
 
-                let tag = Option::<Cow<Object>>::from(statement_form.tag)
+                let tag = Option::<Object>::from(statement_form.tag)
                     .expect("cannot query with no tag")
                     .eval(knowledge, ctx);
 
-                let value = Option::<Cow<Object>>::from(statement_form.value)
-                    .map(|c| c.eval(knowledge, ctx));
+                let value =
+                    Option::<Object>::from(statement_form.value).map(|c| c.eval(knowledge, ctx));
 
                 let actual_qr = query::values(knowledge, &subject, tag, ctx);
 
@@ -353,7 +311,7 @@ impl ObjectExt for Object {
                     actual_qr.collect_to_set()
                 }
             }
-            Some(NodeType::Literal) => self.node_literal(knowledge).unwrap().into_owned(),
+            Some(NodeType::Literal) => self.node_literal(knowledge).unwrap(),
             Some(NodeType::Computed) => self.capture(knowledge, 0, ctx),
             Some(NodeType::Parameter) => {
                 ctx.parameter_value(self.node_parameter_depth(knowledge).unwrap())
@@ -392,12 +350,12 @@ impl ObjectExt for Object {
                     value,
                 } = statement_form.statement_form(knowledge);
 
-                let subject = Option::<Cow<Object>>::from(subject)
+                let subject = Option::<Object>::from(subject)
                     .expect("cannot query exists with no subject (not yet)")
                     .eval(knowledge, ctx);
 
-                let tag = Option::<Cow<Object>>::from(tag).map(|tag| tag.eval(knowledge, ctx));
-                let value = Option::<Cow<Object>>::from(value).map(|tag| tag.eval(knowledge, ctx));
+                let tag = Option::<Object>::from(tag).map(|tag| tag.eval(knowledge, ctx));
+                let value = Option::<Object>::from(value).map(|tag| tag.eval(knowledge, ctx));
 
                 match (tag, value) {
                     // I think this should be fine.
@@ -490,10 +448,10 @@ impl ObjectExt for Object {
 
     #[instrument(skip(knowledge), ret)]
     fn to_natural_number(&self, knowledge: &Structure) -> Option<usize> {
-        if self == &Object::ZERO {
+        if self == &Object::Abstract(Abstract::ZERO) {
             Some(0)
         } else {
-            query::values_axiomatically(knowledge, self, Object::SUCCESSOR_OF)
+            query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::SUCCESSOR_OF))
                 .next()
                 .and_then(|inner| inner.to_natural_number(knowledge))
                 .map(|n| n + 1)

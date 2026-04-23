@@ -1,9 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::borrow::Cow;
-
-use everything_structures::{Object, Property, Structure};
+use everything_structures::{Abstract, Object, Property, Structure};
 use tracing::instrument;
 
 use crate::{
@@ -14,22 +12,22 @@ use crate::{
 };
 
 #[derive(PartialEq, Clone, Debug)]
-pub enum ObjectForm<'a> {
+pub enum ObjectForm {
     Any,
-    Specific(Cow<'a, Object>),
+    Specific(Object),
 }
 
-impl<'a> From<Option<Cow<'a, Object>>> for ObjectForm<'a> {
-    fn from(value: Option<Cow<'a, Object>>) -> Self {
+impl<'a> From<Option<Object>> for ObjectForm {
+    fn from(value: Option<Object>) -> Self {
         match value {
             None => Self::Any,
-            Some(cow) => Self::Specific(cow),
+            Some(object) => Self::Specific(object),
         }
     }
 }
 
-impl<'a> From<ObjectForm<'a>> for Option<Cow<'a, Object>> {
-    fn from(value: ObjectForm<'a>) -> Self {
+impl<'a> From<ObjectForm> for Option<Object> {
+    fn from(value: ObjectForm) -> Self {
         match value {
             ObjectForm::Any => None,
             ObjectForm::Specific(object) => Some(object),
@@ -38,18 +36,18 @@ impl<'a> From<ObjectForm<'a>> for Option<Cow<'a, Object>> {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct StatementForm<'a> {
-    pub subject: ObjectForm<'a>,
-    pub tag: ObjectForm<'a>,
-    pub value: ObjectForm<'a>,
+pub struct StatementForm {
+    pub subject: ObjectForm,
+    pub tag: ObjectForm,
+    pub value: ObjectForm,
 }
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum KnowledgeError {
     IsNotSupersetOfBase,
     SubjectIsNotStatementStructure(Object),
-    NeedsToBeTrueButIsFalse(StatementForm<'static>),
-    NeedsToBeFalseButIsTrue(StatementForm<'static>),
+    NeedsToBeTrueButIsFalse(StatementForm),
+    NeedsToBeFalseButIsTrue(StatementForm),
     ValueOnSubjectDoesNotMatchTagsConstraint {
         subject: Object,
         tag: Object,
@@ -98,7 +96,7 @@ pub trait StructureExt {
 
     fn is_statement(&self) -> bool;
 
-    fn parse_statement<'a>(&'a self) -> Option<Statement<'a>>;
+    fn parse_statement(&self) -> Option<Statement>;
 
     fn new_computed(body: Object) -> Self;
 
@@ -135,7 +133,7 @@ impl StructureExt for Structure {
 
     fn has_exactly_one_value_on(&self, tag: Object) -> bool {
         match self {
-            Self::NaturalNumber(_) if tag == Object::SUCCESSOR_OF => true,
+            Self::NaturalNumber(_) if tag == Object::Abstract(Abstract::SUCCESSOR_OF) => true,
             Self::Any(any) => {
                 let mut values = any.values(tag);
                 values.next().is_some() && values.next().is_none()
@@ -157,8 +155,8 @@ impl StructureExt for Structure {
                     .next()
                     .ok_or_else(|| {
                         KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(Cow::Owned(property.tag.clone())),
-                            tag: ObjectForm::Specific(Cow::Owned(Object::AXIOMATIC)),
+                            subject: ObjectForm::Specific(property.tag.clone()),
+                            tag: ObjectForm::Specific(Object::AXIOMATIC),
                             value: ObjectForm::Any,
                         })
                     })?;
@@ -195,13 +193,13 @@ impl StructureExt for Structure {
         // in `self` is a statement.
 
         for contains_object in self.values(Object::CONTAINS) {
-            if let Object::Structure(contains_structure) = contains_object.as_ref()
+            if let Object::Structure(contains_structure) = contains_object
                 && contains_structure.is_statement()
             {
             } else {
                 // TODO: review this for abstracts
                 return Err(KnowledgeError::SubjectIsNotStatementStructure(
-                    contains_object.into_owned(),
+                    contains_object,
                 ));
             }
         }
@@ -220,27 +218,22 @@ impl StructureExt for Structure {
                     .next()
                     .ok_or_else(|| {
                         KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(Cow::Owned(
-                                statement.tag.clone().into_owned(),
-                            )),
-                            tag: ObjectForm::Specific(Cow::Owned(Object::AXIOMATIC)),
+                            subject: ObjectForm::Specific(statement.tag.clone()),
+                            tag: ObjectForm::Specific(Object::AXIOMATIC),
                             value: ObjectForm::Any,
                         })
                     })?;
 
-            let arguments = [
-                statement.subject.clone().into_owned(),
-                statement.value.clone().into_owned(),
-            ];
+            let arguments = [statement.subject.clone(), statement.value.clone()];
 
             let result =
                 constraint_function.call(self, &arguments, &mut EvaluationContext::default());
 
             if !result.is_truthy(self) {
                 return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
-                    subject: statement.subject.into_owned(),
-                    tag: statement.tag.into_owned(),
-                    value: statement.value.into_owned(),
+                    subject: statement.subject,
+                    tag: statement.tag,
+                    value: statement.value,
                 });
             }
         }
@@ -254,7 +247,7 @@ impl StructureExt for Structure {
             && self.has_exactly_one_value_on(Object::STATEMENT_VALUE)
     }
 
-    fn parse_statement<'a>(&'a self) -> Option<Statement<'a>> {
+    fn parse_statement(&self) -> Option<Statement> {
         let subject = self.values(Object::STATEMENT_SUBJECT).next()?;
         let tag = self.values(Object::STATEMENT_TAG).next()?;
         let value = self.values(Object::STATEMENT_VALUE).next()?;
