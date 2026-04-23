@@ -1,6 +1,6 @@
-use everything_structures::{Object, Structure};
+use everything_structures::{Abstract, Object, Structure};
 
-use crate::ext::ObjectExt;
+use crate::ext::{AbstractExt, ObjectExt};
 
 pub fn subjects_axiomatically(
     knowledge: &Structure,
@@ -11,23 +11,34 @@ pub fn subjects_axiomatically(
     // which means that this properties() call is cheap.
 
     knowledge.properties().filter_map(move |property| {
-        if property.tag != Object::CONTAINS {
+        if property.tag != Object::Abstract(Abstract::CONTAINS) {
             return None;
         }
 
         let statement = property.value.structure().unwrap();
-        let statement_tag = statement.values(Object::STATEMENT_TAG).next().unwrap();
+        let statement_tag = statement
+            .values(Abstract::STATEMENT_TAG.into())
+            .next()
+            .unwrap();
 
         if statement_tag != tag {
             return None;
         }
 
-        let statement_value = statement.values(Object::STATEMENT_VALUE).next().unwrap();
+        let statement_value = statement
+            .values(Abstract::STATEMENT_VALUE.into())
+            .next()
+            .unwrap();
 
         if statement_value != value {
             return None;
         }
 
-        Some(statement.values(Object::STATEMENT_SUBJECT).next().unwrap())
+        Some(
+            statement
+                .values(Abstract::STATEMENT_SUBJECT.into())
+                .next()
+                .unwrap(),
+        )
     })
 }

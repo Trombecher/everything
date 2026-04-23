@@ -1,14 +1,55 @@
-use everything_structures::{Object, Structure, StructureValues};
+use everything_structures::{Abstract, Object, Structure, StructureValues};
 use tracing::instrument;
 
-use crate::{base, ext::ObjectExt};
+use crate::{base, ext::AbstractExt};
 
 #[cfg(test)]
 mod tests;
 
-/// Values from an axiomatic query.
-pub type AxiomaticQueryValues<'knowledge, 'subject, 'item> =
-    FixedOrMore<AxiomaticBorrowedQueryValues<'knowledge, 'subject, 'item>>;
+/// An iterator over all axiomatic values the specified tag has on
+/// an object. You can obtain an instance of this iterator by
+/// calling [values_axiomatically].
+#[derive(Clone)]
+pub enum AxiomaticQueryValues<'knowledge, 'subject> {
+    /// The variant that yields nothing.
+    None,
+
+    /// The variant that only yields [base::AXIOMATIC_AXIOMATIC_CONSTRAINT]
+    /// and then nothing else.
+    AxiomaticAxiomaticConstraint,
+
+    /// The variant that only yields [Structure::Empty] and then nothing else.
+    EmptyStructure,
+
+    /// The variant that yields values from [AxiomaticBorrowedQueryValues].
+    Borrowed(AxiomaticBorrowedQueryValues<'knowledge, 'subject>),
+}
+
+impl Iterator for AxiomaticQueryValues<'_, '_> {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::None => None,
+            Self::AxiomaticAxiomaticConstraint => {
+                *self = Self::None;
+                Some(base::AXIOMATIC_AXIOMATIC_CONSTRAINT.clone())
+            }
+            Self::EmptyStructure => {
+                *self = Self::None;
+                Some(Structure::Empty.into())
+            }
+            Self::Borrowed(values) => values.next(),
+        }
+    }
+}
+
+impl std::fmt::Debug for AxiomaticQueryValues<'_, '_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut this = self.clone();
+        f.debug_list().entries(&mut this).finish()
+    }
+}
 
 #[derive(Clone)]
 pub struct AxiomaticBorrowedQueryValues<'knowledge, 'subject> {
@@ -37,7 +78,7 @@ impl<'knowledge, 'subject> Iterator for AxiomaticBorrowedQueryValues<'knowledge,
             let statement_subject = statement
                 .any()
                 .unwrap()
-                .values(Object::STATEMENT_SUBJECT)
+                .values(Abstract::STATEMENT_SUBJECT.into())
                 .next()
                 .expect(":/");
 
@@ -48,7 +89,7 @@ impl<'knowledge, 'subject> Iterator for AxiomaticBorrowedQueryValues<'knowledge,
             let statement_tag = statement
                 .any()
                 .unwrap()
-                .values(Object::STATEMENT_TAG)
+                .values(Abstract::STATEMENT_TAG.into())
                 .next()
                 .expect(":/");
 
@@ -59,7 +100,7 @@ impl<'knowledge, 'subject> Iterator for AxiomaticBorrowedQueryValues<'knowledge,
             let statement_value = statement
                 .any()
                 .unwrap()
-                .values(Object::STATEMENT_VALUE)
+                .values(Abstract::STATEMENT_VALUE.into())
                 .next()
                 .expect(":/");
 
@@ -89,25 +130,28 @@ impl<'knowledge, 'subject> Iterator for AxiomaticBorrowedQueryValues<'knowledge,
 /// * `knowledge` is a superset of [crate::base::BASE].
 #[instrument(skip(knowledge), ret)]
 #[inline]
-pub fn values_axiomatically<'knowledge: 'item, 'subject: 'item, 'item>(
+pub fn values_axiomatically<'knowledge, 'subject>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
     tag: Object,
-) -> AxiomaticQueryValues<'knowledge, 'subject, 'item> {
+) -> AxiomaticQueryValues<'knowledge, 'subject> {
     match (subject, &tag) {
-        (&Object::AXIOMATIC, &Object::AXIOMATIC) => {
-            AxiomaticQueryValues::One(&base::AXIOMATIC_AXIOMATIC_CONSTRAINT)
+        (&Object::Abstract(Abstract::AXIOMATIC), &Object::Abstract(Abstract::AXIOMATIC)) => {
+            AxiomaticQueryValues::AxiomaticAxiomaticConstraint
         }
-        (&Object::AXIOMATIC | &Object::COMPUTED, &Object::COMPUTED) => AxiomaticQueryValues::None,
+        (
+            &Object::Abstract(Abstract::AXIOMATIC | Abstract::COMPUTED),
+            &Object::Abstract(Abstract::COMPUTED),
+        ) => AxiomaticQueryValues::None,
         _ => {
             let values_from_subject = match subject {
                 Object::Abstract(_) => Structure::Empty.values(tag.clone()),
                 Object::Structure(structure) => structure.values(tag.clone()),
             };
 
-            let statements = knowledge.values(Object::CONTAINS);
+            let statements = knowledge.values(Abstract::CONTAINS.into());
 
-            AxiomaticQueryValues::More(AxiomaticBorrowedQueryValues {
+            AxiomaticQueryValues::Borrowed(AxiomaticBorrowedQueryValues {
                 values_from_subject,
                 statements,
                 subject,

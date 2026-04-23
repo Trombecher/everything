@@ -1,26 +1,21 @@
 use everything_structures::{Abstract, Object, Property, Structure};
 
-use crate::{base::BASE, ext::ObjectExt, query};
+use crate::{
+    base::BASE,
+    ext::{AbstractExt, PropertyExt},
+    query,
+};
 
 #[test]
 fn structure_props() {
     let structure: Object = Structure::new(&mut [
-        Property {
-            tag: Object::CONTAINS,
-            value: Object::Abstract(Abstract(4242)),
-        },
-        Property {
-            tag: Object::CONTAINS,
-            value: Object::Abstract(Abstract(6969)),
-        },
-        Property {
-            tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-            value: Object::Abstract(Abstract::ZERO),
-        },
+        Property::new_contains(Abstract(4242).into()),
+        Property::new_contains(Abstract(6969).into()),
+        Property::successor_of(0),
     ])
     .into();
 
-    let mut values = query::values_axiomatically(&BASE, &structure, Object::CONTAINS);
+    let mut values = query::values_axiomatically(&BASE, &structure, Abstract::CONTAINS.into());
 
     assert_eq!(values.next(), Some(Object::Abstract(Abstract(4242))));
     assert_eq!(values.next(), Some(Object::Abstract(Abstract(6969))));

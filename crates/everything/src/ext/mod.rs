@@ -1,10 +1,15 @@
 //! Extension traits and implementations [ObjectExt] and [StructureExt]
 //! for [Object] and [Structure].
 
+mod abstracts;
 mod objects;
+mod properties;
 mod structures;
 
+pub use abstracts::*;
+use everything_structures::Abstract;
 pub use objects::*;
+pub use properties::*;
 pub use structures::*;
 
 #[allow(unused_imports)]
@@ -50,21 +55,21 @@ impl NodeType {
     ];
 }
 
-impl From<NodeType> for Object {
-    fn from(value: NodeType) -> Object {
+impl From<NodeType> for Abstract {
+    fn from(value: NodeType) -> Abstract {
         match value {
-            NodeType::Computed => Object::COMPUTED,
-            NodeType::Literal => Object::NODE_LITERAL,
-            NodeType::And => Object::NODE_AND,
-            NodeType::FunctionSelf => Object::NODE_FUNCTION_SELF,
-            NodeType::Exists => Object::NODE_EXISTS,
-            NodeType::Parameter => Object::NODE_PARAMETER,
-            NodeType::Count => Object::NODE_COUNT,
-            NodeType::Query => Object::NODE_QUERY,
-            NodeType::Equal => Object::NODE_EQUAL,
-            NodeType::Or => Object::NODE_OR,
-            NodeType::XOr => Object::NODE_XOR,
-            NodeType::Not => Object::NODE_NOT,
+            NodeType::Computed => Abstract::COMPUTED,
+            NodeType::Literal => Abstract::NODE_LITERAL,
+            NodeType::And => Abstract::NODE_AND,
+            NodeType::FunctionSelf => Abstract::NODE_FUNCTION_SELF,
+            NodeType::Exists => Abstract::NODE_EXISTS,
+            NodeType::Parameter => Abstract::NODE_PARAMETER,
+            NodeType::Count => Abstract::NODE_COUNT,
+            NodeType::Query => Abstract::NODE_QUERY,
+            NodeType::Equal => Abstract::NODE_EQUAL,
+            NodeType::Or => Abstract::NODE_OR,
+            NodeType::XOr => Abstract::NODE_XOR,
+            NodeType::Not => Abstract::NODE_NOT,
         }
     }
 }

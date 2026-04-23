@@ -3,7 +3,7 @@ use everything_structures::{Abstract, Object, Property, Structure};
 use crate::{
     base::BASE,
     ctx::EvaluationContext,
-    ext::{NodeType, ObjectExt, StructureExt},
+    ext::{AbstractExt, NodeType, ObjectExt, PropertyExt, StructureExt},
 };
 
 #[test]
@@ -48,7 +48,7 @@ fn node_type() {
     assert_eq!(
         Object::Structure(Structure::new_node_and([
             Object::Abstract(Abstract::ZERO),
-            Object::KNOWLEDGE
+            Object::Abstract(Abstract::KNOWLEDGE)
         ]))
         .node_type(knowledge),
         Some(NodeType::And)
@@ -134,14 +134,8 @@ fn eval_count() {
         Object::Structure(Structure::new_node_count(
             Structure::new_node_literal(
                 Structure::new(&mut [
-                    Property {
-                        tag: Object::CONTAINS,
-                        value: Object::Abstract(Abstract::ZERO)
-                    },
-                    Property {
-                        tag: Object::CONTAINS,
-                        value: Object::KNOWLEDGE
-                    }
+                    Property::new_contains(Abstract::ZERO.into()),
+                    Property::new_contains(Abstract::KNOWLEDGE.into()),
                 ])
                 .into()
             )
@@ -157,24 +151,15 @@ fn eval_query() {
     assert_eq!(
         Object::Structure(Structure::new_node_query_values(
             Structure::new(&mut [
-                Property {
-                    tag: Object::CONTAINS,
-                    value: Object::Abstract(Abstract::ZERO)
-                },
-                Property {
-                    tag: Object::CONTAINS,
-                    value: Object::KNOWLEDGE
-                },
-                Property {
-                    tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-                    value: Object::Abstract(Abstract::ZERO)
-                }
+                Property::new_contains(Abstract::ZERO.into()),
+                Property::new_contains(Abstract::KNOWLEDGE.into()),
+                Property::successor_of(0),
             ])
             .into(),
-            Structure::new_node_literal(Object::CONTAINS).into()
+            Structure::new_node_literal(Abstract::CONTAINS.into()).into()
         ))
         .eval(&BASE, &mut Default::default()),
-        Structure::new_set([Object::KNOWLEDGE, Object::Abstract(Abstract::ZERO)]).into(),
+        Structure::new_set([Abstract::KNOWLEDGE.into(), Object::Abstract(Abstract::ZERO)]).into(),
     );
 }
 

@@ -3,9 +3,9 @@ mod tests;
 
 use std::sync::LazyLock;
 
-use everything_structures::{Object, Property, Structure};
+use everything_structures::{Abstract, Object, Property, Structure};
 
-use crate::ext::{ObjectExt, StructureExt};
+use crate::ext::{AbstractExt, StructureExt};
 
 fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> Object {
     Structure::new_node_equal([
@@ -43,22 +43,25 @@ fn more_than_1_constraint_for(tag: Object, parameter_depth: usize) -> Object {
 }
 
 pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> =
-    LazyLock::new(|| unique_constraint_for(Object::AXIOMATIC, 0));
+    LazyLock::new(|| unique_constraint_for(Abstract::AXIOMATIC.into(), 0));
 
 pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
     Structure::new_computed(
         Structure::new_node_or([
-            Structure::new_node_equal([Structure::new_node_parameter(0).into(), Object::ZERO])
-                .into(),
+            Structure::new_node_equal([
+                Structure::new_node_parameter(0).into(),
+                Abstract::ZERO.into(),
+            ])
+            .into(),
             Structure::new_node_exists(
                 Structure::new(&mut [
                     Property {
-                        tag: Object::STATEMENT_SUBJECT,
+                        tag: Abstract::STATEMENT_SUBJECT.into(),
                         value: Structure::new_node_parameter(0).into(),
                     },
                     Property {
-                        tag: Object::STATEMENT_TAG,
-                        value: Object::SUCCESSOR_OF,
+                        tag: Abstract::STATEMENT_TAG.into(),
+                        value: Abstract::SUCCESSOR_OF.into(),
                     },
                 ])
                 .into(),
@@ -73,32 +76,32 @@ pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
 pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
     Structure::new_set([
         Structure::new_statement(
-            Object::CONTAINS,
-            Object::AXIOMATIC,
+            Abstract::CONTAINS.into(),
+            Abstract::AXIOMATIC.into(),
             Structure::new_bool(true).into(),
         )
         .into(),
         Structure::new_statement(
-            Object::SUCCESSOR_OF,
-            Object::AXIOMATIC,
+            Abstract::SUCCESSOR_OF.into(),
+            Abstract::AXIOMATIC.into(),
             Structure::new_computed(
                 Structure::new_computed(
                     Structure::new_node_and([
                         Structure::new_node_exists(
                             Structure::new(&mut [
                                 Property {
-                                    tag: Object::STATEMENT_SUBJECT,
+                                    tag: Abstract::STATEMENT_SUBJECT.into(),
                                     value: Structure::new_node_parameter(0).into(),
                                 },
                                 Property {
-                                    tag: Object::STATEMENT_TAG,
+                                    tag: Abstract::STATEMENT_TAG.into(),
                                     value: IS_NATURAL_NUMBER.clone(),
                                 },
                             ])
                             .into(),
                         )
                         .into(),
-                        common_unique_constraint_expression(Object::SUCCESSOR_OF, 1),
+                        common_unique_constraint_expression(Abstract::SUCCESSOR_OF.into(), 1),
                     ])
                     .into(),
                 )
@@ -108,66 +111,66 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         )
         .into(),
         Structure::new_statement(
-            Object::AXIOMATIC,
-            Object::AXIOMATIC,
+            Abstract::AXIOMATIC.into(),
+            Abstract::AXIOMATIC.into(),
             AXIOMATIC_AXIOMATIC_CONSTRAINT.clone(),
         )
         .into(),
         Structure::new_statement(
-            Object::COMPUTED,
-            Object::AXIOMATIC,
-            unique_constraint_for(Object::COMPUTED, 0),
+            Abstract::COMPUTED.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::COMPUTED.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::STATEMENT_SUBJECT,
-            Object::AXIOMATIC,
-            unique_constraint_for(Object::STATEMENT_SUBJECT, 0),
+            Abstract::STATEMENT_SUBJECT.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::STATEMENT_SUBJECT.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::STATEMENT_TAG,
-            Object::AXIOMATIC,
-            unique_constraint_for(Object::STATEMENT_TAG, 0),
+            Abstract::STATEMENT_TAG.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::STATEMENT_TAG.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::STATEMENT_VALUE,
-            Object::AXIOMATIC,
-            unique_constraint_for(Object::STATEMENT_VALUE, 0),
+            Abstract::STATEMENT_VALUE.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::STATEMENT_VALUE.into(), 0),
         )
         .into(),
         // TODO: statement, knowledge, tag
 
         // --------------------- NODES ---------------------
         Structure::new_statement(
-            Object::NODE_LITERAL,
-            Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_LITERAL, 0),
+            Abstract::NODE_LITERAL.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_LITERAL.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::NODE_COUNT,
-            Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_COUNT, 0),
+            Abstract::NODE_COUNT.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_COUNT.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::NODE_PARAMETER,
-            Object::AXIOMATIC,
+            Abstract::NODE_PARAMETER.into(),
+            Abstract::AXIOMATIC.into(),
             Structure::new_computed(
                 Structure::new_computed(
                     Structure::new_node_and([
-                        common_unique_constraint_expression(Object::NODE_PARAMETER, 1),
+                        common_unique_constraint_expression(Abstract::NODE_PARAMETER.into(), 1),
                         // maybe hard code "parameter == zero or has succ"
                         Structure::new_node_exists(
                             Structure::new(&mut [
                                 Property {
-                                    tag: Object::STATEMENT_SUBJECT,
+                                    tag: Abstract::STATEMENT_SUBJECT.into(),
                                     value: Structure::new_node_parameter(0).into(),
                                 },
                                 Property {
-                                    tag: Object::STATEMENT_TAG,
+                                    tag: Abstract::STATEMENT_TAG.into(),
                                     value: IS_NATURAL_NUMBER.clone(),
                                 },
                             ])
@@ -183,45 +186,45 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         )
         .into(),
         Structure::new_statement(
-            Object::NODE_AND,
-            Object::AXIOMATIC,
-            more_than_1_constraint_for(Object::NODE_AND, 0),
+            Abstract::NODE_AND.into(),
+            Abstract::AXIOMATIC.into(),
+            more_than_1_constraint_for(Abstract::NODE_AND.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::NODE_OR,
-            Object::AXIOMATIC,
-            more_than_1_constraint_for(Object::NODE_OR, 0),
+            Abstract::NODE_OR.into(),
+            Abstract::AXIOMATIC.into(),
+            more_than_1_constraint_for(Abstract::NODE_OR.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::NODE_XOR,
-            Object::AXIOMATIC,
-            more_than_1_constraint_for(Object::NODE_XOR, 0),
+            Abstract::NODE_XOR.into(),
+            Abstract::AXIOMATIC.into(),
+            more_than_1_constraint_for(Abstract::NODE_XOR.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::NODE_EQUAL,
-            Object::AXIOMATIC,
-            more_than_1_constraint_for(Object::NODE_EQUAL, 0),
+            Abstract::NODE_EQUAL.into(),
+            Abstract::AXIOMATIC.into(),
+            more_than_1_constraint_for(Abstract::NODE_EQUAL.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::NODE_EXISTS,
-            Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_EXISTS, 0),
+            Abstract::NODE_EXISTS.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_EXISTS.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::NODE_QUERY,
-            Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_QUERY, 0),
+            Abstract::NODE_QUERY.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_QUERY.into(), 0),
         )
         .into(),
         Structure::new_statement(
-            Object::NODE_NOT,
-            Object::AXIOMATIC,
-            unique_constraint_for(Object::NODE_NOT, 0),
+            Abstract::NODE_NOT.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_NOT.into(), 0),
         )
         .into(),
         // TODO: node

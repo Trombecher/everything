@@ -4,11 +4,11 @@ mod tests;
 
 use std::array;
 
-use everything_structures::{Object, Property, Structure, StructureValues};
+use everything_structures::{Abstract, Object, Property, Structure, StructureValues};
 use tracing::instrument;
 
 use crate::ctx::EvaluationContext;
-use crate::ext::{ObjectExt, StructureExt};
+use crate::ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt};
 
 pub use axiomatic::*;
 
@@ -22,22 +22,25 @@ enum InitialMatch {
 /// of the given `subject` with the given `tag` in the given `knowledge`
 /// and `context`.
 #[instrument(skip(knowledge))]
-pub fn values<'knowledge: 'item, 'subject: 'item, 'item>(
+pub fn values<'knowledge, 'subject>(
     knowledge: &'knowledge Structure,
     subject: &'subject Object,
     tag: Object,
     context: &mut EvaluationContext,
-) -> QueryValuesResult<'knowledge, 'subject, 'item> {
+) -> QueryValuesResult<'knowledge, 'subject> {
     let initial_match = match (subject, &tag) {
-        (&Object::AXIOMATIC, &Object::AXIOMATIC)
-        | (&Object::AXIOMATIC | &Object::COMPUTED, &Object::COMPUTED) => InitialMatch::Axiomatic,
-        (_, &Object::KNOWLEDGE) => {
+        (&Object::Abstract(Abstract::AXIOMATIC), &Object::Abstract(Abstract::AXIOMATIC))
+        | (
+            &Object::Abstract(Abstract::AXIOMATIC | Abstract::COMPUTED),
+            &Object::Abstract(Abstract::COMPUTED),
+        ) => InitialMatch::Axiomatic,
+        (_, &Object::Abstract(Abstract::KNOWLEDGE)) => {
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
             return QueryValuesResult::Axiomatic(match subject {
                 Object::Structure(s) if s.is_knowledge().is_ok() => {
-                    AxiomaticQueryValues::One(Object::Structure(Structure::Empty))
+                    AxiomaticQueryValues::EmptyStructure
                 }
                 // TODO: review this for abstract objects
                 _ => AxiomaticQueryValues::None,
@@ -45,8 +48,8 @@ pub fn values<'knowledge: 'item, 'subject: 'item, 'item>(
         }
         _ => {
             match (
-                values_axiomatically(knowledge, &tag, Object::AXIOMATIC).next(),
-                values_axiomatically(knowledge, &tag, Object::COMPUTED).next(),
+                values_axiomatically(knowledge, &tag, Abstract::AXIOMATIC.into()).next(),
+                values_axiomatically(knowledge, &tag, Abstract::COMPUTED.into()).next(),
             ) {
                 (Some(_), None) => InitialMatch::Axiomatic,
                 (None, Some(_)) => InitialMatch::Compute,
@@ -73,19 +76,19 @@ pub fn values<'knowledge: 'item, 'subject: 'item, 'item>(
 }
 
 #[allow(clippy::large_enum_variant)]
-pub enum QueryValuesResult<'knowledge: 'item, 'subject: 'item, 'item> {
-    Axiomatic(AxiomaticQueryValues<'knowledge, 'subject, 'item>),
+pub enum QueryValuesResult<'knowledge, 'subject> {
+    Axiomatic(AxiomaticQueryValues<'knowledge, 'subject>),
     ComputationResult(Object),
 }
 
-impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'subject, 'item> {
-    pub fn iter<'query>(&'query self) -> QueryValues<'query, 'knowlege, 'subject, 'item> {
+impl<'knowlege, 'subject> QueryValuesResult<'knowlege, 'subject> {
+    pub fn values<'query>(&'query self) -> QueryValues<'query, 'knowlege, 'subject> {
         match self {
             Self::Axiomatic(axiomatic_iter) => QueryValues::Axiomatic(axiomatic_iter.clone()),
             Self::ComputationResult(object) => {
                 let values = match object {
                     Object::Abstract(_) => StructureValues::None,
-                    Object::Structure(structure) => structure.values(Object::CONTAINS),
+                    Object::Structure(structure) => structure.values(Abstract::CONTAINS.into()),
                 };
 
                 QueryValues::ComputationResult(values)
@@ -98,12 +101,7 @@ impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'sub
             Self::Axiomatic(axiomatic_iter) => {
                 // Collect all values to a set.
 
-                let mut properties: Vec<_> = axiomatic_iter
-                    .map(|value| Property {
-                        tag: Object::CONTAINS,
-                        value: value.into_owned(),
-                    })
-                    .collect();
+                let mut properties: Vec<_> = axiomatic_iter.map(Property::new_contains).collect();
 
                 Structure::new(&mut properties).into()
             }
@@ -112,14 +110,14 @@ impl<'knowlege: 'item, 'subject: 'item, 'item> QueryValuesResult<'knowlege, 'sub
     }
 }
 
-pub enum QueryValues<'query_result: 'item, 'knowledge: 'item, 'subject: 'item, 'item> {
-    Axiomatic(AxiomaticQueryValues<'knowledge, 'subject, 'item>),
+/// An iterator over all axiomatic and computed values
+#[derive(Clone)]
+pub enum QueryValues<'query_result, 'knowledge, 'subject> {
+    Axiomatic(AxiomaticQueryValues<'knowledge, 'subject>),
     ComputationResult(StructureValues<'query_result>),
 }
 
-impl<'query, 'knowledge: 'item, 'subject: 'item, 'item> Iterator
-    for QueryValues<'query, 'knowledge, 'subject, 'item>
-{
+impl Iterator for QueryValues<'_, '_, '_> {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

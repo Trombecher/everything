@@ -7,7 +7,7 @@ use tracing::instrument;
 use crate::{
     base::BASE,
     ctx::EvaluationContext,
-    ext::{ObjectExt, Statement},
+    ext::{AbstractExt, ObjectExt, Statement},
     query,
 };
 
@@ -150,16 +150,19 @@ impl StructureExt for Structure {
         }
 
         for property in self.properties() {
-            let constraint_function =
-                query::values_axiomatically(knowledge, &property.tag, Object::AXIOMATIC)
-                    .next()
-                    .ok_or_else(|| {
-                        KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(property.tag.clone()),
-                            tag: ObjectForm::Specific(Object::AXIOMATIC),
-                            value: ObjectForm::Any,
-                        })
-                    })?;
+            let constraint_function = query::values_axiomatically(
+                knowledge,
+                &property.tag,
+                Object::Abstract(Abstract::AXIOMATIC),
+            )
+            .next()
+            .ok_or_else(|| {
+                KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+                    subject: ObjectForm::Specific(property.tag.clone()),
+                    tag: ObjectForm::Specific(Object::Abstract(Abstract::AXIOMATIC)),
+                    value: ObjectForm::Any,
+                })
+            })?;
 
             let parameters = [self.clone().into(), property.value.clone()];
 
@@ -192,8 +195,8 @@ impl StructureExt for Structure {
         // We validate that every object contained
         // in `self` is a statement.
 
-        for contains_object in self.values(Object::CONTAINS) {
-            if let Object::Structure(contains_structure) = contains_object
+        for contains_object in self.values(Object::Abstract(Abstract::CONTAINS)) {
+            if let Object::Structure(contains_structure) = &contains_object
                 && contains_structure.is_statement()
             {
             } else {
@@ -206,23 +209,26 @@ impl StructureExt for Structure {
 
         // Now we need to check constraints and values.
 
-        for statement in self.values(Object::CONTAINS) {
+        for statement in self.values(Object::Abstract(Abstract::CONTAINS)) {
             let statement = statement
                 .structure()
                 .expect("expected structure because it was validated earlier")
                 .parse_statement()
                 .expect("found a structure which is not a statement");
 
-            let constraint_function =
-                query::values_axiomatically(self, &statement.tag, Object::AXIOMATIC)
-                    .next()
-                    .ok_or_else(|| {
-                        KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(statement.tag.clone()),
-                            tag: ObjectForm::Specific(Object::AXIOMATIC),
-                            value: ObjectForm::Any,
-                        })
-                    })?;
+            let constraint_function = query::values_axiomatically(
+                self,
+                &statement.tag,
+                Object::Abstract(Abstract::AXIOMATIC),
+            )
+            .next()
+            .ok_or_else(|| {
+                KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+                    subject: ObjectForm::Specific(statement.tag.clone()),
+                    tag: ObjectForm::Specific(Object::Abstract(Abstract::AXIOMATIC)),
+                    value: ObjectForm::Any,
+                })
+            })?;
 
             let arguments = [statement.subject.clone(), statement.value.clone()];
 
@@ -242,15 +248,21 @@ impl StructureExt for Structure {
     }
 
     fn is_statement(&self) -> bool {
-        self.has_exactly_one_value_on(Object::STATEMENT_SUBJECT)
-            && self.has_exactly_one_value_on(Object::STATEMENT_TAG)
-            && self.has_exactly_one_value_on(Object::STATEMENT_VALUE)
+        self.has_exactly_one_value_on(Object::Abstract(Abstract::STATEMENT_SUBJECT))
+            && self.has_exactly_one_value_on(Object::Abstract(Abstract::STATEMENT_TAG))
+            && self.has_exactly_one_value_on(Object::Abstract(Abstract::STATEMENT_VALUE))
     }
 
     fn parse_statement(&self) -> Option<Statement> {
-        let subject = self.values(Object::STATEMENT_SUBJECT).next()?;
-        let tag = self.values(Object::STATEMENT_TAG).next()?;
-        let value = self.values(Object::STATEMENT_VALUE).next()?;
+        let subject = self
+            .values(Object::Abstract(Abstract::STATEMENT_SUBJECT))
+            .next()?;
+        let tag = self
+            .values(Object::Abstract(Abstract::STATEMENT_TAG))
+            .next()?;
+        let value = self
+            .values(Object::Abstract(Abstract::STATEMENT_VALUE))
+            .next()?;
 
         Some(Statement {
             subject,
@@ -261,14 +273,14 @@ impl StructureExt for Structure {
 
     fn new_computed(body: Object) -> Self {
         Self::new(&mut [Property {
-            tag: Object::COMPUTED,
+            tag: Object::Abstract(Abstract::COMPUTED),
             value: body,
         }])
     }
 
     fn new_node_equal<const N: usize>(nodes: [Object; N]) -> Self {
         let mut properties = nodes.map(|node| Property {
-            tag: Object::NODE_EQUAL,
+            tag: Object::Abstract(Abstract::NODE_EQUAL),
             value: node,
         });
 
@@ -277,7 +289,7 @@ impl StructureExt for Structure {
 
     fn new_node_and<const N: usize>(nodes: [Object; N]) -> Self {
         let mut properties = nodes.map(|node| Property {
-            tag: Object::NODE_AND,
+            tag: Object::Abstract(Abstract::NODE_AND),
             value: node,
         });
 
@@ -286,42 +298,42 @@ impl StructureExt for Structure {
 
     fn new_node_exists(statement_node: Object) -> Self {
         Self::new(&mut [Property {
-            tag: Object::NODE_EXISTS,
+            tag: Object::Abstract(Abstract::NODE_EXISTS),
             value: statement_node,
         }])
     }
 
     fn new_node_parameter(depth: usize) -> Self {
         Self::new(&mut [Property {
-            tag: Object::NODE_PARAMETER,
+            tag: Object::Abstract(Abstract::NODE_PARAMETER),
             value: Object::new_natural_number(depth as u128),
         }])
     }
 
     fn new_node_count(node: Object) -> Self {
         Self::new(&mut [Property {
-            tag: Object::NODE_COUNT,
+            tag: Object::Abstract(Abstract::NODE_COUNT),
             value: node,
         }])
     }
 
     fn new_node_query(query: Object) -> Self {
         Self::new(&mut [Property {
-            tag: Object::NODE_QUERY,
+            tag: Object::Abstract(Abstract::NODE_QUERY),
             value: query,
         }])
     }
 
     fn new_node_query_values(subject: Object, tag: Object) -> Self {
         Self::new(&mut [Property {
-            tag: Object::NODE_QUERY,
+            tag: Object::Abstract(Abstract::NODE_QUERY),
             value: Self::new(&mut [
                 Property {
-                    tag: Object::STATEMENT_SUBJECT,
+                    tag: Object::Abstract(Abstract::STATEMENT_SUBJECT),
                     value: subject,
                 },
                 Property {
-                    tag: Object::STATEMENT_TAG,
+                    tag: Object::Abstract(Abstract::STATEMENT_TAG),
                     value: tag,
                 },
             ])
@@ -331,7 +343,7 @@ impl StructureExt for Structure {
 
     fn new_set<const N: usize>(items: [Object; N]) -> Self {
         let mut properties = items.map(|node| Property {
-            tag: Object::CONTAINS,
+            tag: Object::Abstract(Abstract::CONTAINS),
             value: node,
         });
 
@@ -340,7 +352,7 @@ impl StructureExt for Structure {
 
     fn new_node_or<const N: usize>(nodes: [Object; N]) -> Self {
         let mut properties = nodes.map(|node| Property {
-            tag: Object::NODE_OR,
+            tag: Object::Abstract(Abstract::NODE_OR),
             value: node,
         });
 
@@ -349,7 +361,7 @@ impl StructureExt for Structure {
 
     fn new_node_xor<const N: usize>(nodes: [Object; N]) -> Self {
         let mut properties = nodes.map(|node| Property {
-            tag: Object::NODE_XOR,
+            tag: Object::Abstract(Abstract::NODE_XOR),
             value: node,
         });
 
@@ -358,14 +370,14 @@ impl StructureExt for Structure {
 
     fn new_node_not(node: Object) -> Self {
         Self::new(&mut [Property {
-            tag: Object::NODE_NOT,
+            tag: Object::Abstract(Abstract::NODE_NOT),
             value: node,
         }])
     }
 
     fn new_node_literal(object: Object) -> Self {
         Self::new(&mut [Property {
-            tag: Object::NODE_LITERAL,
+            tag: Object::Abstract(Abstract::NODE_LITERAL),
             value: object,
         }])
     }
@@ -373,15 +385,15 @@ impl StructureExt for Structure {
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self {
         Self::new(&mut [
             Property {
-                tag: Object::STATEMENT_SUBJECT,
+                tag: Object::Abstract(Abstract::STATEMENT_SUBJECT),
                 value: subject,
             },
             Property {
-                tag: Object::STATEMENT_TAG,
+                tag: Object::Abstract(Abstract::STATEMENT_TAG),
                 value: tag,
             },
             Property {
-                tag: Object::STATEMENT_VALUE,
+                tag: Object::Abstract(Abstract::STATEMENT_VALUE),
                 value,
             },
         ])

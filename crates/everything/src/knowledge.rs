@@ -26,11 +26,11 @@ impl Knowledge {
     /// (subject, tag) -> (value)
     /// ```
     #[inline]
-    pub fn query_values<'knowledge: 'item, 'subject: 'item, 'item>(
+    pub fn query_values<'knowledge, 'subject>(
         &'knowledge self,
         subject: &'subject Object,
         tag: Object,
-    ) -> QueryValuesResult<'knowledge, 'subject, 'item> {
+    ) -> QueryValuesResult<'knowledge, 'subject> {
         query::values(self.structure(), subject, tag, &mut Default::default())
     }
 

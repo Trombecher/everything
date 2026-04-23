@@ -1,18 +1,21 @@
-use everything_structures::Object;
+use everything_structures::{Abstract, Object};
 
 use crate::{
     base::{AXIOMATIC_AXIOMATIC_CONSTRAINT, BASE},
-    ext::ObjectExt,
+    ext::AbstractExt,
     query::values,
 };
 
 #[test]
 fn basic() {
-    let ax = Object::AXIOMATIC;
+    let qr = values::values(
+        &BASE,
+        &Object::Abstract(Abstract::AXIOMATIC),
+        Abstract::AXIOMATIC.into(),
+        &mut Default::default(),
+    );
 
-    let qr = values::values(&BASE, &ax, Object::AXIOMATIC, &mut Default::default());
-
-    let res: Vec<_> = qr.iter().collect();
+    let res: Vec<_> = qr.values().collect();
 
     assert_eq!(res, [AXIOMATIC_AXIOMATIC_CONSTRAINT.clone()]);
 }
