@@ -17,20 +17,21 @@ use std::{
 use dashmap::DashMap;
 
 use crate::{
-    Abstract, AnyStructure, Bit, BitSlot, BytesStructure, Object, Property, Structure,
+    Abstract, AnyStructure, Bit, BitSlot, Byte, BytesStructure, Object, Property, Structure,
     TextStructure,
 };
 
 enum Specialization<'info> {
     Empty,
     NaturalNumber(NonZeroU128),
+    Byte(Byte),
     Character(char),
-    Binary {
-        head: u8,
+    Bytes {
+        item: Byte,
         tail: &'info BytesStructure,
     },
     Text {
-        head: char,
+        item: char,
         tail: &'info TextStructure,
     },
 }
@@ -77,7 +78,6 @@ impl StructureMetaInfo {
                     && let Object::Abstract(maybe_bit) = property.value
                     && let Ok(bit) = Bit::try_from(maybe_bit) =>
             {
-                // TODO: outsource this
                 self.last_bit_slots[slot as u8 as usize] = Some(bit);
             }
             _ => {
@@ -103,12 +103,14 @@ impl StructureMetaInfo {
             Self { prop_count: 0, .. } => Some(Specialization::Empty),
             Self {
                 last_successor_of: Some(n),
+                prop_count: 1,
                 ..
             } => Some(Specialization::NaturalNumber(
                 NonZeroU128::new(n.checked_add(1).unwrap()).unwrap(),
             )),
             Self {
                 last_code_point: Some(c),
+                prop_count: 1,
                 ..
             } => Some(Specialization::Character(*c)),
             Self {
@@ -116,12 +118,12 @@ impl StructureMetaInfo {
                 last_list_item: Some(item),
                 last_list_tail: Some(tail),
                 ..
-            } if let Some(head) = item.exact_natural_number()
-                && head <= 255
+            } if let Some(item) = item.exact_natural_number()
+                && item <= 255
                 && let Object::Structure(Structure::Bytes(binary)) = tail =>
             {
-                Some(Specialization::Binary {
-                    head: head as u8,
+                Some(Specialization::Bytes {
+                    item: Byte(item as u8),
                     tail: binary,
                 })
             }
@@ -130,12 +132,28 @@ impl StructureMetaInfo {
                 last_list_item: Some(item),
                 last_list_tail: Some(tail),
                 ..
-            } if let Object::Structure(Structure::Character(head)) = item
+            } if let Object::Structure(Structure::Character(item)) = item
                 && let Object::Structure(Structure::Text(tail)) = tail =>
             {
-                Some(Specialization::Text { head: *head, tail })
+                Some(Specialization::Text { item: *item, tail })
             }
-            // TODO: more
+            Self {
+                prop_count: 8,
+                last_bit_slots:
+                    slots @ [
+                        Some(_),
+                        Some(_),
+                        Some(_),
+                        Some(_),
+                        Some(_),
+                        Some(_),
+                        Some(_),
+                        Some(_),
+                    ],
+                ..
+            } => Some(Specialization::Byte(Byte::from_bits(
+                slots.map(Option::unwrap),
+            ))),
             _ => None,
         }
     }
@@ -169,13 +187,14 @@ pub fn resolve(
         Some(Specialization::Empty) => return Structure::Empty,
         Some(Specialization::NaturalNumber(n)) => return Structure::NaturalNumber(n),
         Some(Specialization::Character(c)) => return Structure::Character(c),
-        Some(Specialization::Text { head, tail }) => {
-            return Structure::Text(TextStructure::from_parts(head, tail.as_ref()));
+        Some(Specialization::Text { item, tail }) => {
+            return Structure::Text(TextStructure::from_parts(item, tail.as_ref()));
         }
-        Some(Specialization::Binary { head, tail }) => {
+        Some(Specialization::Bytes { item, tail }) => {
             // This unwrap is safe because [head].len() > 0.
-            return Structure::Bytes(BytesStructure::from_parts(&[head], tail.as_ref()).unwrap());
+            return Structure::Bytes(BytesStructure::from_parts(&[item.0], tail.as_ref()).unwrap());
         }
+        Some(Specialization::Byte(byte)) => return Structure::Byte(byte),
         None => {
             // We have no specialization, so we just
             // allocate that.

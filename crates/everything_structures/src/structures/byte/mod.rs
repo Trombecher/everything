@@ -7,6 +7,17 @@ use crate::{Abstract, Object, Property};
 pub struct Byte(pub u8);
 
 impl Byte {
+    pub fn from_bits(bits: [Bit; 8]) -> Self {
+        // FIXME: optimize?
+        Self(
+            bits.iter()
+                .copied()
+                .map(u8::from)
+                .enumerate()
+                .fold(0_u8, |a, (index, b)| a | (b << index)),
+        )
+    }
+
     #[inline]
     #[must_use]
     pub fn bit(self, slot: BitSlot) -> Bit {
@@ -83,6 +94,18 @@ impl Bit {
 impl From<bool> for Bit {
     fn from(value: bool) -> Self {
         if value { Self::One } else { Self::Zero }
+    }
+}
+
+impl From<Bit> for bool {
+    fn from(value: Bit) -> Self {
+        value == Bit::One
+    }
+}
+
+impl From<Bit> for u8 {
+    fn from(value: Bit) -> Self {
+        bool::from(value) as u8
     }
 }
 
