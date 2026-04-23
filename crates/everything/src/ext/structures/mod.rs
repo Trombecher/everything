@@ -17,7 +17,7 @@ pub enum ObjectForm {
     Specific(Object),
 }
 
-impl<'a> From<Option<Object>> for ObjectForm {
+impl From<Option<Object>> for ObjectForm {
     fn from(value: Option<Object>) -> Self {
         match value {
             None => Self::Any,
@@ -26,7 +26,7 @@ impl<'a> From<Option<Object>> for ObjectForm {
     }
 }
 
-impl<'a> From<ObjectForm> for Option<Object> {
+impl From<ObjectForm> for Option<Object> {
     fn from(value: ObjectForm) -> Self {
         match value {
             ObjectForm::Any => None,
@@ -144,7 +144,7 @@ impl StructureExt for Structure {
 
     #[instrument(skip(knowledge), ret)]
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
-        if let None = self.any() {
+        if self.any().is_none() {
             // All specializations are valid
             return Ok(());
         }
