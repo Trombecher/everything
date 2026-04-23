@@ -141,7 +141,8 @@ impl StructureMetaInfo {
     }
 }
 
-static GLOBAL_PROPERTIES: LazyLock<DashMap<u64, Arc<[Property]>>> = LazyLock::new(DashMap::new);
+pub(super) static GLOBAL_PROPERTIES: LazyLock<DashMap<u64, Arc<[Property]>>> =
+    LazyLock::new(DashMap::new);
 
 pub fn remove(s: &AnyStructure) {
     let mut hasher = DefaultHasher::new();

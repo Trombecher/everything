@@ -1,191 +1,97 @@
-use crate::{Abstract, Object, Property, Structure};
-use std::sync::Arc;
+use crate::{Abstract, Object};
 
 pub const ALICE: Object = Object::Abstract(Abstract(u128::from_be_bytes(*b"This is Alice!!!")));
 pub const BOB: Object = Object::Abstract(Abstract(u128::from_be_bytes(*b"This is Bob!!!!!")));
 
-fn alice_bob_structure() -> Structure {
-    Structure::new(&mut [Property {
-        tag: ALICE,
-        value: BOB,
-    }])
-}
-
-#[test]
-fn empty_structure() {
-    assert_eq!(Structure::new(&mut []), []);
-}
-
-#[test]
-fn one_structure() {
-    assert_eq!(
-        alice_bob_structure(),
-        [Property {
-            tag: ALICE,
-            value: BOB
-        }]
-    );
-}
-
-#[test]
-fn inner_structure() {
-    let inner = alice_bob_structure();
-
-    let outer = Structure::new(&mut [Property {
-        tag: ALICE,
-        value: inner.clone().into(),
-    }]);
-
-    assert_eq!(
-        outer,
-        [Property {
-            tag: ALICE,
-            value: inner.into()
-        }]
-    )
-}
-
-#[test]
-fn remove_props() {
-    let structure = alice_bob_structure();
-
-    let should_be_empty = structure.remove(&mut [Property {
-        tag: ALICE,
-        value: BOB,
-    }]);
-
-    assert_eq!(should_be_empty, []);
-}
-
-#[test]
-fn has() {
-    let structure = alice_bob_structure();
-
-    assert!(structure.has(&ALICE, &BOB));
-    assert!(!structure.has(&ALICE, &ALICE));
-}
-
-/// This test assures that structurally identical objects
-/// will have the same allocation.
-#[test]
-fn deduping() {
-    let structure_a = alice_bob_structure();
-    let structure_b = alice_bob_structure();
-
-    assert!(Arc::ptr_eq(
-        &structure_a.any().unwrap().properties,
-        &structure_b.any().unwrap().properties
-    ))
-}
-
-#[test]
-fn debug() {
-    println!("{:?}", alice_bob_structure());
-
-    println!("{:?}", Object::Abstract(Abstract(42)));
-}
-
-#[test]
-fn no_values() {
-    assert_eq!(Structure::Empty.values(ALICE).next(), None)
-}
-
-#[test]
-fn one_value() {
-    let s = alice_bob_structure();
-
-    let mut alices = s.values(ALICE);
-    assert_eq!(alices.next(), Some(BOB));
-    assert_eq!(alices.next(), None);
-
-    assert_eq!(s.values(BOB).next(), None);
-}
-
-#[test]
-fn multiple_values() {
-    let s = Structure::new(&mut [
-        Property {
-            tag: ALICE,
-            value: ALICE,
+#[allow(non_snake_case)]
+mod AnyStructure {
+    use crate::{
+        Abstract, Structure,
+        structures::{
+            any::tests::{ALICE, BOB},
+            registry::GLOBAL_PROPERTIES,
         },
-        Property {
+    };
+
+    use super::super::*;
+
+    fn alice_bob_structure() -> AnyStructure {
+        match Structure::new(&mut [Property {
             tag: ALICE,
             value: BOB,
-        },
-    ]);
+        }]) {
+            Structure::Any(any) => any,
+            _ => unreachable!(),
+        }
+    }
 
-    let mut alices = s.values(ALICE);
-    assert_eq!(alices.next(), Some(ALICE));
-    assert_eq!(alices.next(), Some(BOB));
-    assert_eq!(alices.next(), None);
-}
+    #[test]
+    fn new() {
+        const PROP: Property = Property {
+            tag: Object::Abstract(Abstract(654987123984)),
+            value: Object::Abstract(Abstract(543020512)),
+        };
 
-#[test]
-fn no_tags() {
-    assert_eq!(Structure::Empty.tags(ALICE).next(), None);
-}
+        let count = GLOBAL_PROPERTIES.len();
 
-#[test]
-fn one_tag() {
-    let s = alice_bob_structure();
+        let s = match Structure::new(&mut [PROP]) {
+            Structure::Any(any) => any,
+            _ => unreachable!("structure is not any"),
+        };
 
-    let mut tags_that_have_bob = s.tags(BOB);
-    assert_eq!(tags_that_have_bob.next(), Some(ALICE));
-    assert_eq!(tags_that_have_bob.next(), None);
+        assert_eq!(count + 1, GLOBAL_PROPERTIES.len());
 
-    assert_eq!(s.tags(ALICE).next(), None);
-}
+        assert_eq!(s.properties.as_ref(), &[PROP]);
+    }
 
-#[test]
-fn multiple_tags() {
-    let s = Structure::new(&mut [
-        Property {
+    #[test]
+    fn inner_structure() {
+        let inner = alice_bob_structure();
+
+        let outer = Structure::new(&mut [Property {
             tag: ALICE,
-            value: ALICE,
-        },
-        Property {
-            tag: BOB,
-            value: ALICE,
-        },
-    ]);
+            value: Structure::Any(inner.clone()).into(),
+        }]);
 
-    let mut tags_that_have_alice = s.tags(ALICE);
-    assert_eq!(tags_that_have_alice.next(), Some(ALICE));
-    assert_eq!(tags_that_have_alice.next(), Some(BOB));
-    assert_eq!(tags_that_have_alice.next(), None);
-}
-
-#[test]
-fn union() {
-    let a = alice_bob_structure();
-    let b = Structure::new(&mut [Property {
-        tag: BOB,
-        value: ALICE,
-    }]);
-
-    assert_eq!(
-        a.union(&b),
-        Structure::new(&mut [
-            Property {
+        assert_eq!(
+            outer,
+            [Property {
                 tag: ALICE,
-                value: BOB
-            },
-            Property {
-                tag: BOB,
-                value: ALICE
-            }
-        ])
-    );
+                value: Structure::Any(inner).into()
+            }]
+        )
+    }
+
+    #[test]
+    fn has() {
+        let structure = alice_bob_structure();
+
+        assert!(structure.has(&ALICE, &BOB));
+        assert!(!structure.has(&ALICE, &ALICE));
+    }
 }
 
-#[test]
-fn subsets() {
-    assert!(
-        alice_bob_structure().is_subset_of(&alice_bob_structure().add(&mut [Property {
-            tag: ALICE,
-            value: ALICE
-        }]))
-    );
+#[allow(non_snake_case)]
+mod AnyStructureValues {
+    use crate::Abstract;
 
-    assert!(!alice_bob_structure().is_subset_of(&Structure::Empty))
+    use super::super::*;
+
+    #[test]
+    fn next() {
+        let props = [Property {
+            tag: Abstract::BIT_0.into(),
+            value: Abstract(543539).into(),
+        }];
+
+        let mut values = AnyStructureValues {
+            done: true,
+            tag: Abstract::BIT_0.into(),
+            props: props.iter(),
+        };
+
+        assert_eq!(values.next(), None);
+        assert_eq!(values.next(), None);
+        assert_eq!(values.next(), None);
+    }
 }

@@ -59,7 +59,7 @@ impl AnyStructure {
 
 impl fmt::Debug for AnyStructure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.properties.fmt(f)
+        f.debug_set().entries(self.properties.iter()).finish()
     }
 }
 
