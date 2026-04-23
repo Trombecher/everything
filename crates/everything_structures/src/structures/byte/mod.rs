@@ -206,7 +206,7 @@ impl Iterator for ByteProperties {
             Some(slot) => {
                 let bit = self.byte.bit(self.next_slot?);
                 self.next_slot = slot.next();
-                Some(Property::bit_slot(slot, bit))
+                Some(Property::new_bit_slot(slot, bit))
             }
             None => None,
         }

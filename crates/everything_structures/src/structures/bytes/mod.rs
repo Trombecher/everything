@@ -197,13 +197,13 @@ impl Iterator for BytesStructureProperties<'_> {
                 let item = *item;
                 *self = Self::Tail(tail);
 
-                Some(Property::list_item(Object::from(Structure::from(item))))
+                Some(Property::new_list_item(Object::from(Structure::from(item))))
             }
             Self::Tail(tail) => {
                 let tail = *tail;
                 *self = Self::None;
 
-                Some(Property::list_tail(Object::from(Structure::from(tail))))
+                Some(Property::new_list_tail(Object::from(Structure::from(tail))))
             }
             Self::None => None,
         }

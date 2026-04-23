@@ -11,7 +11,7 @@ fn structure_props() {
     let structure: Object = Structure::new(&mut [
         Property::new_contains(Abstract(4242).into()),
         Property::new_contains(Abstract(6969).into()),
-        Property::successor_of(0),
+        Property::new_successor_of(0),
     ])
     .into();
 

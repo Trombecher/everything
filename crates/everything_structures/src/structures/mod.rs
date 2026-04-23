@@ -145,14 +145,14 @@ impl Structure {
         match self {
             Self::Empty => false,
             Self::NaturalNumber(non_zero) => {
-                let self_as_property = Property::successor_of(non_zero.get() - 1);
+                let self_as_property = Property::new_successor_of(non_zero.get() - 1);
                 &self_as_property.tag == tag && &self_as_property.value == value
             }
             Self::Bytes(bytes) => bytes.has(tag, value),
             Self::Text(text) => text.has(tag, value),
             Self::Any(any) => any.has(tag, value),
             Self::Character(c) => {
-                let self_as_property = Property::character(*c);
+                let self_as_property = Property::new_character(*c);
                 &self_as_property.tag == tag && &self_as_property.value == value
             }
             Self::Byte(byte) => byte.has(tag, value),
@@ -200,7 +200,7 @@ impl Structure {
                 }
             }
             Self::NaturalNumber(non_zero) => {
-                if Property::successor_of(non_zero.get() - 1).value == value {
+                if Property::new_successor_of(non_zero.get() - 1).value == value {
                     StructureTags::SuccessorOf
                 } else {
                     StructureTags::None
@@ -311,13 +311,13 @@ impl<'structure> Iterator for StructureProperties<'structure> {
                 let n = *n;
                 *self = Self::Empty;
 
-                Some(Property::successor_of(n))
+                Some(Property::new_successor_of(n))
             }
             Self::CodePoint(c) => {
                 let c = *c;
                 *self = Self::Empty;
 
-                Some(Property::character(c))
+                Some(Property::new_character(c))
             }
             Self::Byte(properties) => properties.next(),
             Self::Any(properties) => properties.next().cloned(),

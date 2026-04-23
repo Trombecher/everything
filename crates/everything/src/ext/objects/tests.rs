@@ -153,7 +153,7 @@ fn eval_query() {
             Structure::new(&mut [
                 Property::new_contains(Abstract::ZERO.into()),
                 Property::new_contains(Abstract::KNOWLEDGE.into()),
-                Property::successor_of(0),
+                Property::new_successor_of(0),
             ])
             .into(),
             Structure::new_node_literal(Abstract::CONTAINS.into()).into()

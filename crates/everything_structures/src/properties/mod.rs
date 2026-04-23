@@ -20,7 +20,7 @@ impl Property {
     /// (SUCCESSOR_OF, n)
     /// ```
     #[must_use]
-    pub const fn successor_of(n: u128) -> Self {
+    pub const fn new_successor_of(n: u128) -> Self {
         Self {
             tag: Object::Abstract(Abstract::SUCCESSOR_OF),
             value: Object::new_natural_number(n),
@@ -28,7 +28,7 @@ impl Property {
     }
 
     #[must_use]
-    pub const fn character(c: char) -> Self {
+    pub const fn new_character(c: char) -> Self {
         Self {
             tag: Object::Abstract(Abstract::CODE_POINT),
             value: Object::new_natural_number(c as u32 as u128),
@@ -36,7 +36,7 @@ impl Property {
     }
 
     #[must_use]
-    pub const fn list_item(item: Object) -> Self {
+    pub const fn new_list_item(item: Object) -> Self {
         Self {
             tag: Object::Abstract(Abstract::LIST_ITEM),
             value: item,
@@ -44,7 +44,7 @@ impl Property {
     }
 
     #[must_use]
-    pub const fn list_tail(tail: Object) -> Self {
+    pub const fn new_list_tail(tail: Object) -> Self {
         Self {
             tag: Object::Abstract(Abstract::LIST_TAIL),
             value: tail,
@@ -52,7 +52,7 @@ impl Property {
     }
 
     #[must_use]
-    pub const fn bit_slot(slot: BitSlot, bit: Bit) -> Self {
+    pub const fn new_bit_slot(slot: BitSlot, bit: Bit) -> Self {
         Self {
             tag: Object::Abstract(slot.to_abstract()),
             value: Object::Abstract(bit.to_abstract()),

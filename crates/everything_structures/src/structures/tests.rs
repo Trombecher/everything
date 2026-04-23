@@ -6,6 +6,6 @@ use super::*;
 fn specialization() {
     assert_eq!(
         Structure::NaturalNumber(NonZeroU128::new(1).unwrap()),
-        Structure::new(&mut [Property::successor_of(0)])
+        Structure::new(&mut [Property::new_successor_of(0)])
     )
 }
