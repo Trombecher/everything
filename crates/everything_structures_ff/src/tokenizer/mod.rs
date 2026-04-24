@@ -97,20 +97,16 @@ impl<'source> Iterator for Tokenizer<'source> {
                 }))
             }
             Some('x') => {
-                for _ in 0..2_u8 {
+                for length in 1..3_usize {
                     // Skip two ascii hex digits.
 
-                    if !self.chars.next().is_some_and(|c| c.is_ascii_hexdigit()) {
+                    if !self.chars.peek().is_some_and(|c| c.is_ascii_hexdigit()) {
                         return Some(Token::Invalid(unsafe {
-                            str::from_raw_parts(
-                                start.as_ptr(),
-                                self.chars
-                                    .as_str()
-                                    .as_ptr()
-                                    .offset_from_unsigned(start.as_ptr()),
-                            )
+                            str::from_raw_parts(start.as_ptr(), length)
                         }));
                     }
+
+                    self.chars.next();
                 }
 
                 Some(Token::Byte(unsafe {

@@ -64,6 +64,20 @@ impl BytesStructure {
         }
     }
 
+    pub fn from_raw(data: Arc<[u8]>) -> Option<Self> {
+        if data.is_empty() {
+            return None;
+        }
+
+        let mut hasher = DefaultHasher::new();
+        data.as_ref().hash(&mut hasher);
+        let hash_of_bytes = hasher.finish();
+
+        GLOBAL_BINARY_DATA.insert(hash_of_bytes, Arc::clone(&data));
+
+        Some(Self { data })
+    }
+
     /// Returns the number of strong Arc references
     /// to the data allocation.
     #[must_use]

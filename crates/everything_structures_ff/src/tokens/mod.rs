@@ -6,7 +6,8 @@ use core::{
     mem::transmute,
 };
 
-use everything_structures::Byte;
+use alloc::sync::Arc;
+use everything_structures::{Byte, BytesStructure, TextStructure};
 use parser_tools::TokenLength;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -48,7 +49,7 @@ pub enum Token<'source> {
     Character(&'source str),
 
     /// A text literal `"abcd_5390 ?*!\t"`, unescaped.
-    Text(&'source str),
+    Text(TextSource<'source>),
 
     /// A natural number literal.
     NaturalNumber(Digits<'source>),
@@ -173,5 +174,71 @@ impl<'source> ByteSource<'source> {
 impl<'source> AsRef<str> for ByteSource<'source> {
     fn as_ref(&self) -> &'source str {
         self.0
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TextSource<'source>(&'source str);
+
+impl<'source> TextSource<'source> {
+    /// # Safety
+    ///
+    /// See [TextSource].
+    #[must_use]
+    pub const unsafe fn new_unchecked(source: &'source str) -> Self {
+        Self(source)
+    }
+
+    pub fn real_byte_length(self) -> usize {
+        let mut length = 0;
+        let mut bytes = self.0.bytes();
+        bytes.next();
+
+        while let Some(byte) = bytes.next() {
+            if byte == b'\\' {
+                match bytes.next() {
+                    Some(b'u' | b'x') => todo!(),
+                    _ => {
+                        length += 1;
+                    }
+                }
+            } else if byte == b'"' {
+                break;
+            }
+
+            length += 1;
+        }
+
+        length
+    }
+
+    pub fn parse(self) -> Option<TextStructure> {
+        let len = self.real_byte_length();
+        if len == 0 {
+            return None;
+        }
+
+        let mut arc = Arc::new_uninit_slice(len);
+
+        {
+            // Populate Arc:
+
+            let arc_ref = Arc::get_mut(&mut arc).unwrap();
+            let mut bytes = arc_ref.iter_mut();
+
+            for byte in self.0.bytes() {
+                if byte == b'\\' {
+                    todo!("escape")
+                } else {
+                    unsafe {
+                        bytes.next().unwrap_unchecked().write(byte);
+                    }
+                }
+            }
+        }
+
+        Some(unsafe {
+            TextStructure::new_unchecked(BytesStructure::from_raw(arc.assume_init()).unwrap())
+        })
     }
 }

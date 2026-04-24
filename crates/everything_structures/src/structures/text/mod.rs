@@ -15,6 +15,16 @@ impl TextStructure {
         BytesStructure::new(s.as_bytes()).map(Self)
     }
 
+    /// Creates a new [TextStructure] without validating that
+    /// the bytes are valid UTF-8.
+    ///
+    /// # Safety
+    ///
+    /// The bytes must contain valid UTF-8.
+    pub const unsafe fn new_unchecked(bytes: BytesStructure) -> Self {
+        Self(bytes)
+    }
+
     #[must_use]
     pub fn parts(&self) -> (char, &str) {
         let mut chars = self.as_ref().chars();

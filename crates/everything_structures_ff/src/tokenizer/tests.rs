@@ -1,8 +1,9 @@
-use crate::{Digits, Token, Tokenizer};
+use crate::{ByteSource, Digits, Token, Tokenizer};
 
 #[test]
 fn tokenization() {
-    let mut tokens = Tokenizer::new("{ }()@42234837@0001\n\t\x0c\r ,üä1234567890".chars());
+    let mut tokens =
+        Tokenizer::new("{ }()@42234837@0001\n\t\x0c\r ,üä1234567890x00x10x42xA7xfF".chars());
 
     assert_eq!(tokens.next(), Some(Token::OpeningBrace));
     assert_eq!(tokens.next(), Some(Token::Whitespace(" ")));
@@ -27,6 +28,26 @@ fn tokenization() {
         Some(Token::NaturalNumber(unsafe {
             Digits::new_unchecked(b"1234567890")
         }))
+    );
+    assert_eq!(
+        tokens.next(),
+        Some(Token::Byte(unsafe { ByteSource::new_unchecked("x00") }))
+    );
+    assert_eq!(
+        tokens.next(),
+        Some(Token::Byte(unsafe { ByteSource::new_unchecked("x10") }))
+    );
+    assert_eq!(
+        tokens.next(),
+        Some(Token::Byte(unsafe { ByteSource::new_unchecked("x42") }))
+    );
+    assert_eq!(
+        tokens.next(),
+        Some(Token::Byte(unsafe { ByteSource::new_unchecked("xA7") }))
+    );
+    assert_eq!(
+        tokens.next(),
+        Some(Token::Byte(unsafe { ByteSource::new_unchecked("xfF") }))
     );
     assert_eq!(tokens.next(), None);
     assert_eq!(tokens.next(), None);
