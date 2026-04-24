@@ -8,9 +8,8 @@ use core::{
 
 use parser_tools::PeekableChars;
 
-use crate::{Digit, Digits, Token};
+use crate::{ByteSource, Digit, Digits, Token};
 
-#[inline]
 #[must_use]
 fn is_whitespace(c: char) -> bool {
     c.is_ascii_whitespace()
@@ -21,7 +20,7 @@ fn can_start_token(c: Option<char>) -> bool {
     is_whitespace(c.unwrap_or('x'))
         || matches!(
             c,
-            Some('(' | '@' | ')' | ',' | '{' | '}' | '0'..='9') | None
+            Some('(' | '@' | ')' | ',' | '{' | '}' | '0'..='9' | 'X' | 'x' | '\'' | '"') | None
         )
 }
 
@@ -95,6 +94,27 @@ impl<'source> Iterator for Tokenizer<'source> {
                         start.as_ptr().add(1),
                         start.len() - self.chars.as_str().len() - 1,
                     ))
+                }))
+            }
+            Some('x') => {
+                for _ in 0..2_u8 {
+                    // Skip two ascii hex digits.
+
+                    if !self.chars.next().is_some_and(|c| c.is_ascii_hexdigit()) {
+                        return Some(Token::Invalid(unsafe {
+                            str::from_raw_parts(
+                                start.as_ptr(),
+                                self.chars
+                                    .as_str()
+                                    .as_ptr()
+                                    .offset_from_unsigned(start.as_ptr()),
+                            )
+                        }));
+                    }
+                }
+
+                Some(Token::Byte(unsafe {
+                    ByteSource::new_unchecked(str::from_raw_parts(start.as_ptr(), 3))
                 }))
             }
             Some('0'..='9') => {

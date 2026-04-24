@@ -1,5 +1,12 @@
-use core::mem::transmute;
+#[cfg(test)]
+mod tests;
 
+use core::{
+    hint::{assert_unchecked, unreachable_unchecked},
+    mem::transmute,
+};
+
+use everything_structures::Byte;
 use parser_tools::TokenLength;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -32,7 +39,7 @@ pub enum Token<'source> {
     LineComment(&'source str),
 
     /// A byte literal `xA7`.
-    Byte(&'source str),
+    Byte(ByteSource<'source>),
 
     /// A bytes literal `X5417A4EF00`.
     Bytes(&'source str),
@@ -115,5 +122,56 @@ impl<'source> Digits<'source> {
     /// You must guarantee that the input slice is only ASCII digit bytes.
     pub const unsafe fn new_unchecked(digits: &'source [u8]) -> Self {
         Self(unsafe { transmute::<&[u8], &[Digit]>(digits) })
+    }
+}
+
+/**
+ * A byte in the format `x??` where `?` is an ASCII
+ * hexadecimal digit.
+ */
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub struct ByteSource<'source>(&'source str);
+
+impl<'source> ByteSource<'source> {
+    /// # Safety
+    ///
+    /// The given source string slice MUST satisfy the invariant
+    /// described in the documentation of [ByteSource].
+    #[must_use]
+    pub const unsafe fn new_unchecked(source: &'source str) -> Self {
+        Self(source)
+    }
+
+    #[must_use]
+    pub fn parse(self) -> Byte {
+        unsafe {
+            let mut bytes = self.0.bytes();
+            assert_unchecked(bytes.len() == 3);
+            assert_unchecked(bytes.next() == Some(b'x'));
+
+            // Maybe this can be improved.
+
+            let high = match bytes.next().unwrap() {
+                high @ b'0'..=b'9' => high - b'0',
+                high @ b'A'..=b'F' => high - b'A' + 10,
+                high @ b'a'..=b'f' => high - b'a' + 10,
+                _ => unreachable_unchecked(),
+            };
+
+            let low = match bytes.next().unwrap() {
+                low @ b'0'..=b'9' => low - b'0',
+                low @ b'A'..=b'F' => low - b'A' + 10,
+                low @ b'a'..=b'f' => low - b'a' + 10,
+                _ => unreachable_unchecked(),
+            };
+
+            Byte((high << 4) | low)
+        }
+    }
+}
+
+impl<'source> AsRef<str> for ByteSource<'source> {
+    fn as_ref(&self) -> &'source str {
+        self.0
     }
 }
