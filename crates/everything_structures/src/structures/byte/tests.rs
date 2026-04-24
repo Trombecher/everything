@@ -93,6 +93,14 @@ mod Byte {
             ByteTags { slots: 42 }
         );
     }
+
+    #[test]
+    fn debug_fmt() {
+        assert_eq!(format!("{:?}", Byte(0)), "x00");
+        assert_eq!(format!("{:?}", Byte(0x10)), "x10");
+        assert_eq!(format!("{:?}", Byte(0xA4)), "xA4");
+        assert_eq!(format!("{:?}", Byte(0xFF)), "xFF");
+    }
 }
 
 #[allow(non_snake_case)]

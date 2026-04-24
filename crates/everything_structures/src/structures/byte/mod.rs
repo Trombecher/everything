@@ -67,7 +67,7 @@ impl Byte {
 
 impl std::fmt::Debug for Byte {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "b{:X}", self.0)
+        write!(f, "x{:02X}", self.0)
     }
 }
 

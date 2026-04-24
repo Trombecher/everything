@@ -124,7 +124,13 @@ impl AsRef<[u8]> for BytesStructure {
 
 impl Debug for BytesStructure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.as_ref().fmt(f)
+        f.write_str("X")?;
+
+        for byte in self.as_ref() {
+            write!(f, "{:02X}", byte)?;
+        }
+
+        Ok(())
     }
 }
 

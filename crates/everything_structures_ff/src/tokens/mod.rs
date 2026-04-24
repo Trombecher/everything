@@ -4,7 +4,7 @@ use parser_tools::TokenLength;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Token<'source> {
-    /// `@<<DIGITS>>`
+    /// An abstract literal `@1234567890`
     Abstract(Digits<'source>),
 
     /// `(`
@@ -22,16 +22,28 @@ pub enum Token<'source> {
     /// `,`
     Comma,
 
-    /// Whitespace tokens
+    /// A whitespace token.
     Whitespace(&'source str),
 
-    /// Invalid token
+    /// An invalid token.
     Invalid(&'source str),
 
-    /// A line comment '#'.
+    /// A line comment `#`.
     LineComment(&'source str),
 
-    /// A number shorthand for the underlying structure '1234567890'.
+    /// A byte literal `xA7`.
+    Byte(&'source str),
+
+    /// A bytes literal `X5417A4EF00`.
+    Bytes(&'source str),
+
+    /// A character literal `'ä'`.
+    Character(&'source str),
+
+    /// A text literal `"abcd_5390 ?*!\t"`, unescaped.
+    Text(&'source str),
+
+    /// A natural number literal.
     NaturalNumber(Digits<'source>),
 }
 

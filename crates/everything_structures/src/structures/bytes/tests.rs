@@ -69,6 +69,13 @@ mod BytesStructure {
 
         assert_eq!(GLOBAL_BINARY_DATA.len(), count);
     }
+
+    #[test]
+    fn debug_fmt() {
+        let structure = BytesStructure::new(&[0x00, 0x10, 0x42, 0xA5, 0xFF]).unwrap();
+
+        assert_eq!(format!("{:?}", structure), "X001042A5FF");
+    }
 }
 
 #[allow(non_snake_case)]
