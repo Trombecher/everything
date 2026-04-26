@@ -1,6 +1,6 @@
 use core::iter::Peekable;
 
-use everything_structures::Abstract;
+use everything_structures::{Abstract, Structure};
 use parser_tools::Span;
 
 use crate::Token;
@@ -15,6 +15,7 @@ pub enum FilteredToken<'source> {
     ClosingBrace,
     Comma,
     Invalid(&'source str),
+    Structure(Structure),
 }
 
 impl<'source> TryFrom<Token<'source>> for FilteredToken<'source> {

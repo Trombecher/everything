@@ -5,6 +5,7 @@ use std::{
     cmp::Ordering,
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
+    num::NonZeroUsize,
     sync::{Arc, LazyLock},
 };
 
@@ -26,6 +27,45 @@ impl BytesStructure {
     #[must_use]
     pub fn new(bytes: &[u8]) -> Option<Self> {
         Self::from_parts(bytes, &[])
+    }
+
+    /// Creates a new [`BytesStructure`] from an iterator and a length.
+    /// This function will extract `length` items from the iterator and
+    /// write them to a preallocated [`Arc`].
+    ///
+    /// # Panics
+    ///
+    /// This function panics iff the iterator is not able to yield `length`
+    /// items.
+    pub fn from_iter(mut iter: impl Iterator<Item = u8>, len: NonZeroUsize) -> Self {
+        let mut data = Arc::new_uninit_slice(len.get());
+
+        {
+            let arc_ref = Arc::get_mut(&mut data).unwrap();
+
+            for i in 0..len.get() {
+                let value = iter.next().expect("iterator ended too early");
+
+                arc_ref.get_mut(i).unwrap().write(value);
+            }
+        }
+
+        let data = unsafe { data.assume_init() };
+
+        let mut hasher = DefaultHasher::new();
+        hasher.write(&data);
+        let hash_of_bytes = hasher.finish();
+
+        if let Some(reference) = GLOBAL_BINARY_DATA.get(&hash_of_bytes) {
+            // Return reference and drop allocated data.
+            Self {
+                data: Arc::clone(&reference),
+            }
+        } else {
+            GLOBAL_BINARY_DATA.insert(hash_of_bytes, Arc::clone(&data));
+
+            Self { data }
+        }
     }
 
     pub fn from_parts(a: &[u8], b: &[u8]) -> Option<Self> {

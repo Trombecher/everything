@@ -15,9 +15,9 @@ pub use text::*;
 
 use crate::{Abstract, Object, Property};
 
-/// A structure is a set of properties. Natural numbers, text, binary data,
-/// and the structure with no properties are stored more efficiently than an [AnyStructure].
-/// These are called specializations.
+/// A structure is a set of [`Property`]s. Natural numbers, text, binary data,
+/// and the structure with no properties are stored more efficiently than an
+/// [`AnyStructure`]. These are called specializations.
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Structure {
     /// The empty structure `{}`.
@@ -290,6 +290,9 @@ impl PartialEq<[Property]> for Structure {
     }
 }
 
+/// An iterator over all [`Property`]s of a [`Structure`].
+///
+/// You can get an instance of this type via [`Structure::properties`].
 #[derive(Clone)]
 pub enum StructureProperties<'structure> {
     Empty,
@@ -334,6 +337,10 @@ impl std::fmt::Debug for StructureProperties<'_> {
     }
 }
 
+/// An iterator over all [`Object`]s that are values in
+/// the properties of a [`Structure`].
+///
+/// You can get an instance of this type from [`Structure::values`].
 #[derive(Clone)]
 pub enum StructureValues<'properties> {
     None,
@@ -378,6 +385,10 @@ impl std::fmt::Debug for StructureValues<'_> {
     }
 }
 
+/// An iterator over all [`Object`]s that are tags in
+/// a [`Structure`].
+///
+/// You can get an instance of this type from [`Structure::tags`].
 #[derive(Clone)]
 pub enum StructureTags<'properties> {
     None,

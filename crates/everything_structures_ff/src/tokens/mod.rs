@@ -3,10 +3,12 @@ mod tests;
 
 use core::{
     hint::{assert_unchecked, unreachable_unchecked},
+    iter,
     mem::transmute,
+    num::NonZeroUsize,
+    str,
 };
 
-use alloc::sync::Arc;
 use everything_structures::{Byte, BytesStructure, TextStructure};
 use parser_tools::TokenLength;
 
@@ -177,6 +179,12 @@ impl<'source> AsRef<str> for ByteSource<'source> {
     }
 }
 
+/// The source of a text literal.
+///
+/// # Invariants
+///
+/// It always begins with a `"` and ends with a `"`. Its length is greater
+/// or equal to two.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TextSource<'source>(&'source str);
 
@@ -189,10 +197,15 @@ impl<'source> TextSource<'source> {
         Self(source)
     }
 
+    /// Returns the string content between the quotes.
+    #[inline]
+    pub fn content(self) -> &'source str {
+        unsafe { str::from_raw_parts(self.0.as_ptr().add(1), self.0.len().unchecked_sub(2)) }
+    }
+
     pub fn real_byte_length(self) -> usize {
         let mut length = 0;
-        let mut bytes = self.0.bytes();
-        bytes.next();
+        let mut bytes = self.content().bytes();
 
         while let Some(byte) = bytes.next() {
             if byte == b'\\' {
@@ -202,8 +215,6 @@ impl<'source> TextSource<'source> {
                         length += 1;
                     }
                 }
-            } else if byte == b'"' {
-                break;
             }
 
             length += 1;
@@ -213,32 +224,22 @@ impl<'source> TextSource<'source> {
     }
 
     pub fn parse(self) -> Option<TextStructure> {
-        let len = self.real_byte_length();
-        if len == 0 {
-            return None;
-        }
+        let len = NonZeroUsize::new(self.real_byte_length())?;
 
-        let mut arc = Arc::new_uninit_slice(len);
+        let mut bytes = self.content().bytes();
 
-        {
-            // Populate Arc:
+        let processed_bytes = iter::from_fn(move || {
+            let byte = bytes.next()?;
 
-            let arc_ref = Arc::get_mut(&mut arc).unwrap();
-            let mut bytes = arc_ref.iter_mut();
-
-            for byte in self.0.bytes() {
-                if byte == b'\\' {
-                    todo!("escape")
-                } else {
-                    unsafe {
-                        bytes.next().unwrap_unchecked().write(byte);
-                    }
-                }
+            if byte == b'\\' {
+                todo!("escape")
+            } else {
+                Some(byte)
             }
-        }
+        });
 
-        Some(unsafe {
-            TextStructure::new_unchecked(BytesStructure::from_raw(arc.assume_init()).unwrap())
-        })
+        let bytes_structure = BytesStructure::from_iter(processed_bytes, len);
+
+        Some(unsafe { TextStructure::new_unchecked(bytes_structure) })
     }
 }
