@@ -2,9 +2,19 @@ use std::{fs::read_to_string, path::PathBuf, process::exit, time::Instant};
 
 use clap::{Parser, Subcommand};
 use everything::ext::StructureExt;
-use everything_structures::Object;
-use everything_structures_ff::{SourceIndex, parse::ErrorInfo, parse_structure};
+use everything_structures::{Abstract, Object};
+use everything_structures_ff::{ErrorInfo, parse_structure};
 use ulid::Ulid;
+
+trait AbstractUlidExt {
+    fn ulid() -> Self;
+}
+
+impl AbstractUlidExt for Abstract {
+    fn ulid() -> Self {
+        Self(Ulid::new().0)
+    }
+}
 
 #[derive(Parser)]
 #[command(version)]
@@ -39,22 +49,26 @@ enum Command {
 }
 
 fn handle_parse_error(input: &str, error: &ErrorInfo) -> ! {
-    match error.range.clone() {
-        Some(range) => {
-            let (start_line, start_col) = lc_from_index(&input, range.start);
-            let (end_line, end_col) = lc_from_index(&input, range.end);
+    match &error.found {
+        Some(found) => {
+            let (start_line, start_col) = lc_from_index(input, found.range.start);
+            let (end_line, end_col) = lc_from_index(input, found.range.end);
 
             eprintln!(
-                "error while parsing at {}:{} (to {}:{}): {}",
+                "error while parsing at {}:{} (to {}:{}): found {:?}, expected {:?}",
                 start_line + 1,
                 start_col + 1,
                 end_line + 1,
                 end_col + 1,
-                error.message
+                error.found,
+                error.expected
             )
         }
         None => {
-            eprintln!("error while parsing at the end: {}", error.message)
+            eprintln!(
+                "error while parsing at the end: expected {:?}",
+                error.expected
+            )
         }
     }
 
@@ -68,7 +82,7 @@ fn main() {
 
     match command {
         Command::Gen => {
-            println!("{:?}", Object::Abstract(Ulid::new().0))
+            println!("{:?}", Object::Abstract(Abstract::ulid()))
         }
         Command::ParseAndPrint { path, minify } => {
             let input = read_to_string(path).expect("Reading from file failed");
@@ -91,7 +105,7 @@ fn main() {
             let structure =
                 parse_structure(&input).unwrap_or_else(|error| handle_parse_error(&input, &error));
 
-            if structure.is_knowledge() {
+            if structure.is_knowledge().is_ok() {
                 println!("Structure is knowledge")
             } else {
                 eprintln!("Structure is not knowledge")
@@ -100,7 +114,7 @@ fn main() {
     }
 }
 
-fn lc_from_index(source: &str, index: SourceIndex) -> (SourceIndex, SourceIndex) {
+fn lc_from_index(source: &str, index: u32) -> (u32, u32) {
     let slice = &source[..index as usize];
 
     let mut lines = 0;
@@ -127,5 +141,5 @@ fn lc_from_index(source: &str, index: SourceIndex) -> (SourceIndex, SourceIndex)
         }
     }
 
-    (lines, last_line.chars().count() as SourceIndex)
+    (lines, last_line.chars().count() as u32)
 }
