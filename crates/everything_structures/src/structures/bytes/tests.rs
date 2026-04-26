@@ -117,6 +117,8 @@ mod BytesStructureProperties {
 
 #[allow(non_snake_case)]
 mod BytesStructureValues {
+    use std::iter;
+
     use super::super::*;
 
     #[test]
@@ -145,5 +147,23 @@ mod BytesStructureValues {
         assert_eq!(values.next(), None);
         assert_eq!(values.next(), None);
         assert_eq!(values.next(), None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn from_iter_panic() {
+        BytesStructure::from_iter(iter::empty(), NonZeroUsize::new(10).unwrap());
+    }
+
+    #[test]
+    fn from_iter() {
+        const BYTES: [u8; 7] = [0, 1, 2, 3, 255, 42, 67];
+
+        let a =
+            BytesStructure::from_iter(BYTES.into_iter(), NonZeroUsize::new(BYTES.len()).unwrap());
+
+        let b = BytesStructure::new(&BYTES).unwrap();
+
+        assert_eq!(a, b)
     }
 }

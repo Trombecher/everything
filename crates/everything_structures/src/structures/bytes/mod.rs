@@ -53,7 +53,7 @@ impl BytesStructure {
         let data = unsafe { data.assume_init() };
 
         let mut hasher = DefaultHasher::new();
-        hasher.write(&data);
+        data.hash(&mut hasher);
         let hash_of_bytes = hasher.finish();
 
         if let Some(reference) = GLOBAL_BINARY_DATA.get(&hash_of_bytes) {

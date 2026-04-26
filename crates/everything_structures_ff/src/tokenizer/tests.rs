@@ -1,9 +1,10 @@
-use crate::{ByteSource, Digits, Token, Tokenizer};
+use crate::{ByteSource, Digits, TextSource, Token, Tokenizer};
 
 #[test]
 fn tokenization() {
-    let mut tokens =
-        Tokenizer::new("{ }()@42234837@0001\n\t\x0c\r ,üä1234567890x00x10x42xA7xfF".chars());
+    let mut tokens = Tokenizer::new(
+        "{ }()@42234837@0001\n\t\x0c\r ,üä1234567890x00x10x42xA7xfF\"10-af\"".chars(),
+    );
 
     assert_eq!(tokens.next(), Some(Token::OpeningBrace));
     assert_eq!(tokens.next(), Some(Token::Whitespace(" ")));
@@ -48,6 +49,12 @@ fn tokenization() {
     assert_eq!(
         tokens.next(),
         Some(Token::Byte(unsafe { ByteSource::new_unchecked("xfF") }))
+    );
+    assert_eq!(
+        tokens.next(),
+        Some(Token::Text(unsafe {
+            TextSource::new_unchecked("\"10-af\"")
+        }))
     );
     assert_eq!(tokens.next(), None);
     assert_eq!(tokens.next(), None);

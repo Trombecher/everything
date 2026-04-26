@@ -8,7 +8,7 @@ use core::{
 
 use parser_tools::PeekableChars;
 
-use crate::{ByteSource, Digit, Digits, Token};
+use crate::{ByteSource, Digit, Digits, TextSource, Token};
 
 #[must_use]
 fn is_whitespace(c: char) -> bool {
@@ -129,6 +129,28 @@ impl<'source> Iterator for Tokenizer<'source> {
                     ))
                 }))
             }
+            Some('"') => loop {
+                match self.chars.next() {
+                    Some('"') => {
+                        break Some(Token::Text(unsafe {
+                            TextSource::new_unchecked(str::from_raw_parts(
+                                start.as_ptr(),
+                                start.len() - self.chars.as_str().len(),
+                            ))
+                        }));
+                    }
+                    Some('\\') => todo!("escapes"),
+                    Some(_) => {}
+                    None => {
+                        break Some(Token::Invalid(unsafe {
+                            str::from_raw_parts(
+                                start.as_ptr(),
+                                start.len() - self.chars.as_str().len(),
+                            )
+                        }));
+                    }
+                }
+            },
             None => None,
             Some(_) => {
                 // Invalid id
