@@ -3,7 +3,7 @@ use everything::{
     base::BASE,
     ext::{AbstractExt, StructureExt},
 };
-use everything_structures::{Abstract, Object, Property, Structure};
+use everything_structures::{Abstract, Object, Structure};
 
 /*
 tracing::subscriber::set_global_default(Registry::default().with(HierarchicalLayer::new(2)))
@@ -33,42 +33,18 @@ fn main() {
             Structure::new_statement(
                 TOTAL_ITEMS,
                 Abstract::COMPUTED.into(),
-                Structure::new(&mut [
-                    Property {
-                        tag: Abstract::NODE_ADD_LEFT.into(),
-                        value: Structure::new_node_query(
-                            Structure::new(&mut [
-                                Property {
-                                    tag: Abstract::STATEMENT_SUBJECT.into(),
-                                    value: Structure::new_node_parameter(0).into(),
-                                },
-                                Property {
-                                    tag: Abstract::STATEMENT_TAG.into(),
-                                    value: ITEMS_IN_HAND,
-                                },
-                            ])
-                            .into(),
-                        )
-                        .into(),
-                    },
-                    Property {
-                        tag: Abstract::NODE_ADD_RIGHT.into(),
-                        value: Structure::new_node_query(
-                            Structure::new(&mut [
-                                Property {
-                                    tag: Abstract::STATEMENT_SUBJECT.into(),
-                                    value: Structure::new_node_parameter(0).into(),
-                                },
-                                Property {
-                                    tag: Abstract::STATEMENT_TAG.into(),
-                                    value: ITEMS_IN_STORAGE,
-                                },
-                            ])
-                            .into(),
-                        )
-                        .into(),
-                    },
-                ])
+                Structure::new_node_add(
+                    Structure::new_node_query_values(
+                        Structure::new_node_parameter(0).into(),
+                        ITEMS_IN_HAND,
+                    )
+                    .into(),
+                    Structure::new_node_query_values(
+                        Structure::new_node_parameter(0).into(),
+                        ITEMS_IN_STORAGE,
+                    )
+                    .into(),
+                )
                 .into(),
             )
             .into(),

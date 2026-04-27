@@ -7,7 +7,7 @@ use tracing::instrument;
 use crate::{
     base::BASE,
     ctx::EvaluationContext,
-    ext::{AbstractExt, ObjectExt, Statement},
+    ext::{AbstractExt, ObjectExt, PropertyExt, Statement},
     query,
 };
 
@@ -77,6 +77,8 @@ pub trait StructureExt {
     /// {(NODE_QUERY, ...)}
     /// ```
     fn new_node_query(node: Object) -> Self;
+
+    fn new_node_add(left: Object, right: Object) -> Self;
 
     /// Creates a count node.
     ///
@@ -308,6 +310,13 @@ impl StructureExt for Structure {
             tag: Object::Abstract(Abstract::NODE_PARAMETER),
             value: Object::new_natural_number(depth as u128),
         }])
+    }
+
+    fn new_node_add(left: Object, right: Object) -> Self {
+        Self::new(&mut [
+            Property::new_node_add_left(left),
+            Property::new_node_add_right(right),
+        ])
     }
 
     fn new_node_count(node: Object) -> Self {
