@@ -17,8 +17,8 @@ use std::{
 use dashmap::DashMap;
 
 use crate::{
-    Abstract, AnyStructure, Bit, BitSlot, Byte, BytesStructure, Object, Property, Structure,
-    TextStructure,
+    Abstract, AnyStructure, Bit, BitSlot, Byte, BytesStructure, MaybeEmptyBytesStructure, Object,
+    Property, Structure, TextStructure,
 };
 
 enum Specialization<'info> {
@@ -28,7 +28,7 @@ enum Specialization<'info> {
     Character(char),
     Bytes {
         item: Byte,
-        tail: &'info BytesStructure,
+        tail: MaybeEmptyBytesStructure,
     },
     Text {
         item: char,
@@ -118,14 +118,11 @@ impl StructureMetaInfo {
                 last_list_item: Some(item),
                 last_list_tail: Some(tail),
                 ..
-            } if let Some(item) = item.exact_natural_number()
-                && item <= 255
-                && let Object::Structure(Structure::Bytes(binary)) = tail =>
+            } if let Object::Structure(Structure::Byte(item)) = item
+                && let Object::Structure(tail) = tail
+                && let Some(tail) = tail.exact_bytes() =>
             {
-                Some(Specialization::Bytes {
-                    item: Byte(item as u8),
-                    tail: binary,
-                })
+                Some(Specialization::Bytes { item: *item, tail })
             }
             Self {
                 prop_count: 2,

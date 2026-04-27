@@ -232,6 +232,12 @@ impl Structure {
             Self::Byte(byte) => StructureTags::Byte(byte.tags(value)),
         }
     }
+
+    /// Extracts and clones `self` into some bytes which may be empty.
+    #[must_use]
+    pub fn exact_bytes(&self) -> Option<MaybeEmptyBytesStructure> {
+        MaybeEmptyBytesStructure::try_from(self).ok()
+    }
 }
 
 impl From<char> for Structure {
