@@ -306,10 +306,7 @@ impl StructureExt for Structure {
     }
 
     fn new_node_parameter(depth: usize) -> Self {
-        Self::new(&mut [Property {
-            tag: Object::Abstract(Abstract::NODE_PARAMETER),
-            value: Object::new_natural_number(depth as u128),
-        }])
+        Self::new(&mut [Property::new_node_parameter(depth)])
     }
 
     fn new_node_add(left: Object, right: Object) -> Self {
@@ -337,14 +334,8 @@ impl StructureExt for Structure {
         Self::new(&mut [Property {
             tag: Object::Abstract(Abstract::NODE_QUERY),
             value: Self::new(&mut [
-                Property {
-                    tag: Object::Abstract(Abstract::STATEMENT_SUBJECT),
-                    value: subject,
-                },
-                Property {
-                    tag: Object::Abstract(Abstract::STATEMENT_TAG),
-                    value: tag,
-                },
+                Property::new_statement_subject(subject),
+                Property::new_statement_tag(tag),
             ])
             .into(),
         }])
@@ -393,18 +384,9 @@ impl StructureExt for Structure {
 
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self {
         Self::new(&mut [
-            Property {
-                tag: Object::Abstract(Abstract::STATEMENT_SUBJECT),
-                value: subject,
-            },
-            Property {
-                tag: Object::Abstract(Abstract::STATEMENT_TAG),
-                value: tag,
-            },
-            Property {
-                tag: Object::Abstract(Abstract::STATEMENT_VALUE),
-                value,
-            },
+            Property::new_statement_subject(subject),
+            Property::new_statement_tag(tag),
+            Property::new_statement_value(value),
         ])
     }
 }

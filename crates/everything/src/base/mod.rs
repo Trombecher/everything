@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 use everything_structures::{Abstract, Object, Property, Structure};
 
-use crate::ext::{AbstractExt, StructureExt};
+use crate::ext::{AbstractExt, PropertyExt, StructureExt};
 
 fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> Object {
     Structure::new_node_equal([
@@ -55,14 +55,8 @@ pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
             .into(),
             Structure::new_node_exists(
                 Structure::new(&mut [
-                    Property {
-                        tag: Abstract::STATEMENT_SUBJECT.into(),
-                        value: Structure::new_node_parameter(0).into(),
-                    },
-                    Property {
-                        tag: Abstract::STATEMENT_TAG.into(),
-                        value: Abstract::SUCCESSOR_OF.into(),
-                    },
+                    Property::new_statement_subject(Structure::new_node_parameter(0).into()),
+                    Property::new_statement_tag(Abstract::SUCCESSOR_OF.into()),
                 ])
                 .into(),
             )
@@ -89,14 +83,10 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                     Structure::new_node_and([
                         Structure::new_node_exists(
                             Structure::new(&mut [
-                                Property {
-                                    tag: Abstract::STATEMENT_SUBJECT.into(),
-                                    value: Structure::new_node_parameter(0).into(),
-                                },
-                                Property {
-                                    tag: Abstract::STATEMENT_TAG.into(),
-                                    value: IS_NATURAL_NUMBER.clone(),
-                                },
+                                Property::new_statement_subject(
+                                    Structure::new_node_parameter(0).into(),
+                                ),
+                                Property::new_statement_tag(IS_NATURAL_NUMBER.clone()),
                             ])
                             .into(),
                         )
@@ -165,14 +155,10 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                         // maybe hard code "parameter == zero or has succ"
                         Structure::new_node_exists(
                             Structure::new(&mut [
-                                Property {
-                                    tag: Abstract::STATEMENT_SUBJECT.into(),
-                                    value: Structure::new_node_parameter(0).into(),
-                                },
-                                Property {
-                                    tag: Abstract::STATEMENT_TAG.into(),
-                                    value: IS_NATURAL_NUMBER.clone(),
-                                },
+                                Property::new_statement_subject(
+                                    Structure::new_node_parameter(0).into(),
+                                ),
+                                Property::new_statement_tag(IS_NATURAL_NUMBER.clone()),
                             ])
                             .into(),
                         )
