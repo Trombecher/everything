@@ -1,10 +1,5 @@
-use everything::{
-    Knowledge,
-    base::BASE,
-    ctx::EvaluationContext,
-    ext::{AbstractExt, ObjectExt, StructureExt},
-};
-use everything_structures::{Abstract, Object, Structure};
+use everything::{base::BASE, ctx::EvaluationContext, ext::ObjectExt};
+use everything_structures::Object;
 use everything_structures_ff::Parsable;
 use tracing_subscriber::{Registry, layer::SubscriberExt};
 use tracing_tree::HierarchicalLayer;
