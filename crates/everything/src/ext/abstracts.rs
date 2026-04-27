@@ -2,28 +2,26 @@ use everything_structures::Abstract;
 
 /// An extension to [Abstract], providing useful constants.
 pub trait AbstractExt {
-    const CONTAINS: Abstract = Abstract(1);
-    const AXIOMATIC: Abstract = Abstract(2);
-    const COMPUTED: Abstract = Abstract(3);
-    const STATEMENT_SUBJECT: Abstract = Abstract(4);
-    const STATEMENT_TAG: Abstract = Abstract(5);
-    const STATEMENT_VALUE: Abstract = Abstract(6);
-    const STATEMENT: Abstract = Abstract(7);
-    const KNOWLEDGE: Abstract = Abstract(8);
+    const CONTAINS: Abstract = Abstract(2148623885993955829985846061169569945);
+    const AXIOMATIC: Abstract = Abstract(2148623894085078740305997247889559475);
+    const COMPUTED: Abstract = Abstract(2148623901005465698003044719488417081);
+    const STATEMENT_SUBJECT: Abstract = Abstract(2148623909053123893672709737372288428);
+    const STATEMENT_TAG: Abstract = Abstract(2148623916651203732644414190007253763);
+    const STATEMENT_VALUE: Abstract = Abstract(2148623924076051576854508924514462036);
+    const STATEMENT: Abstract = Abstract(2148623931774179380745081342514331332);
+    const KNOWLEDGE: Abstract = Abstract(2148623940012028447614031237706438049);
 
-    const NODE_LITERAL: Abstract = Abstract(12);
-    const NODE_AND: Abstract = Abstract(13);
-    const NODE_EXISTS: Abstract = Abstract(14);
-    const NODE_PARAMETER: Abstract = Abstract(15);
-    const NODE_COUNT: Abstract = Abstract(17);
-    const NODE_QUERY: Abstract = Abstract(18);
-    const NODE_EQUAL: Abstract = Abstract(19);
-    const NODE_OR: Abstract = Abstract(20);
-    const NODE_XOR: Abstract = Abstract(21);
-    const NODE_NOT: Abstract = Abstract(22);
-    // const NODE: Abstract = Abstract(23);
-    // const TAG: Abstract = Abstract(24);
-    const NODE_FUNCTION_SELF: Abstract = Abstract(25);
+    const NODE_LITERAL: Abstract = Abstract(2148623946948209931514052368378168923);
+    const NODE_AND: Abstract = Abstract(2148623952614130968570357528352754483);
+    const NODE_EXISTS: Abstract = Abstract(2148623958354220622846366987367831581);
+    const NODE_PARAMETER: Abstract = Abstract(2148623964016728126166347458070520202);
+    const NODE_COUNT: Abstract = Abstract(2148623971839749022702961541901456532);
+    const NODE_QUERY: Abstract = Abstract(2148623977746529761395662089576479852);
+    const NODE_EQUAL: Abstract = Abstract(2148623984105467336671475554302291443);
+    const NODE_OR: Abstract = Abstract(2148623991617605004082324671379584752);
+    const NODE_XOR: Abstract = Abstract(2148623998771243099015849175301884477);
+    const NODE_NOT: Abstract = Abstract(2148624004488096373987985726200830300);
+    const NODE_FUNCTION_SELF: Abstract = Abstract(2148624013653182105587583289980365332);
     const NODE_ADD_LEFT: Abstract = Abstract(2148566534810416742677953060919673357);
     const NODE_ADD_RIGHT: Abstract = Abstract(2148566534810416742677953060919673358);
 }
