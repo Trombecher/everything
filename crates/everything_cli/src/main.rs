@@ -1,10 +1,24 @@
-use std::{fs::read_to_string, path::PathBuf, process::exit, time::Instant};
+mod util;
+
+use std::{
+    fs::read_to_string,
+    io::{Write, stdin, stdout},
+    path::PathBuf,
+    time::Instant,
+};
 
 use clap::{Parser, Subcommand};
-use everything::ext::StructureExt;
+use everything::{
+    ctx::EvaluationContext,
+    ext::{ObjectExt, StructureExt},
+};
 use everything_structures::{Abstract, Object, Structure};
-use everything_structures_ff::{ErrorInfo, Parsable};
+use everything_structures_ff::Parsable;
+use tracing_subscriber::{Registry, layer::SubscriberExt};
+use tracing_tree::HierarchicalLayer;
 use ulid::Ulid;
+
+use crate::util::handle_parse_error;
 
 trait AbstractUlidExt {
     fn ulid() -> Self;
@@ -46,36 +60,17 @@ enum Command {
         #[arg(id = "structure file path")]
         path: PathBuf,
     },
-}
-
-fn handle_parse_error(input: &str, error: &ErrorInfo) -> ! {
-    match &error.found {
-        Some(found) => {
-            let (start_line, start_col) = lc_from_index(input, found.range.start);
-            let (end_line, end_col) = lc_from_index(input, found.range.end);
-
-            eprintln!(
-                "error while parsing at {}:{} (to {}:{}): found {:?}, expected {:?}",
-                start_line + 1,
-                start_col + 1,
-                end_line + 1,
-                end_col + 1,
-                error.found,
-                error.expected
-            )
-        }
-        None => {
-            eprintln!(
-                "error while parsing at the end: expected {:?}",
-                error.expected
-            )
-        }
-    }
-
-    exit(-1)
+    #[command(id = "open")]
+    Open {
+        #[arg(id = "structure file path")]
+        path: PathBuf,
+    },
 }
 
 fn main() {
+    tracing::subscriber::set_global_default(Registry::default().with(HierarchicalLayer::new(2)))
+        .unwrap();
+
     let Args { command } = Args::parse();
 
     let command = command.unwrap();
@@ -111,35 +106,46 @@ fn main() {
                 eprintln!("Structure is not knowledge")
             }
         }
-    }
-}
+        Command::Open { path } => {
+            let input = read_to_string(&path).expect("Reading from file failed");
+            let structure =
+                Structure::parse(&input).unwrap_or_else(|error| handle_parse_error(&input, &error));
 
-fn lc_from_index(source: &str, index: u32) -> (u32, u32) {
-    let slice = &source[..index as usize];
+            println!("Loaded {}. Type ? for help.", path.display());
 
-    let mut lines = 0;
-    let mut cr = false;
+            let mut line = String::new();
 
-    let mut chars = slice.chars();
-    let mut last_line = slice;
+            loop {
+                print!("\n> ");
+                stdout().flush().unwrap();
 
-    while let Some(c) = chars.next() {
-        if c == '\r' {
-            cr = true;
+                line.clear();
+                stdin().read_line(&mut line).unwrap();
 
-            lines += 1;
-            last_line = chars.as_str();
-        } else if c == '\n' {
-            if !cr {
-                lines += 1;
-                last_line = chars.as_str();
+                let line = line.trim();
+
+                let (command, arg) = line.split_once(" ").unwrap_or((line, ""));
+
+                match command {
+                    "exit" => break,
+                    "?" => {
+                        println!(
+                            "exit - exits REPL\n? - prints this message\neval <EXPR> - evaluate this expression"
+                        );
+                    }
+                    "eval" => {
+                        // TODO: make this not hard error.
+                        let expression = Object::parse(arg).unwrap();
+
+                        let output = expression.eval(&structure, &mut EvaluationContext::default());
+
+                        print!("{:?}", output);
+                    }
+                    _ => {
+                        println!("Unknown command {command}");
+                    }
+                }
             }
-
-            cr = false;
-        } else {
-            cr = false;
         }
     }
-
-    (lines, last_line.chars().count() as u32)
 }

@@ -184,7 +184,13 @@ impl Structure {
             Self::Any(any_structure) => StructureValues::Any(any_structure.values(tag)),
             Self::Empty => StructureValues::None,
             Self::Byte(byte) => StructureValues::Byte(byte.values(tag)),
-            Self::Character(c) => StructureValues::CodePoint(*c),
+            Self::Character(c) => {
+                if tag == Abstract::CODE_POINT.into() {
+                    StructureValues::CodePoint(*c)
+                } else {
+                    StructureValues::None
+                }
+            }
         }
     }
 

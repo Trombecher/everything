@@ -11,3 +11,6 @@ everything_structures = { path = "../everything_structures" }
 everything_structures_ff = { path = "../everything_structures_ff" }
 everything = { path = "../everything" }
 ulid = "1.2.1"
+tracing = "0.1.44"
+tracing-tree = "0.4.1"
+tracing-subscriber = "0.3.23"

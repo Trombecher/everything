@@ -173,6 +173,9 @@ dependencies = [
  "everything",
  "everything_structures",
  "everything_structures_ff",
+ "tracing",
+ "tracing-subscriber",
+ "tracing-tree",
  "ulid",
 ]
 
