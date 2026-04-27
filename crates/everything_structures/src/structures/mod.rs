@@ -264,6 +264,18 @@ impl From<Byte> for Structure {
     }
 }
 
+impl From<BytesStructure> for Structure {
+    fn from(value: BytesStructure) -> Self {
+        Self::Bytes(value)
+    }
+}
+
+impl From<TextStructure> for Structure {
+    fn from(value: TextStructure) -> Self {
+        Self::Text(value)
+    }
+}
+
 impl Debug for Structure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

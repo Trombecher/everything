@@ -12,7 +12,7 @@ use core::{
 use everything_structures::{Byte, BytesStructure, TextStructure};
 use parser_tools::TokenLength;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Token<'source> {
     /// An abstract literal `@1234567890`
     Abstract(Digits<'source>),
@@ -45,10 +45,10 @@ pub enum Token<'source> {
     Byte(ByteSource<'source>),
 
     /// A bytes literal `X5417A4EF00`.
-    Bytes(&'source str),
+    Bytes(BytesSource<'source>),
 
     /// A character literal `'ä'`.
-    Character(&'source str),
+    Character(CharacterSource<'source>),
 
     /// A text literal `"abcd_5390 ?*!\t"`, unescaped.
     Text(TextSource<'source>),
@@ -65,12 +65,20 @@ impl<'source> TokenLength for Token<'source> {
             Self::Invalid(i) => i.len() as u32,
             Self::LineComment(lc) => lc.len() as u32,
             Self::NaturalNumber(Digits(digits)) => digits.len() as u32,
-            _ => 1,
+            Self::OpeningParenthesis
+            | Self::ClosingParenthesis
+            | Self::OpeningBrace
+            | Self::ClosingBrace
+            | Self::Comma => 1,
+            Self::Byte(byte_source) => byte_source.as_str().len() as u32,
+            Self::Bytes(bytes_source) => bytes_source.as_str().len() as u32,
+            Self::Character(character_source) => character_source.as_str().len() as u32,
+            Self::Text(text_source) => text_source.as_str().len() as u32,
         }
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
 #[repr(u8)]
 pub enum Digit {
     Zero = b'0',
@@ -105,26 +113,30 @@ impl TryFrom<char> for Digit {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Digits<'source>(pub &'source [Digit]);
-
-impl From<Digits<'_>> for u128 {
-    fn from(value: Digits) -> Self {
-        value.0.iter().copied().fold(0_u128, |n, item| {
-            n.saturating_mul(10)
-                .saturating_add((item as u8 - b'0') as u128)
-        })
-    }
-}
 
 impl<'source> Digits<'source> {
     /// Transmutes a `&[u8]` into a `&[Digit]` inside `Self`.
     ///
     /// # SAFETY
     ///
-    /// You must guarantee that the input slice is only ASCII digit bytes.
+    /// You must guarantee that the input slice is only [`Digit`]s.
     pub const unsafe fn new_unchecked(digits: &'source [u8]) -> Self {
         Self(unsafe { transmute::<&[u8], &[Digit]>(digits) })
+    }
+
+    /// Parses the digits to a [`u128`]. Returns [`None`] iff the computation overflows.
+    #[must_use]
+    pub fn parse(self) -> Option<u128> {
+        self.0.iter().copied().try_fold(0_u128, |n, item| {
+            n.checked_mul(10)?.checked_add((item as u8 - b'0') as u128)
+        })
+    }
+
+    #[must_use]
+    pub fn as_str(self) -> &'source str {
+        unsafe { transmute(self.0) }
     }
 }
 
@@ -171,10 +183,9 @@ impl<'source> ByteSource<'source> {
             Byte((high << 4) | low)
         }
     }
-}
 
-impl<'source> AsRef<str> for ByteSource<'source> {
-    fn as_ref(&self) -> &'source str {
+    #[must_use]
+    pub fn as_str(self) -> &'source str {
         self.0
     }
 }
@@ -241,5 +252,60 @@ impl<'source> TextSource<'source> {
         let bytes_structure = BytesStructure::from_iter(processed_bytes, len);
 
         Some(unsafe { TextStructure::new_unchecked(bytes_structure) })
+    }
+
+    #[must_use]
+    pub fn as_str(self) -> &'source str {
+        self.0
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct BytesSource<'source>(&'source str);
+
+impl<'source> BytesSource<'source> {
+    /// Creates a new [`BytesSource`] without checking the invariants.
+    ///
+    /// # SAFETY
+    ///
+    /// See [`BytesSource`].
+    #[must_use]
+    pub const unsafe fn new_unchecked(source: &'source str) -> Self {
+        Self(source)
+    }
+
+    #[must_use]
+    pub fn parse(self) -> BytesStructure {
+        todo!("parse bytes")
+    }
+
+    #[must_use]
+    pub fn as_str(self) -> &'source str {
+        self.0
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct CharacterSource<'source>(&'source str);
+
+impl<'source> CharacterSource<'source> {
+    /// Creates a new [`CharacterSource`] without checking the invariants.
+    ///
+    /// # Safety
+    ///
+    /// See [`CharacterSource`].
+    #[must_use]
+    pub const unsafe fn new_unchecked(source: &'source str) -> Self {
+        Self(source)
+    }
+
+    #[must_use]
+    pub fn parse(self) -> char {
+        todo!("character source")
+    }
+
+    #[must_use]
+    pub fn as_str(self) -> &'source str {
+        self.0
     }
 }

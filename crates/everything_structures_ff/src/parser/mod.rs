@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests;
 
-use core::{iter::Peekable, num::NonZeroU128};
+use core::iter::Peekable;
 
 use alloc::{boxed::Box, vec::Vec};
-use everything_structures::{Abstract, Object, Property, Structure};
+use everything_structures::{Object, Property, Structure};
 use parser_tools::Span;
 
 pub type Error<'source> = Box<ErrorInfo<'source>>;
@@ -44,16 +44,16 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
             Some(Span {
                 value: FilteredToken::OpeningBrace,
                 ..
-            }) => self.parse_structure_continue(),
+            }) => self.parse_explicit_structure(),
             Some(Span {
-                value: FilteredToken::NaturalNumber(n),
+                value: FilteredToken::Object(Object::Structure(s)),
                 ..
-            }) if let Some(n) = NonZeroU128::new(n) => Ok(Structure::NaturalNumber(n)),
-            token => bail!(token, "expected '{{' or a positive integer"),
+            }) => Ok(s),
+            token => bail!(token, "expected a structure"),
         }
     }
 
-    fn parse_structure_continue(&mut self) -> Result<Structure, Error<'source>> {
+    fn parse_explicit_structure(&mut self) -> Result<Structure, Error<'source>> {
         let mut properties = Vec::new();
 
         loop {
@@ -109,20 +109,13 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
     fn parse_object(&mut self) -> Result<Object, Error<'source>> {
         match self.tokens.next() {
             Some(Span {
-                value: FilteredToken::Abstract(id),
-                ..
-            }) => Ok(Object::Abstract(id)),
-            Some(Span {
                 value: FilteredToken::OpeningBrace,
                 ..
-            }) => Ok(Object::Structure(self.parse_structure_continue()?)),
+            }) => Ok(Object::Structure(self.parse_explicit_structure()?)),
             Some(Span {
-                value: FilteredToken::NaturalNumber(n),
+                value: FilteredToken::Object(o),
                 ..
-            }) => match NonZeroU128::new(n) {
-                Some(n) => Ok(Object::Structure(Structure::NaturalNumber(n))),
-                None => Ok(Object::Abstract(Abstract::ZERO)),
-            },
+            }) => Ok(o),
             token => bail!(token, "expected @<<id>> or '{{'"),
         }
     }

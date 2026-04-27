@@ -15,7 +15,7 @@ fn parse_structure_continue() {
             },
             Span {
                 range: 3..6,
-                value: FilteredToken::Abstract(Abstract(1)),
+                value: FilteredToken::Object(Abstract(1).into()),
             },
             Span {
                 range: 6..7,
@@ -23,7 +23,7 @@ fn parse_structure_continue() {
             },
             Span {
                 range: 7..9,
-                value: FilteredToken::Abstract(Abstract(9)),
+                value: FilteredToken::Object(Abstract(9).into()),
             },
             Span {
                 range: 9..10,
@@ -38,7 +38,7 @@ fn parse_structure_continue() {
     );
 
     assert_eq!(
-        parser.parse_structure_continue(),
+        parser.parse_explicit_structure(),
         Ok(Structure::new(&mut [Property {
             tag: Object::Abstract(Abstract(1)),
             value: Object::Abstract(Abstract(9))
@@ -52,7 +52,7 @@ fn parse_structure_continue() {
 fn parse_object() {
     let mut parser = Parser::new(
         [Span {
-            value: FilteredToken::Abstract(Abstract(20)),
+            value: FilteredToken::Object(Abstract(20).into()),
             range: 0..3,
         }]
         .into_iter(),

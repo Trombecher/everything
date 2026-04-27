@@ -1,21 +1,19 @@
 use core::iter::Peekable;
 
-use everything_structures::{Abstract, Structure};
+use everything_structures::{Abstract, Object, Structure};
 use parser_tools::Span;
 
 use crate::Token;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum FilteredToken<'source> {
-    Abstract(Abstract),
-    NaturalNumber(u128),
     OpeningParenthesis,
     ClosingParenthesis,
     OpeningBrace,
     ClosingBrace,
     Comma,
     Invalid(&'source str),
-    Structure(Structure),
+    Object(Object),
 }
 
 impl<'source> TryFrom<Token<'source>> for FilteredToken<'source> {
@@ -23,15 +21,39 @@ impl<'source> TryFrom<Token<'source>> for FilteredToken<'source> {
 
     fn try_from(token: Token<'source>) -> Result<Self, Self::Error> {
         match token {
-            Token::Abstract(digits) => Ok(Self::Abstract(Abstract(digits.into()))),
+            Token::Abstract(digits) => {
+                if let Some(id) = digits.parse() {
+                    Ok(Self::Object(Abstract(id).into()))
+                } else {
+                    Ok(Self::Invalid(digits.as_str()))
+                }
+            }
             Token::OpeningParenthesis => Ok(Self::OpeningParenthesis),
             Token::ClosingParenthesis => Ok(Self::ClosingParenthesis),
             Token::OpeningBrace => Ok(Self::OpeningBrace),
             Token::ClosingBrace => Ok(Self::ClosingBrace),
             Token::Comma => Ok(Self::Comma),
             Token::Invalid(invalid) => Ok(Self::Invalid(invalid)),
-            Token::NaturalNumber(digits) => Ok(Self::NaturalNumber(digits.into())),
-            _ => Err(()),
+            Token::NaturalNumber(digits) => {
+                if let Some(n) = digits.parse() {
+                    Ok(Self::Object(Object::new_natural_number(n)))
+                } else {
+                    Ok(Self::Invalid(digits.as_str()))
+                }
+            }
+            Token::Byte(byte) => Ok(Self::Object(Object::Structure(byte.parse().into()))),
+            Token::Bytes(bytes) => Ok(Self::Object(Object::Structure(bytes.parse().into()))),
+            Token::Whitespace(_) => Err(()),
+            Token::LineComment(_) => Err(()),
+            Token::Character(character_source) => Ok(Self::Object(Object::Structure(
+                character_source.parse().into(),
+            ))),
+            Token::Text(text_source) => Ok(Self::Object(
+                text_source
+                    .parse()
+                    .map_or(Structure::Empty, Structure::Text)
+                    .into(),
+            )),
         }
     }
 }
