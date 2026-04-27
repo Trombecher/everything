@@ -4,6 +4,8 @@ mod tests;
 use crate::{Abstract, BytesStructure, Object, Property, Structure};
 
 /// Represents an array of unicode characters.
+///
+/// The underlying [`BytesStructure`] will ALWAYS be valid UTF-8.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TextStructure(BytesStructure);
 
@@ -28,7 +30,7 @@ impl TextStructure {
     #[must_use]
     pub fn parts(&self) -> (char, &str) {
         let mut chars = self.as_ref().chars();
-        let head = chars.next().unwrap(); // FIXME: this could be unchecked.
+        let head = unsafe { chars.next().unwrap_unchecked() };
 
         (head, chars.as_str())
     }

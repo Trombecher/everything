@@ -14,11 +14,26 @@ use parser_tools::Spanify;
 pub use tokenizer::*;
 pub use tokens::*;
 
-use everything_structures::Structure;
+use everything_structures::{Object, Structure};
 
-pub fn parse_structure<'source>(input: &'source str) -> Result<Structure, Error<'source>> {
-    let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(
-        input.chars(),
-    ))));
-    parser.parse_structure()
+pub trait Parsable: Sized {
+    fn parse<'source>(input: &'source str) -> Result<Self, Error<'source>>;
+}
+
+impl Parsable for Structure {
+    fn parse<'source>(input: &'source str) -> Result<Self, Error<'source>> {
+        let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(
+            input.chars(),
+        ))));
+        parser.parse_structure()
+    }
+}
+
+impl Parsable for Object {
+    fn parse<'source>(input: &'source str) -> Result<Self, Error<'source>> {
+        let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(
+            input.chars(),
+        ))));
+        parser.parse_object()
+    }
 }

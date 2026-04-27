@@ -8,7 +8,7 @@ use core::{
 
 use parser_tools::PeekableChars;
 
-use crate::{ByteSource, Digit, Digits, TextSource, Token};
+use crate::{ByteSource, CharacterSource, Digit, Digits, TextSource, Token};
 
 #[must_use]
 fn is_whitespace(c: char) -> bool {
@@ -43,6 +43,16 @@ impl<'source> Iterator for Tokenizer<'source> {
     fn next(&mut self) -> Option<Self::Item> {
         let start = self.chars.as_str();
 
+        /// Returns a str slice from the start to the cursor of the chars.
+        macro_rules! skipped {
+            () => {
+                str::from_raw_parts(
+                    start.as_ptr(),
+                    start.len().unchecked_sub(self.chars.as_str().len()),
+                )
+            };
+        }
+
         match self.chars.next() {
             Some(c) if is_whitespace(c) => {
                 while let Some(c) = self.chars.peek()
@@ -51,18 +61,14 @@ impl<'source> Iterator for Tokenizer<'source> {
                     self.chars.next();
                 }
 
-                Some(Token::Whitespace(unsafe {
-                    str::from_raw_parts(start.as_ptr(), start.len() - self.chars.as_str().len())
-                }))
+                Some(Token::Whitespace(unsafe { skipped!() }))
             }
             Some('#') => {
                 while !matches!(self.chars.peek(), Some('\r' | '\n') | None) {
                     self.chars.next();
                 }
 
-                Some(Token::LineComment(unsafe {
-                    str::from_raw_parts(start.as_ptr(), start.len() - self.chars.as_str().len())
-                }))
+                Some(Token::LineComment(unsafe { skipped!() }))
             }
             Some('(') => Some(Token::OpeningParenthesis),
             Some(')') => Some(Token::ClosingParenthesis),
@@ -113,6 +119,7 @@ impl<'source> Iterator for Tokenizer<'source> {
                     ByteSource::new_unchecked(str::from_raw_parts(start.as_ptr(), 3))
                 }))
             }
+            Some('X') => todo!("bytes literals"),
             Some('0'..='9') => {
                 while self
                     .chars
@@ -133,25 +140,32 @@ impl<'source> Iterator for Tokenizer<'source> {
                 match self.chars.next() {
                     Some('"') => {
                         break Some(Token::Text(unsafe {
-                            TextSource::new_unchecked(str::from_raw_parts(
-                                start.as_ptr(),
-                                start.len() - self.chars.as_str().len(),
-                            ))
+                            TextSource::new_unchecked(skipped!())
                         }));
                     }
                     Some('\\') => todo!("escapes"),
                     Some(_) => {}
                     None => {
-                        break Some(Token::Invalid(unsafe {
-                            str::from_raw_parts(
-                                start.as_ptr(),
-                                start.len() - self.chars.as_str().len(),
-                            )
-                        }));
+                        break Some(Token::Invalid(unsafe { skipped!() }));
                     }
                 }
             },
-            None => None,
+            Some('\'') => {
+                match self.chars.next() {
+                    Some('\\') => todo!("escapes"),
+                    Some('\'') | None => {
+                        return Some(Token::Invalid(unsafe { skipped!() }));
+                    }
+                    Some(_) => {}
+                };
+
+                match self.chars.next() {
+                    Some('\'') => Some(Token::Character(unsafe {
+                        CharacterSource::new_unchecked(skipped!())
+                    })),
+                    _ => Some(Token::Invalid(unsafe { skipped!() })),
+                }
+            }
             Some(_) => {
                 // Invalid id
 
@@ -159,10 +173,9 @@ impl<'source> Iterator for Tokenizer<'source> {
                     self.chars.next();
                 }
 
-                Some(Token::Invalid(unsafe {
-                    str::from_raw_parts(start.as_ptr(), start.len() - self.chars.as_str().len())
-                }))
+                Some(Token::Invalid(unsafe { skipped!() }))
             }
+            None => None,
         }
     }
 }

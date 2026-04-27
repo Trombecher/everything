@@ -300,8 +300,19 @@ impl<'source> CharacterSource<'source> {
     }
 
     #[must_use]
+    pub fn content(self) -> &'source str {
+        unsafe { str::from_raw_parts(self.0.as_ptr().add(1), self.0.len().unchecked_sub(2)) }
+    }
+
+    #[must_use]
     pub fn parse(self) -> char {
-        todo!("character source")
+        let mut chars = self.content().chars();
+
+        match chars.next() {
+            Some('\\') => todo!("decode char escape"),
+            None | Some('\'') => unsafe { unreachable_unchecked() },
+            Some(c) => c,
+        }
     }
 
     #[must_use]

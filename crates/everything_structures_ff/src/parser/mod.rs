@@ -49,7 +49,7 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
                 value: FilteredToken::Object(Object::Structure(s)),
                 ..
             }) => Ok(s),
-            token => bail!(token, "expected a structure"),
+            token => bail!(token, "expected structure"),
         }
     }
 
@@ -106,7 +106,7 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
         Ok(Structure::new(&mut properties))
     }
 
-    fn parse_object(&mut self) -> Result<Object, Error<'source>> {
+    pub fn parse_object(&mut self) -> Result<Object, Error<'source>> {
         match self.tokens.next() {
             Some(Span {
                 value: FilteredToken::OpeningBrace,
@@ -116,7 +116,7 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
                 value: FilteredToken::Object(o),
                 ..
             }) => Ok(o),
-            token => bail!(token, "expected @<<id>> or '{{'"),
+            token => bail!(token, "expected object or '{{'"),
         }
     }
 }

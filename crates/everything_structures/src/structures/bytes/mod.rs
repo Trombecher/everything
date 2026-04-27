@@ -172,7 +172,6 @@ impl BytesStructure {
 
 impl AsRef<[u8]> for BytesStructure {
     fn as_ref(&self) -> &[u8] {
-        // TODO: maybe move this into something like `.as_bytes()`.
         &self.data
     }
 }
