@@ -7,8 +7,10 @@ use tracing::{instrument, warn};
 
 use crate::{
     ctx::{EvaluationContext, FunctionContext},
-    ext::{AbstractExt, KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt},
-    query,
+    ext::{
+        AbstractExt, KnowledgeError, NodeType, ObjectForm, PropertyExt, StatementForm, StructureExt,
+    },
+    query::{self, AxiomaticQueryValues},
 };
 
 pub trait ObjectExt {
@@ -33,7 +35,10 @@ pub trait ObjectExt {
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
 
     /// Counts how many items are in the set `self`.
-    fn item_count(&self, knowledge: &Structure) -> usize;
+    fn items<'subject, 'knowledge>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> AxiomaticQueryValues<'knowledge, 'subject>;
 
     fn structure(&self) -> Option<&Structure>;
 
@@ -63,6 +68,8 @@ pub trait ObjectExt {
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn is_natural_number(&self, knowledge: &Structure) -> bool;
+
+    fn add(&self, knowledge: &Structure, other: &Object) -> Object;
 }
 
 impl ObjectExt for Object {
@@ -85,8 +92,11 @@ impl ObjectExt for Object {
         }
     }
 
-    fn item_count(&self, knowledge: &Structure) -> usize {
-        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::CONTAINS)).count()
+    fn items<'subject, 'knowledge>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+    ) -> AxiomaticQueryValues<'knowledge, 'subject> {
+        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::CONTAINS))
     }
 
     fn structure(&self) -> Option<&Structure> {
@@ -104,14 +114,46 @@ impl ObjectExt for Object {
 
     #[instrument(skip(knowledge), ret)]
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType> {
-        NodeType::ALL
-            .into_iter()
-            .filter_map(|node_type| {
-                query::values_axiomatically(knowledge, self, Object::Abstract(node_type.into()))
-                    .next()
-                    .map(|_| node_type)
-            })
-            .next()
+        enum NodeTypeParameterCount {
+            One(Abstract),
+            Two(Abstract, Abstract),
+        }
+
+        NodeType::ALL.into_iter().find(|node_type| {
+            let status = match node_type {
+                NodeType::Computed => NodeTypeParameterCount::One(Abstract::COMPUTED),
+                NodeType::Literal => NodeTypeParameterCount::One(Abstract::NODE_LITERAL),
+                NodeType::And => NodeTypeParameterCount::One(Abstract::NODE_AND),
+                NodeType::FunctionSelf => NodeTypeParameterCount::One(Abstract::NODE_FUNCTION_SELF),
+                NodeType::Exists => NodeTypeParameterCount::One(Abstract::NODE_EXISTS),
+                NodeType::Parameter => NodeTypeParameterCount::One(Abstract::NODE_PARAMETER),
+                NodeType::Count => NodeTypeParameterCount::One(Abstract::NODE_COUNT),
+                NodeType::Query => NodeTypeParameterCount::One(Abstract::NODE_QUERY),
+                NodeType::Equal => NodeTypeParameterCount::One(Abstract::NODE_EQUAL),
+                NodeType::Or => NodeTypeParameterCount::One(Abstract::NODE_OR),
+                NodeType::XOr => NodeTypeParameterCount::One(Abstract::NODE_XOR),
+                NodeType::Not => NodeTypeParameterCount::One(Abstract::NODE_NOT),
+                NodeType::Add => {
+                    NodeTypeParameterCount::Two(Abstract::NODE_ADD_LEFT, Abstract::NODE_ADD_RIGHT)
+                }
+            };
+
+            match status {
+                NodeTypeParameterCount::One(single) => {
+                    query::values_axiomatically(knowledge, self, Object::Abstract(single))
+                        .next()
+                        .is_some()
+                }
+                NodeTypeParameterCount::Two(a, b) => {
+                    query::values_axiomatically(knowledge, self, Object::Abstract(a))
+                        .next()
+                        .is_some()
+                        && query::values_axiomatically(knowledge, self, Object::Abstract(b))
+                            .next()
+                            .is_some()
+                }
+            }
+        })
     }
 
     fn node_count(&self, knowledge: &Structure) -> Option<Object> {
@@ -246,7 +288,8 @@ impl ObjectExt for Object {
                 self.node_count(knowledge)
                     .expect("NodeType::Count asserts that this exists")
                     .eval(knowledge, ctx)
-                    .item_count(knowledge) as u128,
+                    .items(knowledge)
+                    .count() as u128,
             ),
             Some(NodeType::Query) => {
                 // TODO: adjust constraint for query
@@ -376,6 +419,21 @@ impl ObjectExt for Object {
 
                 Structure::new_bool(!value.is_truthy(knowledge)).into()
             }
+            Some(NodeType::Add) => {
+                let left =
+                    query::values_axiomatically(knowledge, self, Abstract::NODE_ADD_LEFT.into())
+                        .next()
+                        .unwrap()
+                        .eval(knowledge, ctx);
+
+                let right =
+                    query::values_axiomatically(knowledge, self, Abstract::NODE_ADD_RIGHT.into())
+                        .next()
+                        .unwrap()
+                        .eval(knowledge, ctx);
+
+                left.add(knowledge, &right)
+            }
             Some(ty) => todo!("{ty:?} not impl"),
             None if let Object::Structure(Structure::Any(any_structure)) = self => any_structure
                 .properties()
@@ -454,5 +512,27 @@ impl ObjectExt for Object {
             Self::Abstract(_) => Ok(()),
             Self::Structure(structure) => structure.is_valid(knowledge, recursive),
         }
+    }
+
+    fn add(&self, knowledge: &Structure, other: &Object) -> Object {
+        let mut result = Vec::new();
+
+        let left_items = self.items(knowledge);
+
+        for left_item in left_items {
+            if let Some(left) = left_item.to_natural_number(knowledge) {
+                let right_items = other.items(knowledge);
+
+                for right_item in right_items {
+                    if let Some(right) = right_item.to_natural_number(knowledge)
+                        && let Some(sum) = left.checked_add(right)
+                    {
+                        result.push(Property::new_contains(Object::new_natural_number(sum)))
+                    }
+                }
+            }
+        }
+
+        Structure::new(result.as_mut_slice()).into()
     }
 }

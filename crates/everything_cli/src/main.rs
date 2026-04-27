@@ -2,8 +2,8 @@ use std::{fs::read_to_string, path::PathBuf, process::exit, time::Instant};
 
 use clap::{Parser, Subcommand};
 use everything::ext::StructureExt;
-use everything_structures::{Abstract, Object};
-use everything_structures_ff::{ErrorInfo, parse_structure};
+use everything_structures::{Abstract, Object, Structure};
+use everything_structures_ff::{ErrorInfo, Parsable};
 use ulid::Ulid;
 
 trait AbstractUlidExt {
@@ -88,22 +88,22 @@ fn main() {
             let input = read_to_string(path).expect("Reading from file failed");
 
             let now = Instant::now();
-            let result = parse_structure(&input);
+            let result = Object::parse(&input);
 
             println!("time parsing: {:?}", now.elapsed());
 
-            let structure = result.unwrap_or_else(|error| handle_parse_error(&input, &error));
+            let object = result.unwrap_or_else(|error| handle_parse_error(&input, &error));
 
             if minify {
-                println!("{:?}", structure);
+                println!("{:?}", object);
             } else {
-                println!("{:#?}", structure);
+                println!("{:#?}", object);
             }
         }
         Command::ValidateKnowledge { path } => {
             let input = read_to_string(path).expect("Reading from file failed");
             let structure =
-                parse_structure(&input).unwrap_or_else(|error| handle_parse_error(&input, &error));
+                Structure::parse(&input).unwrap_or_else(|error| handle_parse_error(&input, &error));
 
             if structure.is_knowledge().is_ok() {
                 println!("Structure is knowledge")

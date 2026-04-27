@@ -24,6 +24,8 @@ pub trait AbstractExt {
     // const NODE: Abstract = Abstract(23);
     // const TAG: Abstract = Abstract(24);
     const NODE_FUNCTION_SELF: Abstract = Abstract(25);
+    const NODE_ADD_LEFT: Abstract = Abstract(2148566534810416742677953060919673357);
+    const NODE_ADD_RIGHT: Abstract = Abstract(2148566534810416742677953060919673358);
 }
 
 impl AbstractExt for Abstract {}

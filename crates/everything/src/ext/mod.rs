@@ -7,7 +7,6 @@ mod properties;
 mod structures;
 
 pub use abstracts::*;
-use everything_structures::Abstract;
 pub use objects::*;
 pub use properties::*;
 pub use structures::*;
@@ -36,10 +35,11 @@ pub enum NodeType {
     Or,
     XOr,
     Not,
+    Add,
 }
 
 impl NodeType {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Computed,
         Self::Literal,
         Self::And,
@@ -52,24 +52,6 @@ impl NodeType {
         Self::Or,
         Self::XOr,
         Self::Not,
+        Self::Add,
     ];
-}
-
-impl From<NodeType> for Abstract {
-    fn from(value: NodeType) -> Abstract {
-        match value {
-            NodeType::Computed => Abstract::COMPUTED,
-            NodeType::Literal => Abstract::NODE_LITERAL,
-            NodeType::And => Abstract::NODE_AND,
-            NodeType::FunctionSelf => Abstract::NODE_FUNCTION_SELF,
-            NodeType::Exists => Abstract::NODE_EXISTS,
-            NodeType::Parameter => Abstract::NODE_PARAMETER,
-            NodeType::Count => Abstract::NODE_COUNT,
-            NodeType::Query => Abstract::NODE_QUERY,
-            NodeType::Equal => Abstract::NODE_EQUAL,
-            NodeType::Or => Abstract::NODE_OR,
-            NodeType::XOr => Abstract::NODE_XOR,
-            NodeType::Not => Abstract::NODE_NOT,
-        }
-    }
 }
