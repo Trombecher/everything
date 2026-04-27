@@ -9,6 +9,7 @@ use std::{
 
 use clap::{Parser, Subcommand};
 use everything::{
+    base::BASE,
     ctx::EvaluationContext,
     ext::{ObjectExt, StructureExt},
 };
@@ -65,6 +66,9 @@ enum Command {
         #[arg(id = "structure file path")]
         path: PathBuf,
     },
+    /// Prints the base knowledge required.
+    #[command(id = "base")]
+    Base,
 }
 
 fn main() {
@@ -146,6 +150,9 @@ fn main() {
                     }
                 }
             }
+        }
+        Command::Base => {
+            println!("{:?}", &*BASE);
         }
     }
 }
