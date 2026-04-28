@@ -11,4 +11,4 @@ This project contains a few crates. To interact with Everything, check out the [
 cargo run --release -p everything_cli
 ```
 
-You can provide options by appending `--` to the command. For an introduction to the data format, as well as the interpretation, read [`INTRODUCTION.md`](./INTRODUCTION.md).
+You can provide options by appending `--` to the command. For an introduction to the data format, as well as the interpretation, read [the docs](./docs/README.md).
