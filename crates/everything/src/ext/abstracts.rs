@@ -2,8 +2,18 @@ use everything_structures::Abstract;
 
 /// An extension to [Abstract], providing useful constants.
 pub trait AbstractExt {
+    /// Denotes that the subject is a _set_ that contains the associated value.
     const CONTAINS: Abstract = Abstract(2148623885993955829985846061169569945);
+
+    /// Denotes that the subject `T` (which [`AbstractExt::AXIOMATIC`] is used on)
+    /// can be used as a tag stating truth.
+    /// The value will be called (via [`crate::ext::ObjectExt::call`])
+    /// on the subject `S` and then on the value `V` of each association of the form
+    /// `(S, T, V)`.
     const AXIOMATIC: Abstract = Abstract(2148623894085078740305997247889559475);
+
+    /// Denotes that the subject is a function. The associated value is the function
+    /// body.
     const COMPUTED: Abstract = Abstract(2148623901005465698003044719488417081);
     const STATEMENT_SUBJECT: Abstract = Abstract(2148623909053123893672709737372288428);
     const STATEMENT_TAG: Abstract = Abstract(2148623916651203732644414190007253763);

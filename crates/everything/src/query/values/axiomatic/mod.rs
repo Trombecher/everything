@@ -1,7 +1,10 @@
-use everything_structures::{Abstract, Object, Structure, StructureValues};
+use everything_structures::{Abstract, Object, Property, Structure, StructureValues};
 use tracing::instrument;
 
-use crate::{base, ext::AbstractExt};
+use crate::{
+    base,
+    ext::{AbstractExt, PropertyExt},
+};
 
 #[cfg(test)]
 mod tests;
@@ -23,6 +26,14 @@ pub enum AxiomaticQueryValues<'knowledge, 'subject> {
 
     /// The variant that yields values from [AxiomaticBorrowedQueryValues].
     Borrowed(AxiomaticBorrowedQueryValues<'knowledge, 'subject>),
+}
+
+impl AxiomaticQueryValues<'_, '_> {
+    /// Creates a structure with all set values from `self`.
+    pub fn collect_to_set(self) -> Structure {
+        let mut properties: Vec<_> = self.map(Property::new_contains).collect();
+        Structure::new(&mut properties)
+    }
 }
 
 impl Iterator for AxiomaticQueryValues<'_, '_> {

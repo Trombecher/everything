@@ -2,6 +2,7 @@
 //! for [Object] and [Structure].
 
 mod abstracts;
+mod iter;
 mod objects;
 mod properties;
 mod structures;
@@ -21,37 +22,19 @@ pub struct Statement {
     pub value: Object,
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum NodeType {
-    Computed,
-    Literal,
+    Computed(Object),
+    Literal(Object),
     And,
-    FunctionSelf,
-    Exists,
-    Parameter,
-    Count,
-    Query,
+    FunctionSelf(Object),
+    Exists(Object),
+    Parameter(u128),
+    Count(Object),
+    Query(Object),
     Equal,
     Or,
-    XOr,
-    Not,
-    Add,
-}
-
-impl NodeType {
-    pub const ALL: [Self; 13] = [
-        Self::Computed,
-        Self::Literal,
-        Self::And,
-        Self::FunctionSelf,
-        Self::Exists,
-        Self::Parameter,
-        Self::Count,
-        Self::Query,
-        Self::Equal,
-        Self::Or,
-        Self::XOr,
-        Self::Not,
-        Self::Add,
-    ];
+    Xor,
+    Not(Object),
+    Add { left: Object, right: Object },
 }

@@ -6,7 +6,6 @@
 mod tests;
 
 use std::{
-    assert_matches,
     cmp::Ordering,
     hash::{DefaultHasher, Hash, Hasher},
     mem::MaybeUninit,
@@ -363,7 +362,7 @@ fn allocate_new_structure(
         }
     }
 
-    assert_matches!(new_props_iter.next(), None);
+    assert!(new_props_iter.next().is_none());
 
     unsafe { Arc::<[_]>::assume_init(new_props) }
 }

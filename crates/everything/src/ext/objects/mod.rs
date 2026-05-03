@@ -6,21 +6,23 @@ use fallible_iterator::{FallibleIterator, IteratorExt};
 use tracing::{instrument, warn};
 
 use crate::{
+    ObjectOrAxiomaticQueryValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, KnowledgeError, NodeType, ObjectForm, PropertyExt, StatementForm, StructureExt,
+        AbstractExt, KnowledgeError, NodeType, ObjectForm, PropertyExt, StatementForm,
+        StructureExt, iter::IteratorExtNextAndLast,
     },
     query::{self, AxiomaticQueryValues},
 };
 
 pub trait ObjectExt {
-    /// Extracts the first [Self::NODE_EXISTS] from `self`.
+    /// Extracts the first [Abstract::NODE_EXISTS] from `self`.
     fn node_exists(&self, knowledge: &Structure) -> Option<Object>;
 
-    /// Extracts the first [Self::NODE_COUNT] from `self`.
+    /// Extracts the first [Abstract::NODE_COUNT] from `self`.
     fn node_count(&self, knowledge: &Structure) -> Option<Object>;
 
-    /// Extracts the first [Self::COMPUTED] from `self`.
+    /// Extracts the first [Abstract::COMPUTED] from `self`.
     fn computed_body(&self, knowledge: &Structure) -> Option<Object>;
 
     fn capture(
@@ -30,12 +32,16 @@ pub trait ObjectExt {
         ctx: &EvaluationContext,
     ) -> Object;
 
-    fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Object;
+    fn eval<'knowledge, 'subject>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+        ctx: &mut EvaluationContext,
+    ) -> ObjectOrAxiomaticQueryValues<'knowledge, 'subject>;
 
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
 
-    /// Counts how many items are in the set `self`.
-    fn items<'subject, 'knowledge>(
+    /// Returns an iterator over all set items.
+    fn set_values<'subject, 'knowledge>(
         &'subject self,
         knowledge: &'knowledge Structure,
     ) -> AxiomaticQueryValues<'knowledge, 'subject>;
@@ -70,18 +76,21 @@ pub trait ObjectExt {
     fn is_natural_number(&self, knowledge: &Structure) -> bool;
 
     fn add(&self, knowledge: &Structure, other: &Object) -> Object;
+
+    fn node_function_self(&self, knowledge: &Structure) -> Option<Object>;
+
+    fn node_not(&self, knowledge: &Structure) -> Option<Object>;
 }
 
 impl ObjectExt for Object {
     fn is_natural_number(&self, knowledge: &Structure) -> bool {
         if self.exact_natural_number().is_some() {
             // Fast path of exact natural numbers.
-
             return true;
         }
 
         let mut successor_of =
-            query::values_axiomatically(knowledge, self, Self::Abstract(Abstract::SUCCESSOR_OF));
+            query::values_axiomatically(knowledge, self, Abstract::SUCCESSOR_OF.into());
 
         if let Some(first) = successor_of.next()
             && successor_of.next().is_none()
@@ -92,11 +101,11 @@ impl ObjectExt for Object {
         }
     }
 
-    fn items<'subject, 'knowledge>(
+    fn set_values<'subject, 'knowledge>(
         &'subject self,
         knowledge: &'knowledge Structure,
     ) -> AxiomaticQueryValues<'knowledge, 'subject> {
-        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::CONTAINS))
+        query::values_axiomatically(knowledge, self, Abstract::CONTAINS.into())
     }
 
     fn structure(&self) -> Option<&Structure> {
@@ -107,72 +116,69 @@ impl ObjectExt for Object {
     }
 
     fn is_truthy(&self, knowledge: &Structure) -> bool {
-        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::CONTAINS))
-            .next()
-            .is_some()
+        self.set_values(knowledge).next().is_some()
     }
 
     #[instrument(skip(knowledge), ret)]
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType> {
-        enum NodeTypeParameterCount {
-            One(Abstract),
-            Two(Abstract, Abstract),
+        let mut node_type = self.computed_body(knowledge).map(NodeType::Computed);
+
+        macro_rules! xor_with {
+            ($e:expr) => {{
+                let variant = $e;
+
+                if variant.is_some() {
+                    if node_type.is_some() {
+                        return None;
+                    } else {
+                        node_type = variant;
+                    }
+                }
+            }};
         }
 
-        NodeType::ALL.into_iter().find(|node_type| {
-            let status = match node_type {
-                NodeType::Computed => NodeTypeParameterCount::One(Abstract::COMPUTED),
-                NodeType::Literal => NodeTypeParameterCount::One(Abstract::NODE_LITERAL),
-                NodeType::And => NodeTypeParameterCount::One(Abstract::NODE_AND),
-                NodeType::FunctionSelf => NodeTypeParameterCount::One(Abstract::NODE_FUNCTION_SELF),
-                NodeType::Exists => NodeTypeParameterCount::One(Abstract::NODE_EXISTS),
-                NodeType::Parameter => NodeTypeParameterCount::One(Abstract::NODE_PARAMETER),
-                NodeType::Count => NodeTypeParameterCount::One(Abstract::NODE_COUNT),
-                NodeType::Query => NodeTypeParameterCount::One(Abstract::NODE_QUERY),
-                NodeType::Equal => NodeTypeParameterCount::One(Abstract::NODE_EQUAL),
-                NodeType::Or => NodeTypeParameterCount::One(Abstract::NODE_OR),
-                NodeType::XOr => NodeTypeParameterCount::One(Abstract::NODE_XOR),
-                NodeType::Not => NodeTypeParameterCount::One(Abstract::NODE_NOT),
-                NodeType::Add => {
-                    NodeTypeParameterCount::Two(Abstract::NODE_ADD_LEFT, Abstract::NODE_ADD_RIGHT)
-                }
-            };
+        xor_with!(self.node_literal(knowledge).map(NodeType::Literal));
+        xor_with!(
+            self.node_function_self(knowledge)
+                .map(NodeType::FunctionSelf)
+        );
+        xor_with!(
+            self.node_parameter_depth(knowledge)
+                .map(NodeType::Parameter)
+        );
+        xor_with!(self.node_count(knowledge).map(NodeType::Count));
+        xor_with!(self.node_query(knowledge).map(NodeType::Query));
+        xor_with!(self.node_not(knowledge).map(NodeType::Not));
+        // TODO: all
 
-            match status {
-                NodeTypeParameterCount::One(single) => {
-                    query::values_axiomatically(knowledge, self, Object::Abstract(single))
-                        .next()
-                        .is_some()
-                }
-                NodeTypeParameterCount::Two(a, b) => {
-                    query::values_axiomatically(knowledge, self, Object::Abstract(a))
-                        .next()
-                        .is_some()
-                        && query::values_axiomatically(knowledge, self, Object::Abstract(b))
-                            .next()
-                            .is_some()
-                }
-            }
-        })
+        node_type
+    }
+
+    fn node_not(&self, knowledge: &Structure) -> Option<Object> {
+        query::values_axiomatically(knowledge, self, Abstract::NODE_NOT.into()).next_and_last()
     }
 
     fn node_count(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::NODE_COUNT)).next()
+        query::values_axiomatically(knowledge, self, Abstract::NODE_COUNT.into()).next_and_last()
     }
 
     fn computed_body(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::COMPUTED)).next()
+        query::values_axiomatically(knowledge, self, Abstract::COMPUTED.into()).next_and_last()
     }
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u128> {
-        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::NODE_PARAMETER))
-            .next()
+        query::values_axiomatically(knowledge, self, Abstract::NODE_PARAMETER.into())
+            .next_and_last()
             .and_then(|depth| depth.to_natural_number(knowledge))
     }
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::NODE_LITERAL))
-            .next()
+        query::values_axiomatically(knowledge, self, Abstract::NODE_LITERAL.into()).next_and_last()
+    }
+
+    fn node_function_self(&self, knowledge: &Structure) -> Option<Object> {
+        query::values_axiomatically(knowledge, self, Abstract::NODE_FUNCTION_SELF.into())
+            .next_and_last()
     }
 
     fn statement_form(&self, knowledge: &Structure) -> StatementForm {
@@ -220,18 +226,11 @@ impl ObjectExt for Object {
         ctx: &EvaluationContext,
     ) -> Object {
         match self.node_type(knowledge) {
-            Some(NodeType::Computed) => {
-                Structure::new_computed(self.computed_body(knowledge).unwrap().capture(
-                    knowledge,
-                    additional_depth + 1,
-                    ctx,
-                ))
-                .into()
+            Some(NodeType::Computed(body)) => {
+                Structure::new_computed(body.capture(knowledge, additional_depth + 1, ctx)).into()
             }
-            Some(NodeType::Parameter) => {
-                let depth = self.node_parameter_depth(knowledge).unwrap() as usize;
-
-                if let Some(offset_depth) = depth.checked_sub(additional_depth) {
+            Some(NodeType::Parameter(depth)) => {
+                if let Some(offset_depth) = (depth as usize).checked_sub(additional_depth) {
                     // The min additional depth is 1.
                     // So when the parameter depth is 1 it will refer to
                     // captured parameters at an additional depth of 1.
@@ -280,71 +279,75 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn eval(&self, knowledge: &Structure, ctx: &mut EvaluationContext) -> Self {
+    fn eval<'knowledge, 'subject>(
+        &'subject self,
+        knowledge: &'knowledge Structure,
+        context: &mut EvaluationContext,
+    ) -> ObjectOrAxiomaticQueryValues<'knowledge, 'subject> {
         // TODO: better panic msgs
 
         match self.node_type(knowledge) {
-            Some(NodeType::Count) => Self::new_natural_number(
-                self.node_count(knowledge)
-                    .expect("NodeType::Count asserts that this exists")
-                    .eval(knowledge, ctx)
-                    .items(knowledge)
-                    .count() as u128,
-            ),
-            Some(NodeType::Query) => {
+            Some(NodeType::Count(expression)) => {
+                ObjectOrAxiomaticQueryValues::Object(Self::new_natural_number(
+                    expression
+                        .eval(knowledge, context)
+                        .set_values(knowledge)
+                        .count() as u128,
+                ))
+            }
+            Some(NodeType::Query(statement_form_object)) => {
                 // TODO: adjust constraint for query
 
-                let statement_form = self
-                    .node_query(knowledge)
-                    .expect("Node::Query expects this");
+                match statement_form_object.statement_form(knowledge) {
+                    StatementForm {
+                        subject: ObjectForm::Specific(unevaluated_subject),
+                        tag: ObjectForm::Specific(unevaluated_tag),
+                        value: ObjectForm::Any,
+                    } => {
+                        // We query for values.
 
-                let statement_form = statement_form.statement_form(knowledge);
+                        let subject = unevaluated_subject.eval(knowledge, context);
+                        let tag = unevaluated_tag.eval(knowledge, context);
 
-                let subject = Option::<Object>::from(statement_form.subject)
-                    .expect("cannot query with no subject")
-                    .eval(knowledge, ctx);
-
-                let tag = Option::<Object>::from(statement_form.tag)
-                    .expect("cannot query with no tag")
-                    .eval(knowledge, ctx);
-
-                let value =
-                    Option::<Object>::from(statement_form.value).map(|c| c.eval(knowledge, ctx));
-
-                let actual_qr = query::values(knowledge, &subject, tag, ctx);
-
-                if let Some(value) = value {
-                    // This is just equal to `NODE_EXISTS`.
-
-                    for item in actual_qr.values() {
-                        if item == value {
-                            return Structure::new_bool(true).into();
-                        }
+                        let query_values_result = query::values(knowledge, &subject, tag, context);
+                        query_values_result.collect_to_set()
                     }
+                    StatementForm {
+                        subject: ObjectForm::Specific(unevaluated_subject),
+                        tag: ObjectForm::Specific(unevaluated_tag),
+                        value: ObjectForm::Specific(unevaluated_value),
+                    } => {
+                        // We check if the statement exists.
 
-                    Structure::new_bool(false).into()
-                } else {
-                    // Collect all values into a set.
-                    actual_qr.collect_to_set()
+                        let subject = unevaluated_subject.eval(knowledge, context);
+                        let tag = unevaluated_tag.eval(knowledge, context);
+                        let value = unevaluated_value.eval(knowledge, context);
+
+                        ObjectOrAxiomaticQueryValues::Object(
+                            Structure::new_bool(query::exists(
+                                knowledge, &subject, tag, value, context,
+                            ))
+                            .into(),
+                        )
+                    }
+                    _ => todo!(),
                 }
             }
-            Some(NodeType::Literal) => self.node_literal(knowledge).unwrap(),
-            Some(NodeType::Computed) => self.capture(knowledge, 0, ctx),
-            Some(NodeType::Parameter) => {
-                ctx.parameter_value(self.node_parameter_depth(knowledge).unwrap() as usize)
-            }
+            Some(NodeType::Literal(literal)) => literal.into(),
+            Some(NodeType::Computed(_)) => self.capture(knowledge, 0, context).into(),
+            Some(NodeType::Parameter(depth)) => context.parameter_value(depth as usize).into(),
             Some(NodeType::Equal) => {
                 let mut values = query::values_axiomatically(
                     knowledge,
                     self,
                     Object::Abstract(Abstract::NODE_EQUAL),
                 )
-                .map(|value| value.eval(knowledge, ctx));
+                .map(|value| value.eval(knowledge, context));
 
-                let first = values.next().unwrap();
-                let equal = values.all(|object| object == first);
+                let first = values.next().unwrap().into_set();
+                let equal = values.all(|object| object.into_set() == first);
 
-                Structure::new_bool(equal).into()
+                Object::Structure(Structure::new_bool(equal)).into()
             }
             Some(NodeType::Or) => {
                 let mut values = query::values_axiomatically(
@@ -352,7 +355,7 @@ impl ObjectExt for Object {
                     self,
                     Object::Abstract(Abstract::NODE_OR),
                 )
-                .map(|value| value.eval(knowledge, ctx));
+                .map(|value| value.eval(knowledge, context));
 
                 Structure::new_bool(values.any(|o| o.is_truthy(knowledge))).into()
             }
@@ -362,7 +365,7 @@ impl ObjectExt for Object {
                     self,
                     Object::Abstract(Abstract::NODE_AND),
                 )
-                .map(|value| value.eval(knowledge, ctx));
+                .map(|value| value.eval(knowledge, context));
 
                 Structure::new_bool(values.all(|value| value.is_truthy(knowledge))).into()
             }
@@ -381,10 +384,10 @@ impl ObjectExt for Object {
 
                 let subject = Option::<Object>::from(subject)
                     .expect("cannot query exists with no subject (not yet)")
-                    .eval(knowledge, ctx);
+                    .eval(knowledge, context);
 
-                let tag = Option::<Object>::from(tag).map(|tag| tag.eval(knowledge, ctx));
-                let value = Option::<Object>::from(value).map(|tag| tag.eval(knowledge, ctx));
+                let tag = Option::<Object>::from(tag).map(|tag| tag.eval(knowledge, context));
+                let value = Option::<Object>::from(value).map(|tag| tag.eval(knowledge, context));
 
                 match (tag, value) {
                     // I think this should be fine.
@@ -392,7 +395,7 @@ impl ObjectExt for Object {
                     (Some(tag), None) => {
                         // Now we only need to check if one value exists.
 
-                        let values_qr = query::values(knowledge, &subject, tag, ctx);
+                        let values_qr = query::values(knowledge, &subject, tag, context);
 
                         Structure::new_bool(values_qr.values().next().is_some()).into()
                     }
@@ -401,36 +404,19 @@ impl ObjectExt for Object {
                     (Some(tag), Some(value)) => {
                         // TODO: perf
 
-                        let values_qr = query::values(knowledge, &subject, tag, ctx);
+                        let values_qr = query::values(knowledge, &subject, tag, context);
                         Structure::new_bool(values_qr.values().find(|v| *v == value).is_some())
                             .into()
                     }
                 }
             }
-            Some(NodeType::Not) => {
-                let value = query::values_axiomatically(
-                    knowledge,
-                    self,
-                    Object::Abstract(Abstract::NODE_NOT),
-                )
-                .next()
-                .unwrap()
-                .eval(knowledge, ctx);
-
-                Structure::new_bool(!value.is_truthy(knowledge)).into()
+            Some(NodeType::Not(expression)) => {
+                Structure::new_bool(!expression.eval(knowledge, context).is_truthy(knowledge))
+                    .into()
             }
-            Some(NodeType::Add) => {
-                let left =
-                    query::values_axiomatically(knowledge, self, Abstract::NODE_ADD_LEFT.into())
-                        .next()
-                        .unwrap()
-                        .eval(knowledge, ctx);
-
-                let right =
-                    query::values_axiomatically(knowledge, self, Abstract::NODE_ADD_RIGHT.into())
-                        .next()
-                        .unwrap()
-                        .eval(knowledge, ctx);
+            Some(NodeType::Add { left, right }) => {
+                let left = left.eval(knowledge, context);
+                let right = right.eval(knowledge, context);
 
                 left.add(knowledge, &right)
             }
@@ -438,7 +424,7 @@ impl ObjectExt for Object {
             None if let Object::Structure(Structure::Any(any_structure)) = self => any_structure
                 .properties()
                 .map(|property| {
-                    let value = property.value.eval(knowledge, ctx);
+                    let value = property.value.eval(knowledge, context);
 
                     let result = if property.value == value {
                         Ok(())
@@ -517,11 +503,11 @@ impl ObjectExt for Object {
     fn add(&self, knowledge: &Structure, other: &Object) -> Object {
         let mut result = Vec::new();
 
-        let left_items = self.items(knowledge);
+        let left_items = self.set_values(knowledge);
 
         for left_item in left_items {
             if let Some(left) = left_item.to_natural_number(knowledge) {
-                let right_items = other.items(knowledge);
+                let right_items = other.set_values(knowledge);
 
                 for right_item in right_items {
                     if let Some(right) = right_item.to_natural_number(knowledge)

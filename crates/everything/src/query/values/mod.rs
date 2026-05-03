@@ -98,13 +98,7 @@ impl<'knowlege, 'subject> QueryValuesResult<'knowlege, 'subject> {
 
     pub fn collect_to_set(self) -> Object {
         match self {
-            Self::Axiomatic(axiomatic_iter) => {
-                // Collect all values to a set.
-
-                let mut properties: Vec<_> = axiomatic_iter.map(Property::new_contains).collect();
-
-                Structure::new(&mut properties).into()
-            }
+            Self::Axiomatic(iterator) => iterator.collect_to_set().into(),
             Self::ComputationResult(result) => result, // <- this is expected to be a set
         }
     }
