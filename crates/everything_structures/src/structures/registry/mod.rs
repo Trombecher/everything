@@ -250,7 +250,8 @@ pub fn resolve(
 /// Calculates meta information about the structure with all
 /// specified properties removed and then all specified properties added.
 ///
-/// Both `remove_properties` and `add_properties` must be sorted.
+/// Both `remove_properties` and `add_properties` must be sorted;
+/// `add_properties` must be deduped.
 fn structure_meta_info(
     base: &Structure,
     remove_properties: &[Property],
@@ -266,7 +267,7 @@ fn structure_meta_info(
         match (base_properties.peek(), add_iter.peek().cloned()) {
             (None, None) => break,
             (None, Some(property_to_add)) => {
-                // There are no base props so
+                // There are no (more) base props so
                 // we just add this change.
 
                 info.add_property(property_to_add);
@@ -299,7 +300,8 @@ fn structure_meta_info(
                         base_properties.next();
                     }
                     Ordering::Equal => {
-                        // Both properties are equal
+                        // Both properties are equal,
+                        // so we just add one (no duplicates!).
 
                         info.add_property(base_property);
 
@@ -320,74 +322,93 @@ fn structure_meta_info(
     info
 }
 
+/// Allocates a new atomic slice of properties.
+///
+/// `add_properties` and `remove_properties` must both be sorted;
+/// additionally, `add_properties` must be deduped.
 fn allocate_new_structure(
     base: &Structure,
     remove_properties: &[Property],
     add_properties: &[Property],
     prop_count: usize,
 ) -> Arc<[Property]> {
-    let mut new_props: Arc<[MaybeUninit<Property>]> = Arc::new_uninit_slice(prop_count);
-    let mut new_props_iter = Arc::get_mut(&mut new_props).unwrap().iter_mut();
+    let mut new_properties: Arc<[MaybeUninit<Property>]> = Arc::new_uninit_slice(prop_count);
+    let mut new_properties_iter = Arc::get_mut(&mut new_properties).unwrap().iter_mut();
 
-    let mut base_props = base.properties().peekable();
-    let mut add_iter = add_properties.iter().peekable();
+    let mut base_properties_iter = base.properties().peekable();
+    let mut add_properties_iter = add_properties.iter().peekable();
 
     // Fill new props
     loop {
-        let base_prop = base_props.peek();
-        let change = add_iter.peek().copied();
-
-        match (base_prop, change) {
+        match (
+            base_properties_iter.peek(),
+            add_properties_iter.peek().cloned(),
+        ) {
             (None, None) => break,
             (None, Some(add_property)) => {
                 // There are no base props so
                 // we just add this change.
 
-                new_props_iter.next().unwrap().write(add_property.clone());
+                new_properties_iter
+                    .next()
+                    .unwrap()
+                    .write(add_property.clone());
 
                 // Consume change.
-                add_iter.next();
+                add_properties_iter.next();
             }
-            (Some(base_prop), None) => {
-                let ignore_property = remove_properties.binary_search(base_prop).is_ok();
+            (Some(base_property), None) => {
+                let ignore_property = remove_properties.binary_search(base_property).is_ok();
 
                 if !ignore_property {
-                    new_props_iter.next().unwrap().write(base_prop.clone());
+                    new_properties_iter
+                        .next()
+                        .unwrap()
+                        .write(base_property.clone());
                 }
 
-                base_props.next();
+                base_properties_iter.next();
             }
-            (Some(base_prop), Some(add_prop)) => match base_prop.cmp(add_prop) {
+            (Some(base_property), Some(add_property)) => match base_property.cmp(add_property) {
                 Ordering::Less => {
                     // The base prop comes first.
 
                     let ignore_property = remove_properties
-                        .binary_search_by(|probe| probe.cmp(base_prop))
+                        .binary_search_by(|probe| probe.cmp(base_property))
                         .is_ok();
 
                     if !ignore_property {
-                        new_props_iter.next().unwrap().write(base_prop.clone());
+                        new_properties_iter
+                            .next()
+                            .unwrap()
+                            .write(base_property.clone());
                     }
 
-                    base_props.next();
+                    base_properties_iter.next();
                 }
                 Ordering::Equal => {
-                    new_props_iter.next().unwrap().write(base_prop.clone());
+                    new_properties_iter
+                        .next()
+                        .unwrap()
+                        .write(base_property.clone());
 
-                    add_iter.next();
-                    base_props.next();
+                    add_properties_iter.next();
+                    base_properties_iter.next();
                 }
                 Ordering::Greater => {
                     // We should choose the property to add.
-                    new_props_iter.next().unwrap().write(add_prop.clone());
+                    new_properties_iter
+                        .next()
+                        .unwrap()
+                        .write(add_property.clone());
 
-                    add_iter.next();
+                    add_properties_iter.next();
                 }
             },
         }
     }
 
-    assert!(new_props_iter.next().is_none());
+    assert!(new_properties_iter.next().is_none());
 
-    unsafe { Arc::<[_]>::assume_init(new_props) }
+    unsafe { Arc::<[_]>::assume_init(new_properties) }
 }

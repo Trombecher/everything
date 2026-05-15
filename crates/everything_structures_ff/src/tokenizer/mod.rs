@@ -22,7 +22,7 @@ fn char_can_start_token(c: Option<char>) -> bool {
         )
 }
 
-/// An iterator over
+/// An iterator over tokens.
 #[derive(Clone)]
 pub struct Tokenizer<'source> {
     chars: PeekableChars<'source>,
@@ -48,17 +48,14 @@ impl<'source> Iterator for Tokenizer<'source> {
     type Item = Token<'source>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let start = self.chars.as_str();
+        let start = self.chars.as_str().as_ptr();
 
         /// Returns a str slice from the start to the cursor of the chars.
         macro_rules! skipped {
             () => {
                 str::from_raw_parts(
-                    start.as_ptr(),
-                    self.chars
-                        .as_str()
-                        .as_ptr()
-                        .offset_from_unsigned(start.as_ptr()),
+                    start,
+                    self.chars.as_str().as_ptr().offset_from_unsigned(start),
                 )
             };
         }
