@@ -9,20 +9,17 @@ use crate::{
     ObjectOrAxiomaticQueryValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, KnowledgeError, NodeType, ObjectForm, PropertyExt, StatementForm,
-        StructureExt, iter::IteratorExtNextAndLast,
+        AbstractExt, KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt,
+        iter::IteratorExtNextAndLast,
     },
     query::{self, AxiomaticQueryValues},
 };
 
 pub trait ObjectExt {
-    /// Extracts the first [Abstract::NODE_EXISTS] from `self`.
-    fn node_exists(&self, knowledge: &Structure) -> Option<Object>;
-
-    /// Extracts the first [Abstract::NODE_COUNT] from `self`.
+    /// Extracts the first (and last) [Abstract::NODE_COUNT] from `self`.
     fn node_count(&self, knowledge: &Structure) -> Option<Object>;
 
-    /// Extracts the first [Abstract::COMPUTED] from `self`.
+    /// Extracts the first (and last) [Abstract::COMPUTED] from `self`.
     fn computed_body(&self, knowledge: &Structure) -> Option<Object>;
 
     fn capture(
@@ -84,7 +81,7 @@ pub trait ObjectExt {
 
 impl ObjectExt for Object {
     fn is_natural_number(&self, knowledge: &Structure) -> bool {
-        if self.exact_natural_number().is_some() {
+        if self.exact_integer().is_some() {
             // Fast path of exact natural numbers.
             return true;
         }
@@ -214,10 +211,6 @@ impl ObjectExt for Object {
         query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::NODE_QUERY)).next()
     }
 
-    fn node_exists(&self, knowledge: &Structure) -> Option<Self> {
-        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::NODE_EXISTS)).next()
-    }
-
     #[instrument(skip(knowledge), ret)]
     fn capture(
         &self,
@@ -288,7 +281,7 @@ impl ObjectExt for Object {
 
         match self.node_type(knowledge) {
             Some(NodeType::Count(expression)) => {
-                ObjectOrAxiomaticQueryValues::Object(Self::new_natural_number(
+                ObjectOrAxiomaticQueryValues::Object(Self::new_integer(
                     expression
                         .eval(knowledge, context)
                         .set_values(knowledge)
@@ -369,51 +362,10 @@ impl ObjectExt for Object {
 
                 Structure::new_bool(values.all(|value| value.is_truthy(knowledge))).into()
             }
-            Some(NodeType::Exists) => {
-                // TODO: discuss exists form
-
-                let statement_form = self
-                    .node_exists(knowledge)
-                    .expect("NodeType::Exists asserts this");
-
-                let StatementForm {
-                    subject,
-                    tag,
-                    value,
-                } = statement_form.statement_form(knowledge);
-
-                let subject = Option::<Object>::from(subject)
-                    .expect("cannot query exists with no subject (not yet)")
-                    .eval(knowledge, context);
-
-                let tag = Option::<Object>::from(tag).map(|tag| tag.eval(knowledge, context));
-                let value = Option::<Object>::from(value).map(|tag| tag.eval(knowledge, context));
-
-                match (tag, value) {
-                    // I think this should be fine.
-                    (None, None) => Structure::new_bool(true).into(),
-                    (Some(tag), None) => {
-                        // Now we only need to check if one value exists.
-
-                        let values_qr = query::values(knowledge, &subject, tag, context);
-
-                        Structure::new_bool(values_qr.values().next().is_some()).into()
-                    }
-                    // TODO: ?
-                    (None, Some(_)) => Structure::new_bool(true).into(),
-                    (Some(tag), Some(value)) => {
-                        // TODO: perf
-
-                        let values_qr = query::values(knowledge, &subject, tag, context);
-                        Structure::new_bool(values_qr.values().find(|v| *v == value).is_some())
-                            .into()
-                    }
-                }
-            }
-            Some(NodeType::Not(expression)) => {
-                Structure::new_bool(!expression.eval(knowledge, context).is_truthy(knowledge))
-                    .into()
-            }
+            Some(NodeType::Not(expression)) => Object::Structure(Structure::new_bool(
+                !expression.eval(knowledge, context).is_truthy(knowledge),
+            ))
+            .into(),
             Some(NodeType::Add { left, right }) => {
                 let left = left.eval(knowledge, context);
                 let right = right.eval(knowledge, context);
@@ -461,10 +413,8 @@ impl ObjectExt for Object {
         ctx: &mut EvaluationContext,
     ) -> Object {
         if let Some((parameter, next_parameters)) = parameters.split_first()
-            && let Some(NodeType::Computed) = self.node_type(knowledge)
+            && let Some(NodeType::Computed(body)) = self.node_type(knowledge)
         {
-            let body = self.computed_body(knowledge).unwrap();
-
             ctx.push(FunctionContext {
                 function: self.clone(),
                 parameter: parameter.clone(),
@@ -482,12 +432,12 @@ impl ObjectExt for Object {
 
     #[instrument(skip(knowledge), ret)]
     fn to_natural_number(&self, knowledge: &Structure) -> Option<u128> {
-        if let Some(n) = self.exact_natural_number() {
+        if let Some(n) = self.exact_integer() {
             // Fast path for exact natural numbers.
             Some(n)
         } else {
-            query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::SUCCESSOR_OF))
-                .next()
+            query::values_axiomatically(knowledge, self, Abstract::SUCCESSOR_OF.into())
+                .next_and_last()
                 .and_then(|inner| inner.to_natural_number(knowledge))
                 .map(|n| n + 1)
         }
@@ -501,24 +451,16 @@ impl ObjectExt for Object {
     }
 
     fn add(&self, knowledge: &Structure, other: &Object) -> Object {
-        let mut result = Vec::new();
-
-        let left_items = self.set_values(knowledge);
-
-        for left_item in left_items {
-            if let Some(left) = left_item.to_natural_number(knowledge) {
-                let right_items = other.set_values(knowledge);
-
-                for right_item in right_items {
-                    if let Some(right) = right_item.to_natural_number(knowledge)
-                        && let Some(sum) = left.checked_add(right)
-                    {
-                        result.push(Property::new_contains(Object::new_natural_number(sum)))
-                    }
-                }
+        if let Some(left) = self.to_natural_number(knowledge)
+            && let Some(right) = other.to_natural_number(knowledge)
+        {
+            if let Some(sum) = left.checked_add(right) {
+                Object::new_integer(sum)
+            } else {
+                Abstract::ARITHMETIC_OVERFLOW.into()
             }
+        } else {
+            Abstract::UNDEFINED.into()
         }
-
-        Structure::new(result.as_mut_slice()).into()
     }
 }

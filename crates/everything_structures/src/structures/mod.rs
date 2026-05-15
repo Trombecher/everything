@@ -6,7 +6,7 @@ mod registry;
 mod tests;
 mod text;
 
-use std::{fmt::Debug, hash::Hash, num::NonZeroU128};
+use std::{fmt::Debug, hash::Hash, num::NonZeroI128};
 
 pub use any::*;
 pub use byte::*;
@@ -23,9 +23,22 @@ pub enum Structure {
     /// The empty structure `{}`.
     Empty,
 
-    /// A natural number of this form `{(@SUCCESSOR_OF, <NaturalNumber> | @ZERO)}`
-    /// where n is an exact natural number.
-    NaturalNumber(NonZeroU128),
+    /// An integer. Positive integers are of this form
+    ///
+    /// ```plain
+    /// {(@SUCCESSOR_OF, <positive integer> | @ZERO)}
+    /// ```
+    ///
+    /// and negative integers are of this form:
+    ///
+    /// ```plain
+    /// {(@PREDECESSOR_OF, <negative integer> | @ZERO)}
+    /// ```
+    ///
+    /// Note that the associated field in this variant stores
+    /// the **actual integer that this structure represents**,
+    /// not the value of the property.
+    Integer(NonZeroI128),
 
     /// A list of bytes.
     ///
@@ -109,7 +122,7 @@ impl Structure {
         registry::resolve(self, remove_properties, add_properties)
     }
 
-    /// Returns `Some(_)` if `self` is an [AnyStructure];
+    /// Returns `Some(_)` if `self` is an [`AnyStructure`];
     /// else `None`.
     pub fn any(&self) -> Option<&AnyStructure> {
         match self {
@@ -122,7 +135,7 @@ impl Structure {
     pub fn properties<'structure>(&'structure self) -> StructureProperties<'structure> {
         match self {
             Self::Empty => StructureProperties::Empty,
-            Self::NaturalNumber(n) => StructureProperties::SuccessorOf(n.get() - 1),
+            Self::Integer(n) => StructureProperties::Integer(*n),
             Self::Bytes(bytes) => StructureProperties::Bytes(bytes.properties()),
             Self::Text(text) => StructureProperties::Text(text.properties()),
             Self::Any(any_structure) => StructureProperties::Any(any_structure.properties()),
@@ -144,8 +157,8 @@ impl Structure {
     pub fn has(&self, tag: &Object, value: &Object) -> bool {
         match self {
             Self::Empty => false,
-            Self::NaturalNumber(non_zero) => {
-                let self_as_property = Property::new_successor_of(non_zero.get() - 1);
+            Self::Integer(non_zero) => {
+                let self_as_property = Property::new_integer(*non_zero);
                 &self_as_property.tag == tag && &self_as_property.value == value
             }
             Self::Bytes(bytes) => bytes.has(tag, value),
@@ -172,13 +185,7 @@ impl Structure {
     #[must_use]
     pub fn values<'props>(&'props self, tag: Object) -> StructureValues<'props> {
         match self {
-            Self::NaturalNumber(non_zero) => {
-                if tag == Object::Abstract(Abstract::SUCCESSOR_OF) {
-                    StructureValues::SuccessorOf(non_zero.get() - 1)
-                } else {
-                    StructureValues::None
-                }
-            }
+            Self::Integer(non_zero) => StructureValues::Integer(*non_zero),
             Self::Bytes(bytes) => StructureValues::Bytes(bytes.values(tag)),
             Self::Text(text) => StructureValues::Text(text.values(tag)),
             Self::Any(any_structure) => StructureValues::Any(any_structure.values(tag)),
@@ -205,9 +212,15 @@ impl Structure {
                     StructureTags::None
                 }
             }
-            Self::NaturalNumber(non_zero) => {
-                if Property::new_successor_of(non_zero.get() - 1).value == value {
-                    StructureTags::SuccessorOf
+            Self::Integer(non_zero) => {
+                let self_as_property = Property::new_integer(*non_zero);
+
+                if self_as_property.value == value {
+                    if self_as_property.tag == Object::Abstract(Abstract::SUCCESSOR_OF) {
+                        StructureTags::SuccessorOf
+                    } else {
+                        StructureTags::PredecessorOf
+                    }
                 } else {
                     StructureTags::None
                 }
@@ -293,7 +306,7 @@ impl Debug for Structure {
         match self {
             Self::Empty => f.write_str("{}"),
             Self::Any(any) => any.fmt(f),
-            Self::NaturalNumber(n) => n.fmt(f),
+            Self::Integer(n) => n.fmt(f),
             Self::Text(t) => t.fmt(f),
             Self::Bytes(b) => b.fmt(f),
             Self::Character(c) => write!(f, "'{c}'"),
@@ -320,7 +333,7 @@ impl PartialEq<[Property]> for Structure {
 #[derive(Clone)]
 pub enum StructureProperties<'structure> {
     Empty,
-    SuccessorOf(u128),
+    Integer(NonZeroI128),
     CodePoint(char),
     Byte(ByteProperties),
     Any(AnyStructureProperties<'structure>),
@@ -334,11 +347,11 @@ impl<'structure> Iterator for StructureProperties<'structure> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::Empty => None,
-            Self::SuccessorOf(n) => {
-                let n = *n;
+            Self::Integer(n) => {
+                let property = Property::new_integer(*n);
                 *self = Self::Empty;
 
-                Some(Property::new_successor_of(n))
+                Some(property)
             }
             Self::CodePoint(c) => {
                 let c = *c;
@@ -368,7 +381,9 @@ impl std::fmt::Debug for StructureProperties<'_> {
 #[derive(Clone)]
 pub enum StructureValues<'properties> {
     None,
-    SuccessorOf(u128),
+    /// Either "successor of" iff the value is positive;
+    /// else "predecessor of".
+    Integer(NonZeroI128),
     CodePoint(char),
     Byte(ByteValues),
     Bytes(BytesStructureValues<'properties>),
@@ -382,11 +397,11 @@ impl<'properties> Iterator for StructureValues<'properties> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::None => None,
-            Self::SuccessorOf(n) => {
-                let n = *n;
+            Self::Integer(n) => {
+                let value = Property::new_integer(*n).value;
                 *self = Self::None;
 
-                Some(Object::new_natural_number(n))
+                Some(value)
             }
             Self::CodePoint(c) => {
                 let c = *c;
@@ -417,6 +432,7 @@ impl std::fmt::Debug for StructureValues<'_> {
 pub enum StructureTags<'properties> {
     None,
     SuccessorOf,
+    PredecessorOf,
     ListItem,
     Tail,
     CodePoint,
@@ -433,6 +449,10 @@ impl Iterator for StructureTags<'_> {
             Self::SuccessorOf => {
                 *self = Self::None;
                 Some(Object::Abstract(Abstract::SUCCESSOR_OF))
+            }
+            Self::PredecessorOf => {
+                *self = Self::None;
+                Some(Object::Abstract(Abstract::PREDECESSOR_OF))
             }
             Self::ListItem => {
                 *self = Self::None;

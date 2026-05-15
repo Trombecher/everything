@@ -8,13 +8,10 @@ use crate::{
 
 #[test]
 fn natural_number() {
-    assert_eq!(
-        Object::new_natural_number(0),
-        Object::Abstract(Abstract::ZERO)
-    );
+    assert_eq!(Object::new_integer(0), Object::Abstract(Abstract::ZERO));
 
     assert_eq!(
-        Object::new_natural_number(2),
+        Object::new_integer(2),
         Structure::new(&mut [Property {
             tag: Object::Abstract(Abstract::SUCCESSOR_OF),
             value: Structure::new(&mut [Property {
@@ -127,7 +124,7 @@ fn eval_count() {
     assert_eq!(
         Object::Structure(Structure::new_node_count(Structure::Empty.into()))
             .eval(&BASE, &mut Default::default()),
-        Object::new_natural_number(0)
+        Object::new_integer(0)
     );
 
     assert_eq!(
@@ -142,7 +139,7 @@ fn eval_count() {
             .into()
         ))
         .eval(&BASE, &mut Default::default()),
-        Object::new_natural_number(2)
+        Object::new_integer(2)
     );
 }
 

@@ -66,6 +66,4 @@ impl<'knowledge, 'subject> ObjectOrAxiomaticQueryValues<'knowledge, 'subject> {
             ObjectOrAxiomaticQueryValues::AxiomaticQueryValues(iter) => iter.next().is_some(),
         }
     }
-
-    fn add(&self, knowledge: &Structure, other: &Object) -> ObjectOrAxiomaticQueryValues {}
 }

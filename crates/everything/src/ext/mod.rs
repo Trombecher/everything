@@ -28,7 +28,6 @@ pub enum NodeType {
     Literal(Object),
     And,
     FunctionSelf(Object),
-    Exists(Object),
     Parameter(u128),
     Count(Object),
     Query(Object),

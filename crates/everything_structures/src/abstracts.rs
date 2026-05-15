@@ -8,11 +8,14 @@
 pub struct Abstract(pub u128);
 
 impl Abstract {
-    /// The abstract object 0.
+    /// The abstract object 0 (zero).
     pub const ZERO: Self = Self(2148623498527692884679683682469014909);
 
-    /// Denotes that the current object is a successor of some child number.
+    /// Denotes that the current object is a successor of some integer.
     pub const SUCCESSOR_OF: Self = Self(2148623541928107461725235547620677496);
+
+    /// Denotes that the current object is a predecessor of some integer.
+    pub const PREDECESSOR_OF: Self = Self(2150448436013648618415526635010123333);
 
     /// The slot for the item value in an list.
     pub const LIST_ITEM: Self = Self(2148623561006058368074852138222840554);

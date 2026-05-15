@@ -35,11 +35,13 @@ mod Structure {
     }
 
     #[test]
-    fn specialization() {
-        assert_eq!(
-            Structure::NaturalNumber(NonZeroU128::new(1).unwrap()),
-            Structure::new(&mut [Property::new_successor_of(0)])
-        )
+    fn integer_specialization() {
+        for i in (-259..1000_i128).filter_map(|x| NonZeroI128::new(x * 7)) {
+            assert_eq!(
+                Structure::Integer(i),
+                Structure::new(&mut [Property::new_integer(i)])
+            );
+        }
     }
 
     #[test]

@@ -9,7 +9,7 @@ use std::{
     cmp::Ordering,
     hash::{DefaultHasher, Hash, Hasher},
     mem::MaybeUninit,
-    num::NonZeroU128,
+    num::NonZeroI128,
     sync::{Arc, LazyLock},
 };
 
@@ -22,7 +22,7 @@ use crate::{
 
 enum Specialization<'info> {
     Empty,
-    NaturalNumber(NonZeroU128),
+    Integer(NonZeroI128),
     Byte(Byte),
     Character(char),
     Bytes {
@@ -39,7 +39,8 @@ enum Specialization<'info> {
 struct StructureMetaInfo {
     hasher: DefaultHasher,
     prop_count: usize,
-    last_successor_of: Option<u128>,
+    last_successor_of: Option<i128>,
+    last_predecessor_of: Option<i128>,
     last_code_point: Option<char>,
     last_list_item: Option<Object>,
     last_list_tail: Option<Object>,
@@ -50,16 +51,23 @@ impl StructureMetaInfo {
     pub fn add_property(&mut self, property: &Property) {
         match property.tag {
             Object::Abstract(Abstract::SUCCESSOR_OF) => {
-                if let Some(predecessor) = property.value.exact_natural_number()
+                if let Some(predecessor) = property.value.exact_integer()
                     && self.prop_count == 0
                 {
                     self.last_successor_of = Some(predecessor)
                 }
             }
+            Object::Abstract(Abstract::PREDECESSOR_OF) => {
+                if let Some(successor) = property.value.exact_integer()
+                    && self.prop_count == 0
+                {
+                    self.last_predecessor_of = Some(successor)
+                }
+            }
             Object::Abstract(Abstract::CODE_POINT) => {
                 if self.prop_count == 0
-                    && let Some(maybe_char) = property.value.exact_natural_number()
-                    && maybe_char <= u32::MAX as u128
+                    && let Some(maybe_char) = property.value.exact_integer()
+                    && (0..=u32::MAX as i128).contains(&maybe_char)
                     && let Ok(c) = char::try_from(maybe_char as u32)
                 {
                     self.last_code_point = Some(c)
@@ -101,11 +109,28 @@ impl StructureMetaInfo {
         match self {
             Self { prop_count: 0, .. } => Some(Specialization::Empty),
             Self {
-                last_successor_of: Some(n),
+                last_successor_of: Some(predecessor),
                 prop_count: 1,
                 ..
-            } => Some(Specialization::NaturalNumber(
-                NonZeroU128::new(n.checked_add(1).unwrap()).unwrap(),
+            } => Some(Specialization::Integer(
+                NonZeroI128::new(
+                    predecessor
+                        .checked_add(1)
+                        .expect("yo integer too big for ts"),
+                )
+                .unwrap(),
+            )),
+            Self {
+                last_predecessor_of: Some(successor),
+                prop_count: 1,
+                ..
+            } => Some(Specialization::Integer(
+                NonZeroI128::new(
+                    successor
+                        .checked_sub(1)
+                        .expect("yo integer too small for ts"),
+                )
+                .unwrap(),
             )),
             Self {
                 last_code_point: Some(c),
@@ -181,7 +206,7 @@ pub fn resolve(
 
     match info.specialization() {
         Some(Specialization::Empty) => return Structure::Empty,
-        Some(Specialization::NaturalNumber(n)) => return Structure::NaturalNumber(n),
+        Some(Specialization::Integer(n)) => return Structure::Integer(n),
         Some(Specialization::Character(c)) => return Structure::Character(c),
         Some(Specialization::Text { item, tail }) => {
             return Structure::Text(TextStructure::from_parts(item, tail.as_ref()));

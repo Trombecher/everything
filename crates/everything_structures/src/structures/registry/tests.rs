@@ -1,6 +1,6 @@
 use std::{
     hash::{DefaultHasher, Hash, Hasher},
-    num::NonZeroU128,
+    num::NonZeroI128,
 };
 
 use crate::{Abstract, Bit, BitSlot, Object, Property, Structure};
@@ -30,12 +30,12 @@ fn structure_meta_info_of_empty() {
 /// [Structure::Empty] is the result.
 #[test]
 fn structure_meta_info_of_empty_2() {
-    let base = Structure::NaturalNumber(NonZeroU128::new(42).unwrap());
+    let base = Structure::Integer(NonZeroI128::new(42).unwrap());
     let mut info = super::structure_meta_info(
         &base,
         &[Property {
             tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-            value: Object::Structure(Structure::NaturalNumber(NonZeroU128::new(41).unwrap())),
+            value: Object::Structure(Structure::Integer(NonZeroI128::new(41).unwrap())),
         }],
         &[],
     );
@@ -57,10 +57,10 @@ fn structure_meta_info_of_empty_2() {
 }
 
 #[test]
-fn structure_meta_info_of_natural_number() {
+fn structure_meta_info_of_integer() {
     const PROP: Property = Property {
         tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-        value: Object::Structure(Structure::NaturalNumber(NonZeroU128::new(41).unwrap())),
+        value: Object::Structure(Structure::Integer(NonZeroI128::new(41).unwrap())),
     };
 
     let base = Structure::Empty;

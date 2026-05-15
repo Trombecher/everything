@@ -90,8 +90,6 @@ pub trait StructureExt {
     /// Constructs a parameter node.
     fn new_node_parameter(depth: usize) -> Self;
 
-    fn new_node_exists(statement: Object) -> Self;
-
     fn has_exactly_one_value_on(&self, tag: Object) -> bool;
 
     fn is_knowledge(&self) -> Result<(), KnowledgeError>;
@@ -135,7 +133,7 @@ impl StructureExt for Structure {
 
     fn has_exactly_one_value_on(&self, tag: Object) -> bool {
         match self {
-            Self::NaturalNumber(_) if tag == Object::Abstract(Abstract::SUCCESSOR_OF) => true,
+            Self::Integer(_) if tag == Object::Abstract(Abstract::SUCCESSOR_OF) => true,
             Self::Any(any) => {
                 let mut values = any.values(tag);
                 values.next().is_some() && values.next().is_none()
@@ -276,13 +274,6 @@ impl StructureExt for Structure {
     fn new_node_and<const N: usize>(nodes: [Object; N]) -> Self {
         let mut properties = nodes.map(Property::new_node_and);
         Self::new(&mut properties)
-    }
-
-    fn new_node_exists(statement_node: Object) -> Self {
-        Self::new(&mut [Property {
-            tag: Object::Abstract(Abstract::NODE_EXISTS),
-            value: statement_node,
-        }])
     }
 
     fn new_node_parameter(depth: usize) -> Self {

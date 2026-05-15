@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::{hash::Hash, num::NonZeroU128};
+use std::{hash::Hash, num::NonZeroI128};
 
 use crate::{Abstract, structures::Structure};
 
@@ -12,19 +12,23 @@ pub enum Object {
 }
 
 impl Object {
+    /// Creates an integer object. This will yield a structure
+    /// iff the given integer is non-zero; [`Abstract::ZERO`] else.
     #[must_use]
-    pub const fn new_natural_number(n: u128) -> Self {
-        match NonZeroU128::new(n) {
+    pub const fn new_integer(integer: i128) -> Self {
+        match NonZeroI128::new(integer) {
             None => Self::Abstract(Abstract::ZERO),
-            Some(n) => Self::Structure(Structure::NaturalNumber(n)),
+            Some(n) => Self::Structure(Structure::Integer(n)),
         }
     }
 
+    /// Tries to extract the integer value out of an object
+    /// iff the object is an exact integer value.
     #[must_use]
-    pub const fn exact_natural_number(&self) -> Option<u128> {
+    pub const fn exact_integer(&self) -> Option<i128> {
         if let Self::Abstract(Abstract::ZERO) = self {
             Some(0)
-        } else if let Self::Structure(Structure::NaturalNumber(n)) = self {
+        } else if let Self::Structure(Structure::Integer(n)) = self {
             Some(n.get())
         } else {
             None

@@ -5,10 +5,10 @@ mod Property {
     #[test]
     fn successor_of() {
         assert_eq!(
-            Property::new_successor_of(42),
+            Property::new_successor_of(Object::new_integer(42)),
             Property {
                 tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-                value: Object::new_natural_number(42)
+                value: Object::new_integer(42)
             }
         )
     }

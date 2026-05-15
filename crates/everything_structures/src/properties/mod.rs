@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::hash::Hash;
+use std::{hash::Hash, num::NonZeroI128};
 
 use crate::{Abstract, Bit, BitSlot, objects::Object};
 
@@ -13,17 +13,51 @@ pub struct Property {
 }
 
 impl Property {
-    /// Creates a `successor_of` property for the given `n`.
-    /// It will look like this:
+    /// Creates a `SUCCESSOR_OF` property for the given `object`.
+    /// It will look like this.
     ///
     /// ```plain
-    /// (SUCCESSOR_OF, n)
+    /// (@SUCCESSOR_OF, object)
     /// ```
     #[must_use]
-    pub const fn new_successor_of(n: u128) -> Self {
+    pub const fn new_successor_of(object: Object) -> Self {
         Self {
             tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-            value: Object::new_natural_number(n),
+            value: object,
+        }
+    }
+
+    /// Creates a `PREDECESSOR_OF` property for the given `object`.
+    /// It will look like this.
+    ///
+    /// ```plain
+    /// (@PREDECESSOR_OF, object)
+    /// ```
+    #[must_use]
+    pub const fn new_predecessor_of(object: Object) -> Self {
+        Self {
+            tag: Object::Abstract(Abstract::PREDECESSOR_OF),
+            value: object,
+        }
+    }
+
+    /// Calls either [`Self::new_successor_of`] or
+    /// [`Self::new_predecessor_of`], depending on whether
+    /// the given number is positive or negative (respectively).
+    ///
+    /// This function returns a [`Property`] which (alone as
+    /// a structure) would represent the given `n`. So it
+    /// decrements (if positive) and increments `n`
+    /// (if negative) before converting it to an object.
+    pub const fn new_integer(n: NonZeroI128) -> Self {
+        let n = n.get();
+
+        if n > 0 {
+            Self::new_successor_of(Object::new_integer(n - 1))
+        } else if n < 0 {
+            Self::new_predecessor_of(Object::new_integer(n + 1))
+        } else {
+            unreachable!()
         }
     }
 
@@ -31,7 +65,7 @@ impl Property {
     pub const fn new_character(c: char) -> Self {
         Self {
             tag: Object::Abstract(Abstract::CODE_POINT),
-            value: Object::new_natural_number(c as u32 as u128),
+            value: Object::new_integer(c as u32 as i128),
         }
     }
 

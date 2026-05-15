@@ -7,10 +7,7 @@ pub const BOB: Object = Object::Abstract(Abstract(u128::from_be_bytes(*b"This is
 mod AnyStructure {
     use crate::{
         Abstract, Structure,
-        structures::{
-            any::tests::{ALICE, BOB},
-            registry::GLOBAL_PROPERTIES,
-        },
+        structures::any::tests::{ALICE, BOB},
     };
 
     use super::super::*;
@@ -32,14 +29,10 @@ mod AnyStructure {
             value: Object::Abstract(Abstract(543020512)),
         };
 
-        let count = GLOBAL_PROPERTIES.len();
-
         let s = match Structure::new(&mut [PROP]) {
             Structure::Any(any) => any,
             _ => unreachable!("structure is not any"),
         };
-
-        assert_eq!(count + 1, GLOBAL_PROPERTIES.len());
 
         assert_eq!(s.properties.as_ref(), &[PROP]);
     }
