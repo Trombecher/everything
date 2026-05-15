@@ -22,18 +22,14 @@ pub trait Parsable: Sized {
 
 impl Parsable for Structure {
     fn parse<'source>(input: &'source str) -> Result<Self, Error<'source>> {
-        let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(
-            input.chars(),
-        ))));
+        let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(input))));
         parser.parse_structure()
     }
 }
 
 impl Parsable for Object {
     fn parse<'source>(input: &'source str) -> Result<Self, Error<'source>> {
-        let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(
-            input.chars(),
-        ))));
+        let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(input))));
         parser.parse_object()
     }
 }

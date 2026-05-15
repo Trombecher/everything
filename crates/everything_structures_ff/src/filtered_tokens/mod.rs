@@ -34,11 +34,11 @@ impl<'source> TryFrom<Token<'source>> for FilteredToken<'source> {
             Token::ClosingBrace => Ok(Self::ClosingBrace),
             Token::Comma => Ok(Self::Comma),
             Token::Invalid(invalid) => Ok(Self::Invalid(invalid)),
-            Token::NaturalNumber(digits) => {
-                if let Some(n) = digits.parse() {
-                    Ok(Self::Object(Object::new_natural_number(n)))
+            Token::Integer(source) => {
+                if let Some(n) = source.parse() {
+                    Ok(Self::Object(Object::new_integer(n)))
                 } else {
-                    Ok(Self::Invalid(digits.as_str()))
+                    Ok(Self::Invalid(source.as_str()))
                 }
             }
             Token::Byte(byte) => Ok(Self::Object(Object::Structure(byte.parse().into()))),

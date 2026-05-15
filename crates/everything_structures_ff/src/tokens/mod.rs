@@ -4,7 +4,6 @@ mod tests;
 use core::{
     hint::{assert_unchecked, unreachable_unchecked},
     iter,
-    mem::transmute,
     num::NonZeroUsize,
     str,
 };
@@ -15,7 +14,7 @@ use parser_tools::TokenLength;
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Token<'source> {
     /// An abstract literal `@1234567890`
-    Abstract(Digits<'source>),
+    Abstract(AbstractSource<'source>),
 
     /// `(`
     OpeningParenthesis,
@@ -54,89 +53,154 @@ pub enum Token<'source> {
     Text(TextSource<'source>),
 
     /// A natural number literal.
-    NaturalNumber(Digits<'source>),
+    Integer(IntegerSource<'source>),
 }
 
 impl<'source> TokenLength for Token<'source> {
     fn length(&self) -> u32 {
         match self {
-            Self::Abstract(Digits(digits)) => digits.len() as u32 + 1,
+            Self::Abstract(source) => source.length() as u32,
             Self::Whitespace(ws) => ws.len() as u32,
             Self::Invalid(i) => i.len() as u32,
             Self::LineComment(lc) => lc.len() as u32,
-            Self::NaturalNumber(Digits(digits)) => digits.len() as u32,
+            Self::Integer(source) => source.length() as u32,
+            Self::Byte(byte_source) => byte_source.as_str().len() as u32,
+            Self::Bytes(bytes_source) => bytes_source.as_str().len() as u32,
+            Self::Character(character_source) => character_source.as_str().len() as u32,
+            Self::Text(text_source) => text_source.as_str().len() as u32,
             Self::OpeningParenthesis
             | Self::ClosingParenthesis
             | Self::OpeningBrace
             | Self::ClosingBrace
             | Self::Comma => 1,
-            Self::Byte(byte_source) => byte_source.as_str().len() as u32,
-            Self::Bytes(bytes_source) => bytes_source.as_str().len() as u32,
-            Self::Character(character_source) => character_source.as_str().len() as u32,
-            Self::Text(text_source) => text_source.as_str().len() as u32,
         }
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug, Eq)]
-#[repr(u8)]
-pub enum Digit {
-    Zero = b'0',
-    One = b'1',
-    Two = b'2',
-    Three = b'3',
-    Four = b'4',
-    Five = b'5',
-    Six = b'6',
-    Seven = b'7',
-    Eight = b'8',
-    Nine = b'9',
-}
-
-impl TryFrom<char> for Digit {
-    type Error = ();
-
-    fn try_from(value: char) -> Result<Self, Self::Error> {
-        match value {
-            '0' => Ok(Self::Zero),
-            '1' => Ok(Self::One),
-            '2' => Ok(Self::Two),
-            '3' => Ok(Self::Three),
-            '4' => Ok(Self::Four),
-            '5' => Ok(Self::Five),
-            '6' => Ok(Self::Six),
-            '7' => Ok(Self::Seven),
-            '8' => Ok(Self::Eight),
-            '9' => Ok(Self::Nine),
-            _ => Err(()),
-        }
-    }
-}
-
+/// Source string wrapper for an abstract object. Must match this regex:
+///
+/// ```regex
+/// @\d+
+/// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Digits<'source>(pub &'source [Digit]);
+pub struct AbstractSource<'source>(&'source str);
 
-impl<'source> Digits<'source> {
-    /// Transmutes a `&[u8]` into a `&[Digit]` inside `Self`.
-    ///
-    /// # SAFETY
-    ///
-    /// You must guarantee that the input slice is only [`Digit`]s.
-    pub const unsafe fn new_unchecked(digits: &'source [u8]) -> Self {
-        Self(unsafe { transmute::<&[u8], &[Digit]>(digits) })
+impl<'source> AbstractSource<'source> {
+    #[must_use]
+    pub const unsafe fn new_unchecked(source: &'source str) -> Self {
+        Self(source)
     }
 
-    /// Parses the digits to a [`u128`]. Returns [`None`] iff the computation overflows.
+    #[must_use]
+    pub const fn length(self) -> usize {
+        self.0.len()
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'source str {
+        self.0
+    }
+
     #[must_use]
     pub fn parse(self) -> Option<u128> {
-        self.0.iter().copied().try_fold(0_u128, |n, item| {
-            n.checked_mul(10)?.checked_add((item as u8 - b'0') as u128)
-        })
+        let mut bytes = self.0.bytes();
+
+        match bytes.next() {
+            Some(b'@') => {}
+            _ => unsafe { unreachable_unchecked() },
+        }
+
+        let mut n = 0_u128;
+
+        loop {
+            match bytes.next() {
+                Some(digit @ b'0'..=b'9') => {
+                    n = n
+                        .checked_mul(10)
+                        .and_then(|n| n.checked_add((digit - b'0') as u128))?;
+                }
+                None => break,
+                _ => unsafe { unreachable_unchecked() },
+            }
+        }
+
+        Some(n)
+    }
+}
+
+/// A string that matches the following regex:
+///
+/// ```regex
+/// -?\d+
+/// ```
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct IntegerSource<'source>(&'source str);
+
+impl<'source> IntegerSource<'source> {
+    /// # SAFETY
+    ///
+    /// It must match the regex of this type.
+    pub const unsafe fn new_unchecked(source: &'source str) -> Self {
+        Self(source)
+    }
+
+    /// Parses the digits to a [`i128`]. Returns [`None`] iff the computation overflows.
+    #[must_use]
+    pub fn parse(self) -> Option<i128> {
+        enum Info {
+            Negative,
+            Positive(i128),
+        }
+
+        let mut bytes = self.0.bytes();
+
+        let info = match bytes.next() {
+            Some(b'-') => Info::Negative,
+            Some(digit @ b'0'..=b'9') => Info::Positive((digit - b'0') as i128),
+            _ => unsafe { unreachable_unchecked() },
+        };
+
+        if let Info::Positive(mut n) = info {
+            loop {
+                match bytes.next() {
+                    Some(digit @ b'0'..=b'9') => {
+                        n = n
+                            .checked_mul(10)
+                            .and_then(|n| n.checked_add((digit - b'0') as i128))?;
+                    }
+                    None => break,
+                    Some(_) => unsafe { unreachable_unchecked() },
+                }
+            }
+
+            Some(n)
+        } else {
+            let mut n = 0_i128;
+
+            loop {
+                match bytes.next() {
+                    Some(digit @ b'0'..=b'9') => {
+                        n = n
+                            .checked_mul(10)
+                            .and_then(|n| n.checked_sub((digit - b'0') as i128))?;
+                    }
+                    None => break,
+                    Some(_) => unsafe { unreachable_unchecked() },
+                }
+            }
+
+            Some(n)
+        }
     }
 
     #[must_use]
     pub fn as_str(self) -> &'source str {
-        unsafe { transmute(self.0) }
+        self.0
+    }
+
+    #[must_use]
+    pub const fn length(self) -> usize {
+        self.0.len()
     }
 }
 

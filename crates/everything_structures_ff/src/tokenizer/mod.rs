@@ -1,14 +1,11 @@
 #[cfg(test)]
 mod tests;
 
-use core::{
-    slice,
-    str::{self, Chars},
-};
+use core::str;
 
 use parser_tools::PeekableChars;
 
-use crate::{ByteSource, CharacterSource, Digit, Digits, TextSource, Token};
+use crate::{AbstractSource, ByteSource, CharacterSource, IntegerSource, TextSource, Token};
 
 #[must_use]
 fn is_whitespace(c: char) -> bool {
@@ -30,9 +27,9 @@ pub struct Tokenizer<'source> {
 
 impl<'source> Tokenizer<'source> {
     #[must_use]
-    pub const fn new(chars: Chars<'source>) -> Self {
+    pub fn new(source: &'source str) -> Self {
         Self {
-            chars: PeekableChars::new(chars),
+            chars: PeekableChars::new(source.chars()),
         }
     }
 }
@@ -87,18 +84,14 @@ impl<'source> Iterator for Tokenizer<'source> {
                     }
                 }
 
-                while self
-                    .chars
-                    .peek()
-                    .is_some_and(|digit| Digit::try_from(digit).is_ok())
-                {
+                while let Some('0'..='9') = self.chars.peek() {
                     self.chars.next();
                 }
 
                 Some(Token::Abstract(unsafe {
-                    Digits::new_unchecked(slice::from_raw_parts(
-                        start.as_ptr().add(1),
-                        start.len() - self.chars.as_str().len() - 1,
+                    AbstractSource::new_unchecked(str::from_raw_parts(
+                        start.as_ptr(),
+                        start.len() - self.chars.as_str().len(),
                     ))
                 }))
             }
@@ -121,16 +114,12 @@ impl<'source> Iterator for Tokenizer<'source> {
             }
             Some('X') => todo!("bytes literals"),
             Some('0'..='9') => {
-                while self
-                    .chars
-                    .peek()
-                    .is_some_and(|digit| Digit::try_from(digit).is_ok())
-                {
+                while let Some('0'..='9') = self.chars.peek() {
                     self.chars.next();
                 }
 
-                Some(Token::NaturalNumber(unsafe {
-                    Digits::new_unchecked(slice::from_raw_parts(
+                Some(Token::Integer(unsafe {
+                    IntegerSource::new_unchecked(str::from_raw_parts(
                         start.as_ptr(),
                         start.len() - self.chars.as_str().len(),
                     ))
