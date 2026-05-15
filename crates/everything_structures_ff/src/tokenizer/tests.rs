@@ -2,8 +2,9 @@ use crate::{AbstractSource, ByteSource, IntegerSource, TextSource, Token, Tokeni
 
 #[test]
 fn tokenization() {
-    let mut tokens =
-        Tokenizer::new("{ }()@42234837@0001\n\t\x0c\r ,üä1234567890x00x10x42xA7xfF\"10-af\"");
+    let mut tokens = Tokenizer::new(
+        "{ }()@42234837@0001\n\t\x0c\r ,üä1234567890-1234567890x00x10x42xA7xfF\"10-af\"",
+    );
 
     assert_eq!(tokens.next(), Some(Token::OpeningBrace));
     assert_eq!(tokens.next(), Some(Token::Whitespace(" ")));
@@ -29,6 +30,12 @@ fn tokenization() {
         tokens.next(),
         Some(Token::Integer(unsafe {
             IntegerSource::new_unchecked("1234567890")
+        }))
+    );
+    assert_eq!(
+        tokens.next(),
+        Some(Token::Integer(unsafe {
+            IntegerSource::new_unchecked("-1234567890")
         }))
     );
     assert_eq!(

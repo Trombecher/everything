@@ -13,23 +13,33 @@ fn is_whitespace(c: char) -> bool {
 }
 
 #[must_use]
-fn can_start_token(c: Option<char>) -> bool {
+fn char_can_start_token(c: Option<char>) -> bool {
     is_whitespace(c.unwrap_or('x'))
         || matches!(
             c,
-            Some('(' | '@' | ')' | ',' | '{' | '}' | '0'..='9' | 'X' | 'x' | '\'' | '"') | None
+            Some('(' | '@' | ')' | ',' | '{' | '}' | '0'..='9' | 'X' | 'x' | '\'' | '"' | '-')
+                | None
         )
 }
 
+/// An iterator over
+#[derive(Clone)]
 pub struct Tokenizer<'source> {
     chars: PeekableChars<'source>,
 }
 
 impl<'source> Tokenizer<'source> {
+    /// Creates a new
     #[must_use]
     pub fn new(source: &'source str) -> Self {
         Self {
             chars: PeekableChars::new(source.chars()),
+        }
+    }
+
+    fn skip_digits(&mut self) {
+        while let Some('0'..='9') = self.chars.peek() {
+            self.chars.next();
         }
     }
 }
@@ -45,7 +55,10 @@ impl<'source> Iterator for Tokenizer<'source> {
             () => {
                 str::from_raw_parts(
                     start.as_ptr(),
-                    start.len().unchecked_sub(self.chars.as_str().len()),
+                    self.chars
+                        .as_str()
+                        .as_ptr()
+                        .offset_from_unsigned(start.as_ptr()),
                 )
             };
         }
@@ -78,51 +91,52 @@ impl<'source> Iterator for Tokenizer<'source> {
                 match self.chars.peek() {
                     Some('0'..='9') => {}
                     _ => {
-                        return Some(Token::Invalid(unsafe {
-                            str::from_raw_parts(start.as_ptr(), 1)
-                        }));
+                        return Some(Token::Invalid(unsafe { skipped!() }));
                     }
                 }
 
-                while let Some('0'..='9') = self.chars.peek() {
-                    self.chars.next();
-                }
+                self.skip_digits();
 
                 Some(Token::Abstract(unsafe {
-                    AbstractSource::new_unchecked(str::from_raw_parts(
-                        start.as_ptr(),
-                        start.len() - self.chars.as_str().len(),
-                    ))
+                    AbstractSource::new_unchecked(skipped!())
                 }))
             }
             Some('x') => {
-                for length in 1..3_usize {
+                for _ in 1..3_usize {
                     // Skip two ascii hex digits.
 
                     if !self.chars.peek().is_some_and(|c| c.is_ascii_hexdigit()) {
-                        return Some(Token::Invalid(unsafe {
-                            str::from_raw_parts(start.as_ptr(), length)
-                        }));
+                        return Some(Token::Invalid(unsafe { skipped!() }));
                     }
 
                     self.chars.next();
                 }
 
                 Some(Token::Byte(unsafe {
-                    ByteSource::new_unchecked(str::from_raw_parts(start.as_ptr(), 3))
+                    ByteSource::new_unchecked(skipped!())
                 }))
             }
             Some('X') => todo!("bytes literals"),
-            Some('0'..='9') => {
-                while let Some('0'..='9') = self.chars.peek() {
-                    self.chars.next();
+            Some('-') => {
+                // Ensure that there is at least one digit after '-'.
+                match self.chars.next() {
+                    Some('0'..='9') => {}
+                    _ => {
+                        return Some(Token::Invalid(unsafe { skipped!() }));
+                    }
                 }
 
+                self.skip_digits();
+
                 Some(Token::Integer(unsafe {
-                    IntegerSource::new_unchecked(str::from_raw_parts(
-                        start.as_ptr(),
-                        start.len() - self.chars.as_str().len(),
-                    ))
+                    IntegerSource::new_unchecked(skipped!())
+                }))
+            }
+            Some('0'..='9') => {
+                self.skip_digits();
+
+                Some(Token::Integer(unsafe {
+                    IntegerSource::new_unchecked(skipped!())
                 }))
             }
             Some('"') => loop {
@@ -158,7 +172,7 @@ impl<'source> Iterator for Tokenizer<'source> {
             Some(_) => {
                 // Invalid id
 
-                while !can_start_token(self.chars.peek()) {
+                while !char_can_start_token(self.chars.peek()) {
                     self.chars.next();
                 }
 
