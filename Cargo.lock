@@ -318,8 +318,8 @@ dependencies = [
 
 [[package]]
 name = "parser_tools"
-version = "0.1.1"
-source = "git+https://codeberg.org/Trombecher/parser_tools#647c0ab7eefa30306623f59fcb72f2f556735b91"
+version = "0.2.0"
+source = "git+https://codeberg.org/Trombecher/parser_tools#231aec60cfb0e51559f98a805ed31dd54f9be6f8"
 
 [[package]]
 name = "pin-project-lite"

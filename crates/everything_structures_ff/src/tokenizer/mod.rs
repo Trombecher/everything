@@ -35,7 +35,7 @@ impl<'source> Tokenizer<'source> {
     #[must_use]
     pub fn new(source: &'source str) -> Self {
         Self {
-            chars: PeekableChars::new(source.chars()),
+            chars: PeekableChars::new(source),
         }
     }
 
@@ -50,14 +50,14 @@ impl<'source> Iterator for Tokenizer<'source> {
     type Item = Token<'source>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let start = self.chars.as_str().as_ptr();
+        let start = self.chars.remaining().as_ptr();
 
         /// Returns a str slice from the start to the cursor of the chars.
         macro_rules! skipped {
             () => {
                 str::from_raw_parts(
                     start,
-                    self.chars.as_str().as_ptr().offset_from_unsigned(start),
+                    self.chars.remaining().as_ptr().offset_from_unsigned(start),
                 )
             };
         }
