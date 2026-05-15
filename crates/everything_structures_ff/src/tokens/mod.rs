@@ -8,6 +8,7 @@ use core::{
     str,
 };
 
+use alloc::sync::Arc;
 use everything_structures::{Byte, BytesStructure, TextStructure};
 use parser_tools::TokenLength;
 
@@ -204,10 +205,11 @@ impl<'source> IntegerSource<'source> {
     }
 }
 
-/**
- * A byte in the format `x??` where `?` is an ASCII
- * hexadecimal digit.
- */
+/// Source for a byte literal. Guaranteed to match this regex:
+///
+/// ```regex
+/// x[\dA-Fa-f]{2}
+/// ```
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct ByteSource<'source>(&'source str);
 
@@ -225,22 +227,21 @@ impl<'source> ByteSource<'source> {
     pub fn parse(self) -> Byte {
         unsafe {
             let mut bytes = self.0.bytes();
+
             assert_unchecked(bytes.len() == 3);
             assert_unchecked(bytes.next() == Some(b'x'));
 
-            // Maybe this can be improved.
-
-            let high = match bytes.next().unwrap() {
-                high @ b'0'..=b'9' => high - b'0',
-                high @ b'A'..=b'F' => high - b'A' + 10,
-                high @ b'a'..=b'f' => high - b'a' + 10,
+            let high = match bytes.next() {
+                Some(value @ b'0'..=b'9') => value - b'0',
+                Some(value @ b'A'..=b'F') => value - b'A' + 10,
+                Some(value @ b'a'..=b'f') => value - b'a' + 10,
                 _ => unreachable_unchecked(),
             };
 
-            let low = match bytes.next().unwrap() {
-                low @ b'0'..=b'9' => low - b'0',
-                low @ b'A'..=b'F' => low - b'A' + 10,
-                low @ b'a'..=b'f' => low - b'a' + 10,
+            let low = match bytes.next() {
+                Some(value @ b'0'..=b'9') => value - b'0',
+                Some(value @ b'A'..=b'F') => value - b'A' + 10,
+                Some(value @ b'a'..=b'f') => value - b'a' + 10,
                 _ => unreachable_unchecked(),
             };
 
@@ -324,6 +325,11 @@ impl<'source> TextSource<'source> {
     }
 }
 
+/// Source for a bytes literal. Guaranteed to match this regex:
+///
+/// ```regex
+/// X[\dA-Fa-f]{2,}
+/// ```
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct BytesSource<'source>(&'source str);
 
@@ -338,13 +344,58 @@ impl<'source> BytesSource<'source> {
         Self(source)
     }
 
+    /// Computes the byte length of the allocation
+    /// if one would to parse the content and store it
+    /// somewhere.
     #[must_use]
-    pub fn parse(self) -> BytesStructure {
-        todo!("parse bytes")
+    pub const fn real_byte_length(self) -> usize {
+        unsafe {
+            // Remove 'X' and then divide by two
+            // because two ASCII hexdigits make up
+            // one byte.
+            self.as_str().len().unchecked_sub(1) / 2
+        }
     }
 
     #[must_use]
-    pub fn as_str(self) -> &'source str {
+    pub fn parse(self) -> BytesStructure {
+        let mut allocation = Arc::<[u8]>::new_uninit_slice(self.real_byte_length());
+        let mut allocation_bytes =
+            unsafe { Arc::get_mut(&mut allocation).unwrap_unchecked() }.iter_mut();
+
+        let mut bytes = self.0.bytes();
+
+        match bytes.next() {
+            Some(b'X') => {}
+            _ => unsafe { unreachable_unchecked() },
+        }
+
+        loop {
+            let high = match bytes.next() {
+                Some(value @ b'0'..=b'9') => value - b'0',
+                Some(value @ b'A'..=b'F') => value - b'A' + 10,
+                Some(value @ b'a'..=b'f') => value - b'a' + 10,
+                Some(_) => unsafe { unreachable_unchecked() },
+                None => break,
+            };
+
+            let low = match bytes.next() {
+                Some(value @ b'0'..=b'9') => value - b'0',
+                Some(value @ b'A'..=b'F') => value - b'A' + 10,
+                Some(value @ b'a'..=b'f') => value - b'a' + 10,
+                _ => unsafe { unreachable_unchecked() },
+            };
+
+            unsafe { allocation_bytes.next().unwrap_unchecked() }.write((high << 4) | low);
+        }
+
+        debug_assert!(allocation_bytes.next().is_none());
+
+        unsafe { BytesStructure::from_raw(allocation.assume_init()).unwrap_unchecked() }
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'source str {
         self.0
     }
 }

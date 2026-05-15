@@ -5,7 +5,9 @@ use core::str;
 
 use parser_tools::PeekableChars;
 
-use crate::{AbstractSource, ByteSource, CharacterSource, IntegerSource, TextSource, Token};
+use crate::{
+    AbstractSource, ByteSource, BytesSource, CharacterSource, IntegerSource, TextSource, Token,
+};
 
 #[must_use]
 fn is_whitespace(c: char) -> bool {
@@ -99,29 +101,59 @@ impl<'source> Iterator for Tokenizer<'source> {
                 }))
             }
             Some('x') => {
-                for _ in 1..3_usize {
-                    // Skip two ascii hex digits.
-
-                    if !self.chars.peek().is_some_and(|c| c.is_ascii_hexdigit()) {
-                        return Some(Token::Invalid(unsafe { skipped!() }));
-                    }
-
-                    self.chars.next();
+                match self.chars.peek() {
+                    Some(c) if c.is_ascii_hexdigit() => {}
+                    _ => return Some(Token::Invalid(unsafe { skipped!() })),
                 }
+
+                self.chars.next();
+
+                match self.chars.peek() {
+                    Some(c) if c.is_ascii_hexdigit() => {}
+                    _ => return Some(Token::Invalid(unsafe { skipped!() })),
+                }
+
+                self.chars.next();
 
                 Some(Token::Byte(unsafe {
                     ByteSource::new_unchecked(skipped!())
                 }))
             }
-            Some('X') => todo!("bytes literals"),
+            Some('X') => {
+                match self.chars.peek() {
+                    Some(c) if c.is_ascii_hexdigit() => {}
+                    _ => return Some(Token::Invalid(unsafe { skipped!() })),
+                }
+
+                self.chars.next();
+
+                match self.chars.peek() {
+                    Some(c) if c.is_ascii_hexdigit() => {}
+                    _ => return Some(Token::Invalid(unsafe { skipped!() })),
+                }
+
+                self.chars.next();
+
+                while let Some(c) = self.chars.peek()
+                    && c.is_ascii_hexdigit()
+                {
+                    self.chars.next();
+                }
+
+                Some(Token::Bytes(unsafe {
+                    BytesSource::new_unchecked(skipped!())
+                }))
+            }
             Some('-') => {
                 // Ensure that there is at least one digit after '-'.
-                match self.chars.next() {
+                match self.chars.peek() {
                     Some('0'..='9') => {}
                     _ => {
                         return Some(Token::Invalid(unsafe { skipped!() }));
                     }
                 }
+
+                self.chars.next();
 
                 self.skip_digits();
 

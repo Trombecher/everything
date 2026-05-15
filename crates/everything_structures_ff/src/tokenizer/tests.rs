@@ -1,9 +1,9 @@
-use crate::{AbstractSource, ByteSource, IntegerSource, TextSource, Token, Tokenizer};
+use crate::{AbstractSource, ByteSource, BytesSource, IntegerSource, TextSource, Token, Tokenizer};
 
 #[test]
 fn tokenization() {
     let mut tokens = Tokenizer::new(
-        "{ }()@42234837@0001\n\t\x0c\r ,üä1234567890-1234567890x00x10x42xA7xfF\"10-af\"",
+        "{ }()@42234837@0001\n\t\x0c\r ,üä1234567890-1234567890x00x10x42xA7xfF\"10-af\"X106AFffEF9",
     );
 
     assert_eq!(tokens.next(), Some(Token::OpeningBrace));
@@ -64,6 +64,14 @@ fn tokenization() {
             TextSource::new_unchecked("\"10-af\"")
         }))
     );
+    assert_eq!(
+        tokens.next(),
+        Some(Token::Bytes(unsafe {
+            BytesSource::new_unchecked("X106AFffEF9")
+        }))
+    );
     assert_eq!(tokens.next(), None);
     assert_eq!(tokens.next(), None);
 }
+
+// TODO: failure modes

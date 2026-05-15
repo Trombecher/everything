@@ -45,7 +45,7 @@ pub enum Structure {
     /// ```plain
     /// {
     ///     (@LIST_ITEM, <byte>),
-    ///     (@LIST_ITEM, <binary>)
+    ///     (@LIST_TAIL, <binary>)
     /// }
     /// ```
     Bytes(BytesStructure),
