@@ -5,6 +5,7 @@ use std::{
 };
 
 use everything::{
+    LazyObject,
     base::BASE,
     ctx::EvaluationContext,
     ext::{AbstractExt, ObjectExt},
@@ -136,9 +137,18 @@ impl Repl {
         let replaced = expand_vars(arguments, &self.variables)?;
         let expression = Object::parse(&replaced).map_err(|error| format!("{error:?}"))?;
 
-        let output = expression.eval(knowledge, &mut EvaluationContext::default());
+        match expression.eval(knowledge, &mut EvaluationContext::default()) {
+            LazyObject::Eager(object) => {
+                println!("{object:?}")
+            }
+            LazyObject::LazySetValues(values) => {
+                println!("Lazy set values:");
 
-        println!("Result: {:?}", output);
+                for value in values {
+                    println!("{value:?}")
+                }
+            }
+        }
 
         Ok(())
     }
