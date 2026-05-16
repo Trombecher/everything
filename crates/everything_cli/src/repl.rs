@@ -5,6 +5,7 @@ use std::{
 };
 
 use everything::{
+    base::BASE,
     ctx::EvaluationContext,
     ext::{AbstractExt, ObjectExt},
 };
@@ -34,6 +35,12 @@ fn variables_prelude(variables: &mut HashMap<Box<str>, Object>) {
     variables.insert("CONTAINS".into(), Abstract::CONTAINS.into());
     variables.insert("AXIOMATIC".into(), Abstract::AXIOMATIC.into());
     variables.insert("COMPUTED".into(), Abstract::COMPUTED.into());
+    variables.insert(
+        "STATEMENT_SUBJECT".into(),
+        Abstract::STATEMENT_SUBJECT.into(),
+    );
+    variables.insert("STATEMENT_TAG".into(), Abstract::STATEMENT_TAG.into());
+    variables.insert("STATEMENT_VALUE".into(), Abstract::STATEMENT_VALUE.into());
     variables.insert("KNOWLEDGE".into(), Abstract::KNOWLEDGE.into());
     variables.insert("NODE_LITERAL".into(), Abstract::NODE_LITERAL.into());
     variables.insert("NODE_AND_LEFT".into(), Abstract::NODE_AND_LEFT.into());
@@ -100,7 +107,11 @@ pub fn repl_main() {
                     let structure = Structure::parse(&file_content)
                         .unwrap_or_else(|error| handle_parse_error(&file_content, &error));
 
-                    variables.insert(name.into(), structure.into());
+                    if name == "knowledge" {
+                        variables.insert(name.into(), structure.union(&BASE).into());
+                    } else {
+                        variables.insert(name.into(), structure.into());
+                    }
                 } else {
                     println!("invalid usage")
                 }

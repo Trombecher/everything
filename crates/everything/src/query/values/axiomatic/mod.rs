@@ -156,7 +156,7 @@ pub fn values_axiomatically(
         ) => AxiomaticQueryValues::None,
         _ => {
             let values_from_subject = match &subject {
-                Object::Abstract(_) => Structure::Empty.values(tag.clone()),
+                Object::Abstract(_) => StructureValues::None,
                 Object::Structure(structure) => structure.values(tag.clone()),
             };
 
