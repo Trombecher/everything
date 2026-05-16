@@ -53,6 +53,12 @@ pub trait PropertyExt {
     fn new_node_xor_right(right: Object) -> Self;
 
     #[must_use]
+    fn new_node_union_left(left: Object) -> Self;
+
+    #[must_use]
+    fn new_node_union_right(right: Object) -> Self;
+
+    #[must_use]
     fn new_node_not(node: Object) -> Self;
 
     #[must_use]
@@ -84,6 +90,20 @@ impl PropertyExt for Property {
         Self {
             tag: Abstract::NODE_ADD_RIGHT.into(),
             value,
+        }
+    }
+
+    fn new_node_union_left(left: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_UNION_LEFT.into(),
+            value: left,
+        }
+    }
+
+    fn new_node_union_right(right: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_UNION_RIGHT.into(),
+            value: right,
         }
     }
 

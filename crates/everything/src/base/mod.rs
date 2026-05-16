@@ -117,7 +117,7 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             unique_constraint_for(Abstract::STATEMENT_VALUE.into(), 0),
         )
         .into(),
-        // TODO: statement, knowledge, tag
+        // TODO: knowledge
 
         // --------------------- NODES ---------------------
         Structure::new_statement(

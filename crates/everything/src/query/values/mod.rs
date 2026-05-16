@@ -7,17 +7,11 @@ use std::array;
 use everything_structures::{Abstract, Object, Structure, StructureValues};
 use tracing::instrument;
 
-use crate::LazyObject;
 use crate::ctx::EvaluationContext;
 use crate::ext::{AbstractExt, ObjectExt, StructureExt};
+use crate::{LazyObject, LazySetValues};
 
 pub use axiomatic::*;
-
-enum InitialMatch {
-    Axiomatic,
-    Compute,
-    None,
-}
 
 /// Returns an iterator over all axiomatic and computed values
 /// of the given `subject` with the given `tag` in the given `knowledge`
@@ -29,6 +23,12 @@ pub fn values(
     tag: Object,
     context: &mut EvaluationContext,
 ) -> LazyObject {
+    enum InitialMatch {
+        Axiomatic,
+        Compute,
+        None,
+    }
+
     let initial_match = match (&subject, &tag) {
         (&Object::Abstract(Abstract::AXIOMATIC), &Object::Abstract(Abstract::AXIOMATIC))
         | (
@@ -39,13 +39,13 @@ pub fn values(
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
-            return LazyObject::LazySetValues(match subject {
+            return LazyObject::LazySetValues(LazySetValues::Query(match subject {
                 Object::Structure(s) if s.is_knowledge().is_ok() => {
                     AxiomaticQueryValues::EmptyStructure
                 }
                 // TODO: review this for abstract objects
                 _ => AxiomaticQueryValues::None,
-            });
+            }));
         }
         _ => {
             match (
@@ -60,43 +60,18 @@ pub fn values(
     };
 
     match initial_match {
-        InitialMatch::Axiomatic => {
-            LazyObject::LazySetValues(values_axiomatically(knowledge, subject, tag))
-        }
+        InitialMatch::Axiomatic => LazyObject::LazySetValues(LazySetValues::Query(
+            values_axiomatically(knowledge, subject, tag),
+        )),
         InitialMatch::Compute => tag.call(knowledge, array::from_ref(&subject), context),
         InitialMatch::None => {
             // In case that there is none or both,
             // tag is not a `Tag` so we can return nothing.
 
-            LazyObject::LazySetValues(AxiomaticQueryValues::None)
+            LazyObject::LazySetValues(LazySetValues::Query(AxiomaticQueryValues::None))
         }
     }
 }
-
-/*
-impl QueryValuesResult {
-    pub fn values(&self) -> QueryValues {
-        match self {
-            Self::Axiomatic(axiomatic_iter) => QueryValues::Axiomatic(axiomatic_iter.clone()),
-            Self::ComputationResult(object) => {
-                let values = match object {
-                    Object::Abstract(_) => StructureValues::None,
-                    Object::Structure(structure) => structure.values(Abstract::CONTAINS.into()),
-                };
-
-                QueryValues::ComputationResult(values)
-            }
-        }
-    }
-
-    pub fn collect_to_set(self) -> Object {
-        match self {
-            Self::Axiomatic(iterator) => iterator.collect_to_set().into(),
-            Self::ComputationResult(result) => result, // <- this is expected to be a set
-        }
-    }
-}
- */
 
 /// An iterator over all axiomatic and computed values
 #[derive(Clone)]

@@ -11,7 +11,7 @@ use tracing_subscriber::{Registry, layer::SubscriberExt};
 use tracing_tree::HierarchicalLayer;
 use ulid::Ulid;
 
-use crate::{repl::repl_main, util::handle_parse_error};
+use crate::{repl::Repl, util::handle_parse_error};
 
 trait AbstractUlidExt {
     fn ulid() -> Self;
@@ -29,6 +29,9 @@ impl AbstractUlidExt for Abstract {
 #[command(about)]
 #[command(long_about = None)]
 struct Args {
+    #[arg(long, default_value_t = false)]
+    debug: bool,
+
     /// A command to
     #[command(subcommand)]
     command: Option<Command>,
@@ -60,10 +63,16 @@ enum Command {
 }
 
 fn main() {
-    tracing::subscriber::set_global_default(Registry::default().with(HierarchicalLayer::new(2)))
-        .unwrap();
+    let Args { command, debug } = Args::parse();
 
-    let command = if let Some(command) = Args::parse().command {
+    if debug {
+        tracing::subscriber::set_global_default(
+            Registry::default().with(HierarchicalLayer::new(2)),
+        )
+        .unwrap();
+    }
+
+    let command = if let Some(command) = command {
         command
     } else {
         Args::command().print_long_help().unwrap();
@@ -102,7 +111,7 @@ fn main() {
             }
         }
         Command::Repl {} => {
-            repl_main();
+            Repl::default().main_loop();
         }
         Command::Base => {
             println!("{:?}", &*BASE);

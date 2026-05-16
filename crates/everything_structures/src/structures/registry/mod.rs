@@ -16,11 +16,11 @@ use std::{
 use dashmap::DashMap;
 
 use crate::{
-    Abstract, AnyStructure, Bit, BitSlot, Byte, BytesStructure, MaybeEmptyBytesStructure, Object,
-    Property, Structure, TextStructure,
+    Abstract, AnyStructure, Bit, BitSlot, Byte, BytesStructure, MaybeEmptyBytesStructure,
+    MaybeEmptyTextStructure, Object, Property, Structure, TextStructure,
 };
 
-enum Specialization<'info> {
+enum Specialization {
     Empty,
     Integer(NonZeroI128),
     Byte(Byte),
@@ -31,7 +31,7 @@ enum Specialization<'info> {
     },
     Text {
         item: char,
-        tail: &'info TextStructure,
+        tail: MaybeEmptyTextStructure,
     },
 }
 
@@ -105,7 +105,7 @@ impl StructureMetaInfo {
 
     /// Returns the specialization type.
     #[must_use]
-    pub fn specialization<'info>(&'info self) -> Option<Specialization<'info>> {
+    pub fn specialization(&self) -> Option<Specialization> {
         match self {
             Self { prop_count: 0, .. } => Some(Specialization::Empty),
             Self {
@@ -154,7 +154,8 @@ impl StructureMetaInfo {
                 last_list_tail: Some(tail),
                 ..
             } if let Object::Structure(Structure::Character(item)) = item
-                && let Object::Structure(Structure::Text(tail)) = tail =>
+                && let Object::Structure(tail) = tail
+                && let Some(tail) = tail.exact_text() =>
             {
                 Some(Specialization::Text { item: *item, tail })
             }

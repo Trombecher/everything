@@ -12,9 +12,11 @@ use everything::{
 use everything_structures::{Abstract, Object, Structure};
 use everything_structures_ff::Parsable;
 
-use crate::util::{expand_vars, handle_parse_error};
+use crate::util::expand_vars;
 
 fn variables_prelude(variables: &mut HashMap<Box<str>, Object>) {
+    variables.insert("BASE".into(), BASE.clone().into());
+
     variables.insert("ZERO".into(), Abstract::ZERO.into());
     variables.insert("SUCCESSOR_OF".into(), Abstract::SUCCESSOR_OF.into());
     variables.insert("PREDECESSOR_OF".into(), Abstract::PREDECESSOR_OF.into());
@@ -68,82 +70,134 @@ fn variables_prelude(variables: &mut HashMap<Box<str>, Object>) {
     variables.insert("UNDEFINED".into(), Abstract::UNDEFINED.into());
 }
 
-pub fn repl_main() {
-    println!("welcome to the experimental REPL. type ? + enter for help");
+const HELP_MESSAGE: &str = "
+    ?                   prints this message
+    help                prints this message
+    exit                exits this repl
+    set <var> [object]  sets the given variable to the given object;
+                            if object is omitted, the var is deleted
+    get <var>           prints the object in the variable
+    load <var> <path>   loads and parses a structure from the path
+    eval <object>       evaluates an object
+    vars                prints all variables
+";
 
-    let mut variables = HashMap::<Box<str>, Object>::new();
-    variables_prelude(&mut variables);
+type Variables = HashMap<Box<str>, Object>;
 
-    let mut line = String::new();
+pub struct Repl {
+    variables: Variables,
+}
 
-    loop {
-        print!("> ");
-        stdout().flush().unwrap();
+impl Default for Repl {
+    fn default() -> Self {
+        let mut variables = Variables::new();
+        variables_prelude(&mut variables);
 
-        line.clear();
-        stdin().read_line(&mut line).unwrap();
+        Self { variables }
+    }
+}
 
-        let line = line.trim();
+impl Repl {
+    fn set_command(&mut self, arguments: &str) -> Result<(), String> {
+        let Some((name, raw_object_text)) = arguments.split_once(" ") else {
+            self.variables.remove(arguments);
+            return Ok(());
+        };
 
-        let (command, arguments) = line.split_once(" ").unwrap_or((line, ""));
+        let object_text = expand_vars(raw_object_text, &self.variables)?;
+        let object = Object::parse(&object_text).map_err(|error| format!("{error:?}"))?;
 
-        match command {
-            "exit" => break,
-            "set" => {
-                if let Some((name, object_source)) = arguments.split_once(" ") {
-                    let object_source = expand_vars(object_source, &variables);
+        self.variables.insert(name.into(), object);
 
-                    // TODO: not hard error
-                    let object = Object::parse(&object_source).unwrap();
+        Ok(())
+    }
 
-                    variables.insert(name.into(), object);
-                } else {
-                    println!("invalid usage")
-                }
-            }
-            "load" => {
-                if let Some((name, path)) = arguments.split_once(" ") {
-                    let file_content = fs::read_to_string(path).unwrap();
-                    let structure = Structure::parse(&file_content)
-                        .unwrap_or_else(|error| handle_parse_error(&file_content, &error));
+    fn load_command(&mut self, arguments: &str) -> Result<(), String> {
+        let (name, path) = arguments
+            .split_once(" ")
+            .ok_or_else(|| format!("invalid usage"))?;
 
-                    if name == "knowledge" {
-                        variables.insert(name.into(), structure.union(&BASE).into());
-                    } else {
-                        variables.insert(name.into(), structure.into());
+        let file_content =
+            fs::read_to_string(path).map_err(|error| format!("reading file: {error:?}"))?;
+        let structure = Structure::parse(&file_content).map_err(|error| format!("{error:?}"))?;
+
+        self.variables.insert(name.into(), structure.into());
+
+        Ok(())
+    }
+
+    fn eval_command(&mut self, arguments: &str) -> Result<(), String> {
+        let Some(Object::Structure(knowledge)) = self.variables.get("knowledge") else {
+            return Err(format!("variable 'knowledge' needs to be knowledge"));
+        };
+
+        let replaced = expand_vars(arguments, &self.variables)?;
+        let expression = Object::parse(&replaced).map_err(|error| format!("{error:?}"))?;
+
+        let output = expression.eval(knowledge, &mut EvaluationContext::default());
+
+        println!("Result: {:?}", output);
+
+        Ok(())
+    }
+
+    pub fn main_loop(&mut self) {
+        println!("welcome to the experimental REPL. type ? + enter for help");
+
+        let mut line = String::new();
+
+        loop {
+            print!("> ");
+            stdout().flush().unwrap();
+
+            line.clear();
+            stdin().read_line(&mut line).unwrap();
+
+            let line = line.trim();
+
+            let (command, arguments) = line.split_once(" ").unwrap_or((line, ""));
+
+            let result = match command {
+                "exit" => break,
+                "set" => self.set_command(arguments),
+                "load" => self.load_command(arguments),
+                "vars" => {
+                    let mut first = true;
+
+                    for variable in self.variables.keys() {
+                        if !first {
+                            print!(", ");
+                        }
+
+                        print!("{variable}");
+
+                        first = false;
                     }
-                } else {
-                    println!("invalid usage")
-                }
-            }
-            "get" => {
-                if let Some(object) = variables.get(arguments) {
-                    println!("{object:?}");
-                } else {
-                    println!("This variable does not exist")
-                }
-            }
-            "?" => {
-                println!(
-                    "exit - exits REPL\n? - prints this message\neval <EXPR> - evaluate this expression"
-                );
-            }
-            "eval" => {
-                if let Some(Object::Structure(knowledge)) = variables.get("knowledge") {
-                    let replaced = expand_vars(arguments, &variables);
 
-                    // TODO: make this not hard error.
-                    let expression = Object::parse(&replaced).unwrap();
+                    println!();
 
-                    let output = expression.eval(knowledge, &mut EvaluationContext::default());
-
-                    println!("Result: {:?}", output);
-                } else {
-                    println!("please set knowledge to some structure")
+                    Ok(())
                 }
-            }
-            _ => {
-                println!("Unknown command {command}");
+                "get" => {
+                    if let Some(object) = self.variables.get(arguments) {
+                        println!("{object:?}");
+
+                        Ok(())
+                    } else {
+                        Err(format!("variable '{arguments}' does not exist"))
+                    }
+                }
+                "?" | "help" => {
+                    println!("{}", HELP_MESSAGE);
+
+                    Ok(())
+                }
+                "eval" => self.eval_command(arguments),
+                _ => Err(format!("unknown command '{command}'")),
+            };
+
+            if let Err(result) = result {
+                eprintln!("error: {result}")
             }
         }
     }

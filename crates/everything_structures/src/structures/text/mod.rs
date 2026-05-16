@@ -93,6 +93,30 @@ impl std::fmt::Debug for TextStructure {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct MaybeEmptyTextStructure(pub Option<TextStructure>);
+
+impl AsRef<str> for MaybeEmptyTextStructure {
+    fn as_ref(&self) -> &str {
+        match &self.0 {
+            None => "",
+            Some(text) => text.as_ref(),
+        }
+    }
+}
+
+impl TryFrom<&Structure> for MaybeEmptyTextStructure {
+    type Error = ();
+
+    fn try_from(value: &Structure) -> Result<Self, Self::Error> {
+        match value {
+            Structure::Empty => Ok(Self(None)),
+            Structure::Text(text) => Ok(Self(Some(text.clone()))),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 pub enum TextStructureProperties {
     #[default]

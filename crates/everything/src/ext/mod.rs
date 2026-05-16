@@ -42,4 +42,5 @@ pub enum NodeType {
     Xor(BinaryNode),
     Not(Object),
     Add(BinaryNode),
+    Union(BinaryNode),
 }

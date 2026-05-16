@@ -6,7 +6,7 @@ use fallible_iterator::{FallibleIterator, IteratorExt};
 use tracing::{instrument, warn};
 
 use crate::{
-    LazyObject,
+    LazyObject, LazySetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
         AbstractExt, BinaryNode, KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt,
@@ -31,6 +31,8 @@ pub trait ObjectExt {
     fn node_add(&self, knowledge: &Structure) -> Option<BinaryNode>;
 
     fn node_xor(&self, knowledge: &Structure) -> Option<BinaryNode>;
+
+    fn node_union(&self, knowledge: &Structure) -> Option<BinaryNode>;
 
     fn capture(
         &self,
@@ -149,6 +151,14 @@ impl ObjectExt for Object {
         )
     }
 
+    fn node_union(&self, knowledge: &Structure) -> Option<BinaryNode> {
+        self.binary_node(
+            knowledge,
+            Abstract::NODE_UNION_LEFT.into(),
+            Abstract::NODE_UNION_RIGHT.into(),
+        )
+    }
+
     fn node_add(&self, knowledge: &Structure) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
@@ -212,6 +222,7 @@ impl ObjectExt for Object {
         xor_with!(self.node_equal(knowledge).map(NodeType::Equal));
         xor_with!(self.node_xor(knowledge).map(NodeType::Xor));
         xor_with!(self.node_add(knowledge).map(NodeType::Add));
+        xor_with!(self.node_union(knowledge).map(NodeType::Union));
 
         node_type
     }
@@ -357,14 +368,12 @@ impl ObjectExt for Object {
 
     #[instrument(skip(knowledge), ret)]
     fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> LazyObject {
-        // TODO: better panic msgs
-
         match self.node_type(knowledge) {
             Some(NodeType::Count(expression)) => Self::new_integer(
                 expression
                     .eval(knowledge, context)
                     .set_values(knowledge)
-                    .count() as i128,
+                    .correct_count() as i128,
             )
             .into(),
             Some(NodeType::Query(statement_form_object)) => {
@@ -441,7 +450,13 @@ impl ObjectExt for Object {
 
                 left.add(knowledge, &right).into()
             }
-            Some(ty) => todo!("{ty:?} not impl"),
+            Some(NodeType::Union(BinaryNode { left, right })) => {
+                LazyObject::LazySetValues(LazySetValues::Union {
+                    left: Box::new(left.eval(knowledge, context).set_values(knowledge)),
+                    right: Box::new(right.eval(knowledge, context).set_values(knowledge)),
+                })
+            }
+            Some(NodeType::FunctionSelf(_) | NodeType::Xor(_)) => todo!("not impl"),
             None if let Object::Structure(Structure::Any(any_structure)) = self => any_structure
                 .properties()
                 .map(|property| {

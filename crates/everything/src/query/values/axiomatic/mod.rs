@@ -30,6 +30,7 @@ pub enum AxiomaticQueryValues {
 
 impl AxiomaticQueryValues {
     /// Creates a structure with all set values from `self`.
+    #[deprecated]
     pub fn collect_to_set(self) -> Structure {
         let mut properties: Vec<_> = self.map(Property::new_contains).collect();
         Structure::new(&mut properties)

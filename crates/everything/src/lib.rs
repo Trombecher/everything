@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![feature(slice_partition_dedup)]
 
 pub mod base;
 pub mod ctx;

@@ -263,6 +263,12 @@ impl Structure {
     pub fn exact_bytes(&self) -> Option<MaybeEmptyBytesStructure> {
         MaybeEmptyBytesStructure::try_from(self).ok()
     }
+
+    /// Extracts and clones `self` into some text which may be empty.
+    #[must_use]
+    pub fn exact_text(&self) -> Option<MaybeEmptyTextStructure> {
+        MaybeEmptyTextStructure::try_from(self).ok()
+    }
 }
 
 impl From<char> for Structure {
