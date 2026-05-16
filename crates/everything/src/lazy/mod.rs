@@ -2,7 +2,7 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::{
     ext::{ObjectExt, PropertyExt},
-    query::AxiomaticQueryValues,
+    query::{QuerySubjectsAxiomatically, QueryValuesAxiomatically},
 };
 
 /// Represents an object which is either precomputed ([`LazyObject::Eager`])
@@ -48,7 +48,7 @@ impl LazyObject {
     pub fn set_values(&self, knowledge: &Structure) -> LazySetValues {
         match self {
             Self::LazySetValues(values) => values.clone(),
-            Self::Eager(eager) => LazySetValues::Query(eager.set_values(knowledge)),
+            Self::Eager(eager) => LazySetValues::ValuesAxiomatically(eager.set_values(knowledge)),
         }
     }
 
@@ -70,13 +70,15 @@ impl LazyObject {
 #[derive(Debug, Clone)]
 pub enum LazySetValues {
     /// Iterator over values of an object.
-    Query(AxiomaticQueryValues),
+    ValuesAxiomatically(QueryValuesAxiomatically),
 
     /// Chains two iterators.
     Union {
         left: Box<LazySetValues>,
         right: Box<LazySetValues>,
     },
+
+    SubjectsAxiomatically(QuerySubjectsAxiomatically),
 }
 
 impl LazySetValues {
@@ -89,7 +91,9 @@ impl LazySetValues {
     /// It dedups
     pub fn correct_count(self) -> usize {
         match self {
-            LazySetValues::Query(axiomatic_query_values) => axiomatic_query_values.count(),
+            LazySetValues::ValuesAxiomatically(axiomatic_query_values) => {
+                axiomatic_query_values.count()
+            }
             iterator => {
                 // This is expensive, no?
                 let mut vec = iterator.collect::<Vec<_>>();
@@ -104,8 +108,9 @@ impl Iterator for LazySetValues {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Self::Query(values) => values.next(),
+            Self::ValuesAxiomatically(values) => values.next(),
             Self::Union { left, right } => left.next().or_else(|| right.next()),
+            Self::SubjectsAxiomatically(subjects) => subjects.next(),
         }
     }
 }

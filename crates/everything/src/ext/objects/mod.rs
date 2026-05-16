@@ -12,7 +12,7 @@ use crate::{
         AbstractExt, BinaryNode, KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt,
         iter::IteratorExtNextAndLast,
     },
-    query::{self, AxiomaticQueryValues},
+    query::{self, QueryValuesAxiomatically},
 };
 
 pub trait ObjectExt {
@@ -46,7 +46,7 @@ pub trait ObjectExt {
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
 
     /// Returns an iterator over all set items.
-    fn set_values(&self, knowledge: &Structure) -> AxiomaticQueryValues;
+    fn set_values(&self, knowledge: &Structure) -> QueryValuesAxiomatically;
 
     fn structure(&self) -> Option<&Structure>;
 
@@ -68,6 +68,10 @@ pub trait ObjectExt {
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u128>;
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object>;
+
+    fn statement_subject(&self, knowledge: &Structure) -> Option<Object>;
+    fn statement_tag(&self, knowledge: &Structure) -> Option<Object>;
+    fn statement_value(&self, knowledge: &Structure) -> Option<Object>;
 
     fn statement_form(&self, knowledge: &Structure) -> StatementForm;
 
@@ -112,7 +116,7 @@ impl ObjectExt for Object {
         }
     }
 
-    fn set_values(&self, knowledge: &Structure) -> AxiomaticQueryValues {
+    fn set_values(&self, knowledge: &Structure) -> QueryValuesAxiomatically {
         query::values_axiomatically(knowledge, self.clone(), Abstract::CONTAINS.into())
     }
 
@@ -265,30 +269,37 @@ impl ObjectExt for Object {
             .next_and_last()
     }
 
-    fn statement_form(&self, knowledge: &Structure) -> StatementForm {
-        let subject: ObjectForm = query::values_axiomatically(
+    fn statement_subject(&self, knowledge: &Structure) -> Option<Object> {
+        query::values_axiomatically(
             knowledge,
             self.clone(),
             Object::Abstract(Abstract::STATEMENT_SUBJECT),
         )
-        .next()
-        .into();
+        .next_and_last()
+    }
 
-        let tag: ObjectForm = query::values_axiomatically(
+    fn statement_tag(&self, knowledge: &Structure) -> Option<Object> {
+        query::values_axiomatically(
             knowledge,
             self.clone(),
             Object::Abstract(Abstract::STATEMENT_TAG),
         )
-        .next()
-        .into();
+        .next_and_last()
+    }
 
-        let value: ObjectForm = query::values_axiomatically(
+    fn statement_value(&self, knowledge: &Structure) -> Option<Object> {
+        query::values_axiomatically(
             knowledge,
             self.clone(),
             Object::Abstract(Abstract::STATEMENT_VALUE),
         )
-        .next()
-        .into();
+        .next_and_last()
+    }
+
+    fn statement_form(&self, knowledge: &Structure) -> StatementForm {
+        let subject: ObjectForm = self.statement_subject(knowledge).into();
+        let tag: ObjectForm = self.statement_tag(knowledge).into();
+        let value: ObjectForm = self.statement_value(knowledge).into();
 
         StatementForm {
             subject,
@@ -387,10 +398,26 @@ impl ObjectExt for Object {
                     } => {
                         // We query for values.
 
+                        // TODO: make subject lazy
                         let subject = unevaluated_subject.eval(knowledge, context).into_set();
                         let tag = unevaluated_tag.eval(knowledge, context).into_set();
 
                         query::values(knowledge, subject, tag, context).into()
+                    }
+                    StatementForm {
+                        subject: ObjectForm::Any,
+                        tag: ObjectForm::Specific(unevaluated_tag),
+                        value: ObjectForm::Specific(unevaluated_value),
+                    } => {
+                        // We query for subjects (axiomatically).
+
+                        let tag = unevaluated_tag.eval(knowledge, context).into_set();
+                        let value = unevaluated_value.eval(knowledge, context).into_set();
+
+                        LazySetValues::SubjectsAxiomatically(query::subjects_axiomatically(
+                            knowledge, tag, value,
+                        ))
+                        .into()
                     }
                     StatementForm {
                         subject: ObjectForm::Specific(unevaluated_subject),

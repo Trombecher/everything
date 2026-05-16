@@ -56,6 +56,8 @@ fn variables_prelude(variables: &mut HashMap<Box<str>, Object>) {
     variables.insert("NODE_OR_RIGHT".into(), Abstract::NODE_OR_RIGHT.into());
     variables.insert("NODE_XOR_LEFT".into(), Abstract::NODE_XOR_LEFT.into());
     variables.insert("NODE_XOR_RIGHT".into(), Abstract::NODE_XOR_RIGHT.into());
+    variables.insert("NODE_UNION_LEFT".into(), Abstract::NODE_UNION_LEFT.into());
+    variables.insert("NODE_UNION_RIGHT".into(), Abstract::NODE_UNION_RIGHT.into());
     variables.insert("NODE_NOT".into(), Abstract::NODE_NOT.into());
     variables.insert(
         "NODE_FUNCTION_SELF".into(),

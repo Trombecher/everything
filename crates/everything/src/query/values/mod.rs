@@ -22,7 +22,7 @@ pub fn values(
     subject: Object,
     tag: Object,
     context: &mut EvaluationContext,
-) -> LazyObject {
+) -> QueryValues {
     enum InitialMatch {
         Axiomatic,
         Compute,
@@ -39,12 +39,12 @@ pub fn values(
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
-            return LazyObject::LazySetValues(LazySetValues::Query(match subject {
+            return LazyObject::LazySetValues(LazySetValues::ValuesAxiomatically(match subject {
                 Object::Structure(s) if s.is_knowledge().is_ok() => {
-                    AxiomaticQueryValues::EmptyStructure
+                    QueryValuesAxiomatically::EmptyStructure
                 }
                 // TODO: review this for abstract objects
-                _ => AxiomaticQueryValues::None,
+                _ => QueryValuesAxiomatically::None,
             }));
         }
         _ => {
@@ -60,7 +60,7 @@ pub fn values(
     };
 
     match initial_match {
-        InitialMatch::Axiomatic => LazyObject::LazySetValues(LazySetValues::Query(
+        InitialMatch::Axiomatic => LazyObject::LazySetValues(LazySetValues::ValuesAxiomatically(
             values_axiomatically(knowledge, subject, tag),
         )),
         InitialMatch::Compute => tag.call(knowledge, array::from_ref(&subject), context),
@@ -68,25 +68,11 @@ pub fn values(
             // In case that there is none or both,
             // tag is not a `Tag` so we can return nothing.
 
-            LazyObject::LazySetValues(LazySetValues::Query(AxiomaticQueryValues::None))
+            LazyObject::LazySetValues(LazySetValues::ValuesAxiomatically(
+                QueryValuesAxiomatically::None,
+            ))
         }
     }
 }
 
-/// An iterator over all axiomatic and computed values
-#[derive(Clone)]
-pub enum QueryValues {
-    Axiomatic(AxiomaticQueryValues),
-    ComputationResult(StructureValues),
-}
-
-impl Iterator for QueryValues {
-    type Item = Object;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::Axiomatic(axiomatic_iter) => axiomatic_iter.next(),
-            Self::ComputationResult(iter) => iter.next(),
-        }
-    }
-}
+pub type QueryValues = LazyObject;

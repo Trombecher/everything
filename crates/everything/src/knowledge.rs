@@ -3,7 +3,7 @@ use everything_structures::{Object, Structure};
 use crate::{
     LazyObject,
     ext::{KnowledgeError, StructureExt},
-    query,
+    query::{self, QuerySubjectsAndValuesAxiomatically, QuerySubjectsAxiomatically},
 };
 
 #[derive(Clone)]
@@ -31,11 +31,22 @@ impl Knowledge {
         query::values(self.structure(), subject, tag, &mut Default::default())
     }
 
-    /*
-    pub fn query_subjects_axiomatically(&self, tag: Object, value: Object) -> AxiomaticQueryValues {
+    #[inline]
+    pub fn query_subjects_axiomatically(
+        &self,
+        tag: Object,
+        value: Object,
+    ) -> QuerySubjectsAxiomatically {
         query::subjects_axiomatically(&self.0, tag, value)
     }
-     */
+
+    #[inline]
+    pub fn query_subjects_and_values_axiomatically(
+        &self,
+        tag: Object,
+    ) -> QuerySubjectsAndValuesAxiomatically {
+        query::subjects_and_values_axiomatically(&self.0, tag)
+    }
 }
 
 impl TryFrom<Structure> for Knowledge {

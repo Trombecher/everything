@@ -13,7 +13,7 @@ mod tests;
 /// an object. You can obtain an instance of this iterator by
 /// calling [`values_axiomatically`].
 #[derive(Clone)]
-pub enum AxiomaticQueryValues {
+pub enum QueryValuesAxiomatically {
     /// The variant that yields nothing.
     None,
 
@@ -28,7 +28,7 @@ pub enum AxiomaticQueryValues {
     Borrowed(AxiomaticBorrowedQueryValues),
 }
 
-impl AxiomaticQueryValues {
+impl QueryValuesAxiomatically {
     /// Creates a structure with all set values from `self`.
     #[deprecated]
     pub fn collect_to_set(self) -> Structure {
@@ -37,7 +37,7 @@ impl AxiomaticQueryValues {
     }
 }
 
-impl Iterator for AxiomaticQueryValues {
+impl Iterator for QueryValuesAxiomatically {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -56,7 +56,7 @@ impl Iterator for AxiomaticQueryValues {
     }
 }
 
-impl std::fmt::Debug for AxiomaticQueryValues {
+impl std::fmt::Debug for QueryValuesAxiomatically {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut this = self.clone();
         f.debug_list().entries(&mut this).finish()
@@ -146,15 +146,15 @@ pub fn values_axiomatically(
     knowledge: &Structure,
     subject: Object,
     tag: Object,
-) -> AxiomaticQueryValues {
+) -> QueryValuesAxiomatically {
     match (&subject, &tag) {
         (Object::Abstract(Abstract::AXIOMATIC), Object::Abstract(Abstract::AXIOMATIC)) => {
-            AxiomaticQueryValues::AxiomaticAxiomaticConstraint
+            QueryValuesAxiomatically::AxiomaticAxiomaticConstraint
         }
         (
             Object::Abstract(Abstract::AXIOMATIC | Abstract::COMPUTED),
             Object::Abstract(Abstract::COMPUTED),
-        ) => AxiomaticQueryValues::None,
+        ) => QueryValuesAxiomatically::None,
         _ => {
             let values_from_subject = match &subject {
                 Object::Abstract(_) => StructureValues::None,
@@ -163,7 +163,7 @@ pub fn values_axiomatically(
 
             let statements = knowledge.values(Abstract::CONTAINS.into());
 
-            AxiomaticQueryValues::Borrowed(AxiomaticBorrowedQueryValues {
+            QueryValuesAxiomatically::Borrowed(AxiomaticBorrowedQueryValues {
                 values_from_subject,
                 statements,
                 subject,
