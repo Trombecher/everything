@@ -4,11 +4,11 @@ mod tests;
 
 use std::array;
 
-use everything_structures::{Abstract, Object, Property, Structure, StructureValues};
+use everything_structures::{Abstract, Object, Structure, StructureValues};
 use tracing::instrument;
 
 use crate::ctx::EvaluationContext;
-use crate::ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt};
+use crate::ext::{AbstractExt, ObjectExt, StructureExt};
 
 pub use axiomatic::*;
 

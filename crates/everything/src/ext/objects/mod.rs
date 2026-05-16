@@ -9,7 +9,7 @@ use crate::{
     ObjectOrAxiomaticQueryValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt,
+        AbstractExt, BinaryNode, KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt,
         iter::IteratorExtNextAndLast,
     },
     query::{self, AxiomaticQueryValues},
@@ -22,6 +22,16 @@ pub trait ObjectExt {
     /// Extracts the first (and last) [Abstract::COMPUTED] from `self`.
     fn computed_body(&self, knowledge: &Structure) -> Option<Object>;
 
+    fn node_equal(&self, knowledge: &Structure) -> Option<BinaryNode>;
+
+    fn node_and(&self, knowledge: &Structure) -> Option<BinaryNode>;
+
+    fn node_or(&self, knowledge: &Structure) -> Option<BinaryNode>;
+
+    fn node_add(&self, knowledge: &Structure) -> Option<BinaryNode>;
+
+    fn node_xor(&self, knowledge: &Structure) -> Option<BinaryNode>;
+
     fn capture(
         &self,
         knowledge: &Structure,
@@ -32,7 +42,7 @@ pub trait ObjectExt {
     fn eval<'knowledge, 'subject>(
         &'subject self,
         knowledge: &'knowledge Structure,
-        ctx: &mut EvaluationContext,
+        context: &mut EvaluationContext,
     ) -> ObjectOrAxiomaticQueryValues<'knowledge, 'subject>;
 
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
@@ -58,7 +68,7 @@ pub trait ObjectExt {
         ctx: &mut EvaluationContext,
     ) -> Object;
 
-    fn to_natural_number(&self, knowledge: &Structure) -> Option<u128>;
+    fn to_integer(&self, knowledge: &Structure) -> Option<i128>;
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u128>;
 
@@ -77,6 +87,15 @@ pub trait ObjectExt {
     fn node_function_self(&self, knowledge: &Structure) -> Option<Object>;
 
     fn node_not(&self, knowledge: &Structure) -> Option<Object>;
+
+    /// Parses a binary node by querying (axiomatically)
+    /// for `left_tag` and `right_tag`.
+    fn binary_node(
+        &self,
+        knowledge: &Structure,
+        left_tag: Object,
+        right_tag: Object,
+    ) -> Option<BinaryNode>;
 }
 
 impl ObjectExt for Object {
@@ -116,6 +135,58 @@ impl ObjectExt for Object {
         self.set_values(knowledge).next().is_some()
     }
 
+    fn node_equal(&self, knowledge: &Structure) -> Option<BinaryNode> {
+        self.binary_node(
+            knowledge,
+            Abstract::NODE_EQUAL_LEFT.into(),
+            Abstract::NODE_EQUAL_RIGHT.into(),
+        )
+    }
+
+    fn node_and(&self, knowledge: &Structure) -> Option<BinaryNode> {
+        self.binary_node(
+            knowledge,
+            Abstract::NODE_AND_LEFT.into(),
+            Abstract::NODE_AND_RIGHT.into(),
+        )
+    }
+
+    fn node_or(&self, knowledge: &Structure) -> Option<BinaryNode> {
+        self.binary_node(
+            knowledge,
+            Abstract::NODE_OR_LEFT.into(),
+            Abstract::NODE_OR_RIGHT.into(),
+        )
+    }
+
+    fn node_add(&self, knowledge: &Structure) -> Option<BinaryNode> {
+        self.binary_node(
+            knowledge,
+            Abstract::NODE_ADD_LEFT.into(),
+            Abstract::NODE_ADD_RIGHT.into(),
+        )
+    }
+
+    fn node_xor(&self, knowledge: &Structure) -> Option<BinaryNode> {
+        self.binary_node(
+            knowledge,
+            Abstract::NODE_XOR_LEFT.into(),
+            Abstract::NODE_XOR_RIGHT.into(),
+        )
+    }
+
+    fn binary_node(
+        &self,
+        knowledge: &Structure,
+        left_tag: Object,
+        right_tag: Object,
+    ) -> Option<BinaryNode> {
+        let left = query::values_axiomatically(knowledge, self, left_tag).next()?;
+        let right = query::values_axiomatically(knowledge, self, right_tag).next()?;
+
+        Some(BinaryNode { left, right })
+    }
+
     #[instrument(skip(knowledge), ret)]
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType> {
         let mut node_type = self.computed_body(knowledge).map(NodeType::Computed);
@@ -146,7 +217,11 @@ impl ObjectExt for Object {
         xor_with!(self.node_count(knowledge).map(NodeType::Count));
         xor_with!(self.node_query(knowledge).map(NodeType::Query));
         xor_with!(self.node_not(knowledge).map(NodeType::Not));
-        // TODO: all
+        xor_with!(self.node_and(knowledge).map(NodeType::And));
+        xor_with!(self.node_or(knowledge).map(NodeType::Or));
+        xor_with!(self.node_equal(knowledge).map(NodeType::Equal));
+        xor_with!(self.node_xor(knowledge).map(NodeType::Xor));
+        xor_with!(self.node_add(knowledge).map(NodeType::Add));
 
         node_type
     }
@@ -164,9 +239,15 @@ impl ObjectExt for Object {
     }
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u128> {
-        query::values_axiomatically(knowledge, self, Abstract::NODE_PARAMETER.into())
-            .next_and_last()
-            .and_then(|depth| depth.to_natural_number(knowledge))
+        let depth = query::values_axiomatically(knowledge, self, Abstract::NODE_PARAMETER.into())
+            .next_and_last()?
+            .to_integer(knowledge)?;
+
+        if depth >= 0 {
+            Some(depth as u128)
+        } else {
+            None
+        }
     }
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
@@ -280,14 +361,13 @@ impl ObjectExt for Object {
         // TODO: better panic msgs
 
         match self.node_type(knowledge) {
-            Some(NodeType::Count(expression)) => {
-                ObjectOrAxiomaticQueryValues::Object(Self::new_integer(
-                    expression
-                        .eval(knowledge, context)
-                        .set_values(knowledge)
-                        .count() as u128,
-                ))
-            }
+            Some(NodeType::Count(expression)) => Self::new_integer(
+                expression
+                    .eval(knowledge, context)
+                    .set_values(knowledge)
+                    .count() as i128,
+            )
+            .into(),
             Some(NodeType::Query(statement_form_object)) => {
                 // TODO: adjust constraint for query
 
@@ -299,11 +379,10 @@ impl ObjectExt for Object {
                     } => {
                         // We query for values.
 
-                        let subject = unevaluated_subject.eval(knowledge, context);
-                        let tag = unevaluated_tag.eval(knowledge, context);
+                        let subject = unevaluated_subject.eval(knowledge, context).into_set();
+                        let tag = unevaluated_tag.eval(knowledge, context).into_set();
 
-                        let query_values_result = query::values(knowledge, &subject, tag, context);
-                        query_values_result.collect_to_set()
+                        query::values(knowledge, &subject, tag, context).into()
                     }
                     StatementForm {
                         subject: ObjectForm::Specific(unevaluated_subject),
@@ -312,9 +391,9 @@ impl ObjectExt for Object {
                     } => {
                         // We check if the statement exists.
 
-                        let subject = unevaluated_subject.eval(knowledge, context);
-                        let tag = unevaluated_tag.eval(knowledge, context);
-                        let value = unevaluated_value.eval(knowledge, context);
+                        let subject = unevaluated_subject.eval(knowledge, context).into_set();
+                        let tag = unevaluated_tag.eval(knowledge, context).into_set();
+                        let value = unevaluated_value.eval(knowledge, context).into_set();
 
                         ObjectOrAxiomaticQueryValues::Object(
                             Structure::new_bool(query::exists(
@@ -329,54 +408,45 @@ impl ObjectExt for Object {
             Some(NodeType::Literal(literal)) => literal.into(),
             Some(NodeType::Computed(_)) => self.capture(knowledge, 0, context).into(),
             Some(NodeType::Parameter(depth)) => context.parameter_value(depth as usize).into(),
-            Some(NodeType::Equal) => {
-                let mut values = query::values_axiomatically(
-                    knowledge,
-                    self,
-                    Object::Abstract(Abstract::NODE_EQUAL),
-                )
-                .map(|value| value.eval(knowledge, context));
-
-                let first = values.next().unwrap().into_set();
-                let equal = values.all(|object| object.into_set() == first);
-
-                Object::Structure(Structure::new_bool(equal)).into()
+            Some(NodeType::Equal(BinaryNode { left, right })) => {
+                Object::Structure(Structure::new_bool(
+                    left.eval(knowledge, context).into_set()
+                        == right.eval(knowledge, context).into_set(),
+                ))
+                .into()
             }
-            Some(NodeType::Or) => {
-                let mut values = query::values_axiomatically(
-                    knowledge,
-                    self,
-                    Object::Abstract(Abstract::NODE_OR),
-                )
-                .map(|value| value.eval(knowledge, context));
-
-                Structure::new_bool(values.any(|o| o.is_truthy(knowledge))).into()
+            Some(NodeType::Or(BinaryNode { left, right })) => {
+                Object::Structure(if left.eval(knowledge, context).is_truthy(knowledge) {
+                    // Short circuit (if the left side is "true")
+                    Structure::new_bool(true)
+                } else {
+                    Structure::new_bool(right.eval(knowledge, context).is_truthy(knowledge)).into()
+                })
+                .into()
             }
-            Some(NodeType::And) => {
-                let mut values = query::values_axiomatically(
-                    knowledge,
-                    self,
-                    Object::Abstract(Abstract::NODE_AND),
-                )
-                .map(|value| value.eval(knowledge, context));
-
-                Structure::new_bool(values.all(|value| value.is_truthy(knowledge))).into()
+            Some(NodeType::And(BinaryNode { left, right })) => {
+                Object::Structure(Structure::new_bool(
+                    left.eval(knowledge, context).is_truthy(knowledge)
+                        && right.eval(knowledge, context).is_truthy(knowledge),
+                ))
+                .into()
             }
             Some(NodeType::Not(expression)) => Object::Structure(Structure::new_bool(
                 !expression.eval(knowledge, context).is_truthy(knowledge),
             ))
             .into(),
-            Some(NodeType::Add { left, right }) => {
-                let left = left.eval(knowledge, context);
-                let right = right.eval(knowledge, context);
+            Some(NodeType::Add(BinaryNode { left, right })) => {
+                // TODO: (perf) maybe short circuit sets into UNDEFINED.
+                let left = left.eval(knowledge, context).into_set();
+                let right = right.eval(knowledge, context).into_set();
 
-                left.add(knowledge, &right)
+                left.add(knowledge, &right).into()
             }
             Some(ty) => todo!("{ty:?} not impl"),
             None if let Object::Structure(Structure::Any(any_structure)) = self => any_structure
                 .properties()
                 .map(|property| {
-                    let value = property.value.eval(knowledge, context);
+                    let value = property.value.eval(knowledge, context).into_set();
 
                     let result = if property.value == value {
                         Ok(())
@@ -395,13 +465,13 @@ impl ObjectExt for Object {
                 })
                 .transpose_into_fallible()
                 .collect::<Vec<_>>()
-                .map(|mut properties| Object::Structure(Structure::new(&mut properties)))
+                .map(|mut properties| Object::Structure(Structure::new(&mut properties)).into())
                 .unwrap_or_else(|(o, error)| {
                     warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                    Structure::Empty.into()
+                    ObjectOrAxiomaticQueryValues::Object(Object::Structure(Structure::Empty))
                 }),
-            None => self.clone(),
+            None => self.clone().into(),
         }
     }
 
@@ -431,15 +501,26 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn to_natural_number(&self, knowledge: &Structure) -> Option<u128> {
+    fn to_integer(&self, knowledge: &Structure) -> Option<i128> {
         if let Some(n) = self.exact_integer() {
             // Fast path for exact natural numbers.
             Some(n)
-        } else {
+        } else if let Some(predecessor) =
             query::values_axiomatically(knowledge, self, Abstract::SUCCESSOR_OF.into())
                 .next_and_last()
-                .and_then(|inner| inner.to_natural_number(knowledge))
-                .map(|n| n + 1)
+        {
+            predecessor
+                .to_integer(knowledge)
+                .map(|n| n.checked_add(1).expect("yo shi too big"))
+        } else if let Some(successor) =
+            query::values_axiomatically(knowledge, self, Abstract::PREDECESSOR_OF.into())
+                .next_and_last()
+        {
+            successor
+                .to_integer(knowledge)
+                .map(|n| n.checked_sub(1).expect("yo shi too small"))
+        } else {
+            None
         }
     }
 
@@ -451,8 +532,8 @@ impl ObjectExt for Object {
     }
 
     fn add(&self, knowledge: &Structure, other: &Object) -> Object {
-        if let Some(left) = self.to_natural_number(knowledge)
-            && let Some(right) = other.to_natural_number(knowledge)
+        if let Some(left) = self.to_integer(knowledge)
+            && let Some(right) = other.to_integer(knowledge)
         {
             if let Some(sum) = left.checked_add(right) {
                 Object::new_integer(sum)

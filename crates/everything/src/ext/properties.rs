@@ -29,16 +29,28 @@ pub trait PropertyExt {
     fn new_computed(body: Object) -> Self;
 
     #[must_use]
-    fn new_node_equal(node: Object) -> Self;
+    fn new_node_equal_left(left: Object) -> Self;
 
     #[must_use]
-    fn new_node_and(node: Object) -> Self;
+    fn new_node_equal_right(right: Object) -> Self;
 
     #[must_use]
-    fn new_node_or(node: Object) -> Self;
+    fn new_node_and_left(left: Object) -> Self;
 
     #[must_use]
-    fn new_node_xor(node: Object) -> Self;
+    fn new_node_and_right(right: Object) -> Self;
+
+    #[must_use]
+    fn new_node_or_left(left: Object) -> Self;
+
+    #[must_use]
+    fn new_node_or_right(right: Object) -> Self;
+
+    #[must_use]
+    fn new_node_xor_left(left: Object) -> Self;
+
+    #[must_use]
+    fn new_node_xor_right(right: Object) -> Self;
 
     #[must_use]
     fn new_node_not(node: Object) -> Self;
@@ -78,7 +90,7 @@ impl PropertyExt for Property {
     fn new_node_parameter(depth: usize) -> Self {
         Self {
             tag: Abstract::NODE_PARAMETER.into(),
-            value: Object::new_natural_number(depth as u128),
+            value: Object::new_integer(depth as i128),
         }
     }
 
@@ -110,34 +122,6 @@ impl PropertyExt for Property {
         }
     }
 
-    fn new_node_equal(node: Object) -> Self {
-        Self {
-            tag: Abstract::NODE_EQUAL.into(),
-            value: node,
-        }
-    }
-
-    fn new_node_and(node: Object) -> Self {
-        Self {
-            tag: Abstract::NODE_AND.into(),
-            value: node,
-        }
-    }
-
-    fn new_node_or(node: Object) -> Self {
-        Self {
-            tag: Abstract::NODE_OR.into(),
-            value: node,
-        }
-    }
-
-    fn new_node_xor(node: Object) -> Self {
-        Self {
-            tag: Abstract::NODE_XOR.into(),
-            value: node,
-        }
-    }
-
     fn new_node_not(node: Object) -> Self {
         Self {
             tag: Abstract::NODE_NOT.into(),
@@ -163,6 +147,62 @@ impl PropertyExt for Property {
         Self {
             tag: Abstract::NODE_COUNT.into(),
             value: object,
+        }
+    }
+
+    fn new_node_and_left(left: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_AND_LEFT.into(),
+            value: left,
+        }
+    }
+
+    fn new_node_and_right(right: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_AND_RIGHT.into(),
+            value: right,
+        }
+    }
+
+    fn new_node_equal_left(left: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_EQUAL_LEFT.into(),
+            value: left,
+        }
+    }
+
+    fn new_node_equal_right(right: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_EQUAL_RIGHT.into(),
+            value: right,
+        }
+    }
+
+    fn new_node_or_left(left: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_OR_LEFT.into(),
+            value: left,
+        }
+    }
+
+    fn new_node_or_right(right: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_OR_RIGHT.into(),
+            value: right,
+        }
+    }
+
+    fn new_node_xor_left(left: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_XOR_LEFT.into(),
+            value: left,
+        }
+    }
+
+    fn new_node_xor_right(right: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_XOR_RIGHT.into(),
+            value: right,
         }
     }
 }

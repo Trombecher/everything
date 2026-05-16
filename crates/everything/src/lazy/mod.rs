@@ -2,7 +2,7 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::{
     ext::{ObjectExt, PropertyExt},
-    query::AxiomaticQueryValues,
+    query::{AxiomaticQueryValues, QueryValuesResult},
 };
 
 /// Either an object or an iterator over values.
@@ -24,6 +24,19 @@ impl<'knowledge, 'subject> From<AxiomaticQueryValues<'knowledge, 'subject>>
 {
     fn from(value: AxiomaticQueryValues<'knowledge, 'subject>) -> Self {
         Self::AxiomaticQueryValues(value)
+    }
+}
+
+impl<'knowledge, 'subject> From<QueryValuesResult<'knowledge, 'subject>>
+    for ObjectOrAxiomaticQueryValues<'knowledge, 'subject>
+{
+    fn from(value: QueryValuesResult<'knowledge, 'subject>) -> Self {
+        match value {
+            QueryValuesResult::Axiomatic(axiomatic_query_values) => {
+                Self::AxiomaticQueryValues(axiomatic_query_values)
+            }
+            QueryValuesResult::ComputationResult(object) => Self::Object(object),
+        }
     }
 }
 

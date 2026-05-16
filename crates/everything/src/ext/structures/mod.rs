@@ -100,13 +100,13 @@ pub trait StructureExt {
 
     fn new_computed(body: Object) -> Self;
 
-    fn new_node_equal<const N: usize>(nodes: [Object; N]) -> Self;
+    fn new_node_equal(left: Object, right: Object) -> Self;
 
-    fn new_node_and<const N: usize>(nodes: [Object; N]) -> Self;
+    fn new_node_and(left: Object, right: Object) -> Self;
 
-    fn new_node_or<const N: usize>(nodes: [Object; N]) -> Self;
+    fn new_node_or(left: Object, right: Object) -> Self;
 
-    fn new_node_xor<const N: usize>(nodes: [Object; N]) -> Self;
+    fn new_node_xor(left: Object, right: Object) -> Self;
 
     fn new_node_literal(object: Object) -> Self;
 
@@ -266,16 +266,6 @@ impl StructureExt for Structure {
         Self::new(&mut [Property::new_computed(body)])
     }
 
-    fn new_node_equal<const N: usize>(nodes: [Object; N]) -> Self {
-        let mut properties = nodes.map(Property::new_node_equal);
-        Self::new(&mut properties)
-    }
-
-    fn new_node_and<const N: usize>(nodes: [Object; N]) -> Self {
-        let mut properties = nodes.map(Property::new_node_and);
-        Self::new(&mut properties)
-    }
-
     fn new_node_parameter(depth: usize) -> Self {
         Self::new(&mut [Property::new_node_parameter(depth)])
     }
@@ -310,16 +300,6 @@ impl StructureExt for Structure {
         Self::new(&mut properties)
     }
 
-    fn new_node_or<const N: usize>(nodes: [Object; N]) -> Self {
-        let mut properties = nodes.map(Property::new_node_or);
-        Self::new(&mut properties)
-    }
-
-    fn new_node_xor<const N: usize>(nodes: [Object; N]) -> Self {
-        let mut properties = nodes.map(Property::new_node_xor);
-        Self::new(&mut properties)
-    }
-
     fn new_node_not(node: Object) -> Self {
         Self::new(&mut [Property::new_node_not(node)])
     }
@@ -333,6 +313,34 @@ impl StructureExt for Structure {
             Property::new_statement_subject(subject),
             Property::new_statement_tag(tag),
             Property::new_statement_value(value),
+        ])
+    }
+
+    fn new_node_and(left: Object, right: Object) -> Self {
+        Self::new(&mut [
+            Property::new_node_and_left(left),
+            Property::new_node_and_right(right),
+        ])
+    }
+
+    fn new_node_equal(left: Object, right: Object) -> Self {
+        Self::new(&mut [
+            Property::new_node_equal_left(left),
+            Property::new_node_equal_right(right),
+        ])
+    }
+
+    fn new_node_or(left: Object, right: Object) -> Self {
+        Self::new(&mut [
+            Property::new_node_or_left(left),
+            Property::new_node_or_right(right),
+        ])
+    }
+
+    fn new_node_xor(left: Object, right: Object) -> Self {
+        Self::new(&mut [
+            Property::new_node_xor_left(left),
+            Property::new_node_xor_right(right),
         ])
     }
 }

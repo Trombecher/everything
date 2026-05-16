@@ -22,18 +22,24 @@ pub struct Statement {
     pub value: Object,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct BinaryNode {
+    pub left: Object,
+    pub right: Object,
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum NodeType {
     Computed(Object),
     Literal(Object),
-    And,
+    And(BinaryNode),
     FunctionSelf(Object),
     Parameter(u128),
     Count(Object),
     Query(Object),
-    Equal,
-    Or,
-    Xor,
+    Equal(BinaryNode),
+    Or(BinaryNode),
+    Xor(BinaryNode),
     Not(Object),
-    Add { left: Object, right: Object },
+    Add(BinaryNode),
 }
