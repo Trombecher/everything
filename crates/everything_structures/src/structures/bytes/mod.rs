@@ -5,6 +5,7 @@ use std::{
     cmp::Ordering,
     fmt::Debug,
     hash::{DefaultHasher, Hash, Hasher},
+    mem::take,
     num::NonZeroUsize,
     sync::{Arc, LazyLock},
 };
@@ -153,18 +154,14 @@ impl BytesStructure {
         }
     }
 
-    pub fn properties<'properties>(&'properties self) -> BytesStructureProperties<'properties> {
-        let (item, tail) = self.parts();
-        BytesStructureProperties::TailAndItem(tail, item)
+    pub fn properties(&self) -> BytesStructureProperties {
+        BytesStructureProperties::TailAndItem(self.clone())
     }
 
-    pub fn values<'properties>(
-        &'properties self,
-        tag: Object,
-    ) -> BytesStructureValues<'properties> {
+    pub fn values(&self, tag: Object) -> BytesStructureValues {
         match tag {
             Object::Abstract(Abstract::LIST_ITEM) => BytesStructureValues::ListItem(self.parts().0),
-            Object::Abstract(Abstract::LIST_TAIL) => BytesStructureValues::Tail(self.parts().1),
+            Object::Abstract(Abstract::LIST_TAIL) => BytesStructureValues::Tail(self.clone()),
             _ => BytesStructureValues::None,
         }
     }
@@ -240,29 +237,27 @@ impl Drop for BytesStructure {
 ///
 /// This iterator is guaranteed to return items in
 /// lexicographical [Ord]er.
-#[derive(Clone)]
-pub enum BytesStructureProperties<'bytes> {
-    TailAndItem(&'bytes [u8], Byte),
-    Tail(&'bytes [u8]),
+#[derive(Clone, Default)]
+pub enum BytesStructureProperties {
+    #[default]
     None,
+    Tail(BytesStructure),
+    TailAndItem(BytesStructure),
 }
 
-impl Iterator for BytesStructureProperties<'_> {
+impl Iterator for BytesStructureProperties {
     type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::TailAndItem(tail, item) => {
-                let tail = *tail;
-                let item = *item;
-                *self = Self::Tail(tail);
+        match take(self) {
+            Self::TailAndItem(bytes) => {
+                let (item, _) = bytes.parts();
+                *self = Self::Tail(bytes);
 
                 Some(Property::new_list_item(Object::from(Structure::from(item))))
             }
-            Self::Tail(tail) => {
-                let tail = *tail;
-                *self = Self::None;
-
+            Self::Tail(bytes) => {
+                let (_, tail) = bytes.parts();
                 Some(Property::new_list_tail(Object::from(Structure::from(tail))))
             }
             Self::None => None,
@@ -278,29 +273,23 @@ impl Iterator for BytesStructureProperties<'_> {
 /// This iterator is guaranteed to return items in
 /// lexicographical [Ord]er. Also the iterator will
 /// yield exactly one [Object].
-#[derive(Clone)]
-pub enum BytesStructureValues<'bytes> {
+#[derive(Clone, Default)]
+pub enum BytesStructureValues {
+    #[default]
     None,
     ListItem(Byte),
-    Tail(&'bytes [u8]),
+    Tail(BytesStructure),
 }
 
-impl Iterator for BytesStructureValues<'_> {
+impl Iterator for BytesStructureValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
+        match take(self) {
             Self::None => None,
-            Self::ListItem(byte) => {
-                let byte = *byte;
-                *self = Self::None;
-
-                Some(Object::from(Structure::from(byte)))
-            }
-            Self::Tail(tail) => {
-                let tail = *tail;
-                *self = Self::None;
-
+            Self::ListItem(byte) => Some(Object::from(Structure::from(byte))),
+            Self::Tail(bytes) => {
+                let (_, tail) = bytes.parts();
                 Some(Object::Structure(Structure::from(tail)))
             }
         }

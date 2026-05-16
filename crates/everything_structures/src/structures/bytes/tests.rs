@@ -86,14 +86,15 @@ mod BytesStructureProperties {
     /// are sorted.
     #[test]
     fn next_is_sorted() {
-        let properties = BytesStructureProperties::TailAndItem(&[], Byte(0));
+        let properties = BytesStructureProperties::TailAndItem(BytesStructure::new(&[0]).unwrap());
 
         assert!(properties.is_sorted());
     }
 
     #[test]
     fn next() {
-        let mut properties = BytesStructureProperties::TailAndItem(&[69], Byte(42));
+        let mut properties =
+            BytesStructureProperties::TailAndItem(BytesStructure::new(&[42, 69]).unwrap());
 
         assert_eq!(
             properties.next(),
@@ -137,7 +138,7 @@ mod BytesStructureValues {
         assert_eq!(values.next(), None);
         assert_eq!(values.next(), None);
 
-        let mut values = BytesStructureValues::Tail(&[67, 69]);
+        let mut values = BytesStructureValues::Tail(BytesStructure::new(&[42, 67, 69]).unwrap());
         assert_eq!(
             values.next(),
             Some(Object::Structure(Structure::Bytes(

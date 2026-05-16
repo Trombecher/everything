@@ -132,7 +132,7 @@ impl Structure {
     }
 
     /// Returns an iterator over all properties of `self`.
-    pub fn properties<'structure>(&'structure self) -> StructureProperties<'structure> {
+    pub fn properties(&self) -> StructureProperties {
         match self {
             Self::Empty => StructureProperties::Empty,
             Self::Integer(n) => StructureProperties::Integer(*n),
@@ -183,7 +183,7 @@ impl Structure {
     /// Returns an iterator over all values that this tag has
     /// in `self`.
     #[must_use]
-    pub fn values<'props>(&'props self, tag: Object) -> StructureValues<'props> {
+    pub fn values(&self, tag: Object) -> StructureValues {
         match self {
             Self::Integer(non_zero) => StructureValues::Integer(*non_zero),
             Self::Bytes(bytes) => StructureValues::Bytes(bytes.values(tag)),
@@ -202,7 +202,7 @@ impl Structure {
     }
 
     /// Returns an iterator over all tags that this value has in `self`.
-    pub fn tags<'properties>(&'properties self, value: Object) -> StructureTags<'properties> {
+    pub fn tags(&self, value: Object) -> StructureTags {
         match self {
             Self::Empty => StructureTags::None,
             Self::Character(c) => {
@@ -331,17 +331,17 @@ impl PartialEq<[Property]> for Structure {
 ///
 /// You can get an instance of this type via [`Structure::properties`].
 #[derive(Clone)]
-pub enum StructureProperties<'structure> {
+pub enum StructureProperties {
     Empty,
     Integer(NonZeroI128),
     CodePoint(char),
     Byte(ByteProperties),
-    Any(AnyStructureProperties<'structure>),
-    Text(TextStructureProperties<'structure>),
-    Bytes(BytesStructureProperties<'structure>),
+    Any(AnyStructureProperties),
+    Text(TextStructureProperties),
+    Bytes(BytesStructureProperties),
 }
 
-impl<'structure> Iterator for StructureProperties<'structure> {
+impl Iterator for StructureProperties {
     type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -360,14 +360,14 @@ impl<'structure> Iterator for StructureProperties<'structure> {
                 Some(Property::new_character(c))
             }
             Self::Byte(properties) => properties.next(),
-            Self::Any(properties) => properties.next().cloned(),
+            Self::Any(properties) => properties.next(),
             Self::Text(properties) => properties.next(),
             Self::Bytes(propeties) => propeties.next(),
         }
     }
 }
 
-impl std::fmt::Debug for StructureProperties<'_> {
+impl std::fmt::Debug for StructureProperties {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut this = self.clone();
         f.debug_set().entries(&mut this).finish()
@@ -379,19 +379,19 @@ impl std::fmt::Debug for StructureProperties<'_> {
 ///
 /// You can get an instance of this type from [`Structure::values`].
 #[derive(Clone)]
-pub enum StructureValues<'properties> {
+pub enum StructureValues {
     None,
     /// Either "successor of" iff the value is positive;
     /// else "predecessor of".
     Integer(NonZeroI128),
     CodePoint(char),
     Byte(ByteValues),
-    Bytes(BytesStructureValues<'properties>),
-    Text(TextStructureValues<'properties>),
-    Any(AnyStructureValues<'properties>),
+    Bytes(BytesStructureValues),
+    Text(TextStructureValues),
+    Any(AnyStructureValues),
 }
 
-impl<'properties> Iterator for StructureValues<'properties> {
+impl Iterator for StructureValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -411,13 +411,13 @@ impl<'properties> Iterator for StructureValues<'properties> {
             }
             Self::Bytes(bytes) => bytes.next(),
             Self::Text(text) => text.next(),
-            Self::Any(any) => any.next().cloned(),
+            Self::Any(any) => any.next(),
             Self::Byte(byte) => byte.next(),
         }
     }
 }
 
-impl std::fmt::Debug for StructureValues<'_> {
+impl std::fmt::Debug for StructureValues {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut this = self.clone();
         f.debug_set().entries(&mut this).finish()
@@ -429,18 +429,18 @@ impl std::fmt::Debug for StructureValues<'_> {
 ///
 /// You can get an instance of this type from [`Structure::tags`].
 #[derive(Clone)]
-pub enum StructureTags<'properties> {
+pub enum StructureTags {
     None,
     SuccessorOf,
     PredecessorOf,
     ListItem,
     Tail,
     CodePoint,
-    Any(AnyStructureTags<'properties>),
+    Any(AnyStructureTags),
     Byte(ByteTags),
 }
 
-impl Iterator for StructureTags<'_> {
+impl Iterator for StructureTags {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -466,13 +466,13 @@ impl Iterator for StructureTags<'_> {
                 *self = Self::None;
                 Some(Object::Abstract(Abstract::CODE_POINT))
             }
-            Self::Any(any) => any.next().cloned(),
+            Self::Any(any) => any.next(),
             Self::Byte(byte) => byte.next().map(|slot| Object::from(Abstract::from(slot))),
         }
     }
 }
 
-impl std::fmt::Debug for StructureTags<'_> {
+impl std::fmt::Debug for StructureTags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut this = self.clone();
         f.debug_set().entries(&mut this).finish()

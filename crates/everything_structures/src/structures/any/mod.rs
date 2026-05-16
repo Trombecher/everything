@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests;
 
-use core::slice;
 use std::{
     cmp::Ordering,
     fmt,
@@ -20,28 +19,34 @@ pub struct AnyStructure {
 impl AnyStructure {
     /// Returns an iterator over all values that this tag has
     /// in `self`.
-    pub fn values<'properties>(&'properties self, tag: Object) -> AnyStructureValues<'properties> {
+    pub fn values(&self, tag: Object) -> AnyStructureValues {
         let start = self
             .properties
             .partition_point(|property| property.tag < tag);
 
         AnyStructureValues {
-            props: self.properties[start..].iter(),
+            properties: AnyStructureProperties {
+                subject: self.clone(),
+                index: start,
+            },
             tag,
             done: false,
         }
     }
 
     /// Returns an iterator of all tags that this value has in `self`.
-    pub fn tags<'properties>(&'properties self, value: Object) -> AnyStructureTags<'properties> {
+    pub fn tags(&self, value: Object) -> AnyStructureTags {
         AnyStructureTags {
-            properties: self.properties.iter(),
+            properties: self.properties(),
             value,
         }
     }
 
-    pub fn properties<'properties>(&'properties self) -> AnyStructureProperties<'properties> {
-        self.properties.iter()
+    pub fn properties(&self) -> AnyStructureProperties {
+        AnyStructureProperties {
+            subject: self.clone(),
+            index: 0,
+        }
     }
 
     #[must_use]
@@ -124,21 +129,21 @@ impl Drop for AnyStructure {
 
 /// Iterator over values for a tag in an [AnyStructure].
 #[derive(Clone)]
-pub struct AnyStructureValues<'props> {
-    props: slice::Iter<'props, Property>,
+pub struct AnyStructureValues {
+    properties: AnyStructureProperties,
     tag: Object,
     done: bool,
 }
 
-impl<'props> Iterator for AnyStructureValues<'props> {
-    type Item = &'props Object;
+impl Iterator for AnyStructureValues {
+    type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
             None
-        } else if let Some(property) = self.props.next() {
+        } else if let Some(property) = self.properties.next() {
             if property.tag == self.tag {
-                Some(&property.value)
+                Some(property.value)
             } else {
                 self.done = true;
 
@@ -151,13 +156,13 @@ impl<'props> Iterator for AnyStructureValues<'props> {
 }
 
 #[derive(Clone)]
-pub struct AnyStructureTags<'properties> {
-    properties: slice::Iter<'properties, Property>,
+pub struct AnyStructureTags {
+    properties: AnyStructureProperties,
     value: Object,
 }
 
-impl<'properties> Iterator for AnyStructureTags<'properties> {
-    type Item = &'properties Object;
+impl Iterator for AnyStructureTags {
+    type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         for next in &mut self.properties {
@@ -165,11 +170,26 @@ impl<'properties> Iterator for AnyStructureTags<'properties> {
                 continue;
             }
 
-            return Some(&next.tag);
+            return Some(next.tag);
         }
 
         None
     }
 }
 
-pub type AnyStructureProperties<'properties> = slice::Iter<'properties, Property>;
+#[derive(Clone)]
+pub struct AnyStructureProperties {
+    subject: AnyStructure,
+    index: usize,
+}
+
+impl Iterator for AnyStructureProperties {
+    type Item = Property;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.subject.properties.get(self.index).map(|property| {
+            self.index += 1;
+            property.clone()
+        })
+    }
+}

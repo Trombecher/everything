@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests;
 
+use std::mem::take;
+
 use crate::{Abstract, BytesStructure, Object, Property, Structure};
 
 /// Represents an array of unicode characters.
@@ -44,9 +46,8 @@ impl TextStructure {
     }
 
     /// Iterates over the head and tail values.
-    pub fn properties<'text>(&'text self) -> TextStructureProperties<'text> {
-        let (head, tail) = self.parts();
-        TextStructureProperties::TailAndItem(tail, head)
+    pub fn properties(&self) -> TextStructureProperties {
+        TextStructureProperties::TailAndItem(self.clone())
     }
 
     pub fn has(&self, tag: &Object, value: &Object) -> bool {
@@ -70,10 +71,10 @@ impl TextStructure {
         }
     }
 
-    pub fn values<'text>(&'text self, tag: Object) -> TextStructureValues<'text> {
+    pub fn values(&self, tag: Object) -> TextStructureValues {
         match tag {
             Object::Abstract(Abstract::LIST_ITEM) => TextStructureValues::ListItem(self.parts().0),
-            Object::Abstract(Abstract::LIST_TAIL) => TextStructureValues::Tail(self.parts().1),
+            Object::Abstract(Abstract::LIST_TAIL) => TextStructureValues::Tail(self.clone()),
             _ => TextStructureValues::None,
         }
     }
@@ -92,28 +93,27 @@ impl std::fmt::Debug for TextStructure {
     }
 }
 
-#[derive(Clone)]
-pub enum TextStructureProperties<'text> {
-    TailAndItem(&'text str, char),
-    Tail(&'text str),
+#[derive(Clone, Default)]
+pub enum TextStructureProperties {
+    #[default]
     None,
+    Tail(TextStructure),
+    TailAndItem(TextStructure),
 }
 
-impl<'text> Iterator for TextStructureProperties<'text> {
+impl Iterator for TextStructureProperties {
     type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::TailAndItem(tail, item) => {
-                let tail = *tail;
-                let item = *item;
-                *self = Self::Tail(tail);
+        match take(self) {
+            Self::TailAndItem(text) => {
+                let (item, _) = text.parts();
+                *self = Self::Tail(text);
 
                 Some(Property::new_list_item(Object::from(Structure::from(item))))
             }
-            Self::Tail(tail) => {
-                let tail = *tail;
-                *self = Self::None;
+            Self::Tail(text) => {
+                let (_, tail) = text.parts();
 
                 Some(Property::new_list_tail(Object::from(Structure::from(tail))))
             }
@@ -122,30 +122,24 @@ impl<'text> Iterator for TextStructureProperties<'text> {
     }
 }
 
-#[derive(Clone)]
-pub enum TextStructureValues<'text> {
+#[derive(Clone, Default)]
+pub enum TextStructureValues {
+    #[default]
     None,
     ListItem(char),
-    Tail(&'text str),
+    Tail(TextStructure),
 }
 
-impl Iterator for TextStructureValues<'_> {
+impl Iterator for TextStructureValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
+        match take(self) {
             Self::None => None,
-            Self::ListItem(c) => {
-                let c = *c;
-                *self = Self::None;
-
-                Some(Object::Structure(Structure::from(c)))
-            }
-            Self::Tail(bytes) => {
-                let bytes = *bytes;
-                *self = Self::None;
-
-                Some(Object::Structure(Structure::from(bytes)))
+            Self::ListItem(c) => Some(Object::Structure(Structure::from(c))),
+            Self::Tail(text) => {
+                let (_, tail) = text.parts();
+                Some(Object::Structure(Structure::from(tail)))
             }
         }
     }

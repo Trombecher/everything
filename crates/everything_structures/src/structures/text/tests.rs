@@ -4,12 +4,17 @@ mod TextStructureProperties {
 
     #[test]
     fn next_is_sorted() {
-        assert!(TextStructureProperties::TailAndItem("ello, world!", 'h').is_sorted());
+        assert!(
+            TextStructureProperties::TailAndItem(TextStructure::new("Hello, world!").unwrap())
+                .is_sorted()
+        );
     }
 
     #[test]
     fn next() {
-        let mut properties = TextStructureProperties::TailAndItem("tail", 'a');
+        let mut properties =
+            TextStructureProperties::TailAndItem(TextStructure::new("atail").unwrap());
+
         assert_eq!(
             properties.next(),
             Some(Property {

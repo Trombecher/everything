@@ -66,21 +66,27 @@ mod AnyStructure {
 
 #[allow(non_snake_case)]
 mod AnyStructureValues {
-    use crate::Abstract;
+    use crate::{Abstract, Structure};
 
     use super::super::*;
 
     #[test]
     fn next() {
-        let props = [Property {
+        let structure = match Structure::new(&mut [Property {
             tag: Abstract::BIT_0.into(),
             value: Abstract(543539).into(),
-        }];
+        }]) {
+            Structure::Any(any) => any,
+            _ => unreachable!(),
+        };
 
         let mut values = AnyStructureValues {
             done: true,
             tag: Abstract::BIT_0.into(),
-            props: props.iter(),
+            properties: AnyStructureProperties {
+                subject: structure,
+                index: 0,
+            },
         };
 
         assert_eq!(values.next(), None);
