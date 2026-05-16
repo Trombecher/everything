@@ -7,6 +7,7 @@ use std::array;
 use everything_structures::{Abstract, Object, Structure, StructureValues};
 use tracing::instrument;
 
+use crate::LazyObject;
 use crate::ctx::EvaluationContext;
 use crate::ext::{AbstractExt, ObjectExt, StructureExt};
 
@@ -22,13 +23,13 @@ enum InitialMatch {
 /// of the given `subject` with the given `tag` in the given `knowledge`
 /// and `context`.
 #[instrument(skip(knowledge))]
-pub fn values<'knowledge, 'subject>(
-    knowledge: &'knowledge Structure,
-    subject: &'subject Object,
+pub fn values(
+    knowledge: &Structure,
+    subject: Object,
     tag: Object,
     context: &mut EvaluationContext,
-) -> QueryValuesResult<'knowledge, 'subject> {
-    let initial_match = match (subject, &tag) {
+) -> LazyObject {
+    let initial_match = match (&subject, &tag) {
         (&Object::Abstract(Abstract::AXIOMATIC), &Object::Abstract(Abstract::AXIOMATIC))
         | (
             &Object::Abstract(Abstract::AXIOMATIC | Abstract::COMPUTED),
@@ -38,7 +39,7 @@ pub fn values<'knowledge, 'subject>(
             // We could also use the computation result variant
             // but for that we would need to create a set structure.
 
-            return QueryValuesResult::Axiomatic(match subject {
+            return LazyObject::LazySetValues(match subject {
                 Object::Structure(s) if s.is_knowledge().is_ok() => {
                     AxiomaticQueryValues::EmptyStructure
                 }
@@ -48,8 +49,8 @@ pub fn values<'knowledge, 'subject>(
         }
         _ => {
             match (
-                values_axiomatically(knowledge, &tag, Abstract::AXIOMATIC.into()).next(),
-                values_axiomatically(knowledge, &tag, Abstract::COMPUTED.into()).next(),
+                values_axiomatically(knowledge, tag.clone(), Abstract::AXIOMATIC.into()).next(),
+                values_axiomatically(knowledge, tag.clone(), Abstract::COMPUTED.into()).next(),
             ) {
                 (Some(_), None) => InitialMatch::Axiomatic,
                 (None, Some(_)) => InitialMatch::Compute,
@@ -60,29 +61,21 @@ pub fn values<'knowledge, 'subject>(
 
     match initial_match {
         InitialMatch::Axiomatic => {
-            QueryValuesResult::Axiomatic(values_axiomatically(knowledge, subject, tag))
+            LazyObject::LazySetValues(values_axiomatically(knowledge, subject, tag))
         }
-        InitialMatch::Compute => {
-            let result = tag.call(knowledge, array::from_ref(subject), context);
-            QueryValuesResult::ComputationResult(result)
-        }
+        InitialMatch::Compute => tag.call(knowledge, array::from_ref(&subject), context),
         InitialMatch::None => {
             // In case that there is none or both,
             // tag is not a `Tag` so we can return nothing.
 
-            QueryValuesResult::Axiomatic(AxiomaticQueryValues::None)
+            LazyObject::LazySetValues(AxiomaticQueryValues::None)
         }
     }
 }
 
-#[allow(clippy::large_enum_variant)]
-pub enum QueryValuesResult<'knowledge, 'subject> {
-    Axiomatic(AxiomaticQueryValues<'knowledge, 'subject>),
-    ComputationResult(Object),
-}
-
-impl<'knowlege, 'subject> QueryValuesResult<'knowlege, 'subject> {
-    pub fn values<'query>(&'query self) -> QueryValues<'query, 'knowlege, 'subject> {
+/*
+impl QueryValuesResult {
+    pub fn values(&self) -> QueryValues {
         match self {
             Self::Axiomatic(axiomatic_iter) => QueryValues::Axiomatic(axiomatic_iter.clone()),
             Self::ComputationResult(object) => {
@@ -103,15 +96,16 @@ impl<'knowlege, 'subject> QueryValuesResult<'knowlege, 'subject> {
         }
     }
 }
+ */
 
 /// An iterator over all axiomatic and computed values
 #[derive(Clone)]
-pub enum QueryValues<'query_result, 'knowledge, 'subject> {
-    Axiomatic(AxiomaticQueryValues<'knowledge, 'subject>),
-    ComputationResult(StructureValues<'query_result>),
+pub enum QueryValues {
+    Axiomatic(AxiomaticQueryValues),
+    ComputationResult(StructureValues),
 }
 
-impl Iterator for QueryValues<'_, '_, '_> {
+impl Iterator for QueryValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

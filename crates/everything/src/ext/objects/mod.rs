@@ -6,7 +6,7 @@ use fallible_iterator::{FallibleIterator, IteratorExt};
 use tracing::{instrument, warn};
 
 use crate::{
-    ObjectOrAxiomaticQueryValues,
+    LazyObject,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
         AbstractExt, BinaryNode, KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt,
@@ -39,19 +39,12 @@ pub trait ObjectExt {
         ctx: &EvaluationContext,
     ) -> Object;
 
-    fn eval<'knowledge, 'subject>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-        context: &mut EvaluationContext,
-    ) -> ObjectOrAxiomaticQueryValues<'knowledge, 'subject>;
+    fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> LazyObject;
 
     fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
 
     /// Returns an iterator over all set items.
-    fn set_values<'subject, 'knowledge>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> AxiomaticQueryValues<'knowledge, 'subject>;
+    fn set_values(&self, knowledge: &Structure) -> AxiomaticQueryValues;
 
     fn structure(&self) -> Option<&Structure>;
 
@@ -66,7 +59,7 @@ pub trait ObjectExt {
         knowledge: &Structure,
         parameters: &[Object],
         ctx: &mut EvaluationContext,
-    ) -> Object;
+    ) -> LazyObject;
 
     fn to_integer(&self, knowledge: &Structure) -> Option<i128>;
 
@@ -106,7 +99,7 @@ impl ObjectExt for Object {
         }
 
         let mut successor_of =
-            query::values_axiomatically(knowledge, self, Abstract::SUCCESSOR_OF.into());
+            query::values_axiomatically(knowledge, self.clone(), Abstract::SUCCESSOR_OF.into());
 
         if let Some(first) = successor_of.next()
             && successor_of.next().is_none()
@@ -117,11 +110,8 @@ impl ObjectExt for Object {
         }
     }
 
-    fn set_values<'subject, 'knowledge>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> AxiomaticQueryValues<'knowledge, 'subject> {
-        query::values_axiomatically(knowledge, self, Abstract::CONTAINS.into())
+    fn set_values(&self, knowledge: &Structure) -> AxiomaticQueryValues {
+        query::values_axiomatically(knowledge, self.clone(), Abstract::CONTAINS.into())
     }
 
     fn structure(&self) -> Option<&Structure> {
@@ -181,8 +171,8 @@ impl ObjectExt for Object {
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode> {
-        let left = query::values_axiomatically(knowledge, self, left_tag).next()?;
-        let right = query::values_axiomatically(knowledge, self, right_tag).next()?;
+        let left = query::values_axiomatically(knowledge, self.clone(), left_tag).next()?;
+        let right = query::values_axiomatically(knowledge, self.clone(), right_tag).next()?;
 
         Some(BinaryNode { left, right })
     }
@@ -227,21 +217,25 @@ impl ObjectExt for Object {
     }
 
     fn node_not(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Abstract::NODE_NOT.into()).next_and_last()
+        query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_NOT.into())
+            .next_and_last()
     }
 
     fn node_count(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Abstract::NODE_COUNT.into()).next_and_last()
+        query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_COUNT.into())
+            .next_and_last()
     }
 
     fn computed_body(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Abstract::COMPUTED.into()).next_and_last()
+        query::values_axiomatically(knowledge, self.clone(), Abstract::COMPUTED.into())
+            .next_and_last()
     }
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u128> {
-        let depth = query::values_axiomatically(knowledge, self, Abstract::NODE_PARAMETER.into())
-            .next_and_last()?
-            .to_integer(knowledge)?;
+        let depth =
+            query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_PARAMETER.into())
+                .next_and_last()?
+                .to_integer(knowledge)?;
 
         if depth >= 0 {
             Some(depth as u128)
@@ -251,31 +245,35 @@ impl ObjectExt for Object {
     }
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Abstract::NODE_LITERAL.into()).next_and_last()
+        query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_LITERAL.into())
+            .next_and_last()
     }
 
     fn node_function_self(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self, Abstract::NODE_FUNCTION_SELF.into())
+        query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_FUNCTION_SELF.into())
             .next_and_last()
     }
 
     fn statement_form(&self, knowledge: &Structure) -> StatementForm {
         let subject: ObjectForm = query::values_axiomatically(
             knowledge,
-            self,
+            self.clone(),
             Object::Abstract(Abstract::STATEMENT_SUBJECT),
         )
         .next()
         .into();
 
-        let tag: ObjectForm =
-            query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::STATEMENT_TAG))
-                .next()
-                .into();
+        let tag: ObjectForm = query::values_axiomatically(
+            knowledge,
+            self.clone(),
+            Object::Abstract(Abstract::STATEMENT_TAG),
+        )
+        .next()
+        .into();
 
         let value: ObjectForm = query::values_axiomatically(
             knowledge,
-            self,
+            self.clone(),
             Object::Abstract(Abstract::STATEMENT_VALUE),
         )
         .next()
@@ -289,7 +287,12 @@ impl ObjectExt for Object {
     }
 
     fn node_query(&self, knowledge: &Structure) -> Option<Self> {
-        query::values_axiomatically(knowledge, self, Object::Abstract(Abstract::NODE_QUERY)).next()
+        query::values_axiomatically(
+            knowledge,
+            self.clone(),
+            Object::Abstract(Abstract::NODE_QUERY),
+        )
+        .next()
     }
 
     #[instrument(skip(knowledge), ret)]
@@ -353,11 +356,7 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn eval<'knowledge, 'subject>(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-        context: &mut EvaluationContext,
-    ) -> ObjectOrAxiomaticQueryValues<'knowledge, 'subject> {
+    fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> LazyObject {
         // TODO: better panic msgs
 
         match self.node_type(knowledge) {
@@ -382,7 +381,7 @@ impl ObjectExt for Object {
                         let subject = unevaluated_subject.eval(knowledge, context).into_set();
                         let tag = unevaluated_tag.eval(knowledge, context).into_set();
 
-                        query::values(knowledge, &subject, tag, context).into()
+                        query::values(knowledge, subject, tag, context).into()
                     }
                     StatementForm {
                         subject: ObjectForm::Specific(unevaluated_subject),
@@ -395,9 +394,9 @@ impl ObjectExt for Object {
                         let tag = unevaluated_tag.eval(knowledge, context).into_set();
                         let value = unevaluated_value.eval(knowledge, context).into_set();
 
-                        ObjectOrAxiomaticQueryValues::Object(
+                        LazyObject::Eager(
                             Structure::new_bool(query::exists(
-                                knowledge, &subject, tag, value, context,
+                                knowledge, subject, tag, value, context,
                             ))
                             .into(),
                         )
@@ -469,7 +468,7 @@ impl ObjectExt for Object {
                 .unwrap_or_else(|(o, error)| {
                     warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                    ObjectOrAxiomaticQueryValues::Object(Object::Structure(Structure::Empty))
+                    LazyObject::Eager(Object::Structure(Structure::Empty))
                 }),
             None => self.clone().into(),
         }
@@ -481,7 +480,7 @@ impl ObjectExt for Object {
         knowledge: &Structure,
         parameters: &[Object],
         ctx: &mut EvaluationContext,
-    ) -> Object {
+    ) -> LazyObject {
         if let Some((parameter, next_parameters)) = parameters.split_first()
             && let Some(NodeType::Computed(body)) = self.node_type(knowledge)
         {
@@ -506,14 +505,14 @@ impl ObjectExt for Object {
             // Fast path for exact natural numbers.
             Some(n)
         } else if let Some(predecessor) =
-            query::values_axiomatically(knowledge, self, Abstract::SUCCESSOR_OF.into())
+            query::values_axiomatically(knowledge, self.clone(), Abstract::SUCCESSOR_OF.into())
                 .next_and_last()
         {
             predecessor
                 .to_integer(knowledge)
                 .map(|n| n.checked_add(1).expect("yo shi too big"))
         } else if let Some(successor) =
-            query::values_axiomatically(knowledge, self, Abstract::PREDECESSOR_OF.into())
+            query::values_axiomatically(knowledge, self.clone(), Abstract::PREDECESSOR_OF.into())
                 .next_and_last()
         {
             successor

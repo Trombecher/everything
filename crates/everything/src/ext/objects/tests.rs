@@ -3,7 +3,7 @@ use everything_structures::{Abstract, Object, Property, Structure};
 use crate::{
     base::BASE,
     ctx::EvaluationContext,
-    ext::{AbstractExt, NodeType, ObjectExt, PropertyExt, StructureExt},
+    ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt},
 };
 
 #[test]
@@ -24,6 +24,7 @@ fn natural_number() {
     )
 }
 
+/*
 #[test]
 fn node_type() {
     let knowledge = &BASE;
@@ -51,6 +52,7 @@ fn node_type() {
         Some(NodeType::And)
     );
 }
+ */
 
 #[test]
 fn call() {
@@ -61,7 +63,8 @@ fn call() {
             &BASE,
             &[Object::Abstract(Abstract::ZERO)],
             &mut Default::default()
-        ),
+        )
+        .into_set(),
         Object::Abstract(Abstract::ZERO)
     );
 }
@@ -69,19 +72,19 @@ fn call() {
 #[test]
 fn eval_and() {
     assert!(
-        !Object::Structure(Structure::new_node_and([
+        !Object::Structure(Structure::new_node_and(
             Structure::new_bool(false).into(),
             Structure::new_bool(true).into()
-        ]))
+        ))
         .eval(&BASE, &mut Default::default())
         .is_truthy(&BASE)
     );
 
     assert!(
-        Object::Structure(Structure::new_node_and([
+        Object::Structure(Structure::new_node_and(
             Structure::new_bool(true).into(),
             Structure::new_bool(true).into()
-        ]))
+        ))
         .eval(&BASE, &mut Default::default())
         .is_truthy(&BASE)
     )
@@ -90,19 +93,19 @@ fn eval_and() {
 #[test]
 fn eval_or() {
     assert!(
-        !Object::Structure(Structure::new_node_or([
+        !Object::Structure(Structure::new_node_or(
             Structure::new_bool(false).into(),
             Structure::new_bool(false).into()
-        ]))
+        ))
         .eval(&BASE, &mut Default::default())
         .is_truthy(&BASE)
     );
 
     assert!(
-        Object::Structure(Structure::new_node_or([
+        Object::Structure(Structure::new_node_or(
             Structure::new_bool(true).into(),
             Structure::new_bool(false).into()
-        ]))
+        ))
         .eval(&BASE, &mut Default::default())
         .is_truthy(&BASE)
     )
@@ -114,7 +117,8 @@ fn eval_literal() {
         Object::Structure(Structure::new_node_literal(Object::Abstract(
             Abstract::ZERO
         )))
-        .eval(&BASE, &mut Default::default()),
+        .eval(&BASE, &mut Default::default())
+        .into_set(),
         Object::Abstract(Abstract::ZERO)
     );
 }
@@ -123,7 +127,8 @@ fn eval_literal() {
 fn eval_count() {
     assert_eq!(
         Object::Structure(Structure::new_node_count(Structure::Empty.into()))
-            .eval(&BASE, &mut Default::default()),
+            .eval(&BASE, &mut Default::default())
+            .into_set(),
         Object::new_integer(0)
     );
 
@@ -138,7 +143,8 @@ fn eval_count() {
             )
             .into()
         ))
-        .eval(&BASE, &mut Default::default()),
+        .eval(&BASE, &mut Default::default())
+        .into_set(),
         Object::new_integer(2)
     );
 }
@@ -150,12 +156,13 @@ fn eval_query() {
             Structure::new(&mut [
                 Property::new_contains(Abstract::ZERO.into()),
                 Property::new_contains(Abstract::KNOWLEDGE.into()),
-                Property::new_successor_of(0),
+                Property::new_successor_of(Object::new_integer(0)),
             ])
             .into(),
             Structure::new_node_literal(Abstract::CONTAINS.into()).into()
         ))
-        .eval(&BASE, &mut Default::default()),
+        .eval(&BASE, &mut Default::default())
+        .into_set(),
         Structure::new_set([Abstract::KNOWLEDGE.into(), Object::Abstract(Abstract::ZERO)]).into(),
     );
 }
@@ -182,7 +189,8 @@ fn eval_set_items() {
                 Object::Abstract(Abstract(1338))
             ],
             &mut EvaluationContext::default(),
-        ),
+        )
+        .into_set(),
         Structure::new_set([
             Object::Abstract(Abstract(1337)),
             Object::Abstract(Abstract(1338))

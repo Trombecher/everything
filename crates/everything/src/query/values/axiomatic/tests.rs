@@ -15,7 +15,7 @@ fn structure_props() {
     ])
     .into();
 
-    let mut values = query::values_axiomatically(&BASE, &structure, Abstract::CONTAINS.into());
+    let mut values = query::values_axiomatically(&BASE, structure, Abstract::CONTAINS.into());
 
     assert_eq!(values.next(), Some(Object::Abstract(Abstract(4242))));
     assert_eq!(values.next(), Some(Object::Abstract(Abstract(6969))));

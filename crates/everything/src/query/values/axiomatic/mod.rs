@@ -11,9 +11,9 @@ mod tests;
 
 /// An iterator over all axiomatic values the specified tag has on
 /// an object. You can obtain an instance of this iterator by
-/// calling [values_axiomatically].
+/// calling [`values_axiomatically`].
 #[derive(Clone)]
-pub enum AxiomaticQueryValues<'knowledge, 'subject> {
+pub enum AxiomaticQueryValues {
     /// The variant that yields nothing.
     None,
 
@@ -25,10 +25,10 @@ pub enum AxiomaticQueryValues<'knowledge, 'subject> {
     EmptyStructure,
 
     /// The variant that yields values from [AxiomaticBorrowedQueryValues].
-    Borrowed(AxiomaticBorrowedQueryValues<'knowledge, 'subject>),
+    Borrowed(AxiomaticBorrowedQueryValues),
 }
 
-impl AxiomaticQueryValues<'_, '_> {
+impl AxiomaticQueryValues {
     /// Creates a structure with all set values from `self`.
     pub fn collect_to_set(self) -> Structure {
         let mut properties: Vec<_> = self.map(Property::new_contains).collect();
@@ -36,7 +36,7 @@ impl AxiomaticQueryValues<'_, '_> {
     }
 }
 
-impl Iterator for AxiomaticQueryValues<'_, '_> {
+impl Iterator for AxiomaticQueryValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -55,7 +55,7 @@ impl Iterator for AxiomaticQueryValues<'_, '_> {
     }
 }
 
-impl std::fmt::Debug for AxiomaticQueryValues<'_, '_> {
+impl std::fmt::Debug for AxiomaticQueryValues {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut this = self.clone();
         f.debug_list().entries(&mut this).finish()
@@ -63,14 +63,14 @@ impl std::fmt::Debug for AxiomaticQueryValues<'_, '_> {
 }
 
 #[derive(Clone)]
-pub struct AxiomaticBorrowedQueryValues<'knowledge, 'subject> {
-    values_from_subject: StructureValues<'subject>,
-    statements: StructureValues<'knowledge>,
-    subject: &'subject Object,
+pub struct AxiomaticBorrowedQueryValues {
+    values_from_subject: StructureValues,
+    statements: StructureValues,
+    subject: Object,
     tag: Object,
 }
 
-impl<'knowledge, 'subject> Iterator for AxiomaticBorrowedQueryValues<'knowledge, 'subject> {
+impl Iterator for AxiomaticBorrowedQueryValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -104,7 +104,7 @@ impl<'knowledge, 'subject> Iterator for AxiomaticBorrowedQueryValues<'knowledge,
                 .next()
                 .expect(":/");
 
-            if statement_tag != &self.tag {
+            if statement_tag != self.tag {
                 continue;
             }
 
@@ -120,7 +120,7 @@ impl<'knowledge, 'subject> Iterator for AxiomaticBorrowedQueryValues<'knowledge,
             // need to dedup here.
 
             if let Object::Structure(structure) = &self.subject
-                && structure.has(statement_tag, statement_value)
+                && structure.has(&statement_tag, &statement_value)
             {
                 continue;
             }
@@ -141,21 +141,21 @@ impl<'knowledge, 'subject> Iterator for AxiomaticBorrowedQueryValues<'knowledge,
 /// * `knowledge` is a superset of [crate::base::BASE].
 #[instrument(skip(knowledge), ret)]
 #[inline]
-pub fn values_axiomatically<'knowledge, 'subject>(
-    knowledge: &'knowledge Structure,
-    subject: &'subject Object,
+pub fn values_axiomatically(
+    knowledge: &Structure,
+    subject: Object,
     tag: Object,
-) -> AxiomaticQueryValues<'knowledge, 'subject> {
-    match (subject, &tag) {
-        (&Object::Abstract(Abstract::AXIOMATIC), &Object::Abstract(Abstract::AXIOMATIC)) => {
+) -> AxiomaticQueryValues {
+    match (&subject, &tag) {
+        (Object::Abstract(Abstract::AXIOMATIC), Object::Abstract(Abstract::AXIOMATIC)) => {
             AxiomaticQueryValues::AxiomaticAxiomaticConstraint
         }
         (
-            &Object::Abstract(Abstract::AXIOMATIC | Abstract::COMPUTED),
-            &Object::Abstract(Abstract::COMPUTED),
+            Object::Abstract(Abstract::AXIOMATIC | Abstract::COMPUTED),
+            Object::Abstract(Abstract::COMPUTED),
         ) => AxiomaticQueryValues::None,
         _ => {
-            let values_from_subject = match subject {
+            let values_from_subject = match &subject {
                 Object::Abstract(_) => Structure::Empty.values(tag.clone()),
                 Object::Structure(structure) => structure.values(tag.clone()),
             };

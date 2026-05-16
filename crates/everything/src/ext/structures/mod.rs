@@ -152,7 +152,7 @@ impl StructureExt for Structure {
         for property in self.properties() {
             let constraint_function = query::values_axiomatically(
                 knowledge,
-                &property.tag,
+                property.tag.clone(),
                 Object::Abstract(Abstract::AXIOMATIC),
             )
             .next()
@@ -166,7 +166,7 @@ impl StructureExt for Structure {
 
             let parameters = [self.clone().into(), property.value.clone()];
 
-            let result =
+            let mut result =
                 constraint_function.call(knowledge, &parameters, &mut EvaluationContext::default());
 
             if !result.is_truthy(knowledge) {
@@ -216,20 +216,23 @@ impl StructureExt for Structure {
                 .parse_statement()
                 .expect("found a structure which is not a statement");
 
-            let constraint_function =
-                query::values_axiomatically(self, &statement.tag, Abstract::AXIOMATIC.into())
-                    .next()
-                    .ok_or_else(|| {
-                        KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(statement.tag.clone()),
-                            tag: ObjectForm::Specific(Abstract::AXIOMATIC.into()),
-                            value: ObjectForm::Any,
-                        })
-                    })?;
+            let constraint_function = query::values_axiomatically(
+                self,
+                statement.tag.clone(),
+                Abstract::AXIOMATIC.into(),
+            )
+            .next()
+            .ok_or_else(|| {
+                KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+                    subject: ObjectForm::Specific(statement.tag.clone()),
+                    tag: ObjectForm::Specific(Abstract::AXIOMATIC.into()),
+                    value: ObjectForm::Any,
+                })
+            })?;
 
             let arguments = [statement.subject.clone(), statement.value.clone()];
 
-            let result =
+            let mut result =
                 constraint_function.call(self, &arguments, &mut EvaluationContext::default());
 
             if !result.is_truthy(self) {

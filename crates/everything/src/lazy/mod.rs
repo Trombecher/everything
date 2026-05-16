@@ -2,49 +2,35 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::{
     ext::{ObjectExt, PropertyExt},
-    query::{AxiomaticQueryValues, QueryValuesResult},
+    query::AxiomaticQueryValues,
 };
 
 /// Either an object or an iterator over values.
-pub enum ObjectOrAxiomaticQueryValues<'knowledge, 'subject> {
-    Object(Object),
+#[derive(Clone)]
+pub enum LazyObject {
+    Eager(Object),
 
     /// An iterator over all set values.
-    AxiomaticQueryValues(AxiomaticQueryValues<'knowledge, 'subject>),
+    LazySetValues(AxiomaticQueryValues),
 }
 
-impl From<Object> for ObjectOrAxiomaticQueryValues<'_, '_> {
+impl From<Object> for LazyObject {
     fn from(value: Object) -> Self {
-        Self::Object(value)
+        Self::Eager(value)
     }
 }
 
-impl<'knowledge, 'subject> From<AxiomaticQueryValues<'knowledge, 'subject>>
-    for ObjectOrAxiomaticQueryValues<'knowledge, 'subject>
-{
-    fn from(value: AxiomaticQueryValues<'knowledge, 'subject>) -> Self {
-        Self::AxiomaticQueryValues(value)
+impl From<AxiomaticQueryValues> for LazyObject {
+    fn from(value: AxiomaticQueryValues) -> Self {
+        Self::LazySetValues(value)
     }
 }
 
-impl<'knowledge, 'subject> From<QueryValuesResult<'knowledge, 'subject>>
-    for ObjectOrAxiomaticQueryValues<'knowledge, 'subject>
-{
-    fn from(value: QueryValuesResult<'knowledge, 'subject>) -> Self {
-        match value {
-            QueryValuesResult::Axiomatic(axiomatic_query_values) => {
-                Self::AxiomaticQueryValues(axiomatic_query_values)
-            }
-            QueryValuesResult::ComputationResult(object) => Self::Object(object),
-        }
-    }
-}
-
-impl std::fmt::Debug for ObjectOrAxiomaticQueryValues<'_, '_> {
+impl std::fmt::Debug for LazyObject {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Object(object) => object.fmt(f),
-            Self::AxiomaticQueryValues(iter) => f
+            Self::Eager(object) => object.fmt(f),
+            Self::LazySetValues(iter) => f
                 .debug_set()
                 .entries(iter.clone().map(Property::new_contains))
                 .finish(),
@@ -52,31 +38,28 @@ impl std::fmt::Debug for ObjectOrAxiomaticQueryValues<'_, '_> {
     }
 }
 
-impl<'knowledge, 'subject> ObjectOrAxiomaticQueryValues<'knowledge, 'subject> {
+impl LazyObject {
     /// Interprets the [`Self::AxiomaticQueryValues`] variant as an iterator
     /// over the set items and returns an iterator over set items.
     #[inline]
-    pub fn set_values(
-        &'subject self,
-        knowledge: &'knowledge Structure,
-    ) -> AxiomaticQueryValues<'knowledge, 'subject> {
+    pub fn set_values(&self, knowledge: &Structure) -> AxiomaticQueryValues {
         match self {
-            Self::AxiomaticQueryValues(values) => values.clone(),
-            Self::Object(eager) => eager.set_values(knowledge),
+            Self::LazySetValues(values) => values.clone(),
+            Self::Eager(eager) => eager.set_values(knowledge),
         }
     }
 
     pub fn into_set(self) -> Object {
         match self {
-            Self::Object(object) => object,
-            Self::AxiomaticQueryValues(iterator) => iterator.collect_to_set().into(),
+            Self::Eager(object) => object,
+            Self::LazySetValues(iterator) => iterator.collect_to_set().into(),
         }
     }
 
     pub fn is_truthy(&mut self, knowledge: &Structure) -> bool {
         match self {
-            ObjectOrAxiomaticQueryValues::Object(object) => object.is_truthy(knowledge),
-            ObjectOrAxiomaticQueryValues::AxiomaticQueryValues(iter) => iter.next().is_some(),
+            LazyObject::Eager(object) => object.is_truthy(knowledge),
+            LazyObject::LazySetValues(iter) => iter.next().is_some(),
         }
     }
 }
