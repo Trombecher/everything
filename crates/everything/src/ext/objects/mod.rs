@@ -420,6 +420,20 @@ impl ObjectExt for Object {
                         .into()
                     }
                     StatementForm {
+                        subject: ObjectForm::Any,
+                        tag: ObjectForm::Specific(unevaluated_tag),
+                        value: ObjectForm::Any,
+                    } => {
+                        // We query for subjects and values.
+
+                        let tag = unevaluated_tag.eval(knowledge, context).into_set();
+
+                        LazySetValues::SubjectsAndValuesAxiomatically(
+                            query::subjects_and_values_axiomatically(knowledge, tag),
+                        )
+                        .into()
+                    }
+                    StatementForm {
                         subject: ObjectForm::Specific(unevaluated_subject),
                         tag: ObjectForm::Specific(unevaluated_tag),
                         value: ObjectForm::Specific(unevaluated_value),

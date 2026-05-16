@@ -4,7 +4,7 @@ mod tests;
 
 use std::array;
 
-use everything_structures::{Abstract, Object, Structure, StructureValues};
+use everything_structures::{Abstract, Object, Structure};
 use tracing::instrument;
 
 use crate::ctx::EvaluationContext;

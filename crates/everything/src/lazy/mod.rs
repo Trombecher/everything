@@ -2,7 +2,10 @@ use everything_structures::{Object, Property, Structure};
 
 use crate::{
     ext::{ObjectExt, PropertyExt},
-    query::{QuerySubjectsAxiomatically, QueryValuesAxiomatically},
+    query::{
+        QuerySubjectsAndValuesAxiomatically, QuerySubjectsAxiomatically, QueryValuesAxiomatically,
+        SubjectAndValue,
+    },
 };
 
 /// Represents an object which is either precomputed ([`LazyObject::Eager`])
@@ -79,6 +82,8 @@ pub enum LazySetValues {
     },
 
     SubjectsAxiomatically(QuerySubjectsAxiomatically),
+
+    SubjectsAndValuesAxiomatically(QuerySubjectsAndValuesAxiomatically),
 }
 
 impl LazySetValues {
@@ -111,6 +116,15 @@ impl Iterator for LazySetValues {
             Self::ValuesAxiomatically(values) => values.next(),
             Self::Union { left, right } => left.next().or_else(|| right.next()),
             Self::SubjectsAxiomatically(subjects) => subjects.next(),
+            Self::SubjectsAndValuesAxiomatically(iter) => {
+                iter.next().map(|SubjectAndValue { subject, value }| {
+                    Structure::new(&mut [
+                        Property::new_statement_subject(subject),
+                        Property::new_statement_value(value),
+                    ])
+                    .into()
+                })
+            }
         }
     }
 }
