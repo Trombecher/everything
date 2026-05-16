@@ -1,6 +1,8 @@
-use std::process::exit;
+use std::{collections::HashMap, fmt::Write, process::exit};
 
+use everything_structures::Object;
 use everything_structures_ff::ErrorInfo;
+use regex::Regex;
 
 fn lc_from_index(source: &str, index: u32) -> (u32, u32) {
     let slice = &source[..index as usize];
@@ -57,4 +59,36 @@ pub fn handle_parse_error(input: &str, error: &ErrorInfo) -> ! {
     }
 
     exit(-1)
+}
+
+pub fn expand_vars(input: &str, vars: &HashMap<Box<str>, Object>) -> String {
+    // Matches: $ followed by one or more [A-Za-z0-9_]
+    let re = Regex::new(r"\$[A-Za-z0-9_]+").expect("valid regex");
+
+    let mut out = String::with_capacity(input.len());
+
+    let mut last_end = 0;
+    for m in re.find_iter(input) {
+        // push text before the match
+        out.push_str(&input[last_end..m.start()]);
+
+        // extract variable name without the '$'
+        let var_token = m.as_str(); // e.g. "$abcdef"
+        let key = &var_token[1..]; // "abcdef"
+
+        // replace (choose behavior for missing keys)
+        if let Some(val) = vars.get(key) {
+            write!(out, "{val:?}").unwrap();
+        } else {
+            // If missing: keep the original token.
+            // Alternatively, you could return an error instead.
+            out.push_str(var_token);
+        }
+
+        last_end = m.end();
+    }
+
+    // push remaining tail
+    out.push_str(&input[last_end..]);
+    out
 }

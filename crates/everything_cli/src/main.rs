@@ -1,26 +1,17 @@
+mod repl;
 mod util;
 
-use std::{
-    fs::read_to_string,
-    io::{Write, stdin, stdout},
-    path::PathBuf,
-    process::exit,
-    time::Instant,
-};
+use std::{fs::read_to_string, path::PathBuf, process::exit, time::Instant};
 
 use clap::{CommandFactory, Parser, Subcommand};
-use everything::{
-    base::BASE,
-    ctx::EvaluationContext,
-    ext::{ObjectExt, StructureExt},
-};
+use everything::{base::BASE, ext::StructureExt};
 use everything_structures::{Abstract, Object, Structure};
 use everything_structures_ff::Parsable;
 use tracing_subscriber::{Registry, layer::SubscriberExt};
 use tracing_tree::HierarchicalLayer;
 use ulid::Ulid;
 
-use crate::util::handle_parse_error;
+use crate::{repl::repl_main, util::handle_parse_error};
 
 trait AbstractUlidExt {
     fn ulid() -> Self;
@@ -61,11 +52,8 @@ enum Command {
         #[arg(id = "structure file path")]
         path: PathBuf,
     },
-    #[command(id = "open")]
-    Open {
-        #[arg(id = "structure file path")]
-        path: PathBuf,
-    },
+    #[command(id = "repl")]
+    Repl,
     /// Prints the base knowledge required.
     #[command(id = "base")]
     Base,
@@ -113,46 +101,8 @@ fn main() {
                 eprintln!("Structure is not knowledge")
             }
         }
-        Command::Open { path } => {
-            let input = read_to_string(&path).expect("Reading from file failed");
-            let structure =
-                Structure::parse(&input).unwrap_or_else(|error| handle_parse_error(&input, &error));
-
-            println!("Loaded {}. Type ? for help.", path.display());
-
-            let mut line = String::new();
-
-            loop {
-                print!("\n> ");
-                stdout().flush().unwrap();
-
-                line.clear();
-                stdin().read_line(&mut line).unwrap();
-
-                let line = line.trim();
-
-                let (command, arg) = line.split_once(" ").unwrap_or((line, ""));
-
-                match command {
-                    "exit" => break,
-                    "?" => {
-                        println!(
-                            "exit - exits REPL\n? - prints this message\neval <EXPR> - evaluate this expression"
-                        );
-                    }
-                    "eval" => {
-                        // TODO: make this not hard error.
-                        let expression = Object::parse(arg).unwrap();
-
-                        let output = expression.eval(&structure, &mut EvaluationContext::default());
-
-                        print!("{:?}", output);
-                    }
-                    _ => {
-                        println!("Unknown command {command}");
-                    }
-                }
-            }
+        Command::Repl {} => {
+            repl_main();
         }
         Command::Base => {
             println!("{:?}", &*BASE);
