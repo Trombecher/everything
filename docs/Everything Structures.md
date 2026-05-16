@@ -10,6 +10,13 @@ Conceptually, abstract objects are just global "labels" for some sort of abstrac
 
 Because abstract objects are **unambiguosly** identified by the integer, they ARE the integer identifier. It is STRONGLY recommended to use some combination of time and randomness to generate abstract objects, for example ULIDs. That makes them virtually universally unique.
 
+> [!TIP]
+> Use the CLI to generate new abstract objects which uses ULIDs under the hood:
+> 
+> ```sh
+> everything_cli gen
+> ```
+
 Structures derive their semantic meaning through the properties they are composed of.
 
 ## Notation / File Format
@@ -20,8 +27,14 @@ Abstract objects are written with an `@`. Examples include `@43`, `@4538503485`,
 {(<<OBJECT>>, <<OBJECT>>) (<<OBJECT>>, <<OBJECT>>) ...}
 ```
 
-Properties are written as doublets with `<<OBJECT>>` being a placeholder for any object. Properties in structures may also have a separating/trailing comma. Here is an example structure:
+Properties are written as doublets with `<<OBJECT>>` being a placeholder for any object. Properties in structures may also have a separating/trailing comma.
 
-```
+## Example Structures
+
+```struct
 {(@1, {(@534, @3)}), (@4, {})}
 ```
+
+---
+
+That is it. That is the whole structures format.

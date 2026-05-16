@@ -1,6 +1,6 @@
-# Introduction To The _Everything Universal Data Model_
+# Introduction To The _Everything Data Model_
 
-The _Everything Universal Data Model_ is an interpretation of a family of structures and abstract objects. To interpret, the model assigns meaning/semantics to some abstract objects. **The real identifiers are omitted because they are meaningless and bloat the text.** You can look up the integer values in [this file](../crates/everything_structures/src/abstracts.rs) and in [this file](../crates/everything/src/ext/abstracts.rs).
+The _Everything Data Model_ is an interpretation of a family of structures and abstract objects. To interpret, the model assigns meaning/semantics to some abstract objects. **The real identifiers are omitted because they are meaningless and bloat the text.** You can look up the integer values in [this file](../crates/everything_structures/src/abstracts.rs) and in [this file](../crates/everything/src/ext/abstracts.rs).
 
 (The reason that there are two files is, that some abstract objects are needed in structures that are stored more optimally in memory, like natural numbers, text, bytes, etc.)
 

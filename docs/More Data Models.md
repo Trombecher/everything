@@ -4,7 +4,7 @@ Everything does not specify how you model your data. However some models are sto
 
 ## Characters
 
-A unicode code point could be modelled as `{(CODE_POINT, <<integer>>)}` where _integer_ is a number between 0 and 0x10FFFF, excluding surrogates. It is stored more optimally in-memory.
+A unicode code point could be modelled as `{(@CODE_POINT, <<integer>>)}` where _integer_ is an integer between 0 and 0x10FFFF, excluding surrogates. Characters are stored optimally in memory.
 
 ## Text
 
