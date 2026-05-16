@@ -4,10 +4,11 @@ use std::{
     fs::read_to_string,
     io::{Write, stdin, stdout},
     path::PathBuf,
+    process::exit,
     time::Instant,
 };
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 use everything::{
     base::BASE,
     ctx::EvaluationContext,
@@ -36,7 +37,6 @@ impl AbstractUlidExt for Abstract {
 #[command(name = "Everything CLI")]
 #[command(about)]
 #[command(long_about = None)]
-#[command(arg_required_else_help(true))]
 struct Args {
     /// A command to
     #[command(subcommand)]
@@ -75,9 +75,12 @@ fn main() {
     tracing::subscriber::set_global_default(Registry::default().with(HierarchicalLayer::new(2)))
         .unwrap();
 
-    let Args { command } = Args::parse();
-
-    let command = command.unwrap();
+    let command = if let Some(command) = Args::parse().command {
+        command
+    } else {
+        Args::command().print_long_help().unwrap();
+        exit(0);
+    };
 
     match command {
         Command::Gen => {

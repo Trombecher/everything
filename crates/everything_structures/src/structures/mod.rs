@@ -185,7 +185,13 @@ impl Structure {
     #[must_use]
     pub fn values(&self, tag: Object) -> StructureValues {
         match self {
-            Self::Integer(non_zero) => StructureValues::Integer(*non_zero),
+            Self::Integer(non_zero) => {
+                if Property::new_integer(*non_zero).tag == tag {
+                    StructureValues::Integer(*non_zero)
+                } else {
+                    StructureValues::None
+                }
+            }
             Self::Bytes(bytes) => StructureValues::Bytes(bytes.values(tag)),
             Self::Text(text) => StructureValues::Text(text.values(tag)),
             Self::Any(any_structure) => StructureValues::Any(any_structure.values(tag)),
