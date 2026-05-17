@@ -33,7 +33,7 @@ pub enum NodeType {
     Computed(Object),
     Literal(Object),
     And(BinaryNode),
-    FunctionSelf(Object),
+    FunctionSelf(u128),
     Parameter(u128),
     Count(Object),
     Query(Object),

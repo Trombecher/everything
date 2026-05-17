@@ -16,6 +16,15 @@ impl EvaluationContext {
             .unwrap_or(Object::Structure(Structure::Empty))
     }
 
+    #[instrument(ret)]
+    pub fn function_self(&self, relative_depth: usize) -> Object {
+        self.stack
+            .len()
+            .checked_sub(1 + relative_depth)
+            .map(|index| self.stack.get(index).unwrap().function.clone())
+            .unwrap_or(Object::Structure(Structure::Empty))
+    }
+
     pub fn push(&mut self, fc: FunctionContext) {
         self.stack.push(fc);
     }

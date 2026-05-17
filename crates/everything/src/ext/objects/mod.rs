@@ -83,7 +83,7 @@ pub trait ObjectExt {
 
     fn add(&self, knowledge: &Structure, other: &Object) -> Object;
 
-    fn node_function_self(&self, knowledge: &Structure) -> Option<Object>;
+    fn node_function_self(&self, knowledge: &Structure) -> Option<u128>;
 
     fn node_not(&self, knowledge: &Structure) -> Option<Object>;
 
@@ -264,9 +264,20 @@ impl ObjectExt for Object {
             .next_and_last()
     }
 
-    fn node_function_self(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_FUNCTION_SELF.into())
-            .next_and_last()
+    fn node_function_self(&self, knowledge: &Structure) -> Option<u128> {
+        let depth = query::values_axiomatically(
+            knowledge,
+            self.clone(),
+            Abstract::NODE_FUNCTION_SELF.into(),
+        )
+        .next_and_last()?
+        .to_integer(knowledge)?;
+
+        if depth >= 0 {
+            Some(depth as u128)
+        } else {
+            None
+        }
     }
 
     fn statement_subject(&self, knowledge: &Structure) -> Option<Object> {
@@ -497,7 +508,13 @@ impl ObjectExt for Object {
                     right: Box::new(right.eval(knowledge, context).set_values(knowledge)),
                 })
             }
-            Some(NodeType::FunctionSelf(_) | NodeType::Xor(_)) => todo!("not impl"),
+            Some(NodeType::Xor(BinaryNode { left, right })) => {
+                let left = left.eval(knowledge, context).is_truthy(knowledge);
+                let right = right.eval(knowledge, context).is_truthy(knowledge);
+
+                LazyObject::Eager(Structure::new_bool((left || right) && !(left && right)).into())
+            }
+            Some(NodeType::FunctionSelf(depth)) => context.function_self(depth as usize).into(),
             None if let Object::Structure(Structure::Any(any_structure)) = self => any_structure
                 .properties()
                 .map(|property| {
