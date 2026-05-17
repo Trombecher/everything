@@ -118,6 +118,7 @@ pub trait StructureExt {
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self;
 
     fn new_bool(b: bool) -> Self;
+    fn new_node_map(set: Object, mapper: Object) -> Self;
 }
 
 impl StructureExt for Structure {
@@ -264,6 +265,15 @@ impl StructureExt for Structure {
             value,
         })
     }
+
+    fn new_node_map(set: Object, mapper: Object) -> Self {
+        Self::new(&mut [
+            Property::new_node_map_set(set),
+            Property::new_node_map_mapper(mapper),
+        ])
+    }
+
+    // TODO: add filter
 
     fn new_computed(body: Object) -> Self {
         Self::new(&mut [Property::new_computed(body)])

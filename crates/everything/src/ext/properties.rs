@@ -69,6 +69,12 @@ pub trait PropertyExt {
 
     #[must_use]
     fn new_node_count(object: Object) -> Self;
+
+    #[must_use]
+    fn new_node_map_set(set: Object) -> Self;
+
+    #[must_use]
+    fn new_node_map_mapper(mapper: Object) -> Self;
 }
 
 impl PropertyExt for Property {
@@ -225,4 +231,20 @@ impl PropertyExt for Property {
             value: right,
         }
     }
+
+    fn new_node_map_set(set: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_MAP_SET.into(),
+            value: set,
+        }
+    }
+
+    fn new_node_map_mapper(mapper: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_MAP_MAPPER.into(),
+            value: mapper,
+        }
+    }
+
+    // TODO: add filter
 }

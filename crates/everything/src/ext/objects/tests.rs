@@ -64,7 +64,7 @@ fn call() {
             &[Object::Abstract(Abstract::ZERO)],
             &mut Default::default()
         )
-        .into_set(),
+        .into_object(),
         Object::Abstract(Abstract::ZERO)
     );
 }
@@ -118,7 +118,7 @@ fn eval_literal() {
             Abstract::ZERO
         )))
         .eval(&BASE, &mut Default::default())
-        .into_set(),
+        .into_object(),
         Object::Abstract(Abstract::ZERO)
     );
 }
@@ -128,7 +128,7 @@ fn eval_count() {
     assert_eq!(
         Object::Structure(Structure::new_node_count(Structure::Empty.into()))
             .eval(&BASE, &mut Default::default())
-            .into_set(),
+            .into_object(),
         Object::new_integer(0)
     );
 
@@ -144,7 +144,7 @@ fn eval_count() {
             .into()
         ))
         .eval(&BASE, &mut Default::default())
-        .into_set(),
+        .into_object(),
         Object::new_integer(2)
     );
 }
@@ -162,7 +162,7 @@ fn eval_query() {
             Structure::new_node_literal(Abstract::CONTAINS.into()).into()
         ))
         .eval(&BASE, &mut Default::default())
-        .into_set(),
+        .into_object(),
         Structure::new_set([Abstract::KNOWLEDGE.into(), Object::Abstract(Abstract::ZERO)]).into(),
     );
 }
@@ -190,7 +190,7 @@ fn eval_set_items() {
             ],
             &mut EvaluationContext::default(),
         )
-        .into_set(),
+        .into_object(),
         Structure::new_set([
             Object::Abstract(Abstract(1337)),
             Object::Abstract(Abstract(1338))

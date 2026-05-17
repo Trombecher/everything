@@ -38,6 +38,11 @@ pub trait AbstractExt {
     const NODE_ADD_RIGHT: Abstract = Abstract(2148566534810416742677953060919673358);
     const NODE_UNION_LEFT: Abstract = Abstract(2150602665196451232518504136866676495);
     const NODE_UNION_RIGHT: Abstract = Abstract(2150602676477464422271577313769115263);
+    // TODO: regen these
+    const NODE_MAP_SET: Abstract = Abstract(8573298579);
+    const NODE_MAP_MAPPER: Abstract = Abstract(58435834);
+    const NODE_FILTER_SET: Abstract = Abstract(6127423423);
+    const NODE_FILTER_FILTER: Abstract = Abstract(5435345734);
 
     /// Denotes that a computation arithmetically overflowed.
     const ARITHMETIC_OVERFLOW: Abstract = Abstract(2150546596946485525298114723305118383);
