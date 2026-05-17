@@ -9,8 +9,8 @@ use crate::{
     LazyObject, LazySetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, BinaryNode, KnowledgeError, NodeType, ObjectForm, StatementForm, StructureExt,
-        iter::IteratorExtNextAndLast,
+        AbstractExt, BinaryNode, FilterNode, KnowledgeError, MapNode, NodeType, ObjectForm,
+        StatementForm, StructureExt, iter::IteratorExtNextAndLast,
     },
     query::{self, QueryValuesAxiomatically},
 };
@@ -80,6 +80,8 @@ pub trait ObjectExt {
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn is_natural_number(&self, knowledge: &Structure) -> bool;
+    fn node_map(&self, knowledge: &Structure) -> Option<MapNode>;
+    fn node_filter(&self, knowledge: &Structure) -> Option<FilterNode>;
 
     fn add(&self, knowledge: &Structure, other: &Object) -> Object;
 
@@ -163,6 +165,38 @@ impl ObjectExt for Object {
         )
     }
 
+    fn node_map(&self, knowledge: &Structure) -> Option<MapNode> {
+        let set_expression =
+            query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_MAP_SET.into())
+                .next()?;
+        let mapper_function_expression =
+            query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_MAP_MAPPER.into())
+                .next()?;
+
+        Some(MapNode {
+            set: set_expression,
+            mapper_function: mapper_function_expression,
+        })
+    }
+
+    fn node_filter(&self, knowledge: &Structure) -> Option<FilterNode> {
+        let set =
+            query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_FILTER_SET.into())
+                .next_and_last()?;
+
+        let filter = query::values_axiomatically(
+            knowledge,
+            self.clone(),
+            Abstract::NODE_FILTER_FILTER.into(),
+        )
+        .next_and_last()?;
+
+        Some(FilterNode {
+            set: set,
+            filter_function: filter,
+        })
+    }
+
     fn node_add(&self, knowledge: &Structure) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
@@ -227,6 +261,8 @@ impl ObjectExt for Object {
         xor_with!(self.node_xor(knowledge).map(NodeType::Xor));
         xor_with!(self.node_add(knowledge).map(NodeType::Add));
         xor_with!(self.node_union(knowledge).map(NodeType::Union));
+        xor_with!(self.node_map(knowledge).map(NodeType::Map));
+        xor_with!(self.node_filter(knowledge).map(NodeType::Filter));
 
         node_type
     }
@@ -410,8 +446,8 @@ impl ObjectExt for Object {
                         // We query for values.
 
                         // TODO: make subject lazy
-                        let subject = unevaluated_subject.eval(knowledge, context).into_set();
-                        let tag = unevaluated_tag.eval(knowledge, context).into_set();
+                        let subject = unevaluated_subject.eval(knowledge, context).into_object();
+                        let tag = unevaluated_tag.eval(knowledge, context).into_object();
 
                         query::values(knowledge, subject, tag, context).into()
                     }
@@ -422,8 +458,8 @@ impl ObjectExt for Object {
                     } => {
                         // We query for subjects (axiomatically).
 
-                        let tag = unevaluated_tag.eval(knowledge, context).into_set();
-                        let value = unevaluated_value.eval(knowledge, context).into_set();
+                        let tag = unevaluated_tag.eval(knowledge, context).into_object();
+                        let value = unevaluated_value.eval(knowledge, context).into_object();
 
                         LazySetValues::SubjectsAxiomatically(query::subjects_axiomatically(
                             knowledge, tag, value,
@@ -437,7 +473,7 @@ impl ObjectExt for Object {
                     } => {
                         // We query for subjects and values.
 
-                        let tag = unevaluated_tag.eval(knowledge, context).into_set();
+                        let tag = unevaluated_tag.eval(knowledge, context).into_object();
 
                         LazySetValues::SubjectsAndValuesAxiomatically(
                             query::subjects_and_values_axiomatically(knowledge, tag),
@@ -451,9 +487,9 @@ impl ObjectExt for Object {
                     } => {
                         // We check if the statement exists.
 
-                        let subject = unevaluated_subject.eval(knowledge, context).into_set();
-                        let tag = unevaluated_tag.eval(knowledge, context).into_set();
-                        let value = unevaluated_value.eval(knowledge, context).into_set();
+                        let subject = unevaluated_subject.eval(knowledge, context).into_object();
+                        let tag = unevaluated_tag.eval(knowledge, context).into_object();
+                        let value = unevaluated_value.eval(knowledge, context).into_object();
 
                         LazyObject::Eager(
                             Structure::new_bool(query::exists(
@@ -470,8 +506,8 @@ impl ObjectExt for Object {
             Some(NodeType::Parameter(depth)) => context.parameter_value(depth as usize).into(),
             Some(NodeType::Equal(BinaryNode { left, right })) => {
                 Object::Structure(Structure::new_bool(
-                    left.eval(knowledge, context).into_set()
-                        == right.eval(knowledge, context).into_set(),
+                    left.eval(knowledge, context).into_object()
+                        == right.eval(knowledge, context).into_object(),
                 ))
                 .into()
             }
@@ -497,8 +533,8 @@ impl ObjectExt for Object {
             .into(),
             Some(NodeType::Add(BinaryNode { left, right })) => {
                 // TODO: (perf) maybe short circuit sets into UNDEFINED.
-                let left = left.eval(knowledge, context).into_set();
-                let right = right.eval(knowledge, context).into_set();
+                let left = left.eval(knowledge, context).into_object();
+                let right = right.eval(knowledge, context).into_object();
 
                 left.add(knowledge, &right).into()
             }
@@ -515,10 +551,26 @@ impl ObjectExt for Object {
                 LazyObject::Eager(Structure::new_bool((left || right) && !(left && right)).into())
             }
             Some(NodeType::FunctionSelf(depth)) => context.function_self(depth as usize).into(),
+            Some(NodeType::Map(MapNode {
+                set,
+                mapper_function,
+            })) => LazyObject::LazySetValues(LazySetValues::Map {
+                knowledge: knowledge.clone(),
+                set: Box::new(set.eval(knowledge, context).set_values(knowledge)),
+                mapper_function: mapper_function.eval(knowledge, context).into_object(),
+            }),
+            Some(NodeType::Filter(FilterNode {
+                set,
+                filter_function,
+            })) => LazyObject::LazySetValues(LazySetValues::Filter {
+                knowledge: knowledge.clone(),
+                set: Box::new(set.eval(knowledge, context).set_values(knowledge)),
+                filter_function: filter_function.eval(knowledge, context).into_object(),
+            }),
             None if let Object::Structure(Structure::Any(any_structure)) = self => any_structure
                 .properties()
                 .map(|property| {
-                    let value = property.value.eval(knowledge, context).into_set();
+                    let value = property.value.eval(knowledge, context).into_object();
 
                     let result = if property.value == value {
                         Ok(())

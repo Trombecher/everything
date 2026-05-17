@@ -28,6 +28,18 @@ pub struct BinaryNode {
     pub right: Object,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct MapNode {
+    pub set: Object,
+    pub mapper_function: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FilterNode {
+    pub set: Object,
+    pub filter_function: Object,
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum NodeType {
     Computed(Object),
@@ -43,4 +55,6 @@ pub enum NodeType {
     Not(Object),
     Add(BinaryNode),
     Union(BinaryNode),
+    Map(MapNode),
+    Filter(FilterNode),
 }
