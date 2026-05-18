@@ -119,6 +119,8 @@ pub trait StructureExt {
 
     fn new_bool(b: bool) -> Self;
     fn new_node_map(set: Object, mapper: Object) -> Self;
+    fn new_node_filter(set: Object, filter: Object) -> Self;
+    fn new_node_less(left: Object, right: Object) -> Self;
 }
 
 impl StructureExt for Structure {
@@ -273,7 +275,19 @@ impl StructureExt for Structure {
         ])
     }
 
-    // TODO: add filter
+    fn new_node_filter(set: Object, filter: Object) -> Self {
+        Self::new(&mut [
+            Property::new_node_filter_set(set),
+            Property::new_node_filter_filter(filter),
+        ])
+    }
+
+    fn new_node_less(left: Object, right: Object) -> Self {
+        Self::new(&mut [
+            Property::new_node_less_left(left),
+            Property::new_node_less_right(right),
+        ])
+    }
 
     fn new_computed(body: Object) -> Self {
         Self::new(&mut [Property::new_computed(body)])

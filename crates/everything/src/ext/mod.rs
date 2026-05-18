@@ -57,4 +57,5 @@ pub enum NodeType {
     Union(BinaryNode),
     Map(MapNode),
     Filter(FilterNode),
+    Less(BinaryNode),
 }

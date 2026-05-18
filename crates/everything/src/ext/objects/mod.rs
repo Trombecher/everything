@@ -97,6 +97,7 @@ pub trait ObjectExt {
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode>;
+    fn node_less(&self, knowledge: &Structure) -> Option<BinaryNode>;
 }
 
 impl ObjectExt for Object {
@@ -263,8 +264,17 @@ impl ObjectExt for Object {
         xor_with!(self.node_union(knowledge).map(NodeType::Union));
         xor_with!(self.node_map(knowledge).map(NodeType::Map));
         xor_with!(self.node_filter(knowledge).map(NodeType::Filter));
+        xor_with!(self.node_less(knowledge).map(NodeType::Less));
 
         node_type
+    }
+
+    fn node_less(&self, knowledge: &Structure) -> Option<BinaryNode> {
+        self.binary_node(
+            knowledge,
+            Abstract::NODE_LESS_LEFT.into(),
+            Abstract::NODE_LESS_RIGHT.into(),
+        )
     }
 
     fn node_not(&self, knowledge: &Structure) -> Option<Object> {
@@ -504,6 +514,27 @@ impl ObjectExt for Object {
             Some(NodeType::Literal(literal)) => literal.into(),
             Some(NodeType::Computed(_)) => self.capture(knowledge, 0, context).into(),
             Some(NodeType::Parameter(depth)) => context.parameter_value(depth as usize).into(),
+            Some(NodeType::Less(BinaryNode { left, right })) => {
+                Object::Structure(Structure::new_bool(
+                    match (
+                        left.eval(knowledge, context),
+                        right.eval(knowledge, context),
+                    ) {
+                        (LazyObject::Eager(left), LazyObject::Eager(right))
+                            if let Some(left) = left.to_integer(knowledge)
+                                && let Some(right) = right.to_integer(knowledge) =>
+                        {
+                            left < right
+                        }
+                        // TODO: more things here
+                        (left, right) => {
+                            left.set_values(knowledge).correct_count()
+                                < right.set_values(knowledge).correct_count()
+                        }
+                    },
+                ))
+                .into()
+            }
             Some(NodeType::Equal(BinaryNode { left, right })) => {
                 Object::Structure(Structure::new_bool(
                     left.eval(knowledge, context).into_object()

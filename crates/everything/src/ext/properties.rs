@@ -75,6 +75,18 @@ pub trait PropertyExt {
 
     #[must_use]
     fn new_node_map_mapper(mapper: Object) -> Self;
+
+    #[must_use]
+    fn new_node_filter_filter(filter_function: Object) -> Self;
+
+    #[must_use]
+    fn new_node_filter_set(set: Object) -> Self;
+
+    #[must_use]
+    fn new_node_less_left(left: Object) -> Self;
+
+    #[must_use]
+    fn new_node_less_right(right: Object) -> Self;
 }
 
 impl PropertyExt for Property {
@@ -246,5 +258,31 @@ impl PropertyExt for Property {
         }
     }
 
-    // TODO: add filter
+    fn new_node_filter_filter(filter_function: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_FILTER_FILTER.into(),
+            value: filter_function,
+        }
+    }
+
+    fn new_node_filter_set(set: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_FILTER_SET.into(),
+            value: set,
+        }
+    }
+
+    fn new_node_less_left(left: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_LESS_LEFT.into(),
+            value: left,
+        }
+    }
+
+    fn new_node_less_right(right: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_LESS_RIGHT.into(),
+            value: right,
+        }
+    }
 }
