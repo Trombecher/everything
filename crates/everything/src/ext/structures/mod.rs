@@ -7,10 +7,8 @@ use tracing::instrument;
 use crate::{
     base::BASE,
     ctx::EvaluationContext,
-    ext::{
-        AbstractExt, BinaryNode, FilterNode, IfNode, MapNode, Node, ObjectExt, PropertyExt,
-        Statement,
-    },
+    ext::{AbstractExt, ObjectExt, PropertyExt, Statement},
+    nodes::{BinaryNode, FilterNode, IfNode, MapNode, Node},
     query,
 };
 

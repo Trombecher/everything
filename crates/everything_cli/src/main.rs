@@ -1,17 +1,25 @@
+mod names;
 mod repl;
 mod util;
 
-use std::{fs::read_to_string, path::PathBuf, process::exit, time::Instant};
+use std::{
+    fs::{OpenOptions, read_to_string},
+    io::{Read, Seek, SeekFrom, Write},
+    path::PathBuf,
+    process::exit,
+    time::Instant,
+};
 
 use clap::{CommandFactory, Parser, Subcommand};
 use everything::{base::BASE, ext::StructureExt};
 use everything_structures::{Abstract, Object, Structure};
-use everything_structures_ff::Parsable;
+use everything_structures_ff::{Parsable, Token, Tokenizer};
+use std::fmt::Write as _;
 use tracing_subscriber::{Registry, layer::SubscriberExt};
 use tracing_tree::HierarchicalLayer;
 use ulid::Ulid;
 
-use crate::{repl::Repl, util::handle_parse_error};
+use crate::{names::NAMES, repl::Repl, util::handle_parse_error};
 
 trait AbstractUlidExt {
     fn ulid() -> Self;
@@ -63,6 +71,11 @@ enum Command {
     /// Prints the base knowledge required.
     #[command(id = "base")]
     Base,
+    #[command(id = "tp")]
+    TransformPretty {
+        #[arg(id = "file path")]
+        path: PathBuf,
+    },
 }
 
 fn main() {
@@ -120,6 +133,37 @@ fn main() {
         }
         Command::Base => {
             println!("{:?}", &*BASE);
+        }
+        Command::TransformPretty { path } => {
+            let mut file = OpenOptions::new()
+                .write(true)
+                .read(true)
+                .open(path)
+                .unwrap();
+
+            let mut file_content = String::new();
+            file.read_to_string(&mut file_content).unwrap();
+
+            let mut new_content = String::new();
+
+            for token in Tokenizer::new(&file_content) {
+                match token {
+                    Token::Abstract(source)
+                        if let Some(id) = source.parse()
+                            && let Some((name, _)) = NAMES
+                                .iter()
+                                .find(|(_, object)| object == &Object::Abstract(Abstract(id))) =>
+                    {
+                        write!(new_content, "${name}").unwrap();
+                    }
+                    token => {
+                        new_content.push_str(token.as_str());
+                    }
+                }
+            }
+
+            file.seek(SeekFrom::Start(0)).unwrap();
+            file.write_all(new_content.as_bytes()).unwrap();
         }
     }
 }

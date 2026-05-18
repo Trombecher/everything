@@ -57,24 +57,30 @@ pub enum Token<'source> {
     Integer(IntegerSource<'source>),
 }
 
+impl<'source> Token<'source> {
+    pub fn as_str(self) -> &'source str {
+        match self {
+            Token::Abstract(source) => source.as_str(),
+            Token::OpeningParenthesis => "(",
+            Token::ClosingParenthesis => ")",
+            Token::OpeningBrace => "{",
+            Token::ClosingBrace => "}",
+            Token::Comma => ",",
+            Token::Whitespace(source) => source,
+            Token::Invalid(source) => source,
+            Token::LineComment(source) => source,
+            Token::Byte(source) => source.as_str(),
+            Token::Bytes(source) => source.as_str(),
+            Token::Character(source) => source.as_str(),
+            Token::Text(source) => source.as_str(),
+            Token::Integer(source) => source.as_str(),
+        }
+    }
+}
+
 impl<'source> TokenLength for Token<'source> {
     fn length(&self) -> u32 {
-        match self {
-            Self::Abstract(source) => source.length() as u32,
-            Self::Whitespace(ws) => ws.len() as u32,
-            Self::Invalid(i) => i.len() as u32,
-            Self::LineComment(lc) => lc.len() as u32,
-            Self::Integer(source) => source.length() as u32,
-            Self::Byte(byte_source) => byte_source.as_str().len() as u32,
-            Self::Bytes(bytes_source) => bytes_source.as_str().len() as u32,
-            Self::Character(character_source) => character_source.as_str().len() as u32,
-            Self::Text(text_source) => text_source.as_str().len() as u32,
-            Self::OpeningParenthesis
-            | Self::ClosingParenthesis
-            | Self::OpeningBrace
-            | Self::ClosingBrace
-            | Self::Comma => 1,
-        }
+        self.as_str().len() as u32
     }
 }
 

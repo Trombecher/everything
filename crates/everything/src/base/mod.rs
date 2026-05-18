@@ -5,7 +5,10 @@ use std::sync::LazyLock;
 
 use everything_structures::{Abstract, Object, Structure};
 
-use crate::ext::{AbstractExt, BinaryNode, Node, StructureExt};
+use crate::{
+    ext::{AbstractExt, StructureExt},
+    nodes::{BinaryNode, Node},
+};
 
 fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> Object {
     Structure::new_node(Node::Equal(BinaryNode {
