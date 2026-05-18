@@ -388,9 +388,9 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         )
         .into(),
         Structure::new_statement(
-            Abstract::NODE_IF_CONDITION.into(),
+            Abstract::NODE_IF_ELSE.into(),
             Abstract::AXIOMATIC.into(),
-            unique_constraint_for(Abstract::NODE_IF_CONDITION.into(), 0),
+            unique_constraint_for(Abstract::NODE_IF_ELSE.into(), 0),
         )
         .into(),
     ])

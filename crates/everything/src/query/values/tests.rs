@@ -3,19 +3,22 @@ use everything_structures::{Abstract, Object};
 use crate::{
     base::{AXIOMATIC_AXIOMATIC_CONSTRAINT, BASE},
     ext::AbstractExt,
-    query::values,
+    query::{self, QueryValues},
 };
 
 #[test]
 fn basic() {
-    let qr = values::values(
+    let values = query::values(
         &BASE,
         Object::Abstract(Abstract::AXIOMATIC),
         Abstract::AXIOMATIC.into(),
-        &mut Default::default(),
     );
 
-    let mut values = qr.set_values(&BASE);
+    let mut values = match values {
+        QueryValues::Axiomatically(values) => values,
+        QueryValues::Call { .. } => unreachable!(),
+    };
+
     assert_eq!(values.next(), Some(AXIOMATIC_AXIOMATIC_CONSTRAINT.clone()));
     assert_eq!(values.next(), None);
     assert_eq!(values.next(), None);

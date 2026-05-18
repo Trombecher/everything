@@ -4,6 +4,7 @@ use crate::{
     base::BASE,
     ctx::EvaluationContext,
     ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt},
+    nodes::{BinaryNode, Node},
 };
 
 #[test]
@@ -56,7 +57,10 @@ fn node_type() {
 
 #[test]
 fn call() {
-    let f: Object = Structure::new_computed(Structure::new_node_parameter(0).into()).into();
+    let f: Object = Structure::new_node(Node::Computed(
+        Structure::new_node(Node::Parameter(0)).into(),
+    ))
+    .into();
 
     assert_eq!(
         f.call(
@@ -72,19 +76,19 @@ fn call() {
 #[test]
 fn eval_and() {
     assert!(
-        !Object::Structure(Structure::new_node_and(
-            Structure::new_bool(false).into(),
-            Structure::new_bool(true).into()
-        ))
+        !Object::Structure(Structure::new_node(Node::And(BinaryNode {
+            left: Structure::new_bool(false).into(),
+            right: Structure::new_bool(true).into()
+        })))
         .eval(&BASE, &mut Default::default())
         .is_truthy(&BASE)
     );
 
     assert!(
-        Object::Structure(Structure::new_node_and(
-            Structure::new_bool(true).into(),
-            Structure::new_bool(true).into()
-        ))
+        Object::Structure(Structure::new_node(Node::And(BinaryNode {
+            left: Structure::new_bool(true).into(),
+            right: Structure::new_bool(true).into()
+        })))
         .eval(&BASE, &mut Default::default())
         .is_truthy(&BASE)
     )
@@ -93,19 +97,19 @@ fn eval_and() {
 #[test]
 fn eval_or() {
     assert!(
-        !Object::Structure(Structure::new_node_or(
-            Structure::new_bool(false).into(),
-            Structure::new_bool(false).into()
-        ))
+        !Object::Structure(Structure::new_node(Node::Or(BinaryNode {
+            left: Structure::new_bool(false).into(),
+            right: Structure::new_bool(false).into()
+        })))
         .eval(&BASE, &mut Default::default())
         .is_truthy(&BASE)
     );
 
     assert!(
-        Object::Structure(Structure::new_node_or(
-            Structure::new_bool(true).into(),
-            Structure::new_bool(false).into()
-        ))
+        Object::Structure(Structure::new_node(Node::Or(BinaryNode {
+            left: Structure::new_bool(true).into(),
+            right: Structure::new_bool(false).into()
+        })))
         .eval(&BASE, &mut Default::default())
         .is_truthy(&BASE)
     )
