@@ -152,8 +152,8 @@ pub fn values_axiomatically(
             QueryValuesAxiomatically::AxiomaticAxiomaticConstraint
         }
         (
-            Object::Abstract(Abstract::AXIOMATIC | Abstract::COMPUTED),
-            Object::Abstract(Abstract::COMPUTED),
+            Object::Abstract(Abstract::AXIOMATIC | Abstract::FUNCTION),
+            Object::Abstract(Abstract::FUNCTION),
         ) => QueryValuesAxiomatically::None,
         _ => {
             let values_from_subject = match &subject {

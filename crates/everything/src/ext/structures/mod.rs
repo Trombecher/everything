@@ -256,7 +256,7 @@ impl StructureExt for Structure {
 
     fn new_node(node: Node) -> Self {
         match node {
-            Node::Computed(body) => Self::new(&mut [Property::new_computed(body)]),
+            Node::Function(body) => Self::new(&mut [Property::new_function(body)]),
             Node::Literal(literal) => Self::new(&mut [Property::new_node_literal(literal)]),
             Node::And(BinaryNode { left, right }) => Self::new(&mut [
                 Property::new_node_and_left(left),

@@ -26,7 +26,7 @@ pub trait PropertyExt {
     fn new_statement_value(value: Object) -> Self;
 
     #[must_use]
-    fn new_computed(body: Object) -> Self;
+    fn new_function(body: Object) -> Self;
 
     #[must_use]
     fn new_node_equal_left(left: Object) -> Self;
@@ -98,7 +98,7 @@ pub trait PropertyExt {
     fn new_node_if_else(otherwise: Object) -> Self;
 
     #[must_use]
-    fn new_node_function_self(depth: u128) -> Self;
+    fn new_node_function_self(depth: u64) -> Self;
 }
 
 impl PropertyExt for Property {
@@ -165,9 +165,9 @@ impl PropertyExt for Property {
         }
     }
 
-    fn new_computed(body: Object) -> Self {
+    fn new_function(body: Object) -> Self {
         Self {
-            tag: Abstract::COMPUTED.into(),
+            tag: Abstract::FUNCTION.into(),
             value: body,
         }
     }
@@ -319,7 +319,7 @@ impl PropertyExt for Property {
         }
     }
 
-    fn new_node_function_self(depth: u128) -> Self {
+    fn new_node_function_self(depth: u64) -> Self {
         Self {
             tag: Abstract::NODE_FUNCTION_SELF.into(),
             value: Object::new_integer(depth as i128),

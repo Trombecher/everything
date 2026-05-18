@@ -50,7 +50,7 @@ fn main() {
     println!("{result:?}");
      */
 
-    let gauss = Object::Structure(Structure::new_node(Node::Computed(
+    let gauss = Object::Structure(Structure::new_node(Node::Function(
         Structure::new_node(Node::If(IfNode {
             condition: Structure::new_node(Node::Less(BinaryNode {
                 left: Structure::new_node(Node::Parameter(0)).into(),

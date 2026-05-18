@@ -57,7 +57,7 @@ fn node_type() {
 
 #[test]
 fn call() {
-    let f: Object = Structure::new_node(Node::Computed(
+    let f: Object = Structure::new_node(Node::Function(
         Structure::new_node(Node::Parameter(0)).into(),
     ))
     .into();
@@ -118,11 +118,9 @@ fn eval_or() {
 #[test]
 fn eval_literal() {
     assert_eq!(
-        Object::Structure(Structure::new_node_literal(Object::Abstract(
-            Abstract::ZERO
-        )))
-        .eval(&BASE, &mut Default::default())
-        .into_object(),
+        Object::Structure(Structure::new_node(Node::Literal(Abstract::ZERO.into())))
+            .eval(&BASE, &mut Default::default())
+            .into_object(),
         Object::Abstract(Abstract::ZERO)
     );
 }
@@ -130,23 +128,23 @@ fn eval_literal() {
 #[test]
 fn eval_count() {
     assert_eq!(
-        Object::Structure(Structure::new_node_count(Structure::Empty.into()))
+        Object::Structure(Structure::new_node(Node::Count(Structure::Empty.into())))
             .eval(&BASE, &mut Default::default())
             .into_object(),
         Object::new_integer(0)
     );
 
     assert_eq!(
-        Object::Structure(Structure::new_node_count(
-            Structure::new_node_literal(
+        Object::Structure(Structure::new_node(Node::Count(
+            Structure::new_node(Node::Literal(
                 Structure::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
                     Property::new_contains(Abstract::KNOWLEDGE.into()),
                 ])
                 .into()
-            )
+            ))
             .into()
-        ))
+        )))
         .eval(&BASE, &mut Default::default())
         .into_object(),
         Object::new_integer(2)
@@ -163,7 +161,7 @@ fn eval_query() {
                 Property::new_successor_of(Object::new_integer(0)),
             ])
             .into(),
-            Structure::new_node_literal(Abstract::CONTAINS.into()).into()
+            Structure::new_node(Node::Literal(Abstract::CONTAINS.into())).into()
         ))
         .eval(&BASE, &mut Default::default())
         .into_object(),
@@ -173,16 +171,16 @@ fn eval_query() {
 
 #[test]
 fn eval_set_items() {
-    let f: Object = Structure::new_computed(
-        Structure::new_computed(
+    let f: Object = Structure::new_node(Node::Function(
+        Structure::new_node(Node::Function(
             Structure::new_set([
-                Structure::new_node_parameter(0).into(),
-                Structure::new_node_parameter(1).into(),
+                Structure::new_node(Node::Parameter(0)).into(),
+                Structure::new_node(Node::Parameter(1)).into(),
             ])
             .into(),
-        )
+        ))
         .into(),
-    )
+    ))
     .into();
 
     assert_eq!(

@@ -27,11 +27,11 @@ pub struct IfNode {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Node {
-    Computed(Object),
+    Function(Object),
     Literal(Object),
     And(BinaryNode),
-    FunctionSelf(u128),
-    Parameter(u128),
+    FunctionSelf(u64),
+    Parameter(u64),
     Count(Object),
     Query(Object),
     Equal(BinaryNode),

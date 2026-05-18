@@ -14,7 +14,7 @@ pub trait AbstractExt {
 
     /// Denotes that the subject is a function. The associated value is the function
     /// body.
-    const COMPUTED: Abstract = Abstract(2148623901005465698003044719488417081);
+    const FUNCTION: Abstract = Abstract(2148623901005465698003044719488417081);
     const STATEMENT_SUBJECT: Abstract = Abstract(2148623909053123893672709737372288428);
     const STATEMENT_TAG: Abstract = Abstract(2148623916651203732644414190007253763);
     const STATEMENT_VALUE: Abstract = Abstract(2148623924076051576854508924514462036);

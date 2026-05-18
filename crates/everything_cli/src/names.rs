@@ -24,7 +24,7 @@ pub const NAMES: LazyLock<[(&'static str, Object); 53]> = LazyLock::new(|| {
         ("BIT_SLOT_7", Abstract::BIT_SLOT_7.into()),
         ("CONTAINS", Abstract::CONTAINS.into()),
         ("AXIOMATIC", Abstract::AXIOMATIC.into()),
-        ("COMPUTED", Abstract::COMPUTED.into()),
+        ("FUNCTION", Abstract::FUNCTION.into()),
         ("STATEMENT_SUBJECT", Abstract::STATEMENT_SUBJECT.into()),
         ("STATEMENT_TAG", Abstract::STATEMENT_TAG.into()),
         ("STATEMENT_VALUE", Abstract::STATEMENT_VALUE.into()),

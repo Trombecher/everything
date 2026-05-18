@@ -17,7 +17,7 @@ The _knowledge_ is a structure which is a parameter to each expression, a sort o
 An object _has a tag with a value_ iff
 
 * there exists a statement in the knowledge that includes the object, the tag, and the value; or if
-* the tag has `COMPUTED` and the value is is included in the result of the application of the tag with the object as the parameter.
+* the tag has `FUNCTION` and the value is is included in the result of the application of the tag with the object as the parameter.
 
 An object _has a tag_ iff there exists a value such that the object has a tag with this value.
 
@@ -129,7 +129,7 @@ Everything contains a computation system which is basically an extension of lamb
 
 ### Computation / Parameter Nodes
 
-The computation node / function is denoted with `COMPUTED`. The corresponding value is the function body. If the function is invoked with a parameter (either by the engine or other functions) then the function body will be evaluated with the parameter value.
+The computation node / function is denoted with `FUNCTION`. The corresponding value is the function body. If the function is invoked with a parameter (either by the engine or other functions) then the function body will be evaluated with the parameter value.
 
 Parameter references will then be replaced by their values on invocation. Parameter references are denoted with `NODE_PARAMETER` with the value being a natural number denoting the "relative depth". A depth of 0 means that this parameter reference is referencing the innermost function relative to that parameter reference. 1 means the wrapping function of the function addressed by 0, and so on.
 
@@ -137,10 +137,10 @@ This is best illustrated with examples:
 
 | Structure                                           | Non-normative Textual Representation         |
 |-----------------------------------------------------|----------------------------------------------|
-| `{(COMPUTED, @5345345)}`                            | `x \|-> @5345345` (just a constant function) |
-| `{(COMPUTED, {(NODE_PARAMETER, 0)})}`               | `x \|-> x`                                   |
-| `{(COMPUTED, {(COMPUTED, {(NODE_PARAMETER, 0))}})}` | `x \|-> y \|-> y`                            |
-| `{(COMPUTED, {(COMPUTED, {(NODE_PARAMETER, 1))}})}` | `x \|-> y \|-> x`                            |
+| `{(FUNCTION, @5345345)}`                            | `x \|-> @5345345` (just a constant function) |
+| `{(FUNCTION, {(NODE_PARAMETER, 0)})}`               | `x \|-> x`                                   |
+| `{(FUNCTION, {(FUNCTION, {(NODE_PARAMETER, 0))}})}` | `x \|-> y \|-> y`                            |
+| `{(FUNCTION, {(FUNCTION, {(NODE_PARAMETER, 1))}})}` | `x \|-> y \|-> x`                            |
 
 ### Logical Primitives
 

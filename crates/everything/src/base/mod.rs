@@ -10,12 +10,12 @@ use crate::{
     nodes::{BinaryNode, Node},
 };
 
-fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> Object {
+fn common_unique_constraint_expression(tag: Object, parameter_depth: u64) -> Object {
     Structure::new_node(Node::Equal(BinaryNode {
         left: Object::new_integer(1),
         right: Structure::new_node(Node::Count(
             Structure::new_node_query_values(
-                Structure::new_node(Node::Parameter(parameter_depth as u128)).into(),
+                Structure::new_node(Node::Parameter(parameter_depth)).into(),
                 tag,
             )
             .into(),
@@ -34,8 +34,8 @@ fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> O
 /// ```plain
 /// ... |-> count query {(@4, $parameter_at_depth), (@5, tag)} == 1
 /// ```
-fn unique_constraint_for(tag: Object, parameter_depth: usize) -> Object {
-    Structure::new_node(Node::Computed(common_unique_constraint_expression(
+fn unique_constraint_for(tag: Object, parameter_depth: u64) -> Object {
+    Structure::new_node(Node::Function(common_unique_constraint_expression(
         tag,
         parameter_depth,
     )))
@@ -48,7 +48,7 @@ pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> =
 /// A function that computes whether the object (passed in as the
 /// parameter) is a natural number.
 pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
-    Structure::new_node(Node::Computed(
+    Structure::new_node(Node::Function(
         Structure::new_node(Node::Or(BinaryNode {
             left: Structure::new_node(Node::Equal(BinaryNode {
                 left: Structure::new_node(Node::Parameter(0)).into(),
@@ -70,8 +70,8 @@ fn bit_slot_statement(slot: Object) -> Object {
     Structure::new_statement(
         slot.clone(),
         Abstract::AXIOMATIC.into(),
-        Structure::new_node(Node::Computed(
-            Structure::new_node(Node::Computed(
+        Structure::new_node(Node::Function(
+            Structure::new_node(Node::Function(
                 Structure::new_node(Node::And(BinaryNode {
                     left: Structure::new_node(Node::Or(BinaryNode {
                         left: Structure::new_node(Node::Equal(BinaryNode {
@@ -112,9 +112,9 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         )
         .into(),
         Structure::new_statement(
-            Abstract::COMPUTED.into(),
+            Abstract::FUNCTION.into(),
             Abstract::AXIOMATIC.into(),
-            unique_constraint_for(Abstract::COMPUTED.into(), 0),
+            unique_constraint_for(Abstract::FUNCTION.into(), 0),
         )
         .into(),
         Structure::new_statement(
@@ -139,8 +139,8 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         Structure::new_statement(
             Abstract::SUCCESSOR_OF.into(),
             Abstract::AXIOMATIC.into(),
-            Structure::new_node(Node::Computed(
-                Structure::new_node(Node::Computed(
+            Structure::new_node(Node::Function(
+                Structure::new_node(Node::Function(
                     Structure::new_node(Node::And(BinaryNode {
                         left: Structure::new_node_query_values(
                             Structure::new_node(Node::Parameter(0)).into(),
@@ -162,8 +162,8 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         Structure::new_statement(
             Abstract::PREDECESSOR_OF.into(),
             Abstract::AXIOMATIC.into(),
-            Structure::new_node(Node::Computed(
-                Structure::new_node(Node::Computed(
+            Structure::new_node(Node::Function(
+                Structure::new_node(Node::Function(
                     Structure::new_node(Node::And(BinaryNode {
                         left: Structure::new_node(Node::Or(BinaryNode {
                             left: Structure::new_node(Node::Equal(BinaryNode {
@@ -234,8 +234,8 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         Structure::new_statement(
             Abstract::NODE_PARAMETER.into(),
             Abstract::AXIOMATIC.into(),
-            Structure::new_node(Node::Computed(
-                Structure::new_node(Node::Computed(
+            Structure::new_node(Node::Function(
+                Structure::new_node(Node::Function(
                     Structure::new_node(Node::And(BinaryNode {
                         left: common_unique_constraint_expression(
                             Abstract::NODE_PARAMETER.into(),

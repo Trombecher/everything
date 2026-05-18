@@ -20,8 +20,8 @@ pub trait ObjectExt {
     /// Extracts the first (and last) [Abstract::NODE_COUNT] from `self`.
     fn node_count(&self, knowledge: &Structure) -> Option<Object>;
 
-    /// Extracts the first (and last) [Abstract::COMPUTED] from `self`.
-    fn computed_body(&self, knowledge: &Structure) -> Option<Object>;
+    /// Extracts the first (and last) [Abstract::FUNCTION] from `self`.
+    fn function_body(&self, knowledge: &Structure) -> Option<Object>;
 
     fn node_equal(&self, knowledge: &Structure) -> Option<BinaryNode>;
 
@@ -67,7 +67,7 @@ pub trait ObjectExt {
 
     fn to_integer(&self, knowledge: &Structure) -> Option<i128>;
 
-    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u128>;
+    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u64>;
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object>;
 
@@ -87,7 +87,7 @@ pub trait ObjectExt {
 
     fn add(&self, knowledge: &Structure, other: &Object) -> Object;
 
-    fn node_function_self(&self, knowledge: &Structure) -> Option<u128>;
+    fn node_function_self(&self, knowledge: &Structure) -> Option<u64>;
 
     fn node_not(&self, knowledge: &Structure) -> Option<Object>;
 
@@ -233,7 +233,7 @@ impl ObjectExt for Object {
 
     #[instrument(skip(knowledge), ret)]
     fn node(&self, knowledge: &Structure) -> Option<Node> {
-        let mut node = self.computed_body(knowledge).map(Node::Computed);
+        let mut node = self.function_body(knowledge).map(Node::Function);
 
         macro_rules! xor_with {
             ($e:expr) => {{
@@ -310,22 +310,18 @@ impl ObjectExt for Object {
             .next_and_last()
     }
 
-    fn computed_body(&self, knowledge: &Structure) -> Option<Object> {
-        query::values_axiomatically(knowledge, self.clone(), Abstract::COMPUTED.into())
+    fn function_body(&self, knowledge: &Structure) -> Option<Object> {
+        query::values_axiomatically(knowledge, self.clone(), Abstract::FUNCTION.into())
             .next_and_last()
     }
 
-    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u128> {
+    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u64> {
         let depth =
             query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_PARAMETER.into())
                 .next_and_last()?
                 .to_integer(knowledge)?;
 
-        if depth >= 0 {
-            Some(depth as u128)
-        } else {
-            None
-        }
+        u64::try_from(depth).ok()
     }
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
@@ -333,7 +329,7 @@ impl ObjectExt for Object {
             .next_and_last()
     }
 
-    fn node_function_self(&self, knowledge: &Structure) -> Option<u128> {
+    fn node_function_self(&self, knowledge: &Structure) -> Option<u64> {
         let depth = query::values_axiomatically(
             knowledge,
             self.clone(),
@@ -342,11 +338,7 @@ impl ObjectExt for Object {
         .next_and_last()?
         .to_integer(knowledge)?;
 
-        if depth >= 0 {
-            Some(depth as u128)
-        } else {
-            None
-        }
+        u64::try_from(depth).ok()
     }
 
     fn statement_subject(&self, knowledge: &Structure) -> Option<Object> {
@@ -405,7 +397,7 @@ impl ObjectExt for Object {
         ctx: &EvaluationContext,
     ) -> Object {
         match self.node(knowledge) {
-            Some(Node::Computed(body)) => Structure::new_node(Node::Computed(body.capture(
+            Some(Node::Function(body)) => Structure::new_node(Node::Function(body.capture(
                 knowledge,
                 additional_depth + 1,
                 ctx,
@@ -470,7 +462,7 @@ impl ObjectExt for Object {
 
             match task {
                 Task::Eval(object) => match object.node(knowledge) {
-                    Some(Node::Computed(_)) => {
+                    Some(Node::Function(_)) => {
                         evaluated.push(object.capture(knowledge, 0, context).into());
                     }
                     Some(Node::Literal(object)) => {
@@ -636,7 +628,7 @@ impl ObjectExt for Object {
                         tasks.push(Task::ToBoolean);
                         tasks.push(Task::Eval(right));
                     } else {
-                        evaluated.push(LazyObject::Eager(Structure::new_bool(true).into()));
+                        evaluated.push(LazyObject::Eager(Structure::new_bool(false).into()));
                     }
                 }
                 Task::Count => {
@@ -838,7 +830,7 @@ impl ObjectExt for Object {
         ctx: &mut EvaluationContext,
     ) -> LazyObject {
         if let Some((parameter, next_parameters)) = parameters.split_first()
-            && let Some(Node::Computed(body)) = self.node(knowledge)
+            && let Some(Node::Function(body)) = self.node(knowledge)
         {
             ctx.push(FunctionContext {
                 function: self.clone(),

@@ -4,7 +4,7 @@
         (@CONTAINS, 2)
     })
     (@NODE_MAP_F, {
-        (@COMPUTED, {
+        (@FUNCTION, {
             (@NODE_ADD_LEFT, {(@NODE_PARAMETER, 0)})
             (@NODE_ADD_RIGHT, 2)
         })

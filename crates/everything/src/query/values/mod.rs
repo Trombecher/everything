@@ -23,7 +23,7 @@ pub fn values(knowledge: &Structure, subject: Object, tag: Object) -> QueryValue
 
     match (
         values_axiomatically(knowledge, tag.clone(), Abstract::AXIOMATIC.into()).next(),
-        values_axiomatically(knowledge, tag.clone(), Abstract::COMPUTED.into()).next(),
+        values_axiomatically(knowledge, tag.clone(), Abstract::FUNCTION.into()).next(),
     ) {
         (Some(_), None) => {
             QueryValues::Axiomatically(values_axiomatically(knowledge, subject, tag))
