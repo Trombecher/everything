@@ -40,7 +40,10 @@ struct Args {
 #[derive(Subcommand)]
 enum Command {
     /// Generates and prints a new, unique abstract object id.
-    Gen,
+    Gen {
+        #[arg(id = "count", default_value_t = 1)]
+        count: u32,
+    },
     /// Parses the structure file and prints the structure.
     #[command(id = "pp")]
     ParseAndPrint {
@@ -80,8 +83,10 @@ fn main() {
     };
 
     match command {
-        Command::Gen => {
-            println!("{:?}", Object::Abstract(Abstract::ulid()))
+        Command::Gen { count } => {
+            for _ in 0..count {
+                println!("{:?}", Object::Abstract(Abstract::ulid()))
+            }
         }
         Command::ParseAndPrint { path, minify } => {
             let input = read_to_string(path).expect("Reading from file failed");
