@@ -87,6 +87,18 @@ pub trait PropertyExt {
 
     #[must_use]
     fn new_node_less_right(right: Object) -> Self;
+
+    #[must_use]
+    fn new_node_if_condition(condition: Object) -> Self;
+
+    #[must_use]
+    fn new_node_if_then(then: Object) -> Self;
+
+    #[must_use]
+    fn new_node_if_else(otherwise: Object) -> Self;
+
+    #[must_use]
+    fn new_node_function_self(depth: u128) -> Self;
 }
 
 impl PropertyExt for Property {
@@ -283,6 +295,34 @@ impl PropertyExt for Property {
         Self {
             tag: Abstract::NODE_LESS_RIGHT.into(),
             value: right,
+        }
+    }
+
+    fn new_node_if_condition(condition: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_IF_CONDITION.into(),
+            value: condition,
+        }
+    }
+
+    fn new_node_if_then(then: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_IF_THEN.into(),
+            value: then,
+        }
+    }
+
+    fn new_node_if_else(otherwise: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_IF_ELSE.into(),
+            value: otherwise,
+        }
+    }
+
+    fn new_node_function_self(depth: u128) -> Self {
+        Self {
+            tag: Abstract::NODE_FUNCTION_SELF.into(),
+            value: Object::new_integer(depth as i128),
         }
     }
 }

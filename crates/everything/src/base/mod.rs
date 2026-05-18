@@ -5,20 +5,20 @@ use std::sync::LazyLock;
 
 use everything_structures::{Abstract, Object, Structure};
 
-use crate::ext::{AbstractExt, StructureExt};
+use crate::ext::{AbstractExt, BinaryNode, Node, StructureExt};
 
 fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> Object {
-    Structure::new_node_equal(
-        Object::new_integer(1),
-        Structure::new_node_count(
+    Structure::new_node(Node::Equal(BinaryNode {
+        left: Object::new_integer(1),
+        right: Structure::new_node(Node::Count(
             Structure::new_node_query_values(
-                Structure::new_node_parameter(parameter_depth).into(),
+                Structure::new_node(Node::Parameter(parameter_depth as u128)).into(),
                 tag,
             )
             .into(),
-        )
+        ))
         .into(),
-    )
+    }))
     .into()
 }
 
@@ -32,7 +32,11 @@ fn common_unique_constraint_expression(tag: Object, parameter_depth: usize) -> O
 /// ... |-> count query {(@4, $parameter_at_depth), (@5, tag)} == 1
 /// ```
 fn unique_constraint_for(tag: Object, parameter_depth: usize) -> Object {
-    Structure::new_computed(common_unique_constraint_expression(tag, parameter_depth)).into()
+    Structure::new_node(Node::Computed(common_unique_constraint_expression(
+        tag,
+        parameter_depth,
+    )))
+    .into()
 }
 
 pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> =
@@ -41,21 +45,21 @@ pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> =
 /// A function that computes whether the object (passed in as the
 /// parameter) is a natural number.
 pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
-    Structure::new_computed(
-        Structure::new_node_or(
-            Structure::new_node_equal(
-                Structure::new_node_parameter(0).into(),
-                Abstract::ZERO.into(),
-            )
+    Structure::new_node(Node::Computed(
+        Structure::new_node(Node::Or(BinaryNode {
+            left: Structure::new_node(Node::Equal(BinaryNode {
+                left: Structure::new_node(Node::Parameter(0)).into(),
+                right: Abstract::ZERO.into(),
+            }))
             .into(),
-            Structure::new_node_query_values(
-                Structure::new_node_parameter(0).into(),
+            right: Structure::new_node_query_values(
+                Structure::new_node(Node::Parameter(0)).into(),
                 Abstract::SUCCESSOR_OF.into(),
             )
             .into(),
-        )
+        }))
         .into(),
-    )
+    ))
     .into()
 });
 
@@ -63,28 +67,28 @@ fn bit_slot_statement(slot: Object) -> Object {
     Structure::new_statement(
         slot.clone(),
         Abstract::AXIOMATIC.into(),
-        Structure::new_computed(
-            Structure::new_computed(
-                Structure::new_node_and(
-                    Structure::new_node_or(
-                        Structure::new_node_equal(
-                            Structure::new_node_parameter(0).into(),
-                            Abstract::BIT_0.into(),
-                        )
+        Structure::new_node(Node::Computed(
+            Structure::new_node(Node::Computed(
+                Structure::new_node(Node::And(BinaryNode {
+                    left: Structure::new_node(Node::Or(BinaryNode {
+                        left: Structure::new_node(Node::Equal(BinaryNode {
+                            left: Structure::new_node(Node::Parameter(0)).into(),
+                            right: Abstract::BIT_0.into(),
+                        }))
                         .into(),
-                        Structure::new_node_equal(
-                            Structure::new_node_parameter(0).into(),
-                            Abstract::BIT_1.into(),
-                        )
+                        right: Structure::new_node(Node::Equal(BinaryNode {
+                            left: Structure::new_node(Node::Parameter(0)).into(),
+                            right: Abstract::BIT_1.into(),
+                        }))
                         .into(),
-                    )
+                    }))
                     .into(),
-                    common_unique_constraint_expression(slot, 1),
-                )
+                    right: common_unique_constraint_expression(slot, 1),
+                }))
                 .into(),
-            )
+            ))
             .into(),
-        )
+        ))
         .into(),
     )
     .into()
@@ -132,48 +136,54 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         Structure::new_statement(
             Abstract::SUCCESSOR_OF.into(),
             Abstract::AXIOMATIC.into(),
-            Structure::new_computed(
-                Structure::new_computed(
-                    Structure::new_node_and(
-                        Structure::new_node_query_values(
-                            Structure::new_node_parameter(0).into(),
+            Structure::new_node(Node::Computed(
+                Structure::new_node(Node::Computed(
+                    Structure::new_node(Node::And(BinaryNode {
+                        left: Structure::new_node_query_values(
+                            Structure::new_node(Node::Parameter(0)).into(),
                             IS_NATURAL_NUMBER.clone(),
                         )
                         .into(),
-                        common_unique_constraint_expression(Abstract::SUCCESSOR_OF.into(), 1),
-                    )
+                        right: common_unique_constraint_expression(
+                            Abstract::SUCCESSOR_OF.into(),
+                            1,
+                        ),
+                    }))
                     .into(),
-                )
+                ))
                 .into(),
-            )
+            ))
             .into(),
         )
         .into(),
         Structure::new_statement(
             Abstract::PREDECESSOR_OF.into(),
             Abstract::AXIOMATIC.into(),
-            Structure::new_computed(
-                Structure::new_computed(
-                    Structure::new_node_and(
-                        Structure::new_node_or(
-                            Structure::new_node_equal(
-                                Structure::new_node_parameter(0).into(),
-                                Abstract::ZERO.into(),
-                            )
+            Structure::new_node(Node::Computed(
+                Structure::new_node(Node::Computed(
+                    Structure::new_node(Node::And(BinaryNode {
+                        left: Structure::new_node(Node::Or(BinaryNode {
+                            left: Structure::new_node(Node::Equal(BinaryNode {
+                                left: Structure::new_node(Node::Parameter(0)).into(),
+                                right: Abstract::ZERO.into(),
+                            }))
                             .into(),
-                            Structure::new_node_query_values(
-                                Structure::new_node_parameter(0).into(),
+                            right: Structure::new_node_query_values(
+                                Structure::new_node(Node::Parameter(0)).into(),
                                 Abstract::PREDECESSOR_OF.into(),
                             )
                             .into(),
-                        )
+                        }))
                         .into(),
-                        common_unique_constraint_expression(Abstract::PREDECESSOR_OF.into(), 1),
-                    )
+                        right: common_unique_constraint_expression(
+                            Abstract::PREDECESSOR_OF.into(),
+                            1,
+                        ),
+                    }))
                     .into(),
-                )
+                ))
                 .into(),
-            )
+            ))
             .into(),
         )
         .into(),
@@ -221,21 +231,24 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         Structure::new_statement(
             Abstract::NODE_PARAMETER.into(),
             Abstract::AXIOMATIC.into(),
-            Structure::new_computed(
-                Structure::new_computed(
-                    Structure::new_node_and(
-                        common_unique_constraint_expression(Abstract::NODE_PARAMETER.into(), 1),
+            Structure::new_node(Node::Computed(
+                Structure::new_node(Node::Computed(
+                    Structure::new_node(Node::And(BinaryNode {
+                        left: common_unique_constraint_expression(
+                            Abstract::NODE_PARAMETER.into(),
+                            1,
+                        ),
                         // maybe hard code "parameter == zero or has succ"
-                        Structure::new_node_query_values(
-                            Structure::new_node_parameter(0).into(),
+                        right: Structure::new_node_query_values(
+                            Structure::new_node(Node::Parameter(0)).into(),
                             IS_NATURAL_NUMBER.clone(),
                         )
                         .into(),
-                    )
+                    }))
                     .into(),
-                )
+                ))
                 .into(),
-            )
+            ))
             .into(),
         )
         .into(),
@@ -357,6 +370,24 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             Abstract::NODE_LESS_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_LESS_RIGHT.into(), 0),
+        )
+        .into(),
+        Structure::new_statement(
+            Abstract::NODE_IF_CONDITION.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_IF_CONDITION.into(), 0),
+        )
+        .into(),
+        Structure::new_statement(
+            Abstract::NODE_IF_THEN.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_IF_THEN.into(), 0),
+        )
+        .into(),
+        Structure::new_statement(
+            Abstract::NODE_IF_CONDITION.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_IF_CONDITION.into(), 0),
         )
         .into(),
     ])

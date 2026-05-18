@@ -7,7 +7,10 @@ use tracing::instrument;
 use crate::{
     base::BASE,
     ctx::EvaluationContext,
-    ext::{AbstractExt, ObjectExt, PropertyExt, Statement},
+    ext::{
+        AbstractExt, BinaryNode, FilterNode, IfNode, MapNode, Node, ObjectExt, PropertyExt,
+        Statement,
+    },
     query,
 };
 
@@ -64,32 +67,6 @@ pub trait StructureExt {
     /// ```
     fn new_set<const N: usize>(items: [Object; N]) -> Self;
 
-    /// Creates a _not_ node.
-    ///
-    /// ```plain
-    /// {(NODE_NOT, ...)}
-    /// ```
-    fn new_node_not(node: Object) -> Self;
-
-    /// Creates a query node.
-    ///
-    /// ```plain
-    /// {(NODE_QUERY, ...)}
-    /// ```
-    fn new_node_query(node: Object) -> Self;
-
-    fn new_node_add(left: Object, right: Object) -> Self;
-
-    /// Creates a count node.
-    ///
-    /// ```plain
-    /// {(NODE_COUNT, ...)}
-    /// ```
-    fn new_node_count(node: Object) -> Self;
-
-    /// Constructs a parameter node.
-    fn new_node_parameter(depth: usize) -> Self;
-
     fn has_exactly_one_value_on(&self, tag: Object) -> bool;
 
     fn is_knowledge(&self) -> Result<(), KnowledgeError>;
@@ -97,18 +74,6 @@ pub trait StructureExt {
     fn is_statement(&self) -> bool;
 
     fn parse_statement(&self) -> Option<Statement>;
-
-    fn new_computed(body: Object) -> Self;
-
-    fn new_node_equal(left: Object, right: Object) -> Self;
-
-    fn new_node_and(left: Object, right: Object) -> Self;
-
-    fn new_node_or(left: Object, right: Object) -> Self;
-
-    fn new_node_xor(left: Object, right: Object) -> Self;
-
-    fn new_node_literal(object: Object) -> Self;
 
     /// Creates a new query node, set up for value querying.
     fn new_node_query_values(subject: Object, tag: Object) -> Self;
@@ -118,9 +83,9 @@ pub trait StructureExt {
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self;
 
     fn new_bool(b: bool) -> Self;
-    fn new_node_map(set: Object, mapper: Object) -> Self;
-    fn new_node_filter(set: Object, filter: Object) -> Self;
-    fn new_node_less(left: Object, right: Object) -> Self;
+
+    /// Creates a new node.
+    fn new_node(node: Node) -> Self;
 }
 
 impl StructureExt for Structure {
@@ -268,71 +233,19 @@ impl StructureExt for Structure {
         })
     }
 
-    fn new_node_map(set: Object, mapper: Object) -> Self {
-        Self::new(&mut [
-            Property::new_node_map_set(set),
-            Property::new_node_map_mapper(mapper),
-        ])
-    }
-
-    fn new_node_filter(set: Object, filter: Object) -> Self {
-        Self::new(&mut [
-            Property::new_node_filter_set(set),
-            Property::new_node_filter_filter(filter),
-        ])
-    }
-
-    fn new_node_less(left: Object, right: Object) -> Self {
-        Self::new(&mut [
-            Property::new_node_less_left(left),
-            Property::new_node_less_right(right),
-        ])
-    }
-
-    fn new_computed(body: Object) -> Self {
-        Self::new(&mut [Property::new_computed(body)])
-    }
-
-    fn new_node_parameter(depth: usize) -> Self {
-        Self::new(&mut [Property::new_node_parameter(depth)])
-    }
-
-    fn new_node_add(left: Object, right: Object) -> Self {
-        Self::new(&mut [
-            Property::new_node_add_left(left),
-            Property::new_node_add_right(right),
-        ])
-    }
-
-    fn new_node_count(object: Object) -> Self {
-        Self::new(&mut [Property::new_node_count(object)])
-    }
-
-    fn new_node_query(query: Object) -> Self {
-        Self::new(&mut [Property::new_node_query(query)])
-    }
-
     fn new_node_query_values(subject: Object, tag: Object) -> Self {
-        Self::new_node_query(
+        Self::new_node(Node::Query(
             Self::new(&mut [
                 Property::new_statement_subject(subject),
                 Property::new_statement_tag(tag),
             ])
             .into(),
-        )
+        ))
     }
 
     fn new_set<const N: usize>(items: [Object; N]) -> Self {
         let mut properties = items.map(Property::new_contains);
         Self::new(&mut properties)
-    }
-
-    fn new_node_not(node: Object) -> Self {
-        Self::new(&mut [Property::new_node_not(node)])
-    }
-
-    fn new_node_literal(object: Object) -> Self {
-        Self::new(&mut [Property::new_node_literal(object)])
     }
 
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self {
@@ -343,31 +256,68 @@ impl StructureExt for Structure {
         ])
     }
 
-    fn new_node_and(left: Object, right: Object) -> Self {
-        Self::new(&mut [
-            Property::new_node_and_left(left),
-            Property::new_node_and_right(right),
-        ])
-    }
-
-    fn new_node_equal(left: Object, right: Object) -> Self {
-        Self::new(&mut [
-            Property::new_node_equal_left(left),
-            Property::new_node_equal_right(right),
-        ])
-    }
-
-    fn new_node_or(left: Object, right: Object) -> Self {
-        Self::new(&mut [
-            Property::new_node_or_left(left),
-            Property::new_node_or_right(right),
-        ])
-    }
-
-    fn new_node_xor(left: Object, right: Object) -> Self {
-        Self::new(&mut [
-            Property::new_node_xor_left(left),
-            Property::new_node_xor_right(right),
-        ])
+    fn new_node(node: Node) -> Self {
+        match node {
+            Node::Computed(body) => Self::new(&mut [Property::new_computed(body)]),
+            Node::Literal(literal) => Self::new(&mut [Property::new_node_literal(literal)]),
+            Node::And(BinaryNode { left, right }) => Self::new(&mut [
+                Property::new_node_and_left(left),
+                Property::new_node_and_right(right),
+            ]),
+            Node::FunctionSelf(depth) => Self::new(&mut [Property::new_node_function_self(depth)]),
+            Node::Parameter(depth) => {
+                Self::new(&mut [Property::new_node_parameter(depth as usize)])
+            }
+            Node::Count(object) => Self::new(&mut [Property::new_node_count(object)]),
+            Node::Query(query) => Self::new(&mut [Property::new_node_query(query)]),
+            Node::Equal(BinaryNode { left, right }) => Self::new(&mut [
+                Property::new_node_equal_left(left),
+                Property::new_node_equal_right(right),
+            ]),
+            Node::Or(BinaryNode { left, right }) => Self::new(&mut [
+                Property::new_node_or_left(left),
+                Property::new_node_or_right(right),
+            ]),
+            Node::Xor(BinaryNode { left, right }) => Self::new(&mut [
+                Property::new_node_xor_left(left),
+                Property::new_node_xor_right(right),
+            ]),
+            Node::Not(node) => Self::new(&mut [Property::new_node_not(node)]),
+            Node::Add(BinaryNode { left, right }) => Self::new(&mut [
+                Property::new_node_add_left(left),
+                Property::new_node_add_right(right),
+            ]),
+            Node::Union(BinaryNode { left, right }) => Self::new(&mut [
+                Property::new_node_union_left(left),
+                Property::new_node_union_right(right),
+            ]),
+            Node::Map(MapNode {
+                set,
+                mapper_function,
+            }) => Self::new(&mut [
+                Property::new_node_map_set(set),
+                Property::new_node_map_mapper(mapper_function),
+            ]),
+            Node::Filter(FilterNode {
+                set,
+                filter_function,
+            }) => Self::new(&mut [
+                Property::new_node_filter_set(set),
+                Property::new_node_filter_filter(filter_function),
+            ]),
+            Node::Less(BinaryNode { left, right }) => Self::new(&mut [
+                Property::new_node_less_left(left),
+                Property::new_node_less_right(right),
+            ]),
+            Node::If(IfNode {
+                condition,
+                otherwise,
+                then,
+            }) => Self::new(&mut [
+                Property::new_node_if_condition(condition),
+                Property::new_node_if_then(then),
+                Property::new_node_if_else(otherwise),
+            ]),
+        }
     }
 }

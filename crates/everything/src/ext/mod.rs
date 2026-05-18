@@ -40,6 +40,13 @@ pub struct FilterNode {
     pub filter_function: Object,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct IfNode {
+    pub condition: Object,
+    pub then: Object,
+    pub otherwise: Object,
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum Node {
     Computed(Object),
@@ -58,4 +65,5 @@ pub enum Node {
     Map(MapNode),
     Filter(FilterNode),
     Less(BinaryNode),
+    If(IfNode),
 }

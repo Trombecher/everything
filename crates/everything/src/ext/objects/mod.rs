@@ -9,7 +9,7 @@ use crate::{
     LazyObject, LazySetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, BinaryNode, FilterNode, KnowledgeError, MapNode, Node, ObjectForm,
+        AbstractExt, BinaryNode, FilterNode, IfNode, KnowledgeError, MapNode, Node, ObjectForm,
         StatementForm, StructureExt, iter::IteratorExtNextAndLast,
     },
     query::{self, QueryValuesAxiomatically},
@@ -98,6 +98,9 @@ pub trait ObjectExt {
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode>;
+
+    fn node_if(&self, knowledge: &Structure) -> Option<IfNode>;
+
     fn node_less(&self, knowledge: &Structure) -> Option<BinaryNode>;
 }
 
@@ -260,8 +263,32 @@ impl ObjectExt for Object {
         xor_with!(self.node_map(knowledge).map(Node::Map));
         xor_with!(self.node_filter(knowledge).map(Node::Filter));
         xor_with!(self.node_less(knowledge).map(Node::Less));
+        xor_with!(self.node_if(knowledge).map(Node::If));
 
         node
+    }
+
+    fn node_if(&self, knowledge: &Structure) -> Option<IfNode> {
+        let condition = query::values_axiomatically(
+            knowledge,
+            self.clone(),
+            Abstract::NODE_IF_CONDITION.into(),
+        )
+        .next_and_last()?;
+
+        let then =
+            query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_IF_THEN.into())
+                .next_and_last()?;
+
+        let otherwise =
+            query::values_axiomatically(knowledge, self.clone(), Abstract::NODE_IF_ELSE.into())
+                .next_and_last()?;
+
+        Some(IfNode {
+            condition,
+            then,
+            otherwise,
+        })
     }
 
     fn node_less(&self, knowledge: &Structure) -> Option<BinaryNode> {
@@ -377,9 +404,12 @@ impl ObjectExt for Object {
         ctx: &EvaluationContext,
     ) -> Object {
         match self.node(knowledge) {
-            Some(Node::Computed(body)) => {
-                Structure::new_computed(body.capture(knowledge, additional_depth + 1, ctx)).into()
-            }
+            Some(Node::Computed(body)) => Structure::new_node(Node::Computed(body.capture(
+                knowledge,
+                additional_depth + 1,
+                ctx,
+            )))
+            .into(),
             Some(Node::Parameter(depth)) => {
                 if let Some(offset_depth) = (depth as usize).checked_sub(additional_depth) {
                     // The min additional depth is 1.
@@ -591,6 +621,17 @@ impl ObjectExt for Object {
                 set: Box::new(set.eval(knowledge, context).set_values(knowledge)),
                 filter_function: filter_function.eval(knowledge, context).into_object(),
             }),
+            Some(Node::If(IfNode {
+                condition,
+                otherwise,
+                then,
+            })) => {
+                if condition.eval(knowledge, context).is_truthy(knowledge) {
+                    then.eval(knowledge, context)
+                } else {
+                    otherwise.eval(knowledge, context)
+                }
+            }
             None if let Object::Structure(Structure::Any(any_structure)) = self => any_structure
                 .properties()
                 .map(|property| {
