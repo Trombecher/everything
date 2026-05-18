@@ -7,10 +7,10 @@ use everything_structures::{Object, Structure};
 use tracing_subscriber::layer::SubscriberExt;
 
 fn main() {
-    tracing::subscriber::set_global_default(
-        tracing_subscriber::Registry::default().with(tracing_tree::HierarchicalLayer::new(2)),
-    )
-    .unwrap();
+    // tracing::subscriber::set_global_default(
+    //     tracing_subscriber::Registry::default().with(tracing_tree::HierarchicalLayer::new(2)),
+    // )
+    // .unwrap();
 
     /*
     let node = black_box(Object::Structure(Structure::new_node(Node::Map(MapNode {
@@ -75,5 +75,9 @@ fn main() {
         .into(),
     )));
 
-    dbg!(gauss.call(&BASE, &[Object::new_integer(100)], &mut Default::default()));
+    dbg!(gauss.call(
+        &BASE,
+        &[Object::new_integer(42424)],
+        &mut Default::default()
+    ));
 }

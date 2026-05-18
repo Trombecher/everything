@@ -66,4 +66,5 @@ pub enum Task {
     Filter,
     Less,
     PartialIf { then: Object, otherwise: Object },
+    PopContext,
 }

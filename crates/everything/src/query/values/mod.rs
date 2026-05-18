@@ -2,17 +2,14 @@ mod axiomatic;
 #[cfg(test)]
 mod tests;
 
-use std::array;
-
 use everything_structures::{Abstract, Object, Structure};
 use tracing::instrument;
 
-use crate::ctx::EvaluationContext;
-use crate::ext::{AbstractExt, ObjectExt, StructureExt};
-use crate::{LazyObject, LazySetValues};
+use crate::ext::{AbstractExt, StructureExt};
 
 pub use axiomatic::*;
 
+/*
 /// Returns an iterator over all axiomatic and computed values
 /// of the given `subject` with the given `tag` in the given `knowledge`
 /// and `context`.
@@ -74,5 +71,65 @@ pub fn values(
         }
     }
 }
+ */
 
-pub type QueryValues = LazyObject;
+#[instrument(skip(knowledge))]
+pub fn values(knowledge: &Structure, subject: Object, tag: Object) -> QueryValues {
+    if let Object::Abstract(Abstract::KNOWLEDGE) = &tag {
+        return QueryValues::Axiomatically(match subject {
+            Object::Structure(s) if s.is_knowledge().is_ok() => {
+                QueryValuesAxiomatically::EmptyStructure
+            }
+            // TODO: review this for abstract objects
+            _ => QueryValuesAxiomatically::None,
+        });
+    }
+
+    match (
+        values_axiomatically(knowledge, tag.clone(), Abstract::AXIOMATIC.into()).next(),
+        values_axiomatically(knowledge, tag.clone(), Abstract::COMPUTED.into()).next(),
+    ) {
+        (Some(_), None) => {
+            QueryValues::Axiomatically(values_axiomatically(knowledge, subject, tag))
+        }
+        (None, Some(function_body)) => {
+            // tag is a function
+
+            QueryValues::Call {
+                function_body,
+                parameter: subject,
+            }
+        }
+        _ => QueryValues::Axiomatically(QueryValuesAxiomatically::None),
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum QueryValues {
+    Axiomatically(QueryValuesAxiomatically),
+    Call {
+        function_body: Object,
+        parameter: Object,
+    },
+}
+
+impl QueryValues {
+    /*
+    pub fn call_into_lazy(self, knowledge: &Structure) -> LazyObject {
+        match self {
+            QueryValues::Axiomatically(query_values_axiomatically) => LazyObject::LazySetValues(
+                LazySetValues::ValuesAxiomatically(query_values_axiomatically),
+            ),
+            QueryValues::Call {
+                function_body,
+                parameter,
+            } => {
+                let mut context = EvaluationContext::default();
+                context.push();
+
+                function_body.eval(knowledge, context)
+            },
+        }
+    }
+     */
+}

@@ -13,7 +13,7 @@ use crate::{
         iter::IteratorExtNextAndLast,
     },
     nodes::{BinaryNode, FilterNode, IfNode, MapNode, Node, Task},
-    query::{self, QueryValuesAxiomatically},
+    query::{self, QueryValues, QueryValuesAxiomatically},
 };
 
 pub trait ObjectExt {
@@ -652,7 +652,25 @@ impl ObjectExt for Object {
                     // TODO: make this lazy
                     let subject = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(query::values(knowledge, subject, tag, context).into());
+                    match query::values(knowledge, subject, tag.clone()) {
+                        QueryValues::Axiomatically(query_values_axiomatically) => {
+                            evaluated.push(LazyObject::LazySetValues(
+                                LazySetValues::ValuesAxiomatically(query_values_axiomatically),
+                            ));
+                        }
+                        QueryValues::Call {
+                            function_body,
+                            parameter,
+                        } => {
+                            tasks.push(Task::PopContext);
+                            tasks.push(Task::Eval(function_body));
+
+                            context.push(FunctionContext {
+                                function: tag,
+                                parameter,
+                            });
+                        }
+                    }
                 }
                 Task::QuerySubjectsAxiomatically => {
                     let value = evaluated.pop().unwrap().into_object();
@@ -680,10 +698,23 @@ impl ObjectExt for Object {
                     let tag = evaluated.pop().unwrap().into_object();
                     let subject = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(LazyObject::Eager(
-                        Structure::new_bool(query::exists(knowledge, subject, tag, value, context))
-                            .into(),
-                    ));
+                    match query::exists(knowledge, subject, tag.clone(), value) {
+                        query::QueryExists::Axiomatically(exists) => {
+                            evaluated.push(LazyObject::Eager(Structure::new_bool(exists).into()))
+                        }
+                        query::QueryExists::Call {
+                            function_body,
+                            parameter,
+                        } => {
+                            tasks.push(Task::PopContext);
+                            tasks.push(Task::Eval(function_body));
+
+                            context.push(FunctionContext {
+                                function: tag,
+                                parameter,
+                            });
+                        }
+                    }
                 }
                 Task::ToBoolean => {
                     let mut object = evaluated.pop().unwrap();
@@ -784,6 +815,9 @@ impl ObjectExt for Object {
                     } else {
                         tasks.push(Task::Eval(otherwise));
                     }
+                }
+                Task::PopContext => {
+                    context.pop();
                 }
             }
         }
