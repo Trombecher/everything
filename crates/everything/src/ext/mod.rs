@@ -41,7 +41,7 @@ pub struct FilterNode {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub enum NodeType {
+pub enum Node {
     Computed(Object),
     Literal(Object),
     And(BinaryNode),

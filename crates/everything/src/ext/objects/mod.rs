@@ -9,7 +9,7 @@ use crate::{
     LazyObject, LazySetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, BinaryNode, FilterNode, KnowledgeError, MapNode, NodeType, ObjectForm,
+        AbstractExt, BinaryNode, FilterNode, KnowledgeError, MapNode, Node, ObjectForm,
         StatementForm, StructureExt, iter::IteratorExtNextAndLast,
     },
     query::{self, QueryValuesAxiomatically},
@@ -43,7 +43,8 @@ pub trait ObjectExt {
 
     fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> LazyObject;
 
-    fn node_type(&self, knowledge: &Structure) -> Option<NodeType>;
+    /// Parses a node from `self`.
+    fn node(&self, knowledge: &Structure) -> Option<Node>;
 
     /// Returns an iterator over all set items.
     fn set_values(&self, knowledge: &Structure) -> QueryValuesAxiomatically;
@@ -227,46 +228,40 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn node_type(&self, knowledge: &Structure) -> Option<NodeType> {
-        let mut node_type = self.computed_body(knowledge).map(NodeType::Computed);
+    fn node(&self, knowledge: &Structure) -> Option<Node> {
+        let mut node = self.computed_body(knowledge).map(Node::Computed);
 
         macro_rules! xor_with {
             ($e:expr) => {{
                 let variant = $e;
 
                 if variant.is_some() {
-                    if node_type.is_some() {
+                    if node.is_some() {
                         return None;
                     } else {
-                        node_type = variant;
+                        node = variant;
                     }
                 }
             }};
         }
 
-        xor_with!(self.node_literal(knowledge).map(NodeType::Literal));
-        xor_with!(
-            self.node_function_self(knowledge)
-                .map(NodeType::FunctionSelf)
-        );
-        xor_with!(
-            self.node_parameter_depth(knowledge)
-                .map(NodeType::Parameter)
-        );
-        xor_with!(self.node_count(knowledge).map(NodeType::Count));
-        xor_with!(self.node_query(knowledge).map(NodeType::Query));
-        xor_with!(self.node_not(knowledge).map(NodeType::Not));
-        xor_with!(self.node_and(knowledge).map(NodeType::And));
-        xor_with!(self.node_or(knowledge).map(NodeType::Or));
-        xor_with!(self.node_equal(knowledge).map(NodeType::Equal));
-        xor_with!(self.node_xor(knowledge).map(NodeType::Xor));
-        xor_with!(self.node_add(knowledge).map(NodeType::Add));
-        xor_with!(self.node_union(knowledge).map(NodeType::Union));
-        xor_with!(self.node_map(knowledge).map(NodeType::Map));
-        xor_with!(self.node_filter(knowledge).map(NodeType::Filter));
-        xor_with!(self.node_less(knowledge).map(NodeType::Less));
+        xor_with!(self.node_literal(knowledge).map(Node::Literal));
+        xor_with!(self.node_function_self(knowledge).map(Node::FunctionSelf));
+        xor_with!(self.node_parameter_depth(knowledge).map(Node::Parameter));
+        xor_with!(self.node_count(knowledge).map(Node::Count));
+        xor_with!(self.node_query(knowledge).map(Node::Query));
+        xor_with!(self.node_not(knowledge).map(Node::Not));
+        xor_with!(self.node_and(knowledge).map(Node::And));
+        xor_with!(self.node_or(knowledge).map(Node::Or));
+        xor_with!(self.node_equal(knowledge).map(Node::Equal));
+        xor_with!(self.node_xor(knowledge).map(Node::Xor));
+        xor_with!(self.node_add(knowledge).map(Node::Add));
+        xor_with!(self.node_union(knowledge).map(Node::Union));
+        xor_with!(self.node_map(knowledge).map(Node::Map));
+        xor_with!(self.node_filter(knowledge).map(Node::Filter));
+        xor_with!(self.node_less(knowledge).map(Node::Less));
 
-        node_type
+        node
     }
 
     fn node_less(&self, knowledge: &Structure) -> Option<BinaryNode> {
@@ -381,11 +376,11 @@ impl ObjectExt for Object {
         additional_depth: usize,
         ctx: &EvaluationContext,
     ) -> Object {
-        match self.node_type(knowledge) {
-            Some(NodeType::Computed(body)) => {
+        match self.node(knowledge) {
+            Some(Node::Computed(body)) => {
                 Structure::new_computed(body.capture(knowledge, additional_depth + 1, ctx)).into()
             }
-            Some(NodeType::Parameter(depth)) => {
+            Some(Node::Parameter(depth)) => {
                 if let Some(offset_depth) = (depth as usize).checked_sub(additional_depth) {
                     // The min additional depth is 1.
                     // So when the parameter depth is 1 it will refer to
@@ -436,15 +431,15 @@ impl ObjectExt for Object {
 
     #[instrument(skip(knowledge), ret)]
     fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> LazyObject {
-        match self.node_type(knowledge) {
-            Some(NodeType::Count(expression)) => Self::new_integer(
+        match self.node(knowledge) {
+            Some(Node::Count(expression)) => Self::new_integer(
                 expression
                     .eval(knowledge, context)
                     .set_values(knowledge)
                     .correct_count() as i128,
             )
             .into(),
-            Some(NodeType::Query(statement_form_object)) => {
+            Some(Node::Query(statement_form_object)) => {
                 // TODO: adjust constraint for query
 
                 match statement_form_object.statement_form(knowledge) {
@@ -511,10 +506,10 @@ impl ObjectExt for Object {
                     _ => todo!(),
                 }
             }
-            Some(NodeType::Literal(literal)) => literal.into(),
-            Some(NodeType::Computed(_)) => self.capture(knowledge, 0, context).into(),
-            Some(NodeType::Parameter(depth)) => context.parameter_value(depth as usize).into(),
-            Some(NodeType::Less(BinaryNode { left, right })) => {
+            Some(Node::Literal(literal)) => literal.into(),
+            Some(Node::Computed(_)) => self.capture(knowledge, 0, context).into(),
+            Some(Node::Parameter(depth)) => context.parameter_value(depth as usize).into(),
+            Some(Node::Less(BinaryNode { left, right })) => {
                 Object::Structure(Structure::new_bool(
                     match (
                         left.eval(knowledge, context),
@@ -535,14 +530,14 @@ impl ObjectExt for Object {
                 ))
                 .into()
             }
-            Some(NodeType::Equal(BinaryNode { left, right })) => {
+            Some(Node::Equal(BinaryNode { left, right })) => {
                 Object::Structure(Structure::new_bool(
                     left.eval(knowledge, context).into_object()
                         == right.eval(knowledge, context).into_object(),
                 ))
                 .into()
             }
-            Some(NodeType::Or(BinaryNode { left, right })) => {
+            Some(Node::Or(BinaryNode { left, right })) => {
                 Object::Structure(if left.eval(knowledge, context).is_truthy(knowledge) {
                     // Short circuit (if the left side is "true")
                     Structure::new_bool(true)
@@ -551,38 +546,36 @@ impl ObjectExt for Object {
                 })
                 .into()
             }
-            Some(NodeType::And(BinaryNode { left, right })) => {
-                Object::Structure(Structure::new_bool(
-                    left.eval(knowledge, context).is_truthy(knowledge)
-                        && right.eval(knowledge, context).is_truthy(knowledge),
-                ))
-                .into()
-            }
-            Some(NodeType::Not(expression)) => Object::Structure(Structure::new_bool(
+            Some(Node::And(BinaryNode { left, right })) => Object::Structure(Structure::new_bool(
+                left.eval(knowledge, context).is_truthy(knowledge)
+                    && right.eval(knowledge, context).is_truthy(knowledge),
+            ))
+            .into(),
+            Some(Node::Not(expression)) => Object::Structure(Structure::new_bool(
                 !expression.eval(knowledge, context).is_truthy(knowledge),
             ))
             .into(),
-            Some(NodeType::Add(BinaryNode { left, right })) => {
+            Some(Node::Add(BinaryNode { left, right })) => {
                 // TODO: (perf) maybe short circuit sets into UNDEFINED.
                 let left = left.eval(knowledge, context).into_object();
                 let right = right.eval(knowledge, context).into_object();
 
                 left.add(knowledge, &right).into()
             }
-            Some(NodeType::Union(BinaryNode { left, right })) => {
+            Some(Node::Union(BinaryNode { left, right })) => {
                 LazyObject::LazySetValues(LazySetValues::Union {
                     left: Box::new(left.eval(knowledge, context).set_values(knowledge)),
                     right: Box::new(right.eval(knowledge, context).set_values(knowledge)),
                 })
             }
-            Some(NodeType::Xor(BinaryNode { left, right })) => {
+            Some(Node::Xor(BinaryNode { left, right })) => {
                 let left = left.eval(knowledge, context).is_truthy(knowledge);
                 let right = right.eval(knowledge, context).is_truthy(knowledge);
 
                 LazyObject::Eager(Structure::new_bool((left || right) && !(left && right)).into())
             }
-            Some(NodeType::FunctionSelf(depth)) => context.function_self(depth as usize).into(),
-            Some(NodeType::Map(MapNode {
+            Some(Node::FunctionSelf(depth)) => context.function_self(depth as usize).into(),
+            Some(Node::Map(MapNode {
                 set,
                 mapper_function,
             })) => LazyObject::LazySetValues(LazySetValues::Map {
@@ -590,7 +583,7 @@ impl ObjectExt for Object {
                 set: Box::new(set.eval(knowledge, context).set_values(knowledge)),
                 mapper_function: mapper_function.eval(knowledge, context).into_object(),
             }),
-            Some(NodeType::Filter(FilterNode {
+            Some(Node::Filter(FilterNode {
                 set,
                 filter_function,
             })) => LazyObject::LazySetValues(LazySetValues::Filter {
@@ -638,7 +631,7 @@ impl ObjectExt for Object {
         ctx: &mut EvaluationContext,
     ) -> LazyObject {
         if let Some((parameter, next_parameters)) = parameters.split_first()
-            && let Some(NodeType::Computed(body)) = self.node_type(knowledge)
+            && let Some(Node::Computed(body)) = self.node(knowledge)
         {
             ctx.push(FunctionContext {
                 function: self.clone(),
