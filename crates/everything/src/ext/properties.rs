@@ -99,6 +99,12 @@ pub trait PropertyExt {
 
     #[must_use]
     fn new_node_function_self(depth: u64) -> Self;
+
+    #[must_use]
+    fn new_node_unwrap_or_set(set: Object) -> Self;
+
+    #[must_use]
+    fn new_node_unwrap_or_default(default: Object) -> Self;
 }
 
 impl PropertyExt for Property {
@@ -323,6 +329,20 @@ impl PropertyExt for Property {
         Self {
             tag: Abstract::NODE_FUNCTION_SELF.into(),
             value: Object::new_integer(depth as i128),
+        }
+    }
+
+    fn new_node_unwrap_or_set(set: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_UNWRAP_OR_SET.into(),
+            value: set,
+        }
+    }
+
+    fn new_node_unwrap_or_default(default: Object) -> Self {
+        Self {
+            tag: Abstract::NODE_UNWRAP_OR_DEFAULT.into(),
+            value: default,
         }
     }
 }

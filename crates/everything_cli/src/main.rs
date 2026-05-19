@@ -163,6 +163,7 @@ fn main() {
             }
 
             file.seek(SeekFrom::Start(0)).unwrap();
+            file.set_len(0).unwrap();
             file.write_all(new_content.as_bytes()).unwrap();
         }
     }

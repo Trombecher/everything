@@ -393,5 +393,17 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             unique_constraint_for(Abstract::NODE_IF_ELSE.into(), 0),
         )
         .into(),
+        Structure::new_statement(
+            Abstract::NODE_UNWRAP_OR_SET.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_UNWRAP_OR_SET.into(), 0),
+        )
+        .into(),
+        Structure::new_statement(
+            Abstract::NODE_UNWRAP_OR_DEFAULT.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_UNWRAP_OR_DEFAULT.into(), 0),
+        )
+        .into(),
     ])
 });

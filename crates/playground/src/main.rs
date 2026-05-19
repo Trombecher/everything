@@ -1,10 +1,58 @@
+use std::hint::black_box;
+
 use everything::{
+    Knowledge,
     base::BASE,
-    ext::{ObjectExt, StructureExt},
-    nodes::{BinaryNode, IfNode, Node},
+    ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt},
+    nodes::{BinaryNode, IfNode, Node, UnwrapOrNode},
 };
-use everything_structures::{Object, Structure};
+use everything_structures::{Abstract, Object, Property, Structure};
 use tracing_subscriber::layer::SubscriberExt;
+
+fn integer_constraint(tag: Object) -> Object {
+    Structure::new_node(Node::Function(
+        Structure::new_node(Node::Function(
+            Structure::new_node(Node::And(BinaryNode {
+                left: Structure::new_node(Node::Equal(BinaryNode {
+                    left: Structure::new_node(Node::Count(
+                        Structure::new_node_query_values(
+                            Structure::new_node(Node::Parameter(1)).into(),
+                            tag,
+                        )
+                        .into(),
+                    ))
+                    .into(),
+                    right: Object::new_integer(1),
+                }))
+                .into(),
+                right: Structure::new_node(Node::Or(BinaryNode {
+                    left: Structure::new_node(Node::Equal(BinaryNode {
+                        left: Structure::new_node(Node::Parameter(0)).into(),
+                        right: Object::new_integer(0),
+                    }))
+                    .into(),
+                    right: Structure::new_node(Node::Or(BinaryNode {
+                        left: Structure::new_node_query_values(
+                            Structure::new_node(Node::Parameter(0)).into(),
+                            Abstract::SUCCESSOR_OF.into(),
+                        )
+                        .into(),
+                        right: Structure::new_node_query_values(
+                            Structure::new_node(Node::Parameter(0)).into(),
+                            Abstract::PREDECESSOR_OF.into(),
+                        )
+                        .into(),
+                    }))
+                    .into(),
+                }))
+                .into(),
+            }))
+            .into(),
+        ))
+        .into(),
+    ))
+    .into()
+}
 
 fn main() {
     // tracing::subscriber::set_global_default(
@@ -12,72 +60,68 @@ fn main() {
     // )
     // .unwrap();
 
-    /*
-    let node = black_box(Object::Structure(Structure::new_node(Node::Map(MapNode {
-        set: Structure::new_node(Node::Filter(FilterNode {
-            set: Structure::new_set([
-                Object::new_integer(1),
-                Object::new_integer(2),
-                Object::new_integer(3),
-                Object::new_integer(4),
-                Object::new_integer(10),
-                Object::new_integer(2423),
-                Object::new_integer(45654),
-            ])
-            .into(),
-            filter_function: Structure::new_node(Node::Computed(
-                Structure::new_node(Node::Less(BinaryNode {
-                    left: Object::new_integer(11),
-                    right: Structure::new_node(Node::Parameter(0)).into(),
-                }))
-                .into(),
-            ))
-            .into(),
-        }))
-        .into(),
-        mapper_function: Structure::new_node(Node::Computed(
-            Structure::new_node(Node::Add(BinaryNode {
-                left: Structure::new_node(Node::Parameter(0)).into(),
-                right: Object::new_integer(1),
-            }))
-            .into(),
-        ))
-        .into(),
-    }))));
+    const PETER: Object = Object::Abstract(Abstract(14575835));
+    const ALICE: Object = Object::Abstract(Abstract(33252352));
 
-    let result = node.eval(&BASE, &mut Default::default());
+    const LEFT_POCKET_COUNT: Object = Object::Abstract(Abstract(53453543435));
+    const RIGHT_POCKET_COUNT: Object = Object::Abstract(Abstract(3434675347));
+    const TOTAL_COUNT: Object = Object::Abstract(Abstract(32982309589));
 
-    println!("{result:?}");
-     */
-
-    let gauss = Object::Structure(Structure::new_node(Node::Function(
-        Structure::new_node(Node::If(IfNode {
-            condition: Structure::new_node(Node::Less(BinaryNode {
-                left: Structure::new_node(Node::Parameter(0)).into(),
-                right: Object::new_integer(2),
-            }))
-            .into(),
-            then: Structure::new_node(Node::Parameter(0)).into(),
-            otherwise: Structure::new_node(Node::Add(BinaryNode {
-                left: Structure::new_node(Node::Parameter(0)).into(),
-                right: Structure::new_node_query_values(
-                    Structure::new_node(Node::Add(BinaryNode {
-                        left: Structure::new_node(Node::Parameter(0)).into(),
-                        right: Object::new_integer(-1),
-                    }))
-                    .into(),
-                    Structure::new_node(Node::FunctionSelf(0)).into(),
+    let knowledge = Knowledge::new(
+        BASE.add(&mut [
+            Property::new_contains(
+                Structure::new_statement(
+                    LEFT_POCKET_COUNT,
+                    Abstract::AXIOMATIC.into(),
+                    integer_constraint(LEFT_POCKET_COUNT),
                 )
                 .into(),
-            }))
-            .into(),
-        }))
-        .into(),
-    )));
+            ),
+            Property::new_contains(
+                Structure::new_statement(
+                    RIGHT_POCKET_COUNT,
+                    Abstract::AXIOMATIC.into(),
+                    integer_constraint(RIGHT_POCKET_COUNT),
+                )
+                .into(),
+            ),
+            Property::new_contains(
+                Structure::new_statement(PETER, LEFT_POCKET_COUNT, Object::new_integer(67)).into(),
+            ),
+            Property::new_contains(
+                Structure::new_statement(PETER, RIGHT_POCKET_COUNT, Object::new_integer(42)).into(),
+            ),
+            Property::new_contains(
+                Structure::new_statement(
+                    TOTAL_COUNT,
+                    Abstract::FUNCTION.into(),
+                    Structure::new_node(Node::Add(BinaryNode {
+                        left: Structure::new_node(Node::UnwrapOr(UnwrapOrNode {
+                            set: Structure::new_node_query_values(
+                                Structure::new_node(Node::Parameter(0)).into(),
+                                LEFT_POCKET_COUNT,
+                            )
+                            .into(),
+                            default: Object::new_integer(0),
+                        }))
+                        .into(),
+                        right: Structure::new_node(Node::UnwrapOr(UnwrapOrNode {
+                            set: Structure::new_node_query_values(
+                                Structure::new_node(Node::Parameter(0)).into(),
+                                RIGHT_POCKET_COUNT,
+                            )
+                            .into(),
+                            default: Object::new_integer(0),
+                        }))
+                        .into(),
+                    }))
+                    .into(),
+                )
+                .into(),
+            ),
+        ]),
+    )
+    .unwrap();
 
-    dbg!(gauss.call(
-        &BASE,
-        &[Object::new_integer(42424)],
-        &mut Default::default()
-    ));
+    println!("{:?}", knowledge.query_values(PETER, TOTAL_COUNT));
 }

@@ -1,9 +1,12 @@
 use std::sync::LazyLock;
 
-use everything::{base::BASE, ext::AbstractExt};
-use everything_structures::{Abstract, Object};
+use everything::{
+    base::{AXIOMATIC_AXIOMATIC_CONSTRAINT, BASE},
+    ext::{AbstractExt, StructureExt},
+};
+use everything_structures::{Abstract, Object, Structure};
 
-pub const NAMES: LazyLock<[(&'static str, Object); 53]> = LazyLock::new(|| {
+pub const NAMES: LazyLock<[(&'static str, Object); 55]> = LazyLock::new(|| {
     [
         ("BASE", BASE.clone().into()),
         ("ZERO", Abstract::ZERO.into()),
@@ -58,5 +61,12 @@ pub const NAMES: LazyLock<[(&'static str, Object); 53]> = LazyLock::new(|| {
         ("NODE_IF_ELSE", Abstract::NODE_IF_ELSE.into()),
         ("ARITHMETIC_OVERFLOW", Abstract::ARITHMETIC_OVERFLOW.into()),
         ("UNDEFINED", Abstract::UNDEFINED.into()),
+        (
+            "AXIOMATIC_AXIOMATIC_CONSTRAINT",
+            AXIOMATIC_AXIOMATIC_CONSTRAINT.clone(),
+        ),
+        ("TRUE", Structure::new_bool(true).into()),
     ]
 });
+
+// {($FUNCTION, {($NODE_EQUAL_LEFT, 1), ($NODE_EQUAL_RIGHT, {($NODE_COUNT, {($NODE_QUERY, {($STATEMENT_SUBJECT, {($NODE_PARAMETER, $ZERO)}), ($STATEMENT_TAG, $AXIOMATIC)})})})})}

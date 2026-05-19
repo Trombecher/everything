@@ -12,7 +12,7 @@ use crate::{
         AbstractExt, KnowledgeError, ObjectForm, StatementForm, StructureExt,
         iter::IteratorExtNextAndLast,
     },
-    nodes::{BinaryNode, FilterNode, IfNode, MapNode, Node, Task},
+    nodes::{BinaryNode, FilterNode, IfNode, MapNode, Node, Task, UnwrapOrNode},
     query::{self, QueryValues, QueryValuesAxiomatically},
 };
 
@@ -99,6 +99,7 @@ pub trait ObjectExt {
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode>;
+    fn node_unwrap_or(&self, knowledge: &Structure) -> Option<UnwrapOrNode>;
 
     fn node_if(&self, knowledge: &Structure) -> Option<IfNode>;
 
@@ -265,8 +266,27 @@ impl ObjectExt for Object {
         xor_with!(self.node_filter(knowledge).map(Node::Filter));
         xor_with!(self.node_less(knowledge).map(Node::Less));
         xor_with!(self.node_if(knowledge).map(Node::If));
+        xor_with!(self.node_unwrap_or(knowledge).map(Node::UnwrapOr));
 
         node
+    }
+
+    fn node_unwrap_or(&self, knowledge: &Structure) -> Option<UnwrapOrNode> {
+        let set = query::values_axiomatically(
+            knowledge,
+            self.clone(),
+            Abstract::NODE_UNWRAP_OR_SET.into(),
+        )
+        .next_and_last()?;
+
+        let default = query::values_axiomatically(
+            knowledge,
+            self.clone(),
+            Abstract::NODE_UNWRAP_OR_DEFAULT.into(),
+        )
+        .next_and_last()?;
+
+        Some(UnwrapOrNode { set, default })
     }
 
     fn node_if(&self, knowledge: &Structure) -> Option<IfNode> {
@@ -462,6 +482,10 @@ impl ObjectExt for Object {
 
             match task {
                 Task::Eval(object) => match object.node(knowledge) {
+                    Some(Node::UnwrapOr(UnwrapOrNode { set, default })) => {
+                        tasks.push(Task::PartialUnwrapOr { default });
+                        tasks.push(Task::Eval(set));
+                    }
                     Some(Node::Function(_)) => {
                         evaluated.push(object.capture(knowledge, 0, context).into());
                     }
@@ -810,6 +834,15 @@ impl ObjectExt for Object {
                 }
                 Task::PopContext => {
                     context.pop();
+                }
+                Task::PartialUnwrapOr { default } => {
+                    let mut set_values = evaluated.pop().unwrap().set_values(knowledge);
+
+                    if let Some(inner) = set_values.next_and_last() {
+                        evaluated.push(LazyObject::Eager(inner));
+                    } else {
+                        tasks.push(Task::Eval(default))
+                    }
                 }
             }
         }

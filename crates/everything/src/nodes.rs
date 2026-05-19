@@ -25,6 +25,12 @@ pub struct IfNode {
     pub otherwise: Object,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct UnwrapOrNode {
+    pub set: Object,
+    pub default: Object,
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum Node {
     Function(Object),
@@ -44,6 +50,7 @@ pub enum Node {
     Filter(FilterNode),
     Less(BinaryNode),
     If(IfNode),
+    UnwrapOr(UnwrapOrNode),
 }
 
 #[derive(Debug)]
@@ -67,4 +74,5 @@ pub enum Task {
     Less,
     PartialIf { then: Object, otherwise: Object },
     PopContext,
+    PartialUnwrapOr { default: Object },
 }

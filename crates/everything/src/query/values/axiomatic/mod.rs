@@ -1,5 +1,4 @@
 use everything_structures::{Abstract, Object, Property, Structure, StructureValues};
-use tracing::instrument;
 
 use crate::{
     base,
@@ -140,7 +139,7 @@ impl Iterator for AxiomaticBorrowedQueryValues {
 ///
 /// * `tag` and all downstream tags are assumed to be axiomatic.
 /// * `knowledge` is a superset of [crate::base::BASE].
-#[instrument(skip(knowledge), ret)]
+// #[instrument(skip(knowledge), ret)]
 #[inline]
 pub fn values_axiomatically(
     knowledge: &Structure,

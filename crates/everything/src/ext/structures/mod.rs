@@ -8,7 +8,7 @@ use crate::{
     base::BASE,
     ctx::EvaluationContext,
     ext::{AbstractExt, ObjectExt, PropertyExt, Statement},
-    nodes::{BinaryNode, FilterNode, IfNode, MapNode, Node},
+    nodes::{BinaryNode, FilterNode, IfNode, MapNode, Node, UnwrapOrNode},
     query,
 };
 
@@ -315,6 +315,10 @@ impl StructureExt for Structure {
                 Property::new_node_if_condition(condition),
                 Property::new_node_if_then(then),
                 Property::new_node_if_else(otherwise),
+            ]),
+            Node::UnwrapOr(UnwrapOrNode { set, default }) => Self::new(&mut [
+                Property::new_node_unwrap_or_set(set),
+                Property::new_node_unwrap_or_default(default),
             ]),
         }
     }

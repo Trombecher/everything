@@ -1,8 +1,12 @@
 use everything_structures::{Object, Structure};
 
 use crate::{
-    ext::{KnowledgeError, StructureExt},
-    query::{self, QuerySubjectsAndValuesAxiomatically, QuerySubjectsAxiomatically, QueryValues},
+    LazyObject, LazySetValues,
+    ext::{KnowledgeError, ObjectExt, StructureExt},
+    query::{
+        self, QuerySubjectsAndValuesAxiomatically, QuerySubjectsAxiomatically, QueryValues,
+        QueryValuesAxiomatically,
+    },
 };
 
 #[derive(Clone)]
@@ -26,8 +30,24 @@ impl Knowledge {
     /// (subject, tag) -> (value)
     /// ```
     #[inline]
-    pub fn query_values(&self, subject: Object, tag: Object) -> QueryValues {
-        query::values(self.structure(), subject, tag)
+    pub fn query_values(&self, subject: Object, tag: Object) -> LazyObject {
+        match query::values(self.structure(), subject, tag.clone()) {
+            QueryValues::Axiomatically(values) => {
+                LazyObject::LazySetValues(LazySetValues::ValuesAxiomatically(values))
+            }
+            QueryValues::Call { parameter, .. } => {
+                tag.call(&self.0, &[parameter], &mut Default::default())
+            }
+        }
+    }
+
+    #[inline]
+    pub fn query_values_axiomatically(
+        &self,
+        subject: Object,
+        tag: Object,
+    ) -> QueryValuesAxiomatically {
+        query::values_axiomatically(self.structure(), subject, tag)
     }
 
     #[inline]
