@@ -3,12 +3,12 @@ use everything_structures::{Abstract, Object};
 use crate::{
     base::{AXIOMATIC_AXIOMATIC_CONSTRAINT, BASE},
     ext::AbstractExt,
-    query::{self, QueryValues},
+    query::QueryValues,
 };
 
 #[test]
 fn basic() {
-    let values = query::values(
+    let values = QueryValues::new(
         &BASE,
         Object::Abstract(Abstract::AXIOMATIC),
         Abstract::AXIOMATIC.into(),

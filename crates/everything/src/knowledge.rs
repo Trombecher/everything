@@ -4,7 +4,7 @@ use crate::{
     LazyObject, LazySetValues,
     ext::{KnowledgeError, ObjectExt, StructureExt},
     query::{
-        self, QuerySubjectsAndValuesAxiomatically, QuerySubjectsAxiomatically, QueryValues,
+        QuerySubjectsAndValuesAxiomatically, QuerySubjectsAxiomatically, QueryValues,
         QueryValuesAxiomatically,
     },
 };
@@ -31,7 +31,7 @@ impl Knowledge {
     /// ```
     #[inline]
     pub fn query_values(&self, subject: Object, tag: Object) -> LazyObject {
-        match query::values(self.structure(), subject, tag.clone()) {
+        match QueryValues::new(self.structure(), subject, tag.clone()) {
             QueryValues::Axiomatically(values) => {
                 LazyObject::LazySetValues(LazySetValues::ValuesAxiomatically(values))
             }
