@@ -88,6 +88,7 @@ pub trait ObjectExt {
     fn is_natural_number(&self, knowledge: &Structure) -> bool;
     fn node_map(&self, knowledge: &Structure) -> Option<MapNode>;
     fn node_filter(&self, knowledge: &Structure) -> Option<FilterNode>;
+    fn node_multiply(&self, knowledge: &Structure) -> Option<BinaryNode>;
 
     fn add(&self, knowledge: &Structure, other: &Object) -> Object;
 
@@ -116,6 +117,7 @@ pub trait ObjectExt {
     fn intrinsic_statement_value(&self) -> Option<Object>;
 
     fn intrinsic_statement(&self) -> Option<Statement>;
+    fn multiply(&self, knowledge: &Structure, other: &Object) -> Object;
 }
 
 impl ObjectExt for Object {
@@ -235,6 +237,14 @@ impl ObjectExt for Object {
             knowledge,
             Abstract::NODE_XOR_LEFT.into(),
             Abstract::NODE_XOR_RIGHT.into(),
+        )
+    }
+
+    fn node_multiply(&self, knowledge: &Structure) -> Option<BinaryNode> {
+        self.binary_node(
+            knowledge,
+            Abstract::NODE_MULTIPLY_LEFT.into(),
+            Abstract::NODE_MULTIPLY_RIGHT.into(),
         )
     }
 
@@ -532,6 +542,20 @@ impl ObjectExt for Object {
         }
     }
 
+    fn multiply(&self, knowledge: &Structure, other: &Object) -> Object {
+        if let Some(left) = self.to_integer(knowledge)
+            && let Some(right) = other.to_integer(knowledge)
+        {
+            if let Some(product) = left.checked_mul(right) {
+                Object::new_integer(product)
+            } else {
+                Abstract::ARITHMETIC_OVERFLOW.into()
+            }
+        } else {
+            Abstract::UNDEFINED.into()
+        }
+    }
+
     #[instrument(skip(knowledge), ret)]
     fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> LazyObject {
         let mut tasks = vec![Task::Eval(self.clone())];
@@ -542,6 +566,11 @@ impl ObjectExt for Object {
 
             match task {
                 Task::Eval(object) => match object.node(knowledge) {
+                    Some(Node::Multiply(BinaryNode { left, right })) => {
+                        tasks.push(Task::Multiply);
+                        tasks.push(Task::Eval(right));
+                        tasks.push(Task::Eval(left));
+                    }
                     Some(Node::UnwrapOr(UnwrapOrNode { set, default })) => {
                         tasks.push(Task::PartialUnwrapOr { default });
                         tasks.push(Task::Eval(set));
@@ -898,6 +927,13 @@ impl ObjectExt for Object {
                     let left = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(left.add(knowledge, &right).into());
+                }
+                Task::Multiply => {
+                    // TODO: (perf) maybe short circuit sets into UNDEFINED.
+                    let right = evaluated.pop().unwrap().into_object();
+                    let left = evaluated.pop().unwrap().into_object();
+
+                    evaluated.push(left.multiply(knowledge, &right).into())
                 }
                 Task::Union => {
                     let right = evaluated.pop().unwrap();

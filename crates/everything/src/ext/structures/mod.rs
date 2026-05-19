@@ -225,69 +225,167 @@ impl StructureExt for Structure {
 
     fn new_node(node: Node) -> Self {
         match node {
-            Node::Function(body) => Self::new(&mut [Property::new_function(body)]),
-            Node::Literal(literal) => Self::new(&mut [Property::new_node_literal(literal)]),
+            Node::Function(body) => Self::new(&mut [Property {
+                tag: Abstract::FUNCTION.into(),
+                value: body,
+            }]),
+            Node::Literal(literal) => Self::new(&mut [Property {
+                tag: Abstract::NODE_LITERAL.into(),
+                value: literal,
+            }]),
             Node::And(BinaryNode { left, right }) => Self::new(&mut [
-                Property::new_node_and_left(left),
-                Property::new_node_and_right(right),
+                Property {
+                    tag: Abstract::NODE_AND_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_AND_RIGHT.into(),
+                    value: right,
+                },
             ]),
-            Node::FunctionSelf(depth) => Self::new(&mut [Property::new_node_function_self(depth)]),
-            Node::Parameter(depth) => {
-                Self::new(&mut [Property::new_node_parameter(depth as usize)])
-            }
-            Node::Count(object) => Self::new(&mut [Property::new_node_count(object)]),
-            Node::Query(query) => Self::new(&mut [Property::new_node_query(query)]),
+            Node::FunctionSelf(depth) => Self::new(&mut [Property {
+                tag: Abstract::NODE_FUNCTION_SELF.into(),
+                value: Object::new_integer(depth as i128),
+            }]),
+            Node::Parameter(depth) => Self::new(&mut [Property {
+                tag: Abstract::NODE_PARAMETER.into(),
+                value: Object::new_integer(depth as i128),
+            }]),
+            Node::Count(object) => Self::new(&mut [Property {
+                tag: Abstract::NODE_COUNT.into(),
+                value: object,
+            }]),
+            Node::Query(query) => Self::new(&mut [Property {
+                tag: Abstract::NODE_QUERY.into(),
+                value: query,
+            }]),
             Node::Equal(BinaryNode { left, right }) => Self::new(&mut [
-                Property::new_node_equal_left(left),
-                Property::new_node_equal_right(right),
+                Property {
+                    tag: Abstract::NODE_EQUAL_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_EQUAL_RIGHT.into(),
+                    value: right,
+                },
             ]),
             Node::Or(BinaryNode { left, right }) => Self::new(&mut [
-                Property::new_node_or_left(left),
-                Property::new_node_or_right(right),
+                Property {
+                    tag: Abstract::NODE_OR_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_OR_RIGHT.into(),
+                    value: right,
+                },
             ]),
             Node::Xor(BinaryNode { left, right }) => Self::new(&mut [
-                Property::new_node_xor_left(left),
-                Property::new_node_xor_right(right),
+                Property {
+                    tag: Abstract::NODE_XOR_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_XOR_RIGHT.into(),
+                    value: right,
+                },
             ]),
-            Node::Not(node) => Self::new(&mut [Property::new_node_not(node)]),
+            Node::Not(node) => Self::new(&mut [Property {
+                tag: Abstract::NODE_NOT.into(),
+                value: node,
+            }]),
             Node::Add(BinaryNode { left, right }) => Self::new(&mut [
-                Property::new_node_add_left(left),
-                Property::new_node_add_right(right),
+                Property {
+                    tag: Abstract::NODE_ADD_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_ADD_RIGHT.into(),
+                    value: right,
+                },
             ]),
             Node::Union(BinaryNode { left, right }) => Self::new(&mut [
-                Property::new_node_union_left(left),
-                Property::new_node_union_right(right),
+                Property {
+                    tag: Abstract::NODE_UNION_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_UNION_RIGHT.into(),
+                    value: right,
+                },
             ]),
             Node::Map(MapNode {
                 set,
                 mapper_function,
             }) => Self::new(&mut [
-                Property::new_node_map_set(set),
-                Property::new_node_map_mapper(mapper_function),
+                Property {
+                    tag: Abstract::NODE_MAP_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_MAP_MAPPER.into(),
+                    value: mapper_function,
+                },
             ]),
             Node::Filter(FilterNode {
                 set,
                 filter_function,
             }) => Self::new(&mut [
-                Property::new_node_filter_set(set),
-                Property::new_node_filter_filter(filter_function),
+                Property {
+                    tag: Abstract::NODE_FILTER_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_FILTER_FILTER.into(),
+                    value: filter_function,
+                },
             ]),
             Node::Less(BinaryNode { left, right }) => Self::new(&mut [
-                Property::new_node_less_left(left),
-                Property::new_node_less_right(right),
+                Property {
+                    tag: Abstract::NODE_LESS_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_LESS_RIGHT.into(),
+                    value: right,
+                },
             ]),
             Node::If(IfNode {
                 condition,
                 otherwise,
                 then,
             }) => Self::new(&mut [
-                Property::new_node_if_condition(condition),
-                Property::new_node_if_then(then),
-                Property::new_node_if_else(otherwise),
+                Property {
+                    tag: Abstract::NODE_IF_CONDITION.into(),
+                    value: condition,
+                },
+                Property {
+                    tag: Abstract::NODE_IF_THEN.into(),
+                    value: then,
+                },
+                Property {
+                    tag: Abstract::NODE_IF_ELSE.into(),
+                    value: otherwise,
+                },
             ]),
             Node::UnwrapOr(UnwrapOrNode { set, default }) => Self::new(&mut [
-                Property::new_node_unwrap_or_set(set),
-                Property::new_node_unwrap_or_default(default),
+                Property {
+                    tag: Abstract::NODE_UNWRAP_OR_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_UNWRAP_OR_DEFAULT.into(),
+                    value: default,
+                },
+            ]),
+            Node::Multiply(BinaryNode { left, right }) => Self::new(&mut [
+                Property {
+                    tag: Abstract::NODE_MULTIPLY_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_MULTIPLY_RIGHT.into(),
+                    value: right,
+                },
             ]),
         }
     }

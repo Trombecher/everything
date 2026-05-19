@@ -51,6 +51,7 @@ pub enum Node {
     Less(BinaryNode),
     If(IfNode),
     UnwrapOr(UnwrapOrNode),
+    Multiply(BinaryNode),
 }
 
 #[derive(Debug)]
@@ -71,6 +72,7 @@ pub enum Task {
     Xor,
     Not,
     Add,
+    Multiply,
     Union,
     Map,
     Filter,
