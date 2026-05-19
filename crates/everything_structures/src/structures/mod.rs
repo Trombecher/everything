@@ -133,15 +133,7 @@ impl Structure {
 
     /// Returns an iterator over all properties of `self`.
     pub fn properties(&self) -> StructureProperties {
-        match self {
-            Self::Empty => StructureProperties::Empty,
-            Self::Integer(n) => StructureProperties::Integer(*n),
-            Self::Bytes(bytes) => StructureProperties::Bytes(bytes.properties()),
-            Self::Text(text) => StructureProperties::Text(text.properties()),
-            Self::Any(any_structure) => StructureProperties::Any(any_structure.properties()),
-            Self::Character(c) => StructureProperties::CodePoint(*c),
-            Self::Byte(byte) => StructureProperties::Byte(byte.properties()),
-        }
+        StructureProperties::new(self)
     }
 
     /// Merges the properties of `self` and `other` into a new AnyStructure.
@@ -353,6 +345,20 @@ pub enum StructureProperties {
     Bytes(BytesStructureProperties),
 }
 
+impl StructureProperties {
+    pub fn new(structure: &Structure) -> Self {
+        match structure {
+            Structure::Empty => Self::Empty,
+            Structure::Integer(n) => Self::Integer(*n),
+            Structure::Bytes(bytes) => Self::Bytes(bytes.properties()),
+            Structure::Text(text) => Self::Text(text.properties()),
+            Structure::Any(any_structure) => Self::Any(any_structure.properties()),
+            Structure::Character(c) => Self::CodePoint(*c),
+            Structure::Byte(byte) => Self::Byte(byte.properties()),
+        }
+    }
+}
+
 impl Iterator for StructureProperties {
     type Item = Property;
 
@@ -381,8 +387,7 @@ impl Iterator for StructureProperties {
 
 impl std::fmt::Debug for StructureProperties {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut this = self.clone();
-        f.debug_set().entries(&mut this).finish()
+        f.debug_set().entries(&mut self.clone()).finish()
     }
 }
 

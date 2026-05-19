@@ -7,9 +7,9 @@ use tracing::instrument;
 use crate::{
     base::BASE,
     ctx::EvaluationContext,
-    ext::{AbstractExt, ObjectExt, PropertyExt, Statement},
+    ext::{AbstractExt, ObjectExt, PropertyExt},
     nodes::{BinaryNode, FilterNode, IfNode, MapNode, Node, UnwrapOrNode},
-    query,
+    query::QueryValuesAxiomatically,
 };
 
 #[derive(PartialEq, Clone, Debug)]
@@ -65,13 +65,7 @@ pub trait StructureExt {
     /// ```
     fn new_set<const N: usize>(items: [Object; N]) -> Self;
 
-    fn has_exactly_one_value_on(&self, tag: Object) -> bool;
-
     fn is_knowledge(&self) -> Result<(), KnowledgeError>;
-
-    fn is_statement(&self) -> bool;
-
-    fn parse_statement(&self) -> Option<Statement>;
 
     /// Creates a new query node, set up for value querying.
     fn new_node_query_values(subject: Object, tag: Object) -> Self;
@@ -97,17 +91,6 @@ impl StructureExt for Structure {
         }
     }
 
-    fn has_exactly_one_value_on(&self, tag: Object) -> bool {
-        match self {
-            Self::Integer(_) if tag == Object::Abstract(Abstract::SUCCESSOR_OF) => true,
-            Self::Any(any) => {
-                let mut values = any.values(tag);
-                values.next().is_some() && values.next().is_none()
-            }
-            _ => false,
-        }
-    }
-
     #[instrument(skip(knowledge), ret)]
     fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
         if self.any().is_none() {
@@ -116,7 +99,7 @@ impl StructureExt for Structure {
         }
 
         for property in self.properties() {
-            let constraint_function = query::values_axiomatically(
+            let constraint_function = QueryValuesAxiomatically::new(
                 knowledge,
                 property.tag.clone(),
                 Object::Abstract(Abstract::AXIOMATIC),
@@ -159,30 +142,20 @@ impl StructureExt for Structure {
         }
 
         // We validate that every object contained
-        // in `self` is a statement.
+        // in `self` is an intrinsic statement.
 
-        for contains_object in self.values(Object::Abstract(Abstract::CONTAINS)) {
-            if let Object::Structure(contains_structure) = &contains_object
-                && contains_structure.is_statement()
-            {
-            } else {
-                // TODO: review this for abstracts
-                return Err(KnowledgeError::SubjectIsNotStatementStructure(
-                    contains_object,
-                ));
+        for set_value in self.values(Object::Abstract(Abstract::CONTAINS)) {
+            if set_value.intrinsic_statement().is_none() {
+                return Err(KnowledgeError::SubjectIsNotStatementStructure(set_value));
             }
         }
 
         // Now we need to check constraints and values.
 
         for statement in self.values(Object::Abstract(Abstract::CONTAINS)) {
-            let statement = statement
-                .structure()
-                .expect("expected structure because it was validated earlier")
-                .parse_statement()
-                .expect("found a structure which is not a statement");
+            let statement = statement.intrinsic_statement().unwrap();
 
-            let constraint_function = query::values_axiomatically(
+            let constraint_function = QueryValuesAxiomatically::new(
                 self,
                 statement.tag.clone(),
                 Abstract::AXIOMATIC.into(),
@@ -196,11 +169,25 @@ impl StructureExt for Structure {
                 })
             })?;
 
-            let arguments = [statement.subject.clone(), statement.value.clone()];
+            // Check that the tag in the statement is not a function.
+            if QueryValuesAxiomatically::new(self, statement.tag.clone(), Abstract::FUNCTION.into())
+                .next()
+                .is_some()
+            {
+                return Err(KnowledgeError::NeedsToBeFalseButIsTrue(StatementForm {
+                    subject: ObjectForm::Specific(statement.tag.clone()),
+                    tag: ObjectForm::Specific(Abstract::FUNCTION.into()),
+                    value: ObjectForm::Any,
+                }));
+            }
 
-            let mut result =
-                constraint_function.call(self, &arguments, &mut EvaluationContext::default());
+            let mut result = constraint_function.call(
+                self,
+                &[statement.subject.clone(), statement.value.clone()],
+                &mut Default::default(),
+            );
 
+            // Check that subject and value are matching the tag's constraint.
             if !result.is_truthy(self) {
                 return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
                     subject: statement.subject,
@@ -211,24 +198,6 @@ impl StructureExt for Structure {
         }
 
         self.is_valid(self, true)
-    }
-
-    fn is_statement(&self) -> bool {
-        self.has_exactly_one_value_on(Abstract::STATEMENT_SUBJECT.into())
-            && self.has_exactly_one_value_on(Abstract::STATEMENT_TAG.into())
-            && self.has_exactly_one_value_on(Abstract::STATEMENT_VALUE.into())
-    }
-
-    fn parse_statement(&self) -> Option<Statement> {
-        let subject = self.values(Abstract::STATEMENT_SUBJECT.into()).next()?;
-        let tag = self.values(Abstract::STATEMENT_TAG.into()).next()?;
-        let value = self.values(Abstract::STATEMENT_VALUE.into()).next()?;
-
-        Some(Statement {
-            subject,
-            tag,
-            value,
-        })
     }
 
     fn new_node_query_values(subject: Object, tag: Object) -> Self {

@@ -2,27 +2,32 @@ use everything_structures::{Abstract, Object, Property, Structure};
 
 use crate::{
     base::BASE,
-    ctx::EvaluationContext,
-    ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt},
-    nodes::{BinaryNode, Node},
+    ext::{ObjectExt, StructureExt},
+    nodes::Node,
 };
 
 #[test]
-fn natural_number() {
+fn new_integer() {
     assert_eq!(Object::new_integer(0), Object::Abstract(Abstract::ZERO));
 
     assert_eq!(
         Object::new_integer(2),
-        Structure::new(&mut [Property {
-            tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-            value: Structure::new(&mut [Property {
-                tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-                value: Object::Abstract(Abstract::ZERO)
-            }])
-            .into()
-        }])
+        Structure::new(&mut [Property::new_successor_of(
+            Structure::new(&mut [Property::new_successor_of(Abstract::ZERO.into())]).into()
+        )])
         .into()
-    )
+    );
+
+    assert_eq!(
+        Object::new_integer(-3),
+        Structure::new(&mut [Property::new_predecessor_of(
+            Structure::new(&mut [Property::new_predecessor_of(
+                Structure::new(&mut [Property::new_predecessor_of(Abstract::ZERO.into())]).into()
+            )])
+            .into()
+        )])
+        .into()
+    );
 }
 
 #[test]
@@ -62,130 +67,172 @@ fn call() {
     );
 }
 
-#[test]
-fn eval_and() {
-    assert!(
-        !Object::Structure(Structure::new_node(Node::And(BinaryNode {
-            left: Structure::new_bool(false).into(),
-            right: Structure::new_bool(true).into()
-        })))
-        .eval(&BASE, &mut Default::default())
-        .is_truthy(&BASE)
-    );
+mod eval {
+    use everything_structures::{Abstract, Object, Property, Structure};
 
-    assert!(
-        Object::Structure(Structure::new_node(Node::And(BinaryNode {
-            left: Structure::new_bool(true).into(),
-            right: Structure::new_bool(true).into()
-        })))
-        .eval(&BASE, &mut Default::default())
-        .is_truthy(&BASE)
-    )
-}
+    use crate::{
+        base::BASE,
+        ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt},
+        nodes::{BinaryNode, Node},
+    };
 
-#[test]
-fn eval_or() {
-    assert!(
-        !Object::Structure(Structure::new_node(Node::Or(BinaryNode {
-            left: Structure::new_bool(false).into(),
-            right: Structure::new_bool(false).into()
-        })))
-        .eval(&BASE, &mut Default::default())
-        .is_truthy(&BASE)
-    );
+    #[test]
+    fn and() {
+        const CASES: &[(bool, bool, bool)] = &[
+            (false, false, false),
+            (false, true, false),
+            (true, false, false),
+            (true, true, true),
+        ];
 
-    assert!(
-        Object::Structure(Structure::new_node(Node::Or(BinaryNode {
-            left: Structure::new_bool(true).into(),
-            right: Structure::new_bool(false).into()
-        })))
-        .eval(&BASE, &mut Default::default())
-        .is_truthy(&BASE)
-    )
-}
+        for (left, right, result) in CASES.iter().copied() {
+            assert_eq!(
+                Object::Structure(Structure::new_node(Node::And(BinaryNode {
+                    left: Structure::new_bool(left).into(),
+                    right: Structure::new_bool(right).into()
+                })))
+                .eval(&BASE, &mut Default::default())
+                .is_truthy(&BASE),
+                result
+            );
+        }
+    }
 
-#[test]
-fn eval_literal() {
-    assert_eq!(
-        Object::Structure(Structure::new_node(Node::Literal(Abstract::ZERO.into())))
+    #[test]
+    fn or() {
+        const CASES: &[(bool, bool, bool)] = &[
+            (false, false, false),
+            (false, true, true),
+            (true, false, true),
+            (true, true, true),
+        ];
+
+        for (left, right, result) in CASES.iter().copied() {
+            assert_eq!(
+                Object::Structure(Structure::new_node(Node::Or(BinaryNode {
+                    left: Structure::new_bool(left).into(),
+                    right: Structure::new_bool(right).into()
+                })))
+                .eval(&BASE, &mut Default::default())
+                .is_truthy(&BASE),
+                result
+            );
+        }
+    }
+
+    #[test]
+    fn literal() {
+        let subjects: [Object; 2] = [
+            Abstract::ZERO.into(),
+            Structure::new_node(Node::Not(Object::new_integer(42))).into(),
+        ];
+
+        for subject in subjects {
+            assert_eq!(
+                Object::Structure(Structure::new_node(Node::Literal(subject.clone())))
+                    .eval(&BASE, &mut Default::default())
+                    .into_object(),
+                subject
+            );
+        }
+    }
+
+    #[test]
+    fn eval_count() {
+        assert_eq!(
+            Object::Structure(Structure::new_node(Node::Count(Structure::Empty.into())))
+                .eval(&BASE, &mut Default::default())
+                .into_object(),
+            Object::new_integer(0)
+        );
+
+        assert_eq!(
+            Object::Structure(Structure::new_node(Node::Count(
+                Structure::new_node(Node::Literal(
+                    Structure::new(&mut [
+                        Property::new_contains(Abstract::ZERO.into()),
+                        Property::new_contains(Abstract::KNOWLEDGE.into()),
+                    ])
+                    .into()
+                ))
+                .into()
+            )))
             .eval(&BASE, &mut Default::default())
             .into_object(),
-        Object::Abstract(Abstract::ZERO)
-    );
-}
+            Object::new_integer(2)
+        );
+    }
 
-#[test]
-fn eval_count() {
-    assert_eq!(
-        Object::Structure(Structure::new_node(Node::Count(Structure::Empty.into())))
-            .eval(&BASE, &mut Default::default())
-            .into_object(),
-        Object::new_integer(0)
-    );
-
-    assert_eq!(
-        Object::Structure(Structure::new_node(Node::Count(
-            Structure::new_node(Node::Literal(
+    #[test]
+    fn eval_query() {
+        assert_eq!(
+            Object::Structure(Structure::new_node_query_values(
                 Structure::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
                     Property::new_contains(Abstract::KNOWLEDGE.into()),
+                    Property::new_successor_of(Object::new_integer(0)),
                 ])
-                .into()
+                .into(),
+                Structure::new_node(Node::Literal(Abstract::CONTAINS.into())).into()
             ))
-            .into()
-        )))
-        .eval(&BASE, &mut Default::default())
-        .into_object(),
-        Object::new_integer(2)
-    );
-}
+            .eval(&BASE, &mut Default::default())
+            .into_object(),
+            Structure::new_set([Abstract::KNOWLEDGE.into(), Object::Abstract(Abstract::ZERO)])
+                .into(),
+        );
+    }
 
-#[test]
-fn eval_query() {
-    assert_eq!(
-        Object::Structure(Structure::new_node_query_values(
-            Structure::new(&mut [
-                Property::new_contains(Abstract::ZERO.into()),
-                Property::new_contains(Abstract::KNOWLEDGE.into()),
-                Property::new_successor_of(Object::new_integer(0)),
-            ])
+    #[test]
+    fn set_items() {
+        let f: Object = Structure::new_node(Node::Function(
+            Structure::new_node(Node::Function(
+                Structure::new_set([
+                    Structure::new_node(Node::Parameter(0)).into(),
+                    Structure::new_node(Node::Parameter(1)).into(),
+                ])
+                .into(),
+            ))
             .into(),
-            Structure::new_node(Node::Literal(Abstract::CONTAINS.into())).into()
         ))
-        .eval(&BASE, &mut Default::default())
-        .into_object(),
-        Structure::new_set([Abstract::KNOWLEDGE.into(), Object::Abstract(Abstract::ZERO)]).into(),
-    );
-}
+        .into();
 
-#[test]
-fn eval_set_items() {
-    let f: Object = Structure::new_node(Node::Function(
-        Structure::new_node(Node::Function(
+        assert_eq!(
+            f.call(
+                &BASE,
+                &[
+                    Object::Abstract(Abstract(1337)),
+                    Object::Abstract(Abstract(1338))
+                ],
+                &mut Default::default(),
+            )
+            .into_object(),
             Structure::new_set([
-                Structure::new_node(Node::Parameter(0)).into(),
-                Structure::new_node(Node::Parameter(1)).into(),
-            ])
-            .into(),
-        ))
-        .into(),
-    ))
-    .into();
-
-    assert_eq!(
-        f.call(
-            &BASE,
-            &[
                 Object::Abstract(Abstract(1337)),
                 Object::Abstract(Abstract(1338))
-            ],
-            &mut EvaluationContext::default(),
-        )
-        .into_object(),
-        Structure::new_set([
-            Object::Abstract(Abstract(1337)),
-            Object::Abstract(Abstract(1338))
-        ])
-        .into()
-    );
+            ])
+            .into()
+        );
+    }
+
+    #[test]
+    fn count() {
+        for count in 0..10_usize {
+            let mut properties = (0..count)
+                .map(|i| Property::new_contains(Object::new_integer(i as i128)))
+                .collect::<Vec<_>>();
+
+            let node = Object::Structure(Structure::new_node(Node::Count(
+                Structure::new_node(Node::Literal(Structure::new(&mut properties).into())).into(),
+            )));
+
+            assert_eq!(
+                node.eval(&BASE, &mut Default::default())
+                    .into_object()
+                    .to_integer(&BASE),
+                Some(count as i128)
+            );
+        }
+
+        // TODO: Test real count (no duplicates)
+    }
 }

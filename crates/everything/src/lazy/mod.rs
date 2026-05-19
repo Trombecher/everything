@@ -6,8 +6,9 @@ use crate::{
     ctx::EvaluationContext,
     ext::{ObjectExt, PropertyExt},
     query::{
-        QuerySubjectsAndValuesAxiomatically, QuerySubjectsAxiomatically, QueryValuesAxiomatically,
-        SubjectAndValue,
+        QuerySubjectsAndTagsAxiomatically, QuerySubjectsAndValuesAxiomatically,
+        QuerySubjectsAxiomatically, QueryTagsAndValuesAxiomatically, QueryTagsAxiomatically,
+        QueryValuesAxiomatically, SubjectAndTag, SubjectAndValue,
     },
 };
 
@@ -90,6 +91,12 @@ pub enum LazySetValues {
 
     SubjectsAndValuesAxiomatically(QuerySubjectsAndValuesAxiomatically),
 
+    TagsAndValuesAxiomatically(QueryTagsAndValuesAxiomatically),
+
+    SubjectsAndTagsAxiomatically(QuerySubjectsAndTagsAxiomatically),
+
+    TagsAxiomatically(QueryTagsAxiomatically),
+
     Map {
         knowledge: Structure,
         set: Box<Self>,
@@ -143,6 +150,27 @@ impl Iterator for LazySetValues {
             Self::ValuesAxiomatically(values) => values.next(),
             Self::Union { left, right } => left.next().or_else(|| right.next()),
             Self::SubjectsAxiomatically(subjects) => subjects.next(),
+            Self::TagsAxiomatically(tags) => tags.next(),
+            Self::SubjectsAndTagsAxiomatically(subjects_and_tags) => {
+                subjects_and_tags
+                    .next()
+                    .map(|SubjectAndTag { subject, tag }| {
+                        Structure::new(&mut [
+                            Property::new_statement_subject(subject),
+                            Property::new_statement_tag(tag),
+                        ])
+                        .into()
+                    })
+            }
+            Self::TagsAndValuesAxiomatically(tags_and_values) => {
+                tags_and_values.next().map(|Property { tag, value }| {
+                    Structure::new(&mut [
+                        Property::new_statement_tag(tag),
+                        Property::new_statement_value(value),
+                    ])
+                    .into()
+                })
+            }
             Self::SubjectsAndValuesAxiomatically(iter) => {
                 iter.next().map(|SubjectAndValue { subject, value }| {
                     Structure::new(&mut [

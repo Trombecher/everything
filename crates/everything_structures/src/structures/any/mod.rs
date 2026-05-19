@@ -20,18 +20,7 @@ impl AnyStructure {
     /// Returns an iterator over all values that this tag has
     /// in `self`.
     pub fn values(&self, tag: Object) -> AnyStructureValues {
-        let start = self
-            .properties
-            .partition_point(|property| property.tag < tag);
-
-        AnyStructureValues {
-            properties: AnyStructureProperties {
-                subject: self.clone(),
-                index: start,
-            },
-            tag,
-            done: false,
-        }
+        AnyStructureValues::new(self.clone(), tag)
     }
 
     /// Returns an iterator of all tags that this value has in `self`.
@@ -43,10 +32,7 @@ impl AnyStructure {
     }
 
     pub fn properties(&self) -> AnyStructureProperties {
-        AnyStructureProperties {
-            subject: self.clone(),
-            index: 0,
-        }
+        AnyStructureProperties::new(self.clone())
     }
 
     #[must_use]
@@ -128,59 +114,77 @@ impl Drop for AnyStructure {
 }
 
 /// Iterator over values for a tag in an [AnyStructure].
+/// It is a `FilterMap` over [`AnyStructureProperties`].
 #[derive(Clone)]
 pub struct AnyStructureValues {
     properties: AnyStructureProperties,
     tag: Object,
-    done: bool,
+}
+
+impl AnyStructureValues {
+    /// Creates a new iterator over values for a `tag` in the given
+    /// `subject`.
+    pub fn new(subject: AnyStructure, tag: Object) -> Self {
+        Self {
+            properties: AnyStructureProperties::new_starting_from_tag(subject, tag.clone()),
+            tag: tag,
+        }
+    }
 }
 
 impl Iterator for AnyStructureValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            None
-        } else if let Some(property) = self.properties.next() {
-            if property.tag == self.tag {
-                Some(property.value)
-            } else {
-                self.done = true;
-
-                None
-            }
-        } else {
-            None
-        }
+        self.properties
+            .find_map(|property| (property.tag == self.tag).then_some(property.value))
     }
 }
 
+/// An iterator over all tags a value has on an [`AnyStructure`].
 #[derive(Clone)]
 pub struct AnyStructureTags {
-    properties: AnyStructureProperties,
-    value: Object,
+    pub properties: AnyStructureProperties,
+    pub value: Object,
 }
 
 impl Iterator for AnyStructureTags {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
-        for next in &mut self.properties {
-            if next.value != self.value {
-                continue;
-            }
-
-            return Some(next.tag);
-        }
-
-        None
+        self.properties
+            .find_map(|property| (property.value == self.value).then_some(property.tag))
     }
 }
 
+/// An iterator over all properties of an [`AnyStructure`].
 #[derive(Clone)]
 pub struct AnyStructureProperties {
     subject: AnyStructure,
     index: usize,
+}
+
+impl AnyStructureProperties {
+    pub const fn new(subject: AnyStructure) -> Self {
+        Self { subject, index: 0 }
+    }
+
+    /// Creates a new properties iterator which starts at the first occurance
+    /// of the tag in the subject.
+    ///
+    /// You can use this function to implement efficient value iteration for
+    /// a given tag by exploiting the fact that properties in an [`AnyStructure`]
+    /// are lexicographically sorted.
+    pub fn new_starting_from_tag(subject: AnyStructure, tag: Object) -> Self {
+        let start = subject
+            .properties
+            .partition_point(|property| property.tag < tag);
+
+        Self {
+            subject,
+            index: start,
+        }
+    }
 }
 
 impl Iterator for AnyStructureProperties {

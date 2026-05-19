@@ -2,7 +2,8 @@ use everything_structures::{Abstract, Object, Property, Structure, StructureValu
 
 use crate::{
     base,
-    ext::{AbstractExt, PropertyExt},
+    ext::{AbstractExt, ObjectExt, PropertyExt},
+    query::StructureSetValues,
 };
 
 #[cfg(test)]
@@ -28,6 +29,40 @@ pub enum QueryValuesAxiomatically {
 }
 
 impl QueryValuesAxiomatically {
+    /// Query the knowledge for all values of the given subject with the
+    /// given tag, ignoring all computations that have to be made.
+    ///
+    /// # Assumptions
+    ///
+    /// * `tag` and all downstream tags are assumed to be axiomatic.
+    /// * `knowledge` is a superset of [crate::base::BASE].
+    pub fn new(knowledge: &Structure, subject: Object, tag: Object) -> Self {
+        match (&subject, &tag) {
+            (Object::Abstract(Abstract::AXIOMATIC), Object::Abstract(Abstract::AXIOMATIC)) => {
+                Self::AxiomaticAxiomaticConstraint
+            }
+            (
+                Object::Abstract(Abstract::AXIOMATIC | Abstract::FUNCTION),
+                Object::Abstract(Abstract::FUNCTION),
+            ) => Self::None,
+            _ => {
+                let values_from_subject = match &subject {
+                    Object::Abstract(_) => StructureValues::None,
+                    Object::Structure(structure) => structure.values(tag.clone()),
+                };
+
+                let statements_from_knowledge = StructureSetValues::new(knowledge);
+
+                Self::Borrowed(AxiomaticBorrowedQueryValues {
+                    values_from_subject,
+                    statements_from_knowledge,
+                    subject,
+                    tag,
+                })
+            }
+        }
+    }
+
     /// Creates a structure with all set values from `self`.
     #[deprecated]
     pub fn collect_to_set(self) -> Structure {
@@ -65,7 +100,7 @@ impl std::fmt::Debug for QueryValuesAxiomatically {
 #[derive(Clone)]
 pub struct AxiomaticBorrowedQueryValues {
     values_from_subject: StructureValues,
-    statements: StructureValues,
+    statements_from_knowledge: StructureSetValues,
     subject: Object,
     tag: Object,
 }
@@ -78,96 +113,29 @@ impl Iterator for AxiomaticBorrowedQueryValues {
             return Some(value);
         }
 
-        for statement in self.statements.by_ref() {
-            // TODO: better error msg
-
-            let statement = match statement {
-                Object::Abstract(_) => panic!(":/"),
-                Object::Structure(structure) => structure,
-            };
-
-            let statement_subject = statement
-                .any()
-                .unwrap()
-                .values(Abstract::STATEMENT_SUBJECT.into())
-                .next()
-                .expect(":/");
-
-            if statement_subject != self.subject {
-                continue;
+        self.statements_from_knowledge.find_map(|statement| {
+            if statement.intrinsic_statement_subject().unwrap() != self.subject {
+                return None;
             }
 
-            let statement_tag = statement
-                .any()
-                .unwrap()
-                .values(Abstract::STATEMENT_TAG.into())
-                .next()
-                .expect(":/");
-
-            if statement_tag != self.tag {
-                continue;
+            let tag = statement.intrinsic_statement_tag().unwrap();
+            if tag != self.tag {
+                return None;
             }
 
-            let statement_value = statement
-                .any()
-                .unwrap()
-                .values(Abstract::STATEMENT_VALUE.into())
-                .next()
-                .expect(":/");
+            let value = statement.intrinsic_statement_value().unwrap();
 
             // Now this value may be already been in
             // the subject if it is a structure. So we
             // need to dedup here.
 
             if let Object::Structure(structure) = &self.subject
-                && structure.has(&statement_tag, &statement_value)
+                && structure.has(&tag, &value)
             {
-                continue;
+                return None;
             }
 
-            return Some(statement_value.clone());
-        }
-
-        None
-    }
-}
-
-/// Query the knowledge for all values of the given subject with the
-/// given tag, ignoring all computations that have to be made.
-///
-/// # Assumptions
-///
-/// * `tag` and all downstream tags are assumed to be axiomatic.
-/// * `knowledge` is a superset of [crate::base::BASE].
-// #[instrument(skip(knowledge), ret)]
-#[inline]
-pub fn values_axiomatically(
-    knowledge: &Structure,
-    subject: Object,
-    tag: Object,
-) -> QueryValuesAxiomatically {
-    match (&subject, &tag) {
-        (Object::Abstract(Abstract::AXIOMATIC), Object::Abstract(Abstract::AXIOMATIC)) => {
-            QueryValuesAxiomatically::AxiomaticAxiomaticConstraint
-        }
-        (
-            Object::Abstract(Abstract::AXIOMATIC | Abstract::FUNCTION),
-            Object::Abstract(Abstract::FUNCTION),
-        ) => QueryValuesAxiomatically::None,
-        _ => {
-            let values_from_subject = match &subject {
-                Object::Abstract(_) => StructureValues::None,
-                Object::Structure(structure) => structure.values(tag.clone()),
-            };
-
-            let statements = knowledge.values(Abstract::CONTAINS.into());
-
-            QueryValuesAxiomatically::Borrowed(AxiomaticBorrowedQueryValues {
-                values_from_subject,
-                statements,
-                subject,
-                tag,
-            })
-        }
+            Some(value)
+        })
     }
 }

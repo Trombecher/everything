@@ -81,7 +81,6 @@ mod AnyStructureValues {
         };
 
         let mut values = AnyStructureValues {
-            done: true,
             tag: Abstract::BIT_0.into(),
             properties: AnyStructureProperties {
                 subject: structure,
@@ -89,6 +88,7 @@ mod AnyStructureValues {
             },
         };
 
+        assert_eq!(values.next(), Some(Abstract(543539).into()));
         assert_eq!(values.next(), None);
         assert_eq!(values.next(), None);
         assert_eq!(values.next(), None);

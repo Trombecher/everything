@@ -47,7 +47,7 @@ impl Knowledge {
         subject: Object,
         tag: Object,
     ) -> QueryValuesAxiomatically {
-        query::values_axiomatically(self.structure(), subject, tag)
+        QueryValuesAxiomatically::new(self.structure(), subject, tag)
     }
 
     #[inline]
@@ -56,7 +56,7 @@ impl Knowledge {
         tag: Object,
         value: Object,
     ) -> QuerySubjectsAxiomatically {
-        query::subjects_axiomatically(&self.0, tag, value)
+        QuerySubjectsAxiomatically::new(&self.0, tag, value)
     }
 
     #[inline]
@@ -64,7 +64,7 @@ impl Knowledge {
         &self,
         tag: Object,
     ) -> QuerySubjectsAndValuesAxiomatically {
-        query::subjects_and_values_axiomatically(&self.0, tag)
+        QuerySubjectsAndValuesAxiomatically::new(&self.0, tag)
     }
 }
 

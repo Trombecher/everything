@@ -2,40 +2,40 @@ use everything_structures::{Object, Structure};
 
 use crate::{ext::ObjectExt, query::StructureSetValues};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SubjectAndValue {
+#[derive(Debug, Clone, PartialEq)]
+pub struct SubjectAndTag {
     pub subject: Object,
-    pub value: Object,
+    pub tag: Object,
 }
 
 #[derive(Clone, Debug)]
-pub struct QuerySubjectsAndValuesAxiomatically {
+pub struct QuerySubjectsAndTagsAxiomatically {
     statements_from_knowledge: StructureSetValues,
-    tag: Object,
+    value: Object,
 }
 
-impl QuerySubjectsAndValuesAxiomatically {
-    pub fn new(knowledge: &Structure, tag: Object) -> Self {
+impl QuerySubjectsAndTagsAxiomatically {
+    pub fn new(knowledge: &Structure, value: Object) -> Self {
         Self {
             statements_from_knowledge: StructureSetValues::new(knowledge),
-            tag,
+            value,
         }
     }
 }
 
-impl Iterator for QuerySubjectsAndValuesAxiomatically {
-    type Item = SubjectAndValue;
+impl Iterator for QuerySubjectsAndTagsAxiomatically {
+    type Item = SubjectAndTag;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.statements_from_knowledge.find_map(|statement| {
-            if self.tag != statement.intrinsic_statement_tag().unwrap() {
+            if statement.intrinsic_statement_value().unwrap() != self.value {
                 return None;
             }
 
             let subject = statement.intrinsic_statement_subject().unwrap();
-            let value = statement.intrinsic_statement_value().unwrap();
+            let tag = statement.intrinsic_statement_tag().unwrap();
 
-            Some(SubjectAndValue { subject, value })
+            Some(SubjectAndTag { subject, tag })
         })
     }
 }
