@@ -235,4 +235,22 @@ mod eval {
 
         // TODO: Test real count (no duplicates)
     }
+
+    #[test]
+    fn multiply() {
+        let a = 543895;
+        let b = 9345125;
+
+        let node = Object::Structure(Structure::new_node(Node::Multiply(BinaryNode {
+            left: Structure::new_node(Node::Literal(Object::new_integer(a))).into(),
+            right: Structure::new_node(Node::Literal(Object::new_integer(b))).into(),
+        })));
+
+        assert_eq!(
+            node.eval(&BASE, &mut Default::default())
+                .into_object()
+                .to_integer(&BASE),
+            Some(a * b)
+        );
+    }
 }

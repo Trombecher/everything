@@ -295,6 +295,7 @@ impl ObjectExt for Object {
         xor_with!(self.node_less(knowledge).map(Node::Less));
         xor_with!(self.node_if(knowledge).map(Node::If));
         xor_with!(self.node_unwrap_or(knowledge).map(Node::UnwrapOr));
+        xor_with!(self.node_multiply(knowledge).map(Node::Multiply));
 
         node
     }
