@@ -65,6 +65,8 @@ impl LazyObject {
         }
     }
 
+    /// Determines if `self` is "truthy", i.e. iff it has at
+    /// least one property.
     pub fn is_truthy(&mut self, knowledge: &Structure) -> bool {
         match self {
             LazyObject::Eager(object) => object.is_truthy(knowledge),

@@ -25,35 +25,24 @@ fn natural_number() {
     )
 }
 
-/*
 #[test]
 fn node_type() {
     let knowledge = &BASE;
 
     // None
-    assert_eq!(
-        Object::Structure(Structure::Empty).node_type(knowledge),
-        None
-    );
+    assert_eq!(Object::Structure(Structure::Empty).node(knowledge), None);
 
     // Single
     assert_eq!(
-        Object::Structure(Structure::new_computed(Object::Abstract(Abstract::ZERO)))
-            .node_type(knowledge),
-        Some(NodeType::Computed)
+        Object::Structure(Structure::new_node(Node::Function(Object::Abstract(
+            Abstract::ZERO
+        ))))
+        .node(knowledge),
+        Some(Node::Function(Abstract::ZERO.into()))
     );
 
-    // Multiple
-    assert_eq!(
-        Object::Structure(Structure::new_node_and([
-            Object::Abstract(Abstract::ZERO),
-            Object::Abstract(Abstract::KNOWLEDGE)
-        ]))
-        .node_type(knowledge),
-        Some(NodeType::And)
-    );
+    // TODO: more
 }
- */
 
 #[test]
 fn call() {

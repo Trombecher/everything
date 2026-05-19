@@ -1,10 +1,8 @@
-use std::hint::black_box;
-
 use everything::{
     Knowledge,
     base::BASE,
-    ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt},
-    nodes::{BinaryNode, IfNode, Node, UnwrapOrNode},
+    ext::{AbstractExt, PropertyExt, StructureExt},
+    nodes::{BinaryNode, Node, UnwrapOrNode},
 };
 use everything_structures::{Abstract, Object, Property, Structure};
 use tracing_subscriber::layer::SubscriberExt;
@@ -55,13 +53,7 @@ fn integer_constraint(tag: Object) -> Object {
 }
 
 fn main() {
-    // tracing::subscriber::set_global_default(
-    //     tracing_subscriber::Registry::default().with(tracing_tree::HierarchicalLayer::new(2)),
-    // )
-    // .unwrap();
-
     const PETER: Object = Object::Abstract(Abstract(14575835));
-    const ALICE: Object = Object::Abstract(Abstract(33252352));
 
     const LEFT_POCKET_COUNT: Object = Object::Abstract(Abstract(53453543435));
     const RIGHT_POCKET_COUNT: Object = Object::Abstract(Abstract(3434675347));
@@ -120,6 +112,11 @@ fn main() {
                 .into(),
             ),
         ]),
+    )
+    .unwrap();
+
+    tracing::subscriber::set_global_default(
+        tracing_subscriber::Registry::default().with(tracing_tree::HierarchicalLayer::new(2)),
     )
     .unwrap();
 
