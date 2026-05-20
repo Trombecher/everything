@@ -9,22 +9,21 @@ use crate::{
 mod tests;
 
 /// An iterator over all axiomatic values the specified tag has on
-/// an object. You can obtain an instance of this iterator by
-/// calling [`values_axiomatically`].
+/// an object.
 #[derive(Clone)]
 pub enum QueryValues {
     /// The variant that yields nothing.
     None,
 
-    /// The variant that only yields [base::AXIOMATIC_AXIOMATIC_CONSTRAINT]
+    /// The variant that only yields [`base::AXIOMATIC_AXIOMATIC_CONSTRAINT`]
     /// and then nothing else.
     AxiomaticAxiomaticConstraint,
 
-    /// The variant that only yields [Structure::Empty] and then nothing else.
+    /// The variant that only yields [`Structure::Empty`] and then nothing else.
     EmptyStructure,
 
     /// The variant that yields values from [AxiomaticBorrowedQueryValues].
-    Borrowed(AxiomaticBorrowedQueryValues),
+    Borrowed(BorrowedQueryValues),
 }
 
 impl QueryValues {
@@ -52,7 +51,7 @@ impl QueryValues {
 
                 let statements_from_knowledge = StructureSetValues::new(knowledge);
 
-                Self::Borrowed(AxiomaticBorrowedQueryValues {
+                Self::Borrowed(BorrowedQueryValues {
                     values_from_subject,
                     statements_from_knowledge,
                     subject,
@@ -97,14 +96,14 @@ impl std::fmt::Debug for QueryValues {
 }
 
 #[derive(Clone)]
-pub struct AxiomaticBorrowedQueryValues {
+pub struct BorrowedQueryValues {
     values_from_subject: StructureValues,
     statements_from_knowledge: StructureSetValues,
     subject: Object,
     tag: Object,
 }
 
-impl Iterator for AxiomaticBorrowedQueryValues {
+impl Iterator for BorrowedQueryValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

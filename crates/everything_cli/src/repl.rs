@@ -80,7 +80,7 @@ impl Repl {
         let replaced = expand_vars(arguments, &self.variables)?;
         let expression = Object::parse(&replaced).map_err(|error| format!("{error:?}"))?;
 
-        match expression.eval(knowledge, &mut Default::default()) {
+        match expression.evaluate(knowledge, &mut Default::default()) {
             ObjectOrSetValues::Object(object) => {
                 println!("{object:?}")
             }

@@ -92,7 +92,7 @@ mod eval {
                     left: Structure::new_bool(left).into(),
                     right: Structure::new_bool(right).into()
                 })))
-                .eval(&BASE, &mut Default::default())
+                .evaluate(&BASE, &mut Default::default())
                 .is_truthy(&BASE),
                 result
             );
@@ -114,7 +114,7 @@ mod eval {
                     left: Structure::new_bool(left).into(),
                     right: Structure::new_bool(right).into()
                 })))
-                .eval(&BASE, &mut Default::default())
+                .evaluate(&BASE, &mut Default::default())
                 .is_truthy(&BASE),
                 result
             );
@@ -131,7 +131,7 @@ mod eval {
         for subject in subjects {
             assert_eq!(
                 Object::Structure(Structure::new_node(Node::Literal(subject.clone())))
-                    .eval(&BASE, &mut Default::default())
+                    .evaluate(&BASE, &mut Default::default())
                     .into_object(),
                 subject
             );
@@ -142,7 +142,7 @@ mod eval {
     fn eval_count() {
         assert_eq!(
             Object::Structure(Structure::new_node(Node::Count(Structure::Empty.into())))
-                .eval(&BASE, &mut Default::default())
+                .evaluate(&BASE, &mut Default::default())
                 .into_object(),
             Object::new_integer(0)
         );
@@ -158,7 +158,7 @@ mod eval {
                 ))
                 .into()
             )))
-            .eval(&BASE, &mut Default::default())
+            .evaluate(&BASE, &mut Default::default())
             .into_object(),
             Object::new_integer(2)
         );
@@ -176,7 +176,7 @@ mod eval {
                 .into(),
                 Structure::new_node(Node::Literal(Abstract::CONTAINS.into())).into()
             ))
-            .eval(&BASE, &mut Default::default())
+            .evaluate(&BASE, &mut Default::default())
             .into_object(),
             Structure::new_set([Abstract::KNOWLEDGE.into(), Object::Abstract(Abstract::ZERO)])
                 .into(),
@@ -228,7 +228,7 @@ mod eval {
             )));
 
             assert_eq!(
-                node.eval(&BASE, &mut Default::default())
+                node.evaluate(&BASE, &mut Default::default())
                     .into_object()
                     .to_integer(&BASE),
                 Some(count as i128)
@@ -249,7 +249,7 @@ mod eval {
         })));
 
         assert_eq!(
-            node.eval(&BASE, &mut Default::default())
+            node.evaluate(&BASE, &mut Default::default())
                 .into_object()
                 .to_integer(&BASE),
             Some(a * b)

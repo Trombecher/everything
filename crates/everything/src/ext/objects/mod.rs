@@ -19,6 +19,7 @@ use crate::{
     },
 };
 
+/// An extension trait implemented for [`Object`], providing many useful functions.
 pub trait ObjectExt {
     /// Extracts the first (and last) [Abstract::NODE_COUNT] from `self`.
     fn node_count(&self, knowledge: &Structure) -> Option<Object>;
@@ -45,7 +46,13 @@ pub trait ObjectExt {
         ctx: &EvaluationContext,
     ) -> ObjectOrSetValues;
 
-    fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> ObjectOrSetValues;
+    /// Evaluates `self` under the given knowledge and evaluation context
+    /// by reducing expressions.
+    ///
+    /// If you don't know what to pass into the context, pass
+    /// `&mut Default::default()`.
+    fn evaluate(&self, knowledge: &Structure, context: &mut EvaluationContext)
+    -> ObjectOrSetValues;
 
     /// Parses a node from `self`.
     fn node(&self, knowledge: &Structure) -> Option<Node>;
@@ -60,7 +67,7 @@ pub trait ObjectExt {
     /// Calls `self` with a list of parameters.
     /// If none are provided, `self` will just be evaluated.
     ///
-    /// Node that it does not evaluate any parameters.
+    /// Note that it does not evaluate any parameters.
     fn call(
         &self,
         knowledge: &Structure,
@@ -544,7 +551,11 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> ObjectOrSetValues {
+    fn evaluate(
+        &self,
+        knowledge: &Structure,
+        context: &mut EvaluationContext,
+    ) -> ObjectOrSetValues {
         let mut tasks = vec![Task::Eval(self.clone())];
         let mut evaluated = Vec::<ObjectOrSetValues>::new();
 
@@ -721,7 +732,8 @@ impl ObjectExt for Object {
                                 // TODO: DEBATE THIS BS
                                 debug!("eval on property {property:?}");
 
-                                let value = property.value.eval(knowledge, context).into_object();
+                                let value =
+                                    property.value.evaluate(knowledge, context).into_object();
 
                                 let result = if property.value == value {
                                     Ok(())
@@ -1018,7 +1030,7 @@ impl ObjectExt for Object {
 
             result
         } else {
-            self.eval(knowledge, ctx)
+            self.evaluate(knowledge, ctx)
         }
     }
 
