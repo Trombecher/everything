@@ -3,7 +3,7 @@ use everything_structures::{Abstract, Object, Property, Structure};
 use crate::{
     base::BASE,
     ext::{ObjectExt, StructureExt},
-    nodes::Node,
+    nodes::{BinaryNode, IfNode, Node},
 };
 
 #[test]
@@ -251,6 +251,57 @@ mod eval {
                 .into_object()
                 .to_integer(&BASE),
             Some(a * b)
+        );
+    }
+}
+
+#[test]
+fn factorial() {
+    let factorial = Object::Structure(Structure::new_node(Node::Function(
+        Structure::new_node(Node::If(IfNode {
+            condition: Structure::new_node(Node::Less(BinaryNode {
+                left: Structure::new_node(Node::Parameter(0)).into(),
+                right: Object::new_integer(2),
+            }))
+            .into(),
+            then: Object::new_integer(1),
+            otherwise: Structure::new_node(Node::Multiply(BinaryNode {
+                left: Structure::new_node(Node::Parameter(0)).into(),
+                right: Structure::new_node_query_values(
+                    Structure::new_node(Node::Add(BinaryNode {
+                        left: Structure::new_node(Node::Parameter(0)).into(),
+                        right: Object::new_integer(-1),
+                    }))
+                    .into(),
+                    Structure::new_node(Node::FunctionSelf(0)).into(),
+                )
+                .into(),
+            }))
+            .into(),
+        }))
+        .into(),
+    )));
+
+    let points = [
+        (-10_i128, 1_i128),
+        (-5, 1),
+        (0, 1),
+        (1, 1),
+        (2, 2),
+        (3, 6),
+        (4, 24),
+    ];
+
+    for (input, output) in points {
+        assert_eq!(
+            factorial
+                .call(
+                    &BASE,
+                    &[Object::new_integer(input)],
+                    &mut Default::default()
+                )
+                .into_object(),
+            Object::new_integer(output)
         );
     }
 }
