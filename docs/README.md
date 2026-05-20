@@ -2,7 +2,7 @@
 
 Welcome to the documentation for the Everything project.
 
-## What Is Everything?
+## Overview
 
 The Everything project consists of three parts:
 
@@ -10,4 +10,8 @@ The Everything project consists of three parts:
 * the [file format](../crates/everything_structures_ff), a parser for objects from source text; and
 * the [inference engine](../crates/everything) which provides an interpretation for families of structures and abstract objects.
 
-First, read about [the structures](./Everything%20Structures.md) and then read [the data model](./Everything%20Data%20Model).
+There is also a (rudimentary!) CLI and a playground.
+
+---
+
+Start my reading [chapter one](./1%20-%20Everything%20Structures.md).

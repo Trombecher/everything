@@ -1,4 +1,4 @@
-# Everything Structures
+# Chapter 1 - Everything Structures
 
 This is the documentation for the structure that the _Everything universal data model_ is working with.
 

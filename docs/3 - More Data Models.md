@@ -1,4 +1,4 @@
-# Common Data Models
+# Chapter 3 - Common Data Models
 
 Everything gives you the freedom to model anything. However some models are stored optimally in memory, which may be desireable.
 

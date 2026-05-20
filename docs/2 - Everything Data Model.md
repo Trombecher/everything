@@ -1,4 +1,4 @@
-# Introduction To The _Everything Data Model_
+# Chapter 2 - Introduction To The _Everything Data Model_
 
 The _Everything Data Model_ is an interpretation of a family of structures and abstract objects. To interpret, the model assigns meaning/semantics to some abstract objects. **The real identifiers are omitted because they are meaningless and bloat the text.** You can look up the integer values in [this file](../crates/everything_structures/src/abstracts.rs) and in [this file](../crates/everything/src/ext/abstracts.rs).
 
