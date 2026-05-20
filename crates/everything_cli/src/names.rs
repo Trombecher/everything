@@ -1,14 +1,10 @@
 use std::sync::LazyLock;
 
-use everything::{
-    base::{AXIOMATIC_AXIOMATIC_CONSTRAINT, BASE},
-    ext::{AbstractExt, StructureExt},
-};
-use everything_structures::{Abstract, Object, Structure};
+use everything::ext::AbstractExt;
+use everything_structures::{Abstract, Object};
 
-pub const NAMES: LazyLock<[(&'static str, Object); 55]> = LazyLock::new(|| {
+pub const NAMES: LazyLock<[(&'static str, Object); 58]> = LazyLock::new(|| {
     [
-        ("BASE", BASE.clone().into()),
         ("ZERO", Abstract::ZERO.into()),
         ("SUCCESSOR_OF", Abstract::SUCCESSOR_OF.into()),
         ("PREDECESSOR_OF", Abstract::PREDECESSOR_OF.into()),
@@ -61,11 +57,15 @@ pub const NAMES: LazyLock<[(&'static str, Object); 55]> = LazyLock::new(|| {
         ("NODE_IF_ELSE", Abstract::NODE_IF_ELSE.into()),
         ("ARITHMETIC_OVERFLOW", Abstract::ARITHMETIC_OVERFLOW.into()),
         ("UNDEFINED", Abstract::UNDEFINED.into()),
+        ("NODE_UNWRAP_OR_SET", Abstract::NODE_UNWRAP_OR_SET.into()),
         (
-            "AXIOMATIC_AXIOMATIC_CONSTRAINT",
-            AXIOMATIC_AXIOMATIC_CONSTRAINT.clone(),
+            "NODE_UNWRAP_OR_DEFAULT",
+            Abstract::NODE_UNWRAP_OR_DEFAULT.into(),
         ),
-        ("TRUE", Structure::new_bool(true).into()),
+        ("NODE_MULTIPLY_LEFT", Abstract::NODE_MULTIPLY_LEFT.into()),
+        ("NODE_MULTIPLY_RIGHT", Abstract::NODE_MULTIPLY_RIGHT.into()),
+        ("NODE_CALL_CALLEE", Abstract::NODE_CALL_CALLEE.into()),
+        ("NODE_CALL_WITH", Abstract::NODE_CALL_WITH.into()),
     ]
 });
 

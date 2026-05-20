@@ -4,7 +4,7 @@ use std::{
     io::{Write, stdin, stdout},
 };
 
-use everything::{LazyObject, ctx::EvaluationContext, ext::ObjectExt};
+use everything::{ObjectOrSetValues, ext::ObjectExt};
 use everything_structures::{Object, Structure};
 use everything_structures_ff::Parsable;
 
@@ -80,11 +80,11 @@ impl Repl {
         let replaced = expand_vars(arguments, &self.variables)?;
         let expression = Object::parse(&replaced).map_err(|error| format!("{error:?}"))?;
 
-        match expression.eval(knowledge, &mut EvaluationContext::default()) {
-            LazyObject::Eager(object) => {
+        match expression.eval(knowledge, &mut Default::default()) {
+            ObjectOrSetValues::Object(object) => {
                 println!("{object:?}")
             }
-            LazyObject::LazySetValues(values) => {
+            ObjectOrSetValues::SetValues(values) => {
                 println!("Lazy set values:");
 
                 for value in values {
