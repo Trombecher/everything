@@ -6,7 +6,7 @@ use fallible_iterator::{FallibleIterator, IteratorExt};
 use tracing::{debug, instrument, warn};
 
 use crate::{
-    LazyObject, LazySetValues,
+    ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
         AbstractExt, KnowledgeError, ObjectForm, Statement, StatementForm, StructureExt,
@@ -43,9 +43,9 @@ pub trait ObjectExt {
         knowledge: &Structure,
         additional_depth: usize,
         ctx: &EvaluationContext,
-    ) -> LazyObject;
+    ) -> ObjectOrSetValues;
 
-    fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> LazyObject;
+    fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> ObjectOrSetValues;
 
     /// Parses a node from `self`.
     fn node(&self, knowledge: &Structure) -> Option<Node>;
@@ -64,9 +64,9 @@ pub trait ObjectExt {
     fn call(
         &self,
         knowledge: &Structure,
-        parameters: &[LazyObject],
+        parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
-    ) -> LazyObject;
+    ) -> ObjectOrSetValues;
 
     fn to_integer(&self, knowledge: &Structure) -> Option<i128>;
 
@@ -466,9 +466,9 @@ impl ObjectExt for Object {
         knowledge: &Structure,
         additional_depth: usize,
         ctx: &EvaluationContext,
-    ) -> LazyObject {
+    ) -> ObjectOrSetValues {
         match self.node(knowledge) {
-            Some(Node::Function(body)) => LazyObject::Eager(
+            Some(Node::Function(body)) => ObjectOrSetValues::Object(
                 Structure::new_node(Node::Function(
                     body.capture(knowledge, additional_depth + 1, ctx)
                         .into_object(),
@@ -486,7 +486,7 @@ impl ObjectExt for Object {
                     // This parameter refers to some inner, bound function,
                     // so keep it.
 
-                    LazyObject::Eager(self.clone())
+                    ObjectOrSetValues::Object(self.clone())
                 }
             }
             _ => match self {
@@ -517,14 +517,14 @@ impl ObjectExt for Object {
                     .transpose_into_fallible()
                     .collect::<Vec<_>>()
                     .map(|mut properties| {
-                        LazyObject::Eager(Self::Structure(Structure::new(&mut properties)))
+                        ObjectOrSetValues::Object(Self::Structure(Structure::new(&mut properties)))
                     })
                     .unwrap_or_else(|(o, error)| {
                         warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                        LazyObject::Eager(Structure::Empty.into())
+                        ObjectOrSetValues::Object(Structure::Empty.into())
                     }),
-                _ => LazyObject::Eager(self.clone()),
+                _ => ObjectOrSetValues::Object(self.clone()),
             },
         }
     }
@@ -544,9 +544,9 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> LazyObject {
+    fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> ObjectOrSetValues {
         let mut tasks = vec![Task::Eval(self.clone())];
-        let mut evaluated = Vec::<LazyObject>::new();
+        let mut evaluated = Vec::<ObjectOrSetValues>::new();
 
         while let Some(task) = tasks.pop() {
             debug!("doing task {task:?}");
@@ -577,7 +577,7 @@ impl ObjectExt for Object {
                         tasks.push(Task::PartialAnd { right });
                         tasks.push(Task::Eval(left));
                     }
-                    Some(Node::FunctionSelf(depth)) => evaluated.push(LazyObject::Eager(
+                    Some(Node::FunctionSelf(depth)) => evaluated.push(ObjectOrSetValues::Object(
                         context.function_self(depth as usize).into(),
                     )),
                     Some(Node::Parameter(depth)) => {
@@ -748,7 +748,7 @@ impl ObjectExt for Object {
                                     "invalid object {o:?} with error {error:?}; replacing with {{}}"
                                 );
 
-                                LazyObject::Eager(Object::Structure(Structure::Empty))
+                                ObjectOrSetValues::Object(Object::Structure(Structure::Empty))
                             });
 
                         evaluated.push(result);
@@ -776,7 +776,8 @@ impl ObjectExt for Object {
                         tasks.push(Task::ToBoolean);
                         tasks.push(Task::Eval(right));
                     } else {
-                        evaluated.push(LazyObject::Eager(Structure::new_bool(false).into()));
+                        evaluated
+                            .push(ObjectOrSetValues::Object(Structure::new_bool(false).into()));
                     }
                 }
                 Task::Count => {
@@ -791,7 +792,7 @@ impl ObjectExt for Object {
                     let value = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        LazySetValues::QuerySubjectsAndTags(QuerySubjectsAndTags::new(
+                        SetValues::QuerySubjectsAndTags(QuerySubjectsAndTags::new(
                             knowledge, value,
                         ))
                         .into(),
@@ -802,10 +803,8 @@ impl ObjectExt for Object {
                     let subject = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        LazySetValues::QueryTagsAndValues(QueryTagsAndValues::new(
-                            knowledge, subject,
-                        ))
-                        .into(),
+                        SetValues::QueryTagsAndValues(QueryTagsAndValues::new(knowledge, subject))
+                            .into(),
                     );
                 }
                 Task::QueryTags => {
@@ -814,7 +813,7 @@ impl ObjectExt for Object {
                     let subject = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        LazySetValues::QueryTags(QueryTags::new(knowledge, subject, value)).into(),
+                        SetValues::QueryTags(QueryTags::new(knowledge, subject, value)).into(),
                     );
                 }
                 Task::QueryValues => {
@@ -822,7 +821,7 @@ impl ObjectExt for Object {
                     // TODO: make this lazy
                     let subject = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(LazyObject::LazySetValues(LazySetValues::QueryValues(
+                    evaluated.push(ObjectOrSetValues::SetValues(SetValues::QueryValues(
                         QueryValues::new(knowledge, subject, tag.clone()),
                     )));
                 }
@@ -831,15 +830,14 @@ impl ObjectExt for Object {
                     let tag = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        LazySetValues::QuerySubjects(QuerySubjects::new(knowledge, tag, value))
-                            .into(),
+                        SetValues::QuerySubjects(QuerySubjects::new(knowledge, tag, value)).into(),
                     );
                 }
                 Task::QuerySubjectsAndValues => {
                     let tag = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        LazySetValues::QuerySubjectsAndValues(QuerySubjectsAndValues::new(
+                        SetValues::QuerySubjectsAndValues(QuerySubjectsAndValues::new(
                             knowledge, tag,
                         ))
                         .into(),
@@ -850,7 +848,7 @@ impl ObjectExt for Object {
                     let tag = evaluated.pop().unwrap().into_object();
                     let subject = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(LazyObject::Eager(
+                    evaluated.push(ObjectOrSetValues::Object(
                         Structure::new_bool(QueryExists::new(
                             knowledge,
                             subject,
@@ -863,7 +861,7 @@ impl ObjectExt for Object {
                 Task::ToBoolean => {
                     let mut object = evaluated.pop().unwrap();
 
-                    evaluated.push(LazyObject::Eager(
+                    evaluated.push(ObjectOrSetValues::Object(
                         Structure::new_bool(object.is_truthy(knowledge)).into(),
                     ))
                 }
@@ -875,7 +873,7 @@ impl ObjectExt for Object {
                 }
                 Task::PartialOr { right } => {
                     if evaluated.pop().unwrap().is_truthy(knowledge) {
-                        evaluated.push(LazyObject::Eager(Structure::new_bool(true).into()));
+                        evaluated.push(ObjectOrSetValues::Object(Structure::new_bool(true).into()));
                     } else {
                         tasks.push(Task::ToBoolean);
                         tasks.push(Task::Eval(right));
@@ -885,14 +883,14 @@ impl ObjectExt for Object {
                     let right = evaluated.pop().unwrap().is_truthy(knowledge);
                     let left = evaluated.pop().unwrap().is_truthy(knowledge);
 
-                    evaluated.push(LazyObject::Eager(
+                    evaluated.push(ObjectOrSetValues::Object(
                         Structure::new_bool((left || right) && !(left && right)).into(),
                     ));
                 }
                 Task::Not => {
                     let mut object = evaluated.pop().unwrap();
 
-                    evaluated.push(LazyObject::Eager(
+                    evaluated.push(ObjectOrSetValues::Object(
                         Structure::new_bool(!object.is_truthy(knowledge)).into(),
                     ));
                 }
@@ -914,7 +912,7 @@ impl ObjectExt for Object {
                     let right = evaluated.pop().unwrap();
                     let left = evaluated.pop().unwrap();
 
-                    evaluated.push(LazyObject::LazySetValues(LazySetValues::Union {
+                    evaluated.push(ObjectOrSetValues::SetValues(SetValues::Union {
                         left: Box::new(left.set_values(knowledge)),
                         right: Box::new(right.set_values(knowledge)),
                     }));
@@ -923,7 +921,7 @@ impl ObjectExt for Object {
                     let mapper = evaluated.pop().unwrap().into_object();
                     let set = evaluated.pop().unwrap().set_values(knowledge);
 
-                    evaluated.push(LazyObject::LazySetValues(LazySetValues::Map {
+                    evaluated.push(ObjectOrSetValues::SetValues(SetValues::Map {
                         knowledge: knowledge.clone(),
                         set: Box::new(set),
                         mapper_function: mapper,
@@ -933,7 +931,7 @@ impl ObjectExt for Object {
                     let filter = evaluated.pop().unwrap().into_object();
                     let set = evaluated.pop().unwrap().set_values(knowledge);
 
-                    evaluated.push(LazyObject::LazySetValues(LazySetValues::Filter {
+                    evaluated.push(ObjectOrSetValues::SetValues(SetValues::Filter {
                         knowledge: knowledge.clone(),
                         set: Box::new(set),
                         filter_function: filter,
@@ -945,7 +943,7 @@ impl ObjectExt for Object {
 
                     evaluated.push(
                         Object::Structure(Structure::new_bool(match (left, right) {
-                            (LazyObject::Eager(left), LazyObject::Eager(right))
+                            (ObjectOrSetValues::Object(left), ObjectOrSetValues::Object(right))
                                 if let Some(left) = left.to_integer(knowledge)
                                     && let Some(right) = right.to_integer(knowledge) =>
                             {
@@ -971,7 +969,7 @@ impl ObjectExt for Object {
                     let mut set_values = evaluated.pop().unwrap().set_values(knowledge);
 
                     if let Some(inner) = set_values.next_and_last() {
-                        evaluated.push(LazyObject::Eager(inner));
+                        evaluated.push(ObjectOrSetValues::Object(inner));
                     } else {
                         tasks.push(Task::Eval(default))
                     }
@@ -991,9 +989,9 @@ impl ObjectExt for Object {
     fn call(
         &self,
         knowledge: &Structure,
-        parameters: &[LazyObject],
+        parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
-    ) -> LazyObject {
+    ) -> ObjectOrSetValues {
         if self == &Object::Abstract(Abstract::KNOWLEDGE)
             && let Some(parameter) = parameters.first()
         {

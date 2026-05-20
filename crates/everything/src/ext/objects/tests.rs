@@ -71,7 +71,7 @@ mod eval {
     use everything_structures::{Abstract, Object, Property, Structure};
 
     use crate::{
-        LazyObject,
+        ObjectOrSetValues,
         base::BASE,
         ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt},
         nodes::{BinaryNode, Node},
@@ -204,7 +204,7 @@ mod eval {
                     Object::Abstract(Abstract(1337)),
                     Object::Abstract(Abstract(1338))
                 ]
-                .map(LazyObject::Eager),
+                .map(ObjectOrSetValues::Object),
                 &mut Default::default(),
             )
             .into_object(),

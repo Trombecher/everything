@@ -5,7 +5,7 @@ use everything_structures::{Abstract, Object, Property, Structure};
 use tracing::instrument;
 
 use crate::{
-    LazyObject,
+    ObjectOrSetValues,
     base::BASE,
     ctx::EvaluationContext,
     ext::{AbstractExt, ObjectExt, PropertyExt},
@@ -114,7 +114,8 @@ impl StructureExt for Structure {
                 })
             })?;
 
-            let parameters = [self.clone().into(), property.value.clone()].map(LazyObject::Eager);
+            let parameters =
+                [self.clone().into(), property.value.clone()].map(ObjectOrSetValues::Object);
 
             let mut result =
                 constraint_function.call(knowledge, &parameters, &mut EvaluationContext::default());
@@ -181,7 +182,8 @@ impl StructureExt for Structure {
 
             let mut result = constraint_function.call(
                 self,
-                &[statement.subject.clone(), statement.value.clone()].map(LazyObject::Eager),
+                &[statement.subject.clone(), statement.value.clone()]
+                    .map(ObjectOrSetValues::Object),
                 &mut Default::default(),
             );
 
