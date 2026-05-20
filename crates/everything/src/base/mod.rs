@@ -216,8 +216,18 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         bit_slot_statement(Abstract::BIT_SLOT_5.into()),
         bit_slot_statement(Abstract::BIT_SLOT_6.into()),
         bit_slot_statement(Abstract::BIT_SLOT_7.into()),
-        // TODO: knowledge
-
+        Structure::new_statement(
+            Abstract::KNOWLEDGE.into(),
+            Abstract::FUNCTION.into(),
+            // A function that calls itself. In theory this would loop forever
+            // but the implementation is hard-coded.
+            Structure::new_node(Node::Call(CallNode {
+                callee: Structure::new_node(Node::FunctionSelf(0)).into(),
+                with: Structure::new_node(Node::Parameter(0)).into(),
+            }))
+            .into(),
+        )
+        .into(),
         // --------------------- NODES ---------------------
         Structure::new_statement(
             Abstract::NODE_LITERAL.into(),
@@ -239,6 +249,30 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                     Structure::new_node(Node::And(BinaryNode {
                         left: common_unique_constraint_expression(
                             Abstract::NODE_PARAMETER.into(),
+                            1,
+                        ),
+                        // maybe hard code "parameter == zero or has succ"
+                        right: Structure::new_node(Node::Call(CallNode {
+                            callee: IS_NATURAL_NUMBER.clone(),
+                            with: Structure::new_node(Node::Parameter(0)).into(),
+                        }))
+                        .into(),
+                    }))
+                    .into(),
+                ))
+                .into(),
+            ))
+            .into(),
+        )
+        .into(),
+        Structure::new_statement(
+            Abstract::NODE_FUNCTION_SELF.into(),
+            Abstract::AXIOMATIC.into(),
+            Structure::new_node(Node::Function(
+                Structure::new_node(Node::Function(
+                    Structure::new_node(Node::And(BinaryNode {
+                        left: common_unique_constraint_expression(
+                            Abstract::NODE_FUNCTION_SELF.into(),
                             1,
                         ),
                         // maybe hard code "parameter == zero or has succ"

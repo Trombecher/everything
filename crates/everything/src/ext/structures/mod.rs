@@ -84,10 +84,8 @@ pub trait StructureExt {
 impl StructureExt for Structure {
     fn new_bool(b: bool) -> Self {
         if b {
-            // `{(@1, {})}`
             Self::new_set([Structure::Empty.into()])
         } else {
-            // `{}`
             Structure::Empty
         }
     }
@@ -100,25 +98,24 @@ impl StructureExt for Structure {
         }
 
         for property in self.properties() {
-            let constraint_function = QueryValues::new(
+            let Some(constraint_function) = QueryValues::new(
                 knowledge,
                 property.tag.clone(),
                 Object::Abstract(Abstract::AXIOMATIC),
             )
-            .next()
-            .ok_or_else(|| {
-                KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+            .next() else {
+                return Err(KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
                     subject: ObjectForm::Specific(property.tag.clone()),
                     tag: ObjectForm::Specific(Object::Abstract(Abstract::AXIOMATIC)),
                     value: ObjectForm::Any,
-                })
-            })?;
+                }));
+            };
 
-            let parameters =
-                [self.clone().into(), property.value.clone()].map(ObjectOrSetValues::Object);
-
-            let mut result =
-                constraint_function.call(knowledge, &parameters, &mut EvaluationContext::default());
+            let mut result = constraint_function.call(
+                knowledge,
+                &[self.clone().into(), property.value.clone()].map(ObjectOrSetValues::Object),
+                &mut EvaluationContext::default(),
+            );
 
             if !result.is_truthy(knowledge) {
                 return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
@@ -157,28 +154,17 @@ impl StructureExt for Structure {
         for statement in self.values(Object::Abstract(Abstract::CONTAINS)) {
             let statement = statement.intrinsic_statement().unwrap();
 
-            let constraint_function =
-                QueryValues::new(self, statement.tag.clone(), Abstract::AXIOMATIC.into())
-                    .next()
-                    .ok_or_else(|| {
-                        KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                            subject: ObjectForm::Specific(statement.tag.clone()),
-                            tag: ObjectForm::Specific(Abstract::AXIOMATIC.into()),
-                            value: ObjectForm::Any,
-                        })
-                    })?;
+            let Some(constraint_function) =
+                QueryValues::new(self, statement.tag.clone(), Abstract::AXIOMATIC.into()).next()
+            else {
+                // Tag must be axiomatic (!)
 
-            // Check that the tag in the statement is not a function.
-            if QueryValues::new(self, statement.tag.clone(), Abstract::FUNCTION.into())
-                .next()
-                .is_some()
-            {
-                return Err(KnowledgeError::NeedsToBeFalseButIsTrue(StatementForm {
+                return Err(KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
                     subject: ObjectForm::Specific(statement.tag.clone()),
-                    tag: ObjectForm::Specific(Abstract::FUNCTION.into()),
+                    tag: ObjectForm::Specific(Abstract::AXIOMATIC.into()),
                     value: ObjectForm::Any,
                 }));
-            }
+            };
 
             let mut result = constraint_function.call(
                 self,
@@ -196,6 +182,10 @@ impl StructureExt for Structure {
                 });
             }
         }
+
+        // TODO: debate whether we should re-check every CONTAINS.
+        // We may need some hard-coding of constraints or JIT-ting
+        // if this is significantly impacting performance.
 
         self.is_valid(self, true)
     }

@@ -1,5 +1,4 @@
-//! Extension traits and implementations [ObjectExt] and [StructureExt]
-//! for [Object] and [Structure].
+//! Extension traits and implementations [AbstractExt], [ObjectExt], [PropertyExt], and [StructureExt].
 
 mod abstracts;
 mod iter;
@@ -12,8 +11,7 @@ pub use objects::*;
 pub use properties::*;
 pub use structures::*;
 
-#[allow(unused_imports)]
-use everything_structures::{Object, Structure};
+use everything_structures::Object;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement {
