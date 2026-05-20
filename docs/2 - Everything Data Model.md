@@ -129,7 +129,7 @@ The second statement states:
 
 > `@AGE` is axiomatic and has a constraint that limits subjects on uses to people and values on uses to non-negative integers.
 
-How this constraint is encoded, will be shown later and is currently irrelevant. Now we get play around with our statements by adding new ones for `@ALICE`, `@BOB`, and `@LOVE`:
+How this constraint is encoded, [will be shown later](#encoding-the-constraint-from-the-example) and is currently irrelevant. Now we get play around with our statements by adding new ones for `@ALICE`, `@BOB`, and `@LOVE`:
 
 ```
 {
@@ -251,9 +251,11 @@ This is best illustrated with examples:
 | `{(@NODE_MAP_SET, ...), (@NODE_MAP_MAPPER, ...)}`             | Maps the set values of the input set with a node                        |
 | `{(@NODE_FILTER_SET, ...), (@NODE_FILTER_FILTER, ...)}`       | Retains all set values for which the filter node returns a truthy value |
 
-#### Queries
+### Queries
 
 There are nodes to query the knowledge. For each query, first the intrinsic values of the subject (if there is one and it is a structure) are used and then the whole knowledge is queried. Queries always return sets.
+
+That means that each structure may actually have more properties that the structure is defined by. Because you can use the knowledge to state additional things about a structure.
 
 > [!NOTE]
 >
@@ -268,3 +270,48 @@ There are nodes to query the knowledge. For each query, first the intrinsic valu
 | `{(@NODE_QUERY, {(@STATEMENT_SUBJECT, ...)}`                                                      | Queries the subject for tags and value pairs; returns a set of objects `{(@STATEMENT_TAG, ...), (@STATEMENT_VALUE, ...)}`               |
 | `{(@NODE_QUERY, {(@STATEMENT_TAG, ...)}`                                                          | Queries the knowledge for all subject and value pairs; returns a set of objects `{(@STATEMENT_SUBJECT, ...), (@STATEMENT_VALUE, ...)}`  |
 | `{(@NODE_QUERY, {(@STATEMENT_VALUE, ...)}`                                                        | Queries the knowledge for all subject and tag pairs, returns a set of objects `{(@STATEMENT_SUBJECT, ...), (@STATEMENT_TAG, ...)}`      |
+
+## More Examples
+
+### Encoding The Constraint From The Example
+
+Here is the example again:
+
+> * Some objects are people.
+> * Some objects have an age but only people can have an age.
+> * Age must be a non-negative integer.
+
+So the constraint on `@AGE` must validate that each associated subject is a person AND each associated is a non-negative integer. Here is the constraint:
+
+```
+{(@FUNCTION, {
+    {(@FUNCTION, {
+        (@NODE_AND_LEFT, {
+            (@NODE_QUERY, {
+                (@STATEMENT_SUBJECT, {
+                    # the outer parameter: subject
+                    (@NODE_PARAMETER, 1)
+                })
+                (@STATEMENT_TAG, @PERSON)
+            })
+        })
+        (@NODE_AND_RIGHT, {
+            (@NODE_OR_LEFT, {
+                (@NODE_EQUALS_LEFT, {
+                    # the inner parameter: value
+                    (@NODE_PARAMETER, 0)
+                })
+                (@NODE_EQUALS_RIGHT, 0)
+            })
+            (@NODE_OR_RIGHT, {
+                (@NODE_QUERY, {
+                    (@STATEMENT_SUBJECT, {
+                        (@NODE_PARAMETER, 0)
+                    })
+                    (@STATEMENT_TAG, @SUCCESSOR_OF)
+                })
+            })
+        })
+    })}
+})}
+```
