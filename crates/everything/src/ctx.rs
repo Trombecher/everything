@@ -1,6 +1,8 @@
 use everything_structures::{Object, Structure};
 use tracing::instrument;
 
+use crate::LazyObject;
+
 /// An evaluation context is a stack of function contexts,
 /// each holding a function and the parameter value from
 /// call.
@@ -22,9 +24,9 @@ impl EvaluationContext {
     }
 
     #[instrument(ret)]
-    pub fn parameter_value(&self, relative_depth: usize) -> Object {
+    pub fn parameter_value(&self, relative_depth: usize) -> LazyObject {
         self.function_context(relative_depth)
-            .map_or(Object::Structure(Structure::Empty), |context| {
+            .map_or(Object::Structure(Structure::Empty).into(), |context| {
                 context.parameter.clone()
             })
     }
@@ -51,5 +53,5 @@ impl EvaluationContext {
 #[derive(Debug, Clone)]
 pub struct FunctionContext {
     pub function: Object,
-    pub parameter: Object,
+    pub parameter: LazyObject,
 }

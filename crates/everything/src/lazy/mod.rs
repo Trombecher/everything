@@ -1,14 +1,11 @@
-use std::array;
-
 use everything_structures::{Object, Property, Structure};
 
 use crate::{
     ctx::EvaluationContext,
     ext::{ObjectExt, PropertyExt},
     query::{
-        QuerySubjectsAndTagsAxiomatically, QuerySubjectsAndValuesAxiomatically,
-        QuerySubjectsAxiomatically, QueryTagsAndValuesAxiomatically, QueryTagsAxiomatically,
-        QueryValuesAxiomatically, SubjectAndTag, SubjectAndValue,
+        QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags, QueryTagsAndValues,
+        QueryValues, SubjectAndTag, SubjectAndValue,
     },
 };
 
@@ -50,7 +47,7 @@ impl LazyObject {
     pub fn set_values(&self, knowledge: &Structure) -> LazySetValues {
         match self {
             Self::LazySetValues(values) => values.clone(),
-            Self::Eager(eager) => LazySetValues::ValuesAxiomatically(eager.set_values(knowledge)),
+            Self::Eager(eager) => LazySetValues::QueryValues(eager.set_values(knowledge)),
         }
     }
 
@@ -79,7 +76,7 @@ impl LazyObject {
 #[derive(Clone)]
 pub enum LazySetValues {
     /// Iterator over values of an object.
-    ValuesAxiomatically(QueryValuesAxiomatically),
+    QueryValues(QueryValues),
 
     /// Chains two iterators.
     Union {
@@ -87,15 +84,15 @@ pub enum LazySetValues {
         right: Box<Self>,
     },
 
-    SubjectsAxiomatically(QuerySubjectsAxiomatically),
+    QuerySubjects(QuerySubjects),
 
-    SubjectsAndValuesAxiomatically(QuerySubjectsAndValuesAxiomatically),
+    QuerySubjectsAndValues(QuerySubjectsAndValues),
 
-    TagsAndValuesAxiomatically(QueryTagsAndValuesAxiomatically),
+    QueryTagsAndValues(QueryTagsAndValues),
 
-    SubjectsAndTagsAxiomatically(QuerySubjectsAndTagsAxiomatically),
+    QuerySubjectsAndTags(QuerySubjectsAndTags),
 
-    TagsAxiomatically(QueryTagsAxiomatically),
+    QueryTags(QueryTags),
 
     Map {
         knowledge: Structure,
@@ -130,9 +127,7 @@ impl LazySetValues {
     /// It dedups
     pub fn correct_count(self) -> usize {
         match self {
-            LazySetValues::ValuesAxiomatically(axiomatic_query_values) => {
-                axiomatic_query_values.count()
-            }
+            LazySetValues::QueryValues(axiomatic_query_values) => axiomatic_query_values.count(),
             iterator => {
                 // This is expensive, no?
                 let mut vec = iterator.collect::<Vec<_>>();
@@ -147,11 +142,11 @@ impl Iterator for LazySetValues {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Self::ValuesAxiomatically(values) => values.next(),
+            Self::QueryValues(values) => values.next(),
             Self::Union { left, right } => left.next().or_else(|| right.next()),
-            Self::SubjectsAxiomatically(subjects) => subjects.next(),
-            Self::TagsAxiomatically(tags) => tags.next(),
-            Self::SubjectsAndTagsAxiomatically(subjects_and_tags) => {
+            Self::QuerySubjects(subjects) => subjects.next(),
+            Self::QueryTags(tags) => tags.next(),
+            Self::QuerySubjectsAndTags(subjects_and_tags) => {
                 subjects_and_tags
                     .next()
                     .map(|SubjectAndTag { subject, tag }| {
@@ -162,7 +157,7 @@ impl Iterator for LazySetValues {
                         .into()
                     })
             }
-            Self::TagsAndValuesAxiomatically(tags_and_values) => {
+            Self::QueryTagsAndValues(tags_and_values) => {
                 tags_and_values.next().map(|Property { tag, value }| {
                     Structure::new(&mut [
                         Property::new_statement_tag(tag),
@@ -171,7 +166,7 @@ impl Iterator for LazySetValues {
                     .into()
                 })
             }
-            Self::SubjectsAndValuesAxiomatically(iter) => {
+            Self::QuerySubjectsAndValues(iter) => {
                 iter.next().map(|SubjectAndValue { subject, value }| {
                     Structure::new(&mut [
                         Property::new_statement_subject(subject),
@@ -188,7 +183,7 @@ impl Iterator for LazySetValues {
                 mapper_function
                     .call(
                         knowledge,
-                        array::from_ref(&item),
+                        &[LazyObject::Eager(item)],
                         &mut EvaluationContext::default(),
                     )
                     .into_object()
@@ -203,7 +198,11 @@ impl Iterator for LazySetValues {
                 let item = set.next()?;
 
                 if filter_function
-                    .call(knowledge, array::from_ref(&item), &mut Default::default())
+                    .call(
+                        knowledge,
+                        &[LazyObject::Eager(item.clone())],
+                        &mut Default::default(),
+                    )
                     .is_truthy(knowledge)
                 {
                     break Some(item);

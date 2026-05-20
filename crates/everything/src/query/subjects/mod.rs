@@ -5,13 +5,13 @@ use crate::{StructureSetValues, ext::ObjectExt};
 /// An iterator over all subjects in the knowledge
 /// that have a given tag and value.
 #[derive(Clone, Debug)]
-pub struct QuerySubjectsAxiomatically {
+pub struct QuerySubjects {
     statements_from_knowledge: StructureSetValues,
     tag: Object,
     value: Object,
 }
 
-impl QuerySubjectsAxiomatically {
+impl QuerySubjects {
     #[inline]
     pub fn new(knowledge: &Structure, tag: Object, value: Object) -> Self {
         Self {
@@ -22,7 +22,7 @@ impl QuerySubjectsAxiomatically {
     }
 }
 
-impl Iterator for QuerySubjectsAxiomatically {
+impl Iterator for QuerySubjects {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

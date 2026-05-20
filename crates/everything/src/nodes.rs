@@ -31,6 +31,14 @@ pub struct UnwrapOrNode {
     pub default: Object,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct CallNode {
+    /// The function/node getting called
+    pub callee: Object,
+    /// A node for the parameter.
+    pub with: Object,
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum Node {
     Function(Object),
@@ -52,6 +60,7 @@ pub enum Node {
     If(IfNode),
     UnwrapOr(UnwrapOrNode),
     Multiply(BinaryNode),
+    Call(CallNode),
 }
 
 #[derive(Debug)]
@@ -61,11 +70,11 @@ pub enum Task {
     ToBoolean,
     Count,
     QueryValues,
-    QuerySubjectsAxiomatically,
-    QuerySubjectsAndValuesAxiomatically,
-    QueryTagsAndValuesAxiomatically,
-    QuerySubjectsAndTagsAxiomatically,
-    QueryTagsAxiomatically,
+    QuerySubjects,
+    QuerySubjectsAndValues,
+    QueryTagsAndValues,
+    QuerySubjectsAndTags,
+    QueryTags,
     QueryExists,
     Equal,
     PartialOr { right: Object },
@@ -78,6 +87,7 @@ pub enum Task {
     Filter,
     Less,
     PartialIf { then: Object, otherwise: Object },
+    Call,
     PopContext,
     PartialUnwrapOr { default: Object },
 }

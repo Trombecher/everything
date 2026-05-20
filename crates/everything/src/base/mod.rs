@@ -7,7 +7,7 @@ use everything_structures::{Abstract, Object, Structure};
 
 use crate::{
     ext::{AbstractExt, StructureExt},
-    nodes::{BinaryNode, Node},
+    nodes::{BinaryNode, CallNode, Node},
 };
 
 fn common_unique_constraint_expression(tag: Object, parameter_depth: u64) -> Object {
@@ -142,10 +142,10 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             Structure::new_node(Node::Function(
                 Structure::new_node(Node::Function(
                     Structure::new_node(Node::And(BinaryNode {
-                        left: Structure::new_node_query_values(
-                            Structure::new_node(Node::Parameter(0)).into(),
-                            IS_NATURAL_NUMBER.clone(),
-                        )
+                        left: Structure::new_node(Node::Call(CallNode {
+                            callee: IS_NATURAL_NUMBER.clone(),
+                            with: Structure::new_node(Node::Parameter(0)).into(),
+                        }))
                         .into(),
                         right: common_unique_constraint_expression(
                             Abstract::SUCCESSOR_OF.into(),
@@ -242,10 +242,10 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
                             1,
                         ),
                         // maybe hard code "parameter == zero or has succ"
-                        right: Structure::new_node_query_values(
-                            Structure::new_node(Node::Parameter(0)).into(),
-                            IS_NATURAL_NUMBER.clone(),
-                        )
+                        right: Structure::new_node(Node::Call(CallNode {
+                            callee: IS_NATURAL_NUMBER.clone(),
+                            with: Structure::new_node(Node::Parameter(0)).into(),
+                        }))
                         .into(),
                     }))
                     .into(),
@@ -415,6 +415,18 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             Abstract::NODE_MULTIPLY_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_MULTIPLY_RIGHT.into(), 0),
+        )
+        .into(),
+        Structure::new_statement(
+            Abstract::NODE_CALL_CALLEE.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_CALL_CALLEE.into(), 0),
+        )
+        .into(),
+        Structure::new_statement(
+            Abstract::NODE_CALL_WITH.into(),
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_CALL_WITH.into(), 0),
         )
         .into(),
     ])

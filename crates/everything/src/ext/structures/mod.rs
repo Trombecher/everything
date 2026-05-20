@@ -5,11 +5,12 @@ use everything_structures::{Abstract, Object, Property, Structure};
 use tracing::instrument;
 
 use crate::{
+    LazyObject,
     base::BASE,
     ctx::EvaluationContext,
     ext::{AbstractExt, ObjectExt, PropertyExt},
-    nodes::{BinaryNode, FilterNode, IfNode, MapNode, Node, UnwrapOrNode},
-    query::QueryValuesAxiomatically,
+    nodes::{BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, UnwrapOrNode},
+    query::QueryValues,
 };
 
 #[derive(PartialEq, Clone, Debug)]
@@ -99,7 +100,7 @@ impl StructureExt for Structure {
         }
 
         for property in self.properties() {
-            let constraint_function = QueryValuesAxiomatically::new(
+            let constraint_function = QueryValues::new(
                 knowledge,
                 property.tag.clone(),
                 Object::Abstract(Abstract::AXIOMATIC),
@@ -113,7 +114,7 @@ impl StructureExt for Structure {
                 })
             })?;
 
-            let parameters = [self.clone().into(), property.value.clone()];
+            let parameters = [self.clone().into(), property.value.clone()].map(LazyObject::Eager);
 
             let mut result =
                 constraint_function.call(knowledge, &parameters, &mut EvaluationContext::default());
@@ -155,22 +156,19 @@ impl StructureExt for Structure {
         for statement in self.values(Object::Abstract(Abstract::CONTAINS)) {
             let statement = statement.intrinsic_statement().unwrap();
 
-            let constraint_function = QueryValuesAxiomatically::new(
-                self,
-                statement.tag.clone(),
-                Abstract::AXIOMATIC.into(),
-            )
-            .next()
-            .ok_or_else(|| {
-                KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                    subject: ObjectForm::Specific(statement.tag.clone()),
-                    tag: ObjectForm::Specific(Abstract::AXIOMATIC.into()),
-                    value: ObjectForm::Any,
-                })
-            })?;
+            let constraint_function =
+                QueryValues::new(self, statement.tag.clone(), Abstract::AXIOMATIC.into())
+                    .next()
+                    .ok_or_else(|| {
+                        KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+                            subject: ObjectForm::Specific(statement.tag.clone()),
+                            tag: ObjectForm::Specific(Abstract::AXIOMATIC.into()),
+                            value: ObjectForm::Any,
+                        })
+                    })?;
 
             // Check that the tag in the statement is not a function.
-            if QueryValuesAxiomatically::new(self, statement.tag.clone(), Abstract::FUNCTION.into())
+            if QueryValues::new(self, statement.tag.clone(), Abstract::FUNCTION.into())
                 .next()
                 .is_some()
             {
@@ -183,7 +181,7 @@ impl StructureExt for Structure {
 
             let mut result = constraint_function.call(
                 self,
-                &[statement.subject.clone(), statement.value.clone()],
+                &[statement.subject.clone(), statement.value.clone()].map(LazyObject::Eager),
                 &mut Default::default(),
             );
 
@@ -225,6 +223,16 @@ impl StructureExt for Structure {
 
     fn new_node(node: Node) -> Self {
         match node {
+            Node::Call(CallNode { callee, with }) => Self::new(&mut [
+                Property {
+                    tag: Abstract::NODE_CALL_CALLEE.into(),
+                    value: callee,
+                },
+                Property {
+                    tag: Abstract::NODE_CALL_WITH.into(),
+                    value: with,
+                },
+            ]),
             Node::Function(body) => Self::new(&mut [Property {
                 tag: Abstract::FUNCTION.into(),
                 value: body,

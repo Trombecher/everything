@@ -3,14 +3,14 @@ use everything_structures::{Object, Structure, StructureTags};
 use crate::{StructureSetValues, ext::ObjectExt};
 
 #[derive(Clone, Debug)]
-pub struct QueryTagsAxiomatically {
+pub struct QueryTags {
     tags_from_subject: StructureTags,
     statements_from_knowledge: StructureSetValues,
     subject: Object,
     value: Object,
 }
 
-impl QueryTagsAxiomatically {
+impl QueryTags {
     pub fn new(knowledge: &Structure, subject: Object, value: Object) -> Self {
         let tags_from_subject = match &subject {
             Object::Abstract(_) => StructureTags::None,
@@ -26,7 +26,7 @@ impl QueryTagsAxiomatically {
     }
 }
 
-impl Iterator for QueryTagsAxiomatically {
+impl Iterator for QueryTags {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

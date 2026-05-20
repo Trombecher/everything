@@ -12,11 +12,10 @@ use crate::{
         AbstractExt, KnowledgeError, ObjectForm, Statement, StatementForm, StructureExt,
         iter::IteratorExtNextAndLast,
     },
-    nodes::{BinaryNode, FilterNode, IfNode, MapNode, Node, Task, UnwrapOrNode},
+    nodes::{BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, Task, UnwrapOrNode},
     query::{
-        QueryExists, QuerySubjectsAndTagsAxiomatically, QuerySubjectsAndValuesAxiomatically,
-        QuerySubjectsAxiomatically, QueryTagsAndValuesAxiomatically, QueryTagsAxiomatically,
-        QueryValues, QueryValuesAxiomatically,
+        QueryExists, QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags,
+        QueryTagsAndValues, QueryValues,
     },
 };
 
@@ -44,7 +43,7 @@ pub trait ObjectExt {
         knowledge: &Structure,
         additional_depth: usize,
         ctx: &EvaluationContext,
-    ) -> Object;
+    ) -> LazyObject;
 
     fn eval(&self, knowledge: &Structure, context: &mut EvaluationContext) -> LazyObject;
 
@@ -52,7 +51,7 @@ pub trait ObjectExt {
     fn node(&self, knowledge: &Structure) -> Option<Node>;
 
     /// Returns an iterator over all set items.
-    fn set_values(&self, knowledge: &Structure) -> QueryValuesAxiomatically;
+    fn set_values(&self, knowledge: &Structure) -> QueryValues;
 
     fn structure(&self) -> Option<&Structure>;
 
@@ -65,7 +64,7 @@ pub trait ObjectExt {
     fn call(
         &self,
         knowledge: &Structure,
-        parameters: &[Object],
+        parameters: &[LazyObject],
         ctx: &mut EvaluationContext,
     ) -> LazyObject;
 
@@ -109,6 +108,7 @@ pub trait ObjectExt {
     fn node_if(&self, knowledge: &Structure) -> Option<IfNode>;
 
     fn node_less(&self, knowledge: &Structure) -> Option<BinaryNode>;
+    fn node_call(&self, knowledge: &Structure) -> Option<CallNode>;
 
     fn intrinsic_statement_subject(&self) -> Option<Object>;
 
@@ -128,7 +128,7 @@ impl ObjectExt for Object {
         }
 
         let mut successor_of =
-            QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::SUCCESSOR_OF.into());
+            QueryValues::new(knowledge, self.clone(), Abstract::SUCCESSOR_OF.into());
 
         if let Some(first) = successor_of.next()
             && successor_of.next().is_none()
@@ -139,8 +139,8 @@ impl ObjectExt for Object {
         }
     }
 
-    fn set_values(&self, knowledge: &Structure) -> QueryValuesAxiomatically {
-        QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::CONTAINS.into())
+    fn set_values(&self, knowledge: &Structure) -> QueryValues {
+        QueryValues::new(knowledge, self.clone(), Abstract::CONTAINS.into())
     }
 
     fn structure(&self) -> Option<&Structure> {
@@ -188,14 +188,9 @@ impl ObjectExt for Object {
 
     fn node_map(&self, knowledge: &Structure) -> Option<MapNode> {
         let set_expression =
-            QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::NODE_MAP_SET.into())
-                .next()?;
-        let mapper_function_expression = QueryValuesAxiomatically::new(
-            knowledge,
-            self.clone(),
-            Abstract::NODE_MAP_MAPPER.into(),
-        )
-        .next()?;
+            QueryValues::new(knowledge, self.clone(), Abstract::NODE_MAP_SET.into()).next()?;
+        let mapper_function_expression =
+            QueryValues::new(knowledge, self.clone(), Abstract::NODE_MAP_MAPPER.into()).next()?;
 
         Some(MapNode {
             set: set_expression,
@@ -204,19 +199,11 @@ impl ObjectExt for Object {
     }
 
     fn node_filter(&self, knowledge: &Structure) -> Option<FilterNode> {
-        let set = QueryValuesAxiomatically::new(
-            knowledge,
-            self.clone(),
-            Abstract::NODE_FILTER_SET.into(),
-        )
-        .next_and_last()?;
+        let set = QueryValues::new(knowledge, self.clone(), Abstract::NODE_FILTER_SET.into())
+            .next_and_last()?;
 
-        let filter = QueryValuesAxiomatically::new(
-            knowledge,
-            self.clone(),
-            Abstract::NODE_FILTER_FILTER.into(),
-        )
-        .next_and_last()?;
+        let filter = QueryValues::new(knowledge, self.clone(), Abstract::NODE_FILTER_FILTER.into())
+            .next_and_last()?;
 
         Some(FilterNode {
             set: set,
@@ -254,8 +241,8 @@ impl ObjectExt for Object {
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode> {
-        let left = QueryValuesAxiomatically::new(knowledge, self.clone(), left_tag).next()?;
-        let right = QueryValuesAxiomatically::new(knowledge, self.clone(), right_tag).next()?;
+        let left = QueryValues::new(knowledge, self.clone(), left_tag).next()?;
+        let right = QueryValues::new(knowledge, self.clone(), right_tag).next()?;
 
         Some(BinaryNode { left, right })
     }
@@ -281,6 +268,7 @@ impl ObjectExt for Object {
         xor_with!(self.node_literal(knowledge).map(Node::Literal));
         xor_with!(self.node_function_self(knowledge).map(Node::FunctionSelf));
         xor_with!(self.node_parameter_depth(knowledge).map(Node::Parameter));
+        xor_with!(self.node_call(knowledge).map(Node::Call));
         xor_with!(self.node_count(knowledge).map(Node::Count));
         xor_with!(self.node_query(knowledge).map(Node::Query));
         xor_with!(self.node_not(knowledge).map(Node::Not));
@@ -301,14 +289,10 @@ impl ObjectExt for Object {
     }
 
     fn node_unwrap_or(&self, knowledge: &Structure) -> Option<UnwrapOrNode> {
-        let set = QueryValuesAxiomatically::new(
-            knowledge,
-            self.clone(),
-            Abstract::NODE_UNWRAP_OR_SET.into(),
-        )
-        .next_and_last()?;
+        let set = QueryValues::new(knowledge, self.clone(), Abstract::NODE_UNWRAP_OR_SET.into())
+            .next_and_last()?;
 
-        let default = QueryValuesAxiomatically::new(
+        let default = QueryValues::new(
             knowledge,
             self.clone(),
             Abstract::NODE_UNWRAP_OR_DEFAULT.into(),
@@ -319,20 +303,15 @@ impl ObjectExt for Object {
     }
 
     fn node_if(&self, knowledge: &Structure) -> Option<IfNode> {
-        let condition = QueryValuesAxiomatically::new(
-            knowledge,
-            self.clone(),
-            Abstract::NODE_IF_CONDITION.into(),
-        )
-        .next_and_last()?;
-
-        let then =
-            QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::NODE_IF_THEN.into())
+        let condition =
+            QueryValues::new(knowledge, self.clone(), Abstract::NODE_IF_CONDITION.into())
                 .next_and_last()?;
 
-        let otherwise =
-            QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::NODE_IF_ELSE.into())
-                .next_and_last()?;
+        let then = QueryValues::new(knowledge, self.clone(), Abstract::NODE_IF_THEN.into())
+            .next_and_last()?;
+
+        let otherwise = QueryValues::new(knowledge, self.clone(), Abstract::NODE_IF_ELSE.into())
+            .next_and_last()?;
 
         Some(IfNode {
             condition,
@@ -349,43 +328,44 @@ impl ObjectExt for Object {
         )
     }
 
+    fn node_call(&self, knowledge: &Structure) -> Option<CallNode> {
+        let callee = QueryValues::new(knowledge, self.clone(), Abstract::NODE_CALL_CALLEE.into())
+            .next_and_last()?;
+
+        let with = QueryValues::new(knowledge, self.clone(), Abstract::NODE_CALL_WITH.into())
+            .next_and_last()?;
+
+        Some(CallNode { callee, with })
+    }
+
     fn node_not(&self, knowledge: &Structure) -> Option<Object> {
-        QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::NODE_NOT.into())
-            .next_and_last()
+        QueryValues::new(knowledge, self.clone(), Abstract::NODE_NOT.into()).next_and_last()
     }
 
     fn node_count(&self, knowledge: &Structure) -> Option<Object> {
-        QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::NODE_COUNT.into())
-            .next_and_last()
+        QueryValues::new(knowledge, self.clone(), Abstract::NODE_COUNT.into()).next_and_last()
     }
 
     fn function_body(&self, knowledge: &Structure) -> Option<Object> {
-        QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::FUNCTION.into())
-            .next_and_last()
+        QueryValues::new(knowledge, self.clone(), Abstract::FUNCTION.into()).next_and_last()
     }
 
     fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u64> {
-        let depth =
-            QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::NODE_PARAMETER.into())
-                .next_and_last()?
-                .to_integer(knowledge)?;
+        let depth = QueryValues::new(knowledge, self.clone(), Abstract::NODE_PARAMETER.into())
+            .next_and_last()?
+            .to_integer(knowledge)?;
 
         u64::try_from(depth).ok()
     }
 
     fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
-        QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::NODE_LITERAL.into())
-            .next_and_last()
+        QueryValues::new(knowledge, self.clone(), Abstract::NODE_LITERAL.into()).next_and_last()
     }
 
     fn node_function_self(&self, knowledge: &Structure) -> Option<u64> {
-        let depth = QueryValuesAxiomatically::new(
-            knowledge,
-            self.clone(),
-            Abstract::NODE_FUNCTION_SELF.into(),
-        )
-        .next_and_last()?
-        .to_integer(knowledge)?;
+        let depth = QueryValues::new(knowledge, self.clone(), Abstract::NODE_FUNCTION_SELF.into())
+            .next_and_last()?
+            .to_integer(knowledge)?;
 
         u64::try_from(depth).ok()
     }
@@ -433,7 +413,7 @@ impl ObjectExt for Object {
     }
 
     fn statement_subject(&self, knowledge: &Structure) -> Option<Object> {
-        QueryValuesAxiomatically::new(
+        QueryValues::new(
             knowledge,
             self.clone(),
             Object::Abstract(Abstract::STATEMENT_SUBJECT),
@@ -442,7 +422,7 @@ impl ObjectExt for Object {
     }
 
     fn statement_tag(&self, knowledge: &Structure) -> Option<Object> {
-        QueryValuesAxiomatically::new(
+        QueryValues::new(
             knowledge,
             self.clone(),
             Object::Abstract(Abstract::STATEMENT_TAG),
@@ -451,7 +431,7 @@ impl ObjectExt for Object {
     }
 
     fn statement_value(&self, knowledge: &Structure) -> Option<Object> {
-        QueryValuesAxiomatically::new(
+        QueryValues::new(
             knowledge,
             self.clone(),
             Object::Abstract(Abstract::STATEMENT_VALUE),
@@ -472,7 +452,7 @@ impl ObjectExt for Object {
     }
 
     fn node_query(&self, knowledge: &Structure) -> Option<Self> {
-        QueryValuesAxiomatically::new(
+        QueryValues::new(
             knowledge,
             self.clone(),
             Object::Abstract(Abstract::NODE_QUERY),
@@ -486,14 +466,15 @@ impl ObjectExt for Object {
         knowledge: &Structure,
         additional_depth: usize,
         ctx: &EvaluationContext,
-    ) -> Object {
+    ) -> LazyObject {
         match self.node(knowledge) {
-            Some(Node::Function(body)) => Structure::new_node(Node::Function(body.capture(
-                knowledge,
-                additional_depth + 1,
-                ctx,
-            )))
-            .into(),
+            Some(Node::Function(body)) => LazyObject::Eager(
+                Structure::new_node(Node::Function(
+                    body.capture(knowledge, additional_depth + 1, ctx)
+                        .into_object(),
+                ))
+                .into(),
+            ),
             Some(Node::Parameter(depth)) => {
                 if let Some(offset_depth) = (depth as usize).checked_sub(additional_depth) {
                     // The min additional depth is 1.
@@ -505,7 +486,7 @@ impl ObjectExt for Object {
                     // This parameter refers to some inner, bound function,
                     // so keep it.
 
-                    self.clone()
+                    LazyObject::Eager(self.clone())
                 }
             }
             _ => match self {
@@ -513,7 +494,10 @@ impl ObjectExt for Object {
                     .as_ref()
                     .iter()
                     .map(|property| {
-                        let value = property.value.capture(knowledge, additional_depth, ctx);
+                        let value = property
+                            .value
+                            .capture(knowledge, additional_depth, ctx)
+                            .into_object();
 
                         let result = if property.value == value {
                             Ok(())
@@ -532,13 +516,15 @@ impl ObjectExt for Object {
                     })
                     .transpose_into_fallible()
                     .collect::<Vec<_>>()
-                    .map(|mut properties| Self::Structure(Structure::new(&mut properties)))
+                    .map(|mut properties| {
+                        LazyObject::Eager(Self::Structure(Structure::new(&mut properties)))
+                    })
                     .unwrap_or_else(|(o, error)| {
                         warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                        Structure::Empty.into()
+                        LazyObject::Eager(Structure::Empty.into())
                     }),
-                _ => self.clone(),
+                _ => LazyObject::Eager(self.clone()),
             },
         }
     }
@@ -567,6 +553,11 @@ impl ObjectExt for Object {
 
             match task {
                 Task::Eval(object) => match object.node(knowledge) {
+                    Some(Node::Call(CallNode { callee, with })) => {
+                        tasks.push(Task::Call);
+                        tasks.push(Task::Eval(callee));
+                        tasks.push(Task::Eval(with));
+                    }
                     Some(Node::Multiply(BinaryNode { left, right })) => {
                         tasks.push(Task::Multiply);
                         tasks.push(Task::Eval(right));
@@ -590,9 +581,7 @@ impl ObjectExt for Object {
                         context.function_self(depth as usize).into(),
                     )),
                     Some(Node::Parameter(depth)) => {
-                        evaluated.push(LazyObject::Eager(
-                            context.parameter_value(depth as usize).into(),
-                        ));
+                        evaluated.push(context.parameter_value(depth as usize));
                     }
                     Some(Node::Count(object)) => {
                         tasks.push(Task::Count);
@@ -620,7 +609,7 @@ impl ObjectExt for Object {
                             tag: ObjectForm::Specific(unevaluated_tag),
                             value: ObjectForm::Specific(unevaluated_value),
                         } => {
-                            tasks.push(Task::QuerySubjectsAxiomatically);
+                            tasks.push(Task::QuerySubjects);
                             tasks.push(Task::Eval(unevaluated_value));
                             tasks.push(Task::Eval(unevaluated_tag));
                         }
@@ -629,7 +618,7 @@ impl ObjectExt for Object {
                             tag: ObjectForm::Specific(unevaluated_tag),
                             value: ObjectForm::Any,
                         } => {
-                            tasks.push(Task::QuerySubjectsAndValuesAxiomatically);
+                            tasks.push(Task::QuerySubjectsAndValues);
                             tasks.push(Task::Eval(unevaluated_tag));
                         }
                         StatementForm {
@@ -647,7 +636,7 @@ impl ObjectExt for Object {
                             tag: ObjectForm::Any,
                             value: ObjectForm::Any,
                         } => {
-                            tasks.push(Task::QueryTagsAndValuesAxiomatically);
+                            tasks.push(Task::QueryTagsAndValues);
                             tasks.push(Task::Eval(unevaluated_subject));
                         }
                         StatementForm {
@@ -655,7 +644,7 @@ impl ObjectExt for Object {
                             tag: ObjectForm::Any,
                             value: ObjectForm::Specific(unevaluated_value),
                         } => {
-                            tasks.push(Task::QuerySubjectsAndTagsAxiomatically);
+                            tasks.push(Task::QuerySubjectsAndTags);
                             tasks.push(Task::Eval(unevaluated_value));
                         }
                         StatementForm {
@@ -663,7 +652,7 @@ impl ObjectExt for Object {
                             tag: ObjectForm::Any,
                             value: ObjectForm::Specific(unevaluated_value),
                         } => {
-                            tasks.push(Task::QueryTagsAxiomatically);
+                            tasks.push(Task::QueryTags);
                             tasks.push(Task::Eval(unevaluated_value));
                             tasks.push(Task::Eval(unevaluated_subject));
                         }
@@ -766,8 +755,22 @@ impl ObjectExt for Object {
                     }
                     None => evaluated.push(object.clone().into()),
                 },
+                Task::PopContext => {
+                    context.pop();
+                }
+                Task::Call => {
+                    let callee = evaluated.pop().unwrap().into_object();
+                    let parameter_value = evaluated.pop().unwrap();
+
+                    tasks.push(Task::Eval(callee.function_body(knowledge).unwrap()));
+
+                    context.push(FunctionContext {
+                        function: callee,
+                        parameter: parameter_value,
+                    });
+                }
                 Task::PartialAnd { right } => {
-                    let mut left = evaluated.pop().expect("and first");
+                    let mut left = evaluated.pop().unwrap();
 
                     if left.is_truthy(knowledge) {
                         tasks.push(Task::ToBoolean);
@@ -777,44 +780,41 @@ impl ObjectExt for Object {
                     }
                 }
                 Task::Count => {
-                    let target = evaluated.pop().expect("count needs sum");
+                    let target = evaluated.pop().unwrap();
 
                     evaluated.push(
                         Self::new_integer(target.set_values(knowledge).correct_count() as i128)
                             .into(),
                     );
                 }
-                Task::QuerySubjectsAndTagsAxiomatically => {
+                Task::QuerySubjectsAndTags => {
                     let value = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        LazySetValues::SubjectsAndTagsAxiomatically(
-                            QuerySubjectsAndTagsAxiomatically::new(knowledge, value),
-                        )
-                        .into(),
-                    );
-                }
-                Task::QueryTagsAndValuesAxiomatically => {
-                    // TODO: make this lazy
-                    let subject = evaluated.pop().unwrap().into_object();
-
-                    evaluated.push(
-                        LazySetValues::TagsAndValuesAxiomatically(
-                            QueryTagsAndValuesAxiomatically::new(knowledge, subject),
-                        )
-                        .into(),
-                    );
-                }
-                Task::QueryTagsAxiomatically => {
-                    let value = evaluated.pop().unwrap().into_object();
-                    // TODO: make this lazy
-                    let subject = evaluated.pop().unwrap().into_object();
-
-                    evaluated.push(
-                        LazySetValues::TagsAxiomatically(QueryTagsAxiomatically::new(
-                            knowledge, subject, value,
+                        LazySetValues::QuerySubjectsAndTags(QuerySubjectsAndTags::new(
+                            knowledge, value,
                         ))
                         .into(),
+                    );
+                }
+                Task::QueryTagsAndValues => {
+                    // TODO: make this lazy
+                    let subject = evaluated.pop().unwrap().into_object();
+
+                    evaluated.push(
+                        LazySetValues::QueryTagsAndValues(QueryTagsAndValues::new(
+                            knowledge, subject,
+                        ))
+                        .into(),
+                    );
+                }
+                Task::QueryTags => {
+                    let value = evaluated.pop().unwrap().into_object();
+                    // TODO: make this lazy
+                    let subject = evaluated.pop().unwrap().into_object();
+
+                    evaluated.push(
+                        LazySetValues::QueryTags(QueryTags::new(knowledge, subject, value)).into(),
                     );
                 }
                 Task::QueryValues => {
@@ -822,44 +822,26 @@ impl ObjectExt for Object {
                     // TODO: make this lazy
                     let subject = evaluated.pop().unwrap().into_object();
 
-                    match QueryValues::new(knowledge, subject, tag.clone()) {
-                        QueryValues::Axiomatically(query_values_axiomatically) => {
-                            evaluated.push(LazyObject::LazySetValues(
-                                LazySetValues::ValuesAxiomatically(query_values_axiomatically),
-                            ));
-                        }
-                        QueryValues::Call {
-                            function_body,
-                            parameter,
-                        } => {
-                            tasks.push(Task::PopContext);
-                            tasks.push(Task::Eval(function_body));
-
-                            context.push(FunctionContext {
-                                function: tag,
-                                parameter,
-                            });
-                        }
-                    }
+                    evaluated.push(LazyObject::LazySetValues(LazySetValues::QueryValues(
+                        QueryValues::new(knowledge, subject, tag.clone()),
+                    )));
                 }
-                Task::QuerySubjectsAxiomatically => {
+                Task::QuerySubjects => {
                     let value = evaluated.pop().unwrap().into_object();
                     let tag = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        LazySetValues::SubjectsAxiomatically(QuerySubjectsAxiomatically::new(
-                            knowledge, tag, value,
-                        ))
-                        .into(),
+                        LazySetValues::QuerySubjects(QuerySubjects::new(knowledge, tag, value))
+                            .into(),
                     );
                 }
-                Task::QuerySubjectsAndValuesAxiomatically => {
+                Task::QuerySubjectsAndValues => {
                     let tag = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        LazySetValues::SubjectsAndValuesAxiomatically(
-                            QuerySubjectsAndValuesAxiomatically::new(knowledge, tag),
-                        )
+                        LazySetValues::QuerySubjectsAndValues(QuerySubjectsAndValues::new(
+                            knowledge, tag,
+                        ))
                         .into(),
                     );
                 }
@@ -868,23 +850,15 @@ impl ObjectExt for Object {
                     let tag = evaluated.pop().unwrap().into_object();
                     let subject = evaluated.pop().unwrap().into_object();
 
-                    match QueryExists::new(knowledge, subject, tag.clone(), value) {
-                        QueryExists::Axiomatically(exists) => {
-                            evaluated.push(LazyObject::Eager(Structure::new_bool(exists).into()))
-                        }
-                        QueryExists::Call {
-                            function_body,
-                            parameter,
-                        } => {
-                            tasks.push(Task::PopContext);
-                            tasks.push(Task::Eval(function_body));
-
-                            context.push(FunctionContext {
-                                function: tag,
-                                parameter,
-                            });
-                        }
-                    }
+                    evaluated.push(LazyObject::Eager(
+                        Structure::new_bool(QueryExists::new(
+                            knowledge,
+                            subject,
+                            tag.clone(),
+                            value,
+                        ))
+                        .into(),
+                    ))
                 }
                 Task::ToBoolean => {
                     let mut object = evaluated.pop().unwrap();
@@ -993,9 +967,6 @@ impl ObjectExt for Object {
                         tasks.push(Task::Eval(otherwise));
                     }
                 }
-                Task::PopContext => {
-                    context.pop();
-                }
                 Task::PartialUnwrapOr { default } => {
                     let mut set_values = evaluated.pop().unwrap().set_values(knowledge);
 
@@ -1020,9 +991,21 @@ impl ObjectExt for Object {
     fn call(
         &self,
         knowledge: &Structure,
-        parameters: &[Object],
+        parameters: &[LazyObject],
         ctx: &mut EvaluationContext,
     ) -> LazyObject {
+        if self == &Object::Abstract(Abstract::KNOWLEDGE)
+            && let Some(parameter) = parameters.first()
+        {
+            return match parameter.clone().into_object() {
+                Object::Structure(structure) => {
+                    Object::Structure(Structure::new_bool(structure.is_knowledge().is_ok()))
+                }
+                Object::Abstract(_) => Object::Structure(Structure::Empty),
+            }
+            .into();
+        }
+
         if let Some((parameter, next_parameters)) = parameters.split_first()
             && let Some(Node::Function(body)) = self.node(knowledge)
         {
@@ -1047,14 +1030,13 @@ impl ObjectExt for Object {
             // Fast path for exact natural numbers.
             Some(n)
         } else if let Some(predecessor) =
-            QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::SUCCESSOR_OF.into())
-                .next_and_last()
+            QueryValues::new(knowledge, self.clone(), Abstract::SUCCESSOR_OF.into()).next_and_last()
         {
             predecessor
                 .to_integer(knowledge)
                 .map(|n| n.checked_add(1).expect("yo shi too big"))
         } else if let Some(successor) =
-            QueryValuesAxiomatically::new(knowledge, self.clone(), Abstract::PREDECESSOR_OF.into())
+            QueryValues::new(knowledge, self.clone(), Abstract::PREDECESSOR_OF.into())
                 .next_and_last()
         {
             successor

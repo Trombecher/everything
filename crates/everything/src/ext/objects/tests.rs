@@ -3,7 +3,7 @@ use everything_structures::{Abstract, Object, Property, Structure};
 use crate::{
     base::BASE,
     ext::{ObjectExt, StructureExt},
-    nodes::{BinaryNode, IfNode, Node},
+    nodes::{BinaryNode, CallNode, IfNode, Node},
 };
 
 #[test]
@@ -59,7 +59,7 @@ fn call() {
     assert_eq!(
         f.call(
             &BASE,
-            &[Object::Abstract(Abstract::ZERO)],
+            &[Object::Abstract(Abstract::ZERO).into()],
             &mut Default::default()
         )
         .into_object(),
@@ -71,6 +71,7 @@ mod eval {
     use everything_structures::{Abstract, Object, Property, Structure};
 
     use crate::{
+        LazyObject,
         base::BASE,
         ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt},
         nodes::{BinaryNode, Node},
@@ -202,7 +203,8 @@ mod eval {
                 &[
                     Object::Abstract(Abstract(1337)),
                     Object::Abstract(Abstract(1338))
-                ],
+                ]
+                .map(LazyObject::Eager),
                 &mut Default::default(),
             )
             .into_object(),
@@ -267,14 +269,14 @@ fn factorial() {
             then: Object::new_integer(1),
             otherwise: Structure::new_node(Node::Multiply(BinaryNode {
                 left: Structure::new_node(Node::Parameter(0)).into(),
-                right: Structure::new_node_query_values(
-                    Structure::new_node(Node::Add(BinaryNode {
+                right: Structure::new_node(Node::Call(CallNode {
+                    callee: Structure::new_node(Node::FunctionSelf(0)).into(),
+                    with: Structure::new_node(Node::Add(BinaryNode {
                         left: Structure::new_node(Node::Parameter(0)).into(),
                         right: Object::new_integer(-1),
                     }))
                     .into(),
-                    Structure::new_node(Node::FunctionSelf(0)).into(),
-                )
+                }))
                 .into(),
             }))
             .into(),
@@ -297,7 +299,7 @@ fn factorial() {
             factorial
                 .call(
                     &BASE,
-                    &[Object::new_integer(input)],
+                    &[Object::new_integer(input).into()],
                     &mut Default::default()
                 )
                 .into_object(),

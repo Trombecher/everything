@@ -9,12 +9,12 @@ pub struct SubjectAndTag {
 }
 
 #[derive(Clone, Debug)]
-pub struct QuerySubjectsAndTagsAxiomatically {
+pub struct QuerySubjectsAndTags {
     statements_from_knowledge: StructureSetValues,
     value: Object,
 }
 
-impl QuerySubjectsAndTagsAxiomatically {
+impl QuerySubjectsAndTags {
     pub fn new(knowledge: &Structure, value: Object) -> Self {
         Self {
             statements_from_knowledge: StructureSetValues::new(knowledge),
@@ -23,7 +23,7 @@ impl QuerySubjectsAndTagsAxiomatically {
     }
 }
 
-impl Iterator for QuerySubjectsAndTagsAxiomatically {
+impl Iterator for QuerySubjectsAndTags {
     type Item = SubjectAndTag;
 
     fn next(&mut self) -> Option<Self::Item> {

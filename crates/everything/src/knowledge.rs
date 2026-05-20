@@ -1,12 +1,8 @@
 use everything_structures::{Object, Structure};
 
 use crate::{
-    LazyObject, LazySetValues,
-    ext::{KnowledgeError, ObjectExt, StructureExt},
-    query::{
-        QuerySubjectsAndValuesAxiomatically, QuerySubjectsAxiomatically, QueryValues,
-        QueryValuesAxiomatically,
-    },
+    ext::{KnowledgeError, StructureExt},
+    query::{QuerySubjects, QuerySubjectsAndValues, QueryValues},
 };
 
 #[derive(Clone)]
@@ -30,41 +26,18 @@ impl Knowledge {
     /// (subject, tag) -> (value)
     /// ```
     #[inline]
-    pub fn query_values(&self, subject: Object, tag: Object) -> LazyObject {
-        match QueryValues::new(self.structure(), subject, tag.clone()) {
-            QueryValues::Axiomatically(values) => {
-                LazyObject::LazySetValues(LazySetValues::ValuesAxiomatically(values))
-            }
-            QueryValues::Call { parameter, .. } => {
-                tag.call(&self.0, &[parameter], &mut Default::default())
-            }
-        }
+    pub fn query_values(&self, subject: Object, tag: Object) -> QueryValues {
+        QueryValues::new(self.structure(), subject, tag.clone())
     }
 
     #[inline]
-    pub fn query_values_axiomatically(
-        &self,
-        subject: Object,
-        tag: Object,
-    ) -> QueryValuesAxiomatically {
-        QueryValuesAxiomatically::new(self.structure(), subject, tag)
+    pub fn query_subjects_axiomatically(&self, tag: Object, value: Object) -> QuerySubjects {
+        QuerySubjects::new(&self.0, tag, value)
     }
 
     #[inline]
-    pub fn query_subjects_axiomatically(
-        &self,
-        tag: Object,
-        value: Object,
-    ) -> QuerySubjectsAxiomatically {
-        QuerySubjectsAxiomatically::new(&self.0, tag, value)
-    }
-
-    #[inline]
-    pub fn query_subjects_and_values_axiomatically(
-        &self,
-        tag: Object,
-    ) -> QuerySubjectsAndValuesAxiomatically {
-        QuerySubjectsAndValuesAxiomatically::new(&self.0, tag)
+    pub fn query_subjects_and_values_axiomatically(&self, tag: Object) -> QuerySubjectsAndValues {
+        QuerySubjectsAndValues::new(&self.0, tag)
     }
 }
 
