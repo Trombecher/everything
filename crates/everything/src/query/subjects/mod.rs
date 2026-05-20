@@ -1,6 +1,6 @@
 use everything_structures::{Object, Structure};
 
-use crate::{ext::ObjectExt, query::StructureSetValues};
+use crate::{StructureSetValues, ext::ObjectExt};
 
 /// An iterator over all subjects in the knowledge
 /// that have a given tag and value.

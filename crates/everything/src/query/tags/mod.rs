@@ -1,6 +1,6 @@
 use everything_structures::{Object, Structure, StructureTags};
 
-use crate::{ext::ObjectExt, query::StructureSetValues};
+use crate::{StructureSetValues, ext::ObjectExt};
 
 #[derive(Clone, Debug)]
 pub struct QueryTagsAxiomatically {

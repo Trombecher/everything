@@ -1,6 +1,6 @@
 use everything_structures::{Object, Structure};
 
-use crate::{ext::ObjectExt, query::StructureSetValues};
+use crate::{StructureSetValues, ext::ObjectExt};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubjectAndTag {

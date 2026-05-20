@@ -1,9 +1,8 @@
 use everything_structures::{Abstract, Object, Property, Structure, StructureValues};
 
 use crate::{
-    base,
+    StructureSetValues, base,
     ext::{AbstractExt, ObjectExt, PropertyExt},
-    query::StructureSetValues,
 };
 
 #[cfg(test)]
