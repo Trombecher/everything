@@ -197,26 +197,36 @@ Although 67 is a non-negative integer, `@LOVE` is not a person. Therefore, the e
 
 _Everything_ contains a computation system which is basically an extension of lambda calculus. It assigns certain structures meaning. These structures are called nodes. The engine can evaluate nodes.
 
-### Functions
+### Basis: Functions, Parameters, And Control-Flow
 
 The function node is denoted with `@FUNCTION`. The associated value can be interpreted as the function body. If the function is called with a parameter, then the function body will be evaluated with the parameter value.
 
-Parameter references resolve to the values which the wrapping functions have been called with. Parameter references are denoted with `NODE_PARAMETER`. The associated value is a non-negative number denoting the "relative depth". A depth of 0 means that this parameter reference is referencing the **innermost function from the POV** of that parameter reference node. A depth of 1 means the wrapping function of the function addressed by depth 0, and so on.
+Parameter references resolve to the values which the wrapping functions have been called with. Parameter references are denoted with `@NODE_PARAMETER`. The associated value is a non-negative number denoting the "relative depth". A depth of 0 means that this parameter reference is referencing the **innermost function from the POV** of that parameter reference node. A depth of 1 means the wrapping function of the function addressed by depth 0, and so on.
+
+You can use `@NODE_FUNCTION_SELF` to reference a wrapping function, just like `@NODE_PARAMETER`. You can use it to implement recursive functions.
+
+| Structure                                                                  | Meaning                                                        |
+|----------------------------------------------------------------------------|----------------------------------------------------------------|
+| `{(@FUNCTION, ...)}`                                                       | A function (equivalent to an "abstraction" in lambda calculus) |
+| `{(@NODE_PARAMETER, ...)}`                                                 | A reference to a function parameter                            |
+| `{(@NODE_FUNCTION_SELF, ...)}`                                             | A reference to a wrapping function                             |
+| `{(@NODE_IF_CONDITION, ...), (@NODE_IF_THEN, ...), (@NODE_IF_ELSE, ...)}`  | A conditional (or "select") node                               |
+| `{(@NODE_CALL_CALLEE, ...), (@NODE_CALL_WITH, ...)`                        | A call of a node (almost always a function) with a value       |
+
+#### Examples
 
 This is best illustrated with examples:
 
-| Structure                                              | Non-normative Textual Representation         |
-|--------------------------------------------------------|----------------------------------------------|
-| `{(@FUNCTION, @5345345)}`                              | `x \|-> @5345345` (just a constant function) |
-| `{(@FUNCTION, {(@NODE_PARAMETER, 0)})}`                | `x \|-> x`                                   |
-| `{(@FUNCTION, {(@FUNCTION, {(@NODE_PARAMETER, 0))}})}` | `x \|-> y \|-> y`                            |
-| `{(@FUNCTION, {(@FUNCTION, {(@NODE_PARAMETER, 1))}})}` | `x \|-> y \|-> x`                            |
+| Structure                                                 | Non-normative Textual Representation         |
+|-----------------------------------------------------------|----------------------------------------------|
+| `{(@FUNCTION, @5345345)}`                                 | `x \|-> @5345345` (just a constant function) |
+| `{(@FUNCTION, {(@NODE_PARAMETER, 0)})}`                   | `x \|-> x`                                   |
+| `{(@FUNCTION, {(@FUNCTION, {(@NODE_PARAMETER, 0))}})}`    | `x \|-> y \|-> y`                            |
+| `{(@FUNCTION, {(@FUNCTION, {(@NODE_PARAMETER, 1))}})}`    | `x \|-> y \|-> x`                            |
+| `{(@FUNCTION, {(@NODE_FUNCTION_SET, 0)})}`                | `f := x \|-> f`                              |
+| `{(@FUNCTION, {(@FUNCTION, {(@NODE_FUNCTION_SET, 1)})})}` | `f := x \|-> y \|-> f`                       |
 
-### Intrinsics
-
-The engine provides interpretation for some abstract objects which make up the computation api surface. These are all the nodes supported by the engine:
-
-#### Logic
+### Logic
 
 | Structure                                           | Meaning                                                                  |
 |-----------------------------------------------------|--------------------------------------------------------------------------|
@@ -225,11 +235,36 @@ The engine provides interpretation for some abstract objects which make up the c
 | `{(NODE_XOR_LEFT, ...), (NODE_XOR_RIGHT, ...)}`     | True iff either the left or the right evaluates to "true"                |
 | `{(NODE_NOT, ...)}`                                 | True iff inner evaluates to "false"                                      |
 
-#### Arithmetic And Object Manipulation
+### Arithmetic
 
 | Structure                                                     | Domain    | Meaning                                             |
 |---------------------------------------------------------------|-----------|-----------------------------------------------------|
 | `{(NODE_ADD_LEFT, ...), (NODE_ADD_RIGHT, ...)}`               | Integers  | Evaluates and computes `left + right`               |
 | `{(NODE_MULTIPLY_LEFT, ...), (NODE_MULTIPLY_RIGHT, ...)}`     | Integers  | Evaluates and computes `left * right`               |
 
+### Set Manipulation
+
+| Structure                                                     | Meaning                                                                 |
+|---------------------------------------------------------------|-------------------------------------------------------------------------|
+| `{(@NODE_UNION_LEFT, ...), (@NODE_UNION_RIGHT, ...)}`         | Merges the set values of left and right                                 |
+| `{(@NODE_COUNT, ...)}`                                        | Counts the set values of the inner                                      |
+| `{(@NODE_MAP_SET, ...), (@NODE_MAP_MAPPER, ...)}`             | Maps the set values of the input set with a node                        |
+| `{(@NODE_FILTER_SET, ...), (@NODE_FILTER_FILTER, ...)}`       | Retains all set values for which the filter node returns a truthy value |
+
 #### Queries
+
+There are nodes to query the knowledge. For each query, first the intrinsic values of the subject (if there is one and it is a structure) are used and then the whole knowledge is queried. Queries always return sets.
+
+> [!NOTE]
+>
+> Every object is a "set". What is meant is that return value of a query will be a structure that has no other (intrinsic) tags than `@CONTAINS`.
+
+| Structure                                                                                         | Meaning                                                                                                                                 |
+|---------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| `{(@NODE_QUERY, {(@STATEMENT_SUBJECT, ...), (@STATEMENT_TAG, ...), (@STATEMENT_VALUE, ...)})}`    | Checks if this statement exists; returns a truthy values if yes, `{}` otherwise                                                         |
+| `{(@NODE_QUERY, {(@STATEMENT_SUBJECT, ...), (@STATEMENT_TAG, ...)})}`                             | Queries the subject for values it has on the given tag and returns a set of all values                                                  |
+| `{(@NODE_QUERY, {(@STATEMENT_SUBJECT, ...), (@STATEMENT_VALUE, ...)})}`                           | Queries the subject for tags it has with the given value and returns a set of all tags                                                  |
+| `{(@NODE_QUERY, {(@STATEMENT_TAG, ...), (@STATEMENT_VALUE, ...)})}`                               | Queries all subjects that have this tag with this value and returns a set of all those subejcts                                         |
+| `{(@NODE_QUERY, {(@STATEMENT_SUBJECT, ...)}`                                                      | Queries the subject for tags and value pairs; returns a set of objects `{(@STATEMENT_TAG, ...), (@STATEMENT_VALUE, ...)}`               |
+| `{(@NODE_QUERY, {(@STATEMENT_TAG, ...)}`                                                          | Queries the knowledge for all subject and value pairs; returns a set of objects `{(@STATEMENT_SUBJECT, ...), (@STATEMENT_VALUE, ...)}`  |
+| `{(@NODE_QUERY, {(@STATEMENT_VALUE, ...)}`                                                        | Queries the knowledge for all subject and tag pairs, returns a set of objects `{(@STATEMENT_SUBJECT, ...), (@STATEMENT_TAG, ...)}`      |
