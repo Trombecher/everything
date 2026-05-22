@@ -120,5 +120,5 @@ fn main() {
     )
     .unwrap();
 
-    println!("{:?}", knowledge.query_values(PETER, TOTAL_COUNT));
+    println!("{:?}", knowledge.call(TOTAL_COUNT, PETER));
 }

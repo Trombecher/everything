@@ -6,7 +6,10 @@ This is the documentation for the structure that the _Everything universal data 
 
 First of all, some defintions.
 
-An _object_ is either an abstract object or a structure. An _abstract object_ is an abstract identifier which is just a 128 bit unsigned integer. A _structure_ is a set of properties. A _property_ is a pair of the form `(tag, value)`, both objects.
+* An _object_ is either an abstract object or a structure.
+* An _abstract object_ is an abstract identifier which is just a 128 bit unsigned integer.
+* A _structure_ is a set of properties.
+* A _property_ is a pair of the form `(tag, value)`, both objects.
 
 ### Notes
 
