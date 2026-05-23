@@ -1,50 +1,10 @@
 # Everything Object Text Notation
 
-The _Object Text Notation_ (OTN) is a functional-style syntax for concise expression of queries, expressions, and objects. This document describes a mapping between OTN syntax and raw abstract object and structures. The latter will be written using a subset of OTN which is desugared.
+The _Object Text Notation_ (OTN) is a functional-style programming language to represent queries, expressions and objects concisely. This document describes a mapping between OTN syntax and raw abstract object and structures. The latter will be written using a subset of OTN which is desugared (only abstract objects and raw structures).
 
-Additionally, OTN syntax may contain placeholders which are resolved at compile-time.
+Note that this document does not cover the _meaning of these structures_. For that, read [how the engine evaluates objects](./Object%20Evaluation%20Specification.md).
 
-## OTN Syntax
-
-```ebnf
-digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
-letterlike = "A" | "B" | "C" | "D" | "E" | "F" | "G"
-    | "H" | "I" | "J" | "K" | "L" | "M" | "N"
-    | "O" | "P" | "Q" | "R" | "S" | "T" | "U"
-    | "V" | "W" | "X" | "Y" | "Z" | "a" | "b"
-    | "c" | "d" | "e" | "f" | "g" | "h" | "i"
-    | "j" | "k" | "l" | "m" | "n" | "o" | "p"
-    | "q" | "r" | "s" | "t" | "u" | "v" | "w"
-    | "x" | "y" | "z" | "ä" | "Ä" | "ö" | "Ö"
-    | "ü" | "Ü" | "ß" | "_";
-
-abstract_object = "@", digit, {digit};
-structure_literal = ("{", "}")
-    | ("{", expression, "=", expression, {",", expression, "=", expression}, [","], "}");
-
-text_literal = "
-placeholder = "$", letterlike, {letterlike | digit};
-
-function_expression = "function", placeholder, "=>", expression;
-call_expression = expession, expression
-grouping_expression = "(", expression, ")"
-
-binary_operator = "+" | "-" | "*" | "/" | "union" | "intersection"
-    | "|>" | "|?" | "==" | "<=" | "<" | "and" | "or" | "xor"
-    | "->";
-binary_expression = expression, binary_operator, expression;
-
-unary_expression = ("not" | "query"), expression;
-
-expression = placeholder
-    | abstract_object
-    | structure_literal
-    | function_expression
-    | call_expression
-    | grouping_expression
-    | unary_expression
-    | binary_expression;
-```
+## Expression Types
 
 ### Calls
 
@@ -65,6 +25,38 @@ A function expression `function <<VAR>> => <<BODY>>` is syntactic sugar for:
 {@2148623901005465698003044719488417081 = <<BODY>>}
 ```
 
+### Escape `escape`
+
+An escape expression `escape <<INNER>>` is syntactic sugar for:
+
+```eotn
+{@2148623946948209931514052368378168923 = <<INNER>>}
+```
+
+### Equals `==`
+
+An equals expression `<<LEFT>> == <<RIGHT>>` is syntactic sugar for:
+
+```eotn
+{
+    @2148623984105467336671475554302291443 = <<LEFT>>,
+    @2150546540588687321716707989954282134 = <<RIGHT>>,
+}
+```
+
+### Less `<`
+
+A less expression `<<LEFT>> < <<RIGHT>>` is syntactic sugar for:
+
+```eotn
+{
+    @2150755802916608365774567517427204904 = <<LEFT>>,
+    @2150755809462832010701281576784730955 = <<RIGHT>>,
+}
+```
+
+### Knowledge `knowledge`
+
 ### Add `+`
 
 An add expression `<<LEFT>> + <<RIGHT>>` is syntactic sugar for:
@@ -83,6 +75,39 @@ An subtract expression `<<LEFT>> - <<RIGHT>>` is syntactic sugar for:
 ```eotn
 {
     TODO
+}
+```
+
+### Multiply `*`
+
+A multiply expression `<<LEFT>> * <<RIGHT>>` is syntactic sugar for:
+
+```eotn
+{
+    @2150955291898078111384483788783842606 = <<LEFT>>,
+    @2150955291897679523990373018161137292 = <<RIGHT>>,
+}
+```
+
+### Count `count`
+
+A count expression `count <<INNER>>` is syntactic sugar for:
+
+```eotn
+{
+    @2148623971839749022702961541901456532 = <<INNER>>
+}
+```
+
+### If-Then-Else
+
+An if expression `if <<CONDITION>> then <<THEN>> else <<ELSE>>` is syntactic sugar for:
+
+```eotn
+{
+    @2150756911395278548780220055702389669 = <<CONDITION>>,
+    @2150756911395360151235546653103149781 = <<THEN>>,
+    @2150756911395636855407117245584275797 = <<ELSE>>,
 }
 ```
 

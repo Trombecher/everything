@@ -2,7 +2,7 @@ use everything_structures::{Abstract, Object, Property, Structure};
 
 use crate::{
     base::BASE,
-    ext::{ObjectExt, StructureExt},
+    ext::ObjectExt,
     nodes::{BinaryNode, CallNode, IfNode, Node},
 };
 
@@ -39,10 +39,7 @@ fn node_type() {
 
     // Single
     assert_eq!(
-        Object::Structure(Structure::new_node(Node::Function(Object::Abstract(
-            Abstract::ZERO
-        ))))
-        .node(knowledge),
+        Object::new_node(Node::Function(Object::Abstract(Abstract::ZERO))).node(knowledge),
         Some(Node::Function(Abstract::ZERO.into()))
     );
 
@@ -51,10 +48,7 @@ fn node_type() {
 
 #[test]
 fn call() {
-    let f: Object = Structure::new_node(Node::Function(
-        Structure::new_node(Node::Parameter(0)).into(),
-    ))
-    .into();
+    let f = Object::new_node(Node::Function(Object::new_node(Node::Parameter(0))));
 
     assert_eq!(
         f.call(
@@ -88,10 +82,10 @@ mod eval {
 
         for (left, right, result) in CASES.iter().copied() {
             assert_eq!(
-                Object::Structure(Structure::new_node(Node::And(BinaryNode {
+                Object::new_node(Node::And(BinaryNode {
                     left: Structure::new_bool(left).into(),
                     right: Structure::new_bool(right).into()
-                })))
+                }))
                 .evaluate(&BASE, &mut Default::default())
                 .is_truthy(&BASE),
                 result
@@ -110,10 +104,10 @@ mod eval {
 
         for (left, right, result) in CASES.iter().copied() {
             assert_eq!(
-                Object::Structure(Structure::new_node(Node::Or(BinaryNode {
+                Object::new_node(Node::Or(BinaryNode {
                     left: Structure::new_bool(left).into(),
                     right: Structure::new_bool(right).into()
-                })))
+                }))
                 .evaluate(&BASE, &mut Default::default())
                 .is_truthy(&BASE),
                 result
@@ -125,12 +119,12 @@ mod eval {
     fn literal() {
         let subjects: [Object; 2] = [
             Abstract::ZERO.into(),
-            Structure::new_node(Node::Not(Object::new_integer(42))).into(),
+            Object::new_node(Node::Not(Object::new_integer(42))),
         ];
 
         for subject in subjects {
             assert_eq!(
-                Object::Structure(Structure::new_node(Node::Literal(subject.clone())))
+                Object::new_node(Node::Literal(subject.clone()))
                     .evaluate(&BASE, &mut Default::default())
                     .into_object(),
                 subject
@@ -141,23 +135,20 @@ mod eval {
     #[test]
     fn eval_count() {
         assert_eq!(
-            Object::Structure(Structure::new_node(Node::Count(Structure::Empty.into())))
+            Object::new_node(Node::Count(Structure::Empty.into()))
                 .evaluate(&BASE, &mut Default::default())
                 .into_object(),
             Object::new_integer(0)
         );
 
         assert_eq!(
-            Object::Structure(Structure::new_node(Node::Count(
-                Structure::new_node(Node::Literal(
-                    Structure::new(&mut [
-                        Property::new_contains(Abstract::ZERO.into()),
-                        Property::new_contains(Abstract::KNOWLEDGE.into()),
-                    ])
-                    .into()
-                ))
+            Object::new_node(Node::Count(Object::new_node(Node::Literal(
+                Structure::new(&mut [
+                    Property::new_contains(Abstract::ZERO.into()),
+                    Property::new_contains(Abstract::KNOWLEDGE.into()),
+                ])
                 .into()
-            )))
+            ))))
             .evaluate(&BASE, &mut Default::default())
             .into_object(),
             Object::new_integer(2)
@@ -167,15 +158,15 @@ mod eval {
     #[test]
     fn eval_query() {
         assert_eq!(
-            Object::Structure(Structure::new_node_query_values(
+            Object::new_node_query_values(
                 Structure::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
                     Property::new_contains(Abstract::KNOWLEDGE.into()),
                     Property::new_successor_of(Object::new_integer(0)),
                 ])
                 .into(),
-                Structure::new_node(Node::Literal(Abstract::CONTAINS.into())).into()
-            ))
+                Object::new_node(Node::Literal(Abstract::CONTAINS.into()))
+            )
             .evaluate(&BASE, &mut Default::default())
             .into_object(),
             Structure::new_set([Abstract::KNOWLEDGE.into(), Object::Abstract(Abstract::ZERO)])
@@ -185,17 +176,13 @@ mod eval {
 
     #[test]
     fn set_items() {
-        let f: Object = Structure::new_node(Node::Function(
-            Structure::new_node(Node::Function(
-                Structure::new_set([
-                    Structure::new_node(Node::Parameter(0)).into(),
-                    Structure::new_node(Node::Parameter(1)).into(),
-                ])
-                .into(),
-            ))
+        let f = Object::new_node(Node::Function(Object::new_node(Node::Function(
+            Structure::new_set([
+                Object::new_node(Node::Parameter(0)),
+                Object::new_node(Node::Parameter(1)),
+            ])
             .into(),
-        ))
-        .into();
+        ))));
 
         assert_eq!(
             f.call(
@@ -223,9 +210,9 @@ mod eval {
                 .map(|i| Property::new_contains(Object::new_integer(i as i128)))
                 .collect::<Vec<_>>();
 
-            let node = Object::Structure(Structure::new_node(Node::Count(
-                Structure::new_node(Node::Literal(Structure::new(&mut properties).into())).into(),
-            )));
+            let node = Object::new_node(Node::Count(Object::new_node(Node::Literal(
+                Structure::new(&mut properties).into(),
+            ))));
 
             assert_eq!(
                 node.evaluate(&BASE, &mut Default::default())
@@ -243,10 +230,10 @@ mod eval {
         let a = 543895;
         let b = 9345125;
 
-        let node = Object::Structure(Structure::new_node(Node::Multiply(BinaryNode {
-            left: Structure::new_node(Node::Literal(Object::new_integer(a))).into(),
-            right: Structure::new_node(Node::Literal(Object::new_integer(b))).into(),
-        })));
+        let node = Object::new_node(Node::Multiply(BinaryNode {
+            left: Object::new_node(Node::Literal(Object::new_integer(a))),
+            right: Object::new_node(Node::Literal(Object::new_integer(b))),
+        }));
 
         assert_eq!(
             node.evaluate(&BASE, &mut Default::default())
@@ -259,30 +246,24 @@ mod eval {
 
 #[test]
 fn factorial() {
-    let factorial = Object::Structure(Structure::new_node(Node::Function(
-        Structure::new_node(Node::If(IfNode {
-            condition: Structure::new_node(Node::Less(BinaryNode {
-                left: Structure::new_node(Node::Parameter(0)).into(),
-                right: Object::new_integer(2),
-            }))
-            .into(),
-            then: Object::new_integer(1),
-            otherwise: Structure::new_node(Node::Multiply(BinaryNode {
-                left: Structure::new_node(Node::Parameter(0)).into(),
-                right: Structure::new_node(Node::Call(CallNode {
-                    callee: Structure::new_node(Node::FunctionSelf(0)).into(),
-                    with: Structure::new_node(Node::Add(BinaryNode {
-                        left: Structure::new_node(Node::Parameter(0)).into(),
-                        right: Object::new_integer(-1),
-                    }))
-                    .into(),
-                }))
-                .into(),
-            }))
-            .into(),
+    let factorial = Object::new_node(Node::Function(Object::new_node(Node::If(IfNode {
+        condition: Object::new_node(Node::Less(BinaryNode {
+            left: Object::new_node(Node::Parameter(0)),
+            right: Object::new_integer(2),
+        })),
+        then: Object::new_integer(1),
+        otherwise: Object::new_node(Node::Multiply(BinaryNode {
+            left: Object::new_node(Node::Parameter(0)),
+            right: Object::new_node(Node::Call(CallNode {
+                callee: Object::new_node(Node::FunctionSelf(0)),
+                with: Object::new_node(Node::Add(BinaryNode {
+                    left: Object::new_node(Node::Parameter(0)),
+                    right: Object::new_integer(-1),
+                })),
+            })),
         }))
         .into(),
-    )));
+    }))));
 
     let points = [
         (-10_i128, 1_i128),

@@ -15,9 +15,17 @@ pub trait AbstractExt {
     /// Denotes that the subject is a function. The associated value is the function
     /// body.
     const FUNCTION: Abstract = Abstract(2148623901005465698003044719488417081);
+
+    /// The _subject_ slot of a statement.
     const STATEMENT_SUBJECT: Abstract = Abstract(2148623909053123893672709737372288428);
+
+    /// The _tag_ slot of a statement.
     const STATEMENT_TAG: Abstract = Abstract(2148623916651203732644414190007253763);
+
+    /// The _value_ slot of a statement.
     const STATEMENT_VALUE: Abstract = Abstract(2148623924076051576854508924514462036);
+
+    /// A function that checks if the input object is knowledge.
     const KNOWLEDGE: Abstract = Abstract(2148623940012028447614031237706438049);
 
     const NODE_LITERAL: Abstract = Abstract(2148623946948209931514052368378168923);
@@ -53,6 +61,9 @@ pub trait AbstractExt {
     const NODE_MULTIPLY_RIGHT: Abstract = Abstract(2150955291897679523990373018161137292);
     const NODE_CALL_CALLEE: Abstract = Abstract(2150967257692765401288058191156339282);
     const NODE_CALL_WITH: Abstract = Abstract(2150967257692538503396115970645049110);
+
+    /// A node that resolves to the knowledge structure.
+    const NODE_KNOWLEDGE: Abstract = Abstract(2151276264541937640181087051018499973);
 
     /// Denotes that a computation arithmetically overflowed.
     const ARITHMETIC_OVERFLOW: Abstract = Abstract(2150546596946485525298114723305118383);

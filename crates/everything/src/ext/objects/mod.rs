@@ -9,8 +9,8 @@ use crate::{
     ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, KnowledgeError, ObjectForm, Statement, StatementForm, StructureExt,
-        iter::IteratorExtNextAndLast,
+        AbstractExt, KnowledgeError, ObjectForm, PropertyExt, Statement, StatementForm,
+        StructureExt, iter::IteratorExtNextAndLast,
     },
     nodes::{BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, Task, UnwrapOrNode},
     query::{
@@ -124,10 +124,224 @@ pub trait ObjectExt {
     fn intrinsic_statement_value(&self) -> Option<Object>;
 
     fn intrinsic_statement(&self) -> Option<Statement>;
+
     fn multiply(&self, knowledge: &Structure, other: &Object) -> Object;
+
+    fn new_node(node: Node) -> Self;
+
+    /// Creates a new query node, set up for value querying.
+    fn new_node_query_values(subject: Object, tag: Object) -> Self;
 }
 
 impl ObjectExt for Object {
+    fn new_node_query_values(subject: Object, tag: Object) -> Self {
+        Self::new_node(Node::Query(
+            Structure::new(&mut [
+                Property::new_statement_subject(subject),
+                Property::new_statement_tag(tag),
+            ])
+            .into(),
+        ))
+    }
+
+    fn new_node(node: Node) -> Self {
+        match node {
+            Node::Knowledge => Abstract::NODE_KNOWLEDGE.into(),
+            Node::Call(CallNode { callee, with }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_CALL_CALLEE.into(),
+                    value: callee,
+                },
+                Property {
+                    tag: Abstract::NODE_CALL_WITH.into(),
+                    value: with,
+                },
+            ])
+            .into(),
+            Node::Function(body) => Structure::new(&mut [Property {
+                tag: Abstract::FUNCTION.into(),
+                value: body,
+            }])
+            .into(),
+            Node::Literal(literal) => Structure::new(&mut [Property {
+                tag: Abstract::NODE_LITERAL.into(),
+                value: literal,
+            }])
+            .into(),
+            Node::And(BinaryNode { left, right }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_AND_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_AND_RIGHT.into(),
+                    value: right,
+                },
+            ])
+            .into(),
+            Node::FunctionSelf(depth) => Structure::new(&mut [Property {
+                tag: Abstract::NODE_FUNCTION_SELF.into(),
+                value: Object::new_integer(depth as i128),
+            }])
+            .into(),
+            Node::Parameter(depth) => Structure::new(&mut [Property {
+                tag: Abstract::NODE_PARAMETER.into(),
+                value: Object::new_integer(depth as i128),
+            }])
+            .into(),
+            Node::Count(object) => Structure::new(&mut [Property {
+                tag: Abstract::NODE_COUNT.into(),
+                value: object,
+            }])
+            .into(),
+            Node::Query(query) => Structure::new(&mut [Property {
+                tag: Abstract::NODE_QUERY.into(),
+                value: query,
+            }])
+            .into(),
+            Node::Equal(BinaryNode { left, right }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_EQUAL_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_EQUAL_RIGHT.into(),
+                    value: right,
+                },
+            ])
+            .into(),
+            Node::Or(BinaryNode { left, right }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_OR_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_OR_RIGHT.into(),
+                    value: right,
+                },
+            ])
+            .into(),
+            Node::Xor(BinaryNode { left, right }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_XOR_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_XOR_RIGHT.into(),
+                    value: right,
+                },
+            ])
+            .into(),
+            Node::Not(node) => Structure::new(&mut [Property {
+                tag: Abstract::NODE_NOT.into(),
+                value: node,
+            }])
+            .into(),
+            Node::Add(BinaryNode { left, right }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_ADD_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_ADD_RIGHT.into(),
+                    value: right,
+                },
+            ])
+            .into(),
+            Node::Union(BinaryNode { left, right }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_UNION_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_UNION_RIGHT.into(),
+                    value: right,
+                },
+            ])
+            .into(),
+            Node::Map(MapNode {
+                set,
+                mapper_function,
+            }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_MAP_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_MAP_MAPPER.into(),
+                    value: mapper_function,
+                },
+            ])
+            .into(),
+            Node::Filter(FilterNode {
+                set,
+                filter_function,
+            }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_FILTER_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_FILTER_FILTER.into(),
+                    value: filter_function,
+                },
+            ])
+            .into(),
+            Node::Less(BinaryNode { left, right }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_LESS_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_LESS_RIGHT.into(),
+                    value: right,
+                },
+            ])
+            .into(),
+            Node::If(IfNode {
+                condition,
+                otherwise,
+                then,
+            }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_IF_CONDITION.into(),
+                    value: condition,
+                },
+                Property {
+                    tag: Abstract::NODE_IF_THEN.into(),
+                    value: then,
+                },
+                Property {
+                    tag: Abstract::NODE_IF_ELSE.into(),
+                    value: otherwise,
+                },
+            ])
+            .into(),
+            Node::UnwrapOr(UnwrapOrNode { set, default }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_UNWRAP_OR_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_UNWRAP_OR_DEFAULT.into(),
+                    value: default,
+                },
+            ])
+            .into(),
+            Node::Multiply(BinaryNode { left, right }) => Structure::new(&mut [
+                Property {
+                    tag: Abstract::NODE_MULTIPLY_LEFT.into(),
+                    value: left,
+                },
+                Property {
+                    tag: Abstract::NODE_MULTIPLY_RIGHT.into(),
+                    value: right,
+                },
+            ])
+            .into(),
+        }
+    }
+
     fn is_natural_number(&self, knowledge: &Structure) -> bool {
         if self.exact_integer().is_some() {
             // Fast path of exact natural numbers.
@@ -265,9 +479,9 @@ impl ObjectExt for Object {
                 if variant.is_some() {
                     if node.is_some() {
                         return None;
-                    } else {
-                        node = variant;
                     }
+
+                    node = variant;
                 }
             }};
         }
@@ -291,6 +505,14 @@ impl ObjectExt for Object {
         xor_with!(self.node_if(knowledge).map(Node::If));
         xor_with!(self.node_unwrap_or(knowledge).map(Node::UnwrapOr));
         xor_with!(self.node_multiply(knowledge).map(Node::Multiply));
+
+        if self == &Self::Abstract(Abstract::NODE_KNOWLEDGE) {
+            if node.is_some() {
+                return None;
+            }
+
+            node = Some(Node::Knowledge);
+        }
 
         node
     }
@@ -475,13 +697,11 @@ impl ObjectExt for Object {
         ctx: &EvaluationContext,
     ) -> ObjectOrSetValues {
         match self.node(knowledge) {
-            Some(Node::Function(body)) => ObjectOrSetValues::Object(
-                Structure::new_node(Node::Function(
-                    body.capture(knowledge, additional_depth + 1, ctx)
-                        .into_object(),
-                ))
-                .into(),
-            ),
+            Some(Node::Function(body)) => Self::new_node(Node::Function(
+                body.capture(knowledge, additional_depth + 1, ctx)
+                    .into_object(),
+            ))
+            .into(),
             Some(Node::Parameter(depth)) => {
                 if let Some(offset_depth) = (depth as usize).checked_sub(additional_depth) {
                     // The min additional depth is 1.
@@ -564,6 +784,9 @@ impl ObjectExt for Object {
 
             match task {
                 Task::Eval(object) => match object.node(knowledge) {
+                    Some(Node::Knowledge) => {
+                        evaluated.push(ObjectOrSetValues::Object(knowledge.clone().into()));
+                    }
                     Some(Node::Call(CallNode { callee, with })) => {
                         tasks.push(Task::Call);
                         tasks.push(Task::Eval(callee));

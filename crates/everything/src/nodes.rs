@@ -61,6 +61,7 @@ pub enum Node {
     UnwrapOr(UnwrapOrNode),
     Multiply(BinaryNode),
     Call(CallNode),
+    Knowledge,
 }
 
 #[derive(Debug)]
