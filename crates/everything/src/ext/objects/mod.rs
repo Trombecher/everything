@@ -708,7 +708,13 @@ impl ObjectExt for Object {
                     // So when the parameter depth is 1 it will refer to
                     // captured parameters at an additional depth of 1.
 
-                    ctx.parameter_value(offset_depth)
+                    // We also need to escape the parameter because it may contain
+                    // a node (which is already evaluated because parameters
+                    // are always evaluated before the function).
+
+                    ObjectOrSetValues::Object(Object::new_node(Node::Literal(
+                        ctx.parameter_value(offset_depth).into_object(),
+                    )))
                 } else {
                     // This parameter refers to some inner, bound function,
                     // so keep it.

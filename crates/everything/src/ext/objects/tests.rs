@@ -242,6 +242,70 @@ mod eval {
             Some(a * b)
         );
     }
+
+    #[test]
+    fn parameter_references() {
+        let objects = [
+            Object::new_integer(3458349),
+            Abstract(58349580234958034).into(),
+            Object::new_node(Node::Not(Structure::Empty.into())),
+        ];
+
+        let identity = Object::new_node(Node::Function(Object::new_node(Node::Parameter(0))));
+
+        for object in objects.iter().cloned() {
+            assert_eq!(
+                identity
+                    .call(
+                        &BASE,
+                        &[ObjectOrSetValues::Object(object.clone())],
+                        &mut Default::default()
+                    )
+                    .into_object(),
+                object
+            );
+        }
+
+        let out_of_scope = Object::new_node(Node::Function(Object::new_node(Node::Parameter(1))));
+
+        assert_eq!(
+            out_of_scope
+                .call(
+                    &BASE,
+                    &[ObjectOrSetValues::Object(Abstract(348593485934).into())],
+                    &mut Default::default()
+                )
+                .into_object(),
+            Object::Structure(Structure::Empty)
+        );
+
+        let capture_to_constant = Object::new_node(Node::Function(Object::new_node(
+            Node::Function(Object::new_node(Node::Parameter(1))),
+        )));
+
+        for object in objects.iter().cloned() {
+            let constant = capture_to_constant
+                .call(
+                    &BASE,
+                    &[ObjectOrSetValues::Object(object.clone())],
+                    &mut Default::default(),
+                )
+                .into_object();
+
+            for other in objects.iter().cloned() {
+                assert_eq!(
+                    constant
+                        .call(
+                            &BASE,
+                            &[ObjectOrSetValues::Object(other.clone())],
+                            &mut Default::default()
+                        )
+                        .into_object(),
+                    object
+                );
+            }
+        }
+    }
 }
 
 #[test]
