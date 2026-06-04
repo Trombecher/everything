@@ -3,10 +3,21 @@ use everything_structures::{Abstract, BytesStructure, Object, Property, Structur
 
 use crate::bytes::Bytes;
 
-#[derive(Clone, Debug)]
-pub enum ParserError {
-    InvalidHeader,
-    ExpectedStructure,
+pub type Error = Box<ErrorInfo>;
+
+#[derive(PartialEq, Debug, Clone)]
+pub struct ErrorInfo {
+    pub found_at: usize,
+    pub expected: &'static str,
+}
+
+macro_rules! bail {
+    ($found_at:expr, $expected:literal) => {
+        return Err(Box::new(ErrorInfo {
+            found_at: $found_at,
+            expected: $expected,
+        }))
+    };
 }
 
 #[derive(Debug, Clone)]
@@ -21,9 +32,9 @@ impl<'source> Parser<'source> {
         }
     }
 
-    pub fn parse_root(&mut self) -> Result<Structure, ParserError> {
+    pub fn parse_root(&mut self) -> Result<Structure, Error> {
         if Some(*b"EVERYTHINGTS001\n") != self.bytes.next_chunk::<16>().ok() {
-            return Err(ParserError::InvalidHeader);
+            bail!(self.bytes.index(), "invalid header")
         }
 
         let mut structure_aliases = Vec::new();
@@ -40,23 +51,27 @@ impl<'source> Parser<'source> {
                         break;
                     }
                 }
-                _ => todo!(),
+                _ => bail!(self.bytes.index() - 1, "end of input or '\\n'"),
             }
         }
 
         Ok(structure_aliases.last().unwrap().clone().into())
     }
 
-    fn parse_property(&mut self, previous_aliases: &[Structure]) -> Result<Property, ParserError> {
-        let Some(b'\n') = self.bytes.next() else {
-            todo!()
+    fn parse_property(&mut self, previous_aliases: &[Structure]) -> Result<Property, Error> {
+        let Some(b'\n') = self.bytes.peek() else {
+            bail!(self.bytes.index(), "'\\n'")
         };
+
+        self.bytes.next();
 
         let tag = self.parse_object(previous_aliases)?;
 
-        let Some(b':') = self.bytes.next() else {
-            todo!()
+        let Some(b':') = self.bytes.peek() else {
+            bail!(self.bytes.index(), "':'")
         };
+
+        self.bytes.next();
 
         let value = self.parse_object(previous_aliases)?;
 
@@ -66,37 +81,52 @@ impl<'source> Parser<'source> {
     fn parse_structure_alias(
         &mut self,
         previous_aliases: &[Structure],
-    ) -> Result<Structure, ParserError> {
-        match self.bytes.next() {
+    ) -> Result<Structure, Error> {
+        match self.bytes.peek() {
             Some(b'T') => {
+                self.bytes.next();
+
                 // Inline text
 
                 let byte_length = self.parse_u64()?;
 
-                match self.bytes.next() {
-                    Some(b':') => {}
-                    _ => todo!(),
+                match self.bytes.peek() {
+                    Some(b':') => {
+                        self.bytes.next();
+                    }
+                    _ => bail!(self.bytes.index(), "an ASCII digit or ':'"),
                 }
 
                 let start = self.bytes.index();
 
                 let Ok(()) = self.bytes.advance_by(byte_length as usize) else {
-                    todo!()
+                    bail!(
+                        self.bytes.index(),
+                        "invalid text byte length (expected some more bytes)"
+                    )
                 };
 
                 let end = self.bytes.index();
 
-                let Some(text) = self.bytes.whole_str().get(start..end) else {
-                    todo!()
-                };
+                if !self.bytes.whole_str().is_char_boundary(end) {
+                    bail!(
+                        end,
+                        "invalid text byte length (not a UTF-8 char boundary at the end)"
+                    )
+                }
 
-                Ok(
-                    BytesStructure::new(text.as_bytes()).map_or(Structure::Empty, |bytes| {
-                        Structure::Text(unsafe { TextStructure::new_unchecked(bytes) })
-                    }),
-                )
+                let text = &self.bytes.whole_str().as_bytes()[start..end];
+
+                Ok(BytesStructure::new(text).map_or(Structure::Empty, |bytes| {
+                    Structure::Text(unsafe {
+                        // SAFETY: start is at a char boundary, and end is too.
+                        // Also, the whole source is a string, so this is safe.
+                        TextStructure::new_unchecked(bytes)
+                    })
+                }))
             }
             Some(b'A') => {
+                self.bytes.next();
                 // Any structure
 
                 let number_of_properties = self.parse_u64()?;
@@ -110,46 +140,59 @@ impl<'source> Parser<'source> {
                 Ok(Structure::new(&mut properties))
             }
             Some(b'B') => {
+                self.bytes.next();
                 // Inline bytes
 
                 let byte_length = self.parse_u64()?;
 
-                match self.bytes.next() {
-                    Some(b':') => {}
-                    _ => todo!(),
+                match self.bytes.peek() {
+                    Some(b':') => {
+                        self.bytes.next();
+                    }
+                    _ => bail!(self.bytes.index(), "':'"),
                 }
 
                 let start = self.bytes.index();
 
                 let Ok(()) = self.bytes.advance_by(byte_length as usize) else {
-                    todo!()
+                    bail!(self.bytes.index(), "invalid bytes length")
                 };
 
                 let end = self.bytes.index();
 
                 let base64_encoded_bytes = &self.bytes.whole_str().as_bytes()[start..end];
 
-                let bytes = base64::engine::general_purpose::STANDARD
-                    .decode(base64_encoded_bytes)
-                    .map_err(|_| todo!())?;
+                let Ok(bytes) =
+                    base64::engine::general_purpose::STANDARD.decode(base64_encoded_bytes)
+                else {
+                    bail!(self.bytes.index(), "invalid base64")
+                };
 
                 Ok(BytesStructure::new(&bytes).map_or(Structure::Empty, Structure::Bytes))
             }
-            _ => Err(ParserError::ExpectedStructure),
+            _ => bail!(self.bytes.index(), "expected 'T', 'A', or 'B'"),
         }
     }
 
-    fn parse_u64(&mut self) -> Result<u64, ParserError> {
-        let mut n = match self.bytes.next() {
-            Some(n @ b'0'..=b'9') => (n - b'0') as u64,
-            _ => todo!(),
+    fn parse_u64(&mut self) -> Result<u64, Error> {
+        let mut n = match self.bytes.peek() {
+            Some(n @ b'0'..=b'9') => {
+                self.bytes.next();
+
+                (n - b'0') as u64
+            }
+            _ => bail!(self.bytes.index(), "an ASCII digit"),
         };
 
         while let Some(b @ b'0'..=b'9') = self.bytes.peek() {
-            n = n
+            if let Some(next_n) = n
                 .checked_mul(10)
                 .and_then(|n| n.checked_add((b - b'0') as u64))
-                .ok_or_else(|| todo!())?;
+            {
+                n = next_n
+            } else {
+                bail!(self.bytes.index(), "number too big")
+            }
 
             self.bytes.next();
         }
@@ -157,19 +200,29 @@ impl<'source> Parser<'source> {
         Ok(n)
     }
 
-    fn parse_object(&mut self, previous_aliases: &[Structure]) -> Result<Object, ParserError> {
-        match self.bytes.next() {
+    fn parse_object(&mut self, previous_aliases: &[Structure]) -> Result<Object, Error> {
+        match self.bytes.peek() {
             Some(b'@') => {
-                let mut id = match self.bytes.next() {
-                    Some(b @ b'0'..=b'9') => (b - b'0') as u128,
-                    _ => todo!(),
+                self.bytes.next();
+
+                let mut id = match self.bytes.peek() {
+                    Some(n @ b'0'..=b'9') => {
+                        self.bytes.next();
+
+                        (n - b'0') as u128
+                    }
+                    _ => bail!(self.bytes.index(), "an ASCII digit"),
                 };
 
                 while let Some(b @ b'0'..=b'9') = self.bytes.peek() {
-                    id = id
+                    if let Some(next_n) = id
                         .checked_mul(10)
                         .and_then(|n| n.checked_add((b - b'0') as u128))
-                        .ok_or_else(|| todo!())?;
+                    {
+                        id = next_n
+                    } else {
+                        bail!(self.bytes.index(), "abstract object number too big")
+                    }
 
                     self.bytes.next();
                 }
@@ -177,15 +230,17 @@ impl<'source> Parser<'source> {
                 Ok(Object::Abstract(Abstract(id)))
             }
             Some(b'R') => {
+                self.bytes.next();
+
                 let index = self.parse_u64()?;
 
                 let Some(structure) = previous_aliases.get(index as usize) else {
-                    todo!()
+                    bail!(self.bytes.index(), "invalid structure reference")
                 };
 
                 Ok(Object::Structure(structure.clone()))
             }
-            _ => todo!(),
+            _ => bail!(self.bytes.index(), "an ASCII digit, '@', or 'R'"),
         }
     }
 }
