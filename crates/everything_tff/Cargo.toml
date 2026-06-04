@@ -1,0 +1,8 @@
+[package]
+name = "everything_tff"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+base64 = "0.22.1"
+everything_structures = { path = "../everything_structures" }
