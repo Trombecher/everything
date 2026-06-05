@@ -181,10 +181,10 @@ impl<'source> Parser<'source> {
             _ => bail!(self.bytes.index(), "an ASCII digit"),
         };
 
-        while let Some(b @ b'0'..=b'9') = self.bytes.peek() {
+        while let Some(digit @ b'0'..=b'9') = self.bytes.peek() {
             if let Some(next_n) = n
                 .checked_mul(10)
-                .and_then(|n| n.checked_add((b - b'0') as u64))
+                .and_then(|n| n.checked_add((digit - b'0') as u64))
             {
                 n = next_n
             } else {
@@ -267,7 +267,9 @@ impl<'source> Parser<'source> {
             Some(n @ b'0'..=b'9') => {
                 self.bytes.next();
 
-                if let Ok(i) = i128::try_from(self.parse_u128(n as u128)?) {
+                let n = self.parse_u128((n - b'0') as u128)?;
+
+                if let Ok(i) = i128::try_from(self.parse_u128(n)?) {
                     Ok(Object::new_integer(i))
                 } else {
                     bail!(self.bytes.index(), "integer too large")

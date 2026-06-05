@@ -1,5 +1,6 @@
 use std::fs::File;
 
+use base64::display::Base64Display;
 use everything::base::BASE;
 use everything_tff::{encode::Encoder, parse::Parser};
 use memmap2::Mmap;
@@ -12,7 +13,7 @@ fn main_decode() {
 
     let root = Parser::new(source).parse_root().unwrap();
 
-    println!("{:?}", root)
+    println!("{:?}", &root == &*BASE)
 }
 
 fn main_encode() {
