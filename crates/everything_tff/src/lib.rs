@@ -2,4 +2,5 @@
 #![feature(iter_advance_by)]
 
 pub mod bytes;
+pub mod encode;
 pub mod parse;

@@ -23,12 +23,14 @@ macro_rules! bail {
 #[derive(Debug, Clone)]
 pub struct Parser<'source> {
     bytes: Bytes<'source>,
+    previous_aliases: Vec<Structure>,
 }
 
 impl<'source> Parser<'source> {
     pub const fn new(source: &'source str) -> Self {
         Self {
             bytes: Bytes::new(source),
+            previous_aliases: Vec::new(),
         }
     }
 
@@ -37,12 +39,10 @@ impl<'source> Parser<'source> {
             bail!(self.bytes.index(), "invalid header")
         }
 
-        let mut structure_aliases = Vec::new();
-
         loop {
-            let alias = self.parse_structure_alias(&structure_aliases)?;
+            let alias = self.parse_structure_alias()?;
 
-            structure_aliases.push(alias);
+            self.previous_aliases.push(alias);
 
             match self.bytes.next() {
                 None => break,
@@ -55,17 +55,17 @@ impl<'source> Parser<'source> {
             }
         }
 
-        Ok(structure_aliases.last().unwrap().clone().into())
+        Ok(self.previous_aliases.last().unwrap().clone().into())
     }
 
-    fn parse_property(&mut self, previous_aliases: &[Structure]) -> Result<Property, Error> {
+    fn parse_property(&mut self) -> Result<Property, Error> {
         let Some(b'\n') = self.bytes.peek() else {
             bail!(self.bytes.index(), "'\\n'")
         };
 
         self.bytes.next();
 
-        let tag = self.parse_object(previous_aliases)?;
+        let tag = self.parse_object()?;
 
         let Some(b':') = self.bytes.peek() else {
             bail!(self.bytes.index(), "':'")
@@ -73,15 +73,12 @@ impl<'source> Parser<'source> {
 
         self.bytes.next();
 
-        let value = self.parse_object(previous_aliases)?;
+        let value = self.parse_object()?;
 
         Ok(Property { tag, value })
     }
 
-    fn parse_structure_alias(
-        &mut self,
-        previous_aliases: &[Structure],
-    ) -> Result<Structure, Error> {
+    fn parse_structure_alias(&mut self) -> Result<Structure, Error> {
         match self.bytes.peek() {
             Some(b'T') => {
                 self.bytes.next();
@@ -134,7 +131,7 @@ impl<'source> Parser<'source> {
                 let mut properties = Vec::with_capacity(number_of_properties as usize);
 
                 for _ in 0..number_of_properties {
-                    properties.push(self.parse_property(previous_aliases)?);
+                    properties.push(self.parse_property()?);
                 }
 
                 Ok(Structure::new(&mut properties))
@@ -200,45 +197,132 @@ impl<'source> Parser<'source> {
         Ok(n)
     }
 
-    fn parse_object(&mut self, previous_aliases: &[Structure]) -> Result<Object, Error> {
+    fn get_text_structure(&mut self, index: u64) -> Result<TextStructure, Error> {
+        let Some(structure) = self.previous_aliases.get_mut(index as usize) else {
+            bail!(self.bytes.index(), "invalid structure reference")
+        };
+
+        match structure.clone() {
+            Structure::Text(text) => Ok(text),
+            Structure::Bytes(bytes) => {
+                if let Ok(_) = str::from_utf8(bytes.as_ref()) {
+                    let ret = unsafe { TextStructure::new_unchecked(bytes) };
+                    *structure = Structure::Text(ret.clone());
+
+                    Ok(ret)
+                } else {
+                    bail!(self.bytes.index(), ":/")
+                }
+            }
+            _ => bail!(self.bytes.index(), "does not reference text-like structure"),
+        }
+    }
+
+    fn get_bytes_structure(&mut self, index: u64) -> Result<BytesStructure, Error> {
+        let Some(structure) = self.previous_aliases.get_mut(index as usize) else {
+            bail!(self.bytes.index(), "invalid structure reference")
+        };
+
+        match structure.clone() {
+            Structure::Bytes(bytes) => Ok(bytes),
+            Structure::Text(text) => Ok(text.into_bytes()),
+            _ => bail!(self.bytes.index(), "does not reference text-like structure"),
+        }
+    }
+
+    fn parse_u128(&mut self, start: u128) -> Result<u128, Error> {
+        let mut n = start;
+
+        while let Some(digit @ b'0'..=b'9') = self.bytes.peek() {
+            if let Some(next_n) = n
+                .checked_mul(10)
+                .and_then(|n| n.checked_add((digit - b'0') as u128))
+            {
+                n = next_n
+            } else {
+                bail!(self.bytes.index(), "number too big")
+            }
+
+            self.bytes.next();
+        }
+
+        Ok(n)
+    }
+
+    fn parse_object(&mut self) -> Result<Object, Error> {
         match self.bytes.peek() {
+            Some(b'-') => {
+                self.bytes.next();
+
+                let n = self.parse_u128(0)?;
+
+                if n == 1_u128 << 127 {
+                    Ok(Object::new_integer(i128::MIN))
+                } else if let Ok(positive) = i128::try_from(n) {
+                    Ok(Object::new_integer(-positive))
+                } else {
+                    bail!(self.bytes.index(), "integer too small")
+                }
+            }
+            Some(n @ b'0'..=b'9') => {
+                self.bytes.next();
+
+                if let Ok(i) = i128::try_from(self.parse_u128(n as u128)?) {
+                    Ok(Object::new_integer(i))
+                } else {
+                    bail!(self.bytes.index(), "integer too large")
+                }
+            }
             Some(b'@') => {
                 self.bytes.next();
 
-                let mut id = match self.bytes.peek() {
-                    Some(n @ b'0'..=b'9') => {
-                        self.bytes.next();
-
-                        (n - b'0') as u128
-                    }
-                    _ => bail!(self.bytes.index(), "an ASCII digit"),
+                let Ok(base64_encoded_id) = self.bytes.next_chunk::<22>() else {
+                    bail!(self.bytes.index(), "expected 22 bytes of base64 encoded id")
                 };
 
-                while let Some(b @ b'0'..=b'9') = self.bytes.peek() {
-                    if let Some(next_n) = id
-                        .checked_mul(10)
-                        .and_then(|n| n.checked_add((b - b'0') as u128))
-                    {
-                        id = next_n
-                    } else {
-                        bail!(self.bytes.index(), "abstract object number too big")
-                    }
+                let mut out = [0_u8; 16];
 
-                    self.bytes.next();
-                }
+                let Ok(_) = base64::engine::general_purpose::URL_SAFE_NO_PAD
+                    .decode_slice(base64_encoded_id, &mut out)
+                else {
+                    bail!(self.bytes.index(), "invalid base64 id")
+                };
 
-                Ok(Object::Abstract(Abstract(id)))
+                Ok(Object::Abstract(Abstract(u128::from_be_bytes(out))))
             }
-            Some(b'R') => {
+            Some(b'r') => {
                 self.bytes.next();
 
                 let index = self.parse_u64()?;
 
-                let Some(structure) = previous_aliases.get(index as usize) else {
+                let Some(structure) = self.previous_aliases.get(index as usize) else {
                     bail!(self.bytes.index(), "invalid structure reference")
                 };
 
                 Ok(Object::Structure(structure.clone()))
+            }
+            Some(b't') => {
+                self.bytes.next();
+
+                let index = self.parse_u64()?;
+
+                self.get_text_structure(index)
+                    .map(Structure::Text)
+                    .map(Object::Structure)
+            }
+            Some(b'b') => {
+                self.bytes.next();
+
+                let index = self.parse_u64()?;
+
+                self.get_bytes_structure(index)
+                    .map(Structure::Bytes)
+                    .map(Object::Structure)
+            }
+            Some(b'E') => {
+                self.bytes.next();
+
+                Ok(Structure::Empty.into())
             }
             _ => bail!(self.bytes.index(), "an ASCII digit, '@', or 'R'"),
         }

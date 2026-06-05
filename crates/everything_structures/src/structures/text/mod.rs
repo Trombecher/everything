@@ -78,6 +78,16 @@ impl TextStructure {
             _ => TextStructureValues::None,
         }
     }
+
+    #[must_use]
+    pub const fn as_bytes(&self) -> &BytesStructure {
+        &self.0
+    }
+
+    #[must_use]
+    pub fn into_bytes(self) -> BytesStructure {
+        self.0
+    }
 }
 
 impl AsRef<str> for TextStructure {
