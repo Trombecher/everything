@@ -185,11 +185,7 @@ pub(super) static GLOBAL_PROPERTIES: LazyLock<DashMap<u64, Arc<[Property]>>> =
     LazyLock::new(DashMap::new);
 
 pub fn remove(s: &AnyStructure) {
-    let mut hasher = DefaultHasher::new();
-    s.hash(&mut hasher);
-    let hash = hasher.finish();
-
-    GLOBAL_PROPERTIES.remove(&hash);
+    GLOBAL_PROPERTIES.remove_if(&s.registry_hash, |_, arc| Arc::strong_count(arc) == 2);
 }
 
 pub fn resolve(
@@ -225,27 +221,26 @@ pub fn resolve(
 
     let hash = info.final_hash();
 
-    if let Some(x) = GLOBAL_PROPERTIES.get(&hash) {
-        // Because this structure was already registered in
-        // the global properties, it has to be an "any"
-        // and not a specialization. Therefore it is safe to
-        // return this:
+    match GLOBAL_PROPERTIES.entry(hash) {
+        dashmap::Entry::Occupied(occupied_entry) => Structure::Any(AnyStructure {
+            properties: Arc::clone(occupied_entry.get()),
+            registry_hash: hash,
+        }),
+        dashmap::Entry::Vacant(vacant_entry) => {
+            // The structure does not exist yet,
+            // so we have to create it.
 
-        return Structure::Any(AnyStructure {
-            properties: Arc::clone(&x),
-        });
+            let new_properties =
+                allocate_new_structure(base, remove_properties, add_properties, info.prop_count);
+
+            vacant_entry.insert(Arc::clone(&new_properties));
+
+            Structure::Any(AnyStructure {
+                properties: new_properties,
+                registry_hash: hash,
+            })
+        }
     }
-
-    // The structure does not exist yet,
-    // so we have to create it.
-
-    let new_properties =
-        allocate_new_structure(base, remove_properties, add_properties, info.prop_count);
-    GLOBAL_PROPERTIES.insert(hash, Arc::clone(&new_properties));
-
-    Structure::Any(AnyStructure {
-        properties: new_properties,
-    })
 }
 
 /// Calculates meta information about the structure with all

@@ -14,6 +14,12 @@ use crate::{Object, Property, structures::registry};
 #[derive(Clone)]
 pub struct AnyStructure {
     pub(super) properties: Arc<[Property]>,
+
+    /// This is not the hash returned by [`AnyStructure::hash`] but
+    /// a hash of all properties + the number of properties.
+    ///
+    /// This hash is used by the registry.
+    pub(super) registry_hash: u64,
 }
 
 impl AnyStructure {
