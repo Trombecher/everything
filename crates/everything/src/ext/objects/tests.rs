@@ -161,7 +161,7 @@ mod eval {
             Object::new_node_query_values(
                 Structure::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
-                    Property::new_contains(Abstract::KNOWLEDGE.into()),
+                    Property::new_contains(Abstract::BIT_0.into()),
                     Property::new_successor_of(Object::new_integer(0)),
                 ])
                 .into(),
@@ -169,8 +169,7 @@ mod eval {
             )
             .evaluate(&BASE, &mut Default::default())
             .into_object(),
-            Structure::new_set([Abstract::KNOWLEDGE.into(), Object::Abstract(Abstract::ZERO)])
-                .into(),
+            Structure::new_set([Abstract::BIT_0.into(), Object::Abstract(Abstract::ZERO)]).into(),
         );
     }
 
