@@ -1,13 +1,13 @@
-# Everything Structures Text File Format Specification
+# Everything Text Database File Format Specification
 
-This format allows for storing **one** structure on disk. The file should have the ending `.evts` but there are magic bytes at the start to identify it if that extension is ever lost.
+This format allows for storing **one** object on disk. The file should have the ending `.evtdb` but there are magic bytes at the start to identify it if that extension is ever lost.
 
 ## Motivation
 
 The previous format (`.struct` files) was not good. This new format is designed to be human
 
 * -readable,
-* -editable,
+* -editable (well, if you know what you're doing),
 * Git-friendly, but still
 * scalable.
 
@@ -15,7 +15,7 @@ The previous format (`.struct` files) was not good. This new format is designed 
 
 In this specification, string literals are used with escape codes for non-printable characters, like `"\n"` for the ASCII line feed (LF) character.
 
-Every file is UTF-8 and must start with `"EVERYTHINGTS001\n"`.
+Every file is UTF-8 and must start with `"EVERYTHINGTEXTDB0000001\n"`.
 Then a list of statements follows. Each statement is delimitered by a LF.
 
 ## Statements
