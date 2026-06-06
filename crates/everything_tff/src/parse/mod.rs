@@ -37,28 +37,30 @@ impl<'source> Parser<'source> {
         }
     }
 
-    pub fn parse_root(&mut self) -> Result<Structure, Error> {
+    pub fn parse_root(&mut self) -> Result<Object, Error> {
         if Some(*b"EVERYTHINGTS001\n") != self.bytes.next_chunk::<16>().ok() {
             bail!(self.bytes.index(), "invalid header")
         }
 
-        loop {
-            let alias = self.parse_structure_alias()?;
-
+        while let Some(alias) = self.try_parse_structure_alias()? {
             self.previous_aliases.push(alias);
 
-            match self.bytes.next() {
-                None => break,
+            // Every alias ends with a LF.
+            match self.bytes.peek() {
                 Some(b'\n') => {
-                    if let None = self.bytes.peek() {
-                        break;
-                    }
+                    self.bytes.next();
                 }
-                _ => bail!(self.bytes.index() - 1, "end of input or '\\n'"),
+                _ => bail!(self.bytes.index(), "'\\n'"),
             }
         }
 
-        Ok(self.previous_aliases.last().unwrap().clone().into())
+        let object = self.parse_object()?;
+
+        let None = self.bytes.peek() else {
+            bail!(self.bytes.index(), "end of input")
+        };
+
+        Ok(object)
     }
 
     fn parse_property(&mut self) -> Result<Property, Error> {
@@ -81,7 +83,7 @@ impl<'source> Parser<'source> {
         Ok(Property { tag, value })
     }
 
-    fn parse_structure_alias(&mut self) -> Result<Structure, Error> {
+    fn try_parse_structure_alias(&mut self) -> Result<Option<Structure>, Error> {
         match self.bytes.peek() {
             Some(b'T') => {
                 self.bytes.next();
@@ -117,13 +119,16 @@ impl<'source> Parser<'source> {
 
                 let text = &self.bytes.whole_str().as_bytes()[start..end];
 
-                Ok(BytesStructure::new(text).map_or(Structure::Empty, |bytes| {
-                    Structure::Text(unsafe {
-                        // SAFETY: start is at a char boundary, and end is too.
-                        // Also, the whole source is a string, so this is safe.
-                        TextStructure::new_unchecked(bytes)
-                    })
-                }))
+                Ok(Some(BytesStructure::new(text).map_or(
+                    Structure::Empty,
+                    |bytes| {
+                        Structure::Text(unsafe {
+                            // SAFETY: start is at a char boundary, and end is too.
+                            // Also, the whole source is a string, so this is safe.
+                            TextStructure::new_unchecked(bytes)
+                        })
+                    },
+                )))
             }
             Some(b'A') => {
                 self.bytes.next();
@@ -137,7 +142,7 @@ impl<'source> Parser<'source> {
                     properties.push(self.parse_property()?);
                 }
 
-                Ok(Structure::new(&mut properties))
+                Ok(Some(Structure::new(&mut properties)))
             }
             Some(b'B') => {
                 self.bytes.next();
@@ -168,9 +173,11 @@ impl<'source> Parser<'source> {
                     bail!(self.bytes.index(), "invalid base64")
                 };
 
-                Ok(BytesStructure::new(&bytes).map_or(Structure::Empty, Structure::Bytes))
+                Ok(Some(
+                    BytesStructure::new(&bytes).map_or(Structure::Empty, Structure::Bytes),
+                ))
             }
-            _ => bail!(self.bytes.index(), "expected 'T', 'A', or 'B'"),
+            _ => Ok(None),
         }
     }
 

@@ -147,9 +147,12 @@ impl<Out: Write> Encoder<Out> {
         Ok(())
     }
 
-    pub fn encode_root(&mut self, structure: Structure) -> Result<(), fmt::Error> {
-        self.out.write_str("EVERYTHINGTS001").unwrap();
+    pub fn encode_root(&mut self, object: Object) -> Result<(), fmt::Error> {
+        self.out.write_str("EVERYTHINGTS001")?;
 
-        self.ensure_refs_are_encoded(Object::Structure(structure))
+        self.ensure_refs_are_encoded(object.clone())?;
+
+        self.out.write_char('\n')?;
+        self.encode_object(object)
     }
 }
