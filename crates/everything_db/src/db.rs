@@ -17,6 +17,7 @@ pub struct Database {
 }
 
 impl Database {
+    /// Creates a new empty database.
     #[must_use]
     #[inline]
     pub const fn empty(path: PathBuf) -> Self {
@@ -26,8 +27,53 @@ impl Database {
         }
     }
 
-    /// Opens the given database file. If the file does not exist,
-    /// an empty database is returned via [`Database::empty`].
+    #[inline]
+    async fn from_file_and_content(
+        std_file: std::fs::File,
+        content: Mmap,
+        path: PathBuf,
+    ) -> Result<Self, Error> {
+        // validate that content is UTF-8
+        let source = str::from_utf8(&content).map_err(|_| Error::DbFileIsInvalidUTF8)?;
+
+        let root = Parser::new(source)
+            .parse_root()
+            .map_err(Error::ErrorWhileParsingDbFile)?;
+
+        spawn_blocking(move || {
+            std_file.unlock()?;
+
+            Ok(())
+        })
+        .await
+        .unwrap()
+        .map_err(Error::Io)?;
+
+        Ok(Self { path, root })
+    }
+
+    /// Opens the given database file. Errors if the database file could not be opened.
+    pub async fn open(path: PathBuf) -> Result<Self, Error> {
+        let (std_file, content, path) = spawn_blocking(move || {
+            let std_file = std::fs::File::open(&path)?;
+            // Lock the file to prevent mutations. We need to rely on
+            // the content staying valid UTF-8 after validation
+            // (or else UB occurs).
+            std_file.lock()?;
+
+            let content = unsafe { Mmap::map(&std_file) }?;
+
+            Ok((std_file, content, path))
+        })
+        .await
+        .unwrap()
+        .map_err(Error::Io)?;
+
+        Self::from_file_and_content(std_file, content, path).await
+    }
+
+    /// Similar behaviour to [`Database::open`] but returns an empty database
+    /// if the database file does not exist.
     pub async fn new(path: PathBuf) -> Result<Self, Error> {
         let (returned, path) = spawn_blocking(move || {
             let std_file = match std::fs::File::open(&path) {
@@ -53,26 +99,10 @@ impl Database {
             return Ok(Self::empty(path));
         };
 
-        // validate that content is UTF-8
-        let source = str::from_utf8(&content).map_err(|_| Error::DbFileIsInvalidUTF8)?;
-
-        let root = Parser::new(source)
-            .parse_root()
-            .map_err(Error::ErrorWhileParsingDbFile)?;
-
-        spawn_blocking(move || {
-            std_file.unlock()?;
-
-            Ok(())
-        })
-        .await
-        .unwrap()
-        .map_err(Error::Io)?;
-
-        Ok(Self { path, root })
+        Self::from_file_and_content(std_file, content, path).await
     }
 
-    pub async fn save(&mut self) -> Result<(), io::Error> {
+    pub async fn save(&self) -> Result<(), io::Error> {
         let snapshot_file_path = self.path.with_added_extension("new");
 
         let mut snapshot_file = OpenOptions::new()

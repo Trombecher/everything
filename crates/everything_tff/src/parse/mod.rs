@@ -56,6 +56,11 @@ impl<'source> Parser<'source> {
 
         let object = self.parse_object()?;
 
+        // Skip trailing LF.
+        if let Some(b'\n') = self.bytes.peek() {
+            self.bytes.next();
+        }
+
         let None = self.bytes.peek() else {
             bail!(self.bytes.index(), "end of input")
         };
