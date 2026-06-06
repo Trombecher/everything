@@ -1,4 +1,4 @@
-/// Bytes of a string
+/// An iterator over bytes of a string.
 #[derive(Debug, Clone)]
 pub struct Bytes<'a> {
     slice: &'a str,

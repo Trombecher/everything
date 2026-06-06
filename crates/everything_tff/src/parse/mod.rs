@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use base64::Engine;
 use everything_structures::{Abstract, BytesStructure, Object, Property, Structure, TextStructure};
 
@@ -251,6 +254,20 @@ impl<'source> Parser<'source> {
 
     fn parse_object(&mut self) -> Result<Object, Error> {
         match self.bytes.peek() {
+            Some(b'>') => {
+                self.bytes.next();
+
+                let remaining_str =
+                    unsafe { self.bytes.whole_str().get_unchecked(self.bytes.index()..) };
+
+                let Some(c) = remaining_str.chars().next() else {
+                    bail!(self.bytes.index(), "char")
+                };
+
+                let _ = self.bytes.advance_by(c.len_utf8());
+
+                Ok(Structure::Character(c).into())
+            }
             Some(b'-') => {
                 self.bytes.next();
 
