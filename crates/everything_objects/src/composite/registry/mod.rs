@@ -1,5 +1,5 @@
-//! The _registry_ is a global arena of structures. It serves
-//! as a de-duplicator, such that no equal structure is allocated
+//! The _registry_ is a global arena of Composites. It serves
+//! as a de-duplicator, such that no equal Composite is allocated
 //! twice.
 
 #[cfg(test)]
@@ -16,8 +16,8 @@ use std::{
 use dashmap::DashMap;
 
 use crate::{
-    Abstract, AnyStructure, Bit, BitSlot, Byte, BytesStructure, MaybeEmptyBytesStructure,
-    MaybeEmptyTextStructure, Object, Property, Structure, TextStructure,
+    Abstract, AnyComposite, Bit, BitSlot, Byte, BytesComposite, Composite,
+    MaybeEmptyBytesComposite, MaybeEmptyTextComposite, Object, Property, TextComposite,
 };
 
 enum Specialization {
@@ -27,16 +27,16 @@ enum Specialization {
     Character(char),
     Bytes {
         item: Byte,
-        tail: MaybeEmptyBytesStructure,
+        tail: MaybeEmptyBytesComposite,
     },
     Text {
         item: char,
-        tail: MaybeEmptyTextStructure,
+        tail: MaybeEmptyTextComposite,
     },
 }
 
 #[derive(Default)]
-struct StructureMetaInfo {
+struct CompositeMetaInfo {
     hasher: DefaultHasher,
     prop_count: usize,
     last_successor_of: Option<i128>,
@@ -47,7 +47,7 @@ struct StructureMetaInfo {
     last_bit_slots: [Option<Bit>; 8],
 }
 
-impl StructureMetaInfo {
+impl CompositeMetaInfo {
     pub fn add_property(&mut self, property: &Property) {
         match property.tag {
             Object::Abstract(Abstract::SUCCESSOR_OF) => {
@@ -142,8 +142,8 @@ impl StructureMetaInfo {
                 last_list_item: Some(item),
                 last_list_tail: Some(tail),
                 ..
-            } if let Object::Structure(Structure::Byte(item)) = item
-                && let Object::Structure(tail) = tail
+            } if let Object::Composite(Composite::Byte(item)) = item
+                && let Object::Composite(tail) = tail
                 && let Some(tail) = tail.exact_bytes() =>
             {
                 Some(Specialization::Bytes { item: *item, tail })
@@ -153,8 +153,8 @@ impl StructureMetaInfo {
                 last_list_item: Some(item),
                 last_list_tail: Some(tail),
                 ..
-            } if let Object::Structure(Structure::Character(item)) = item
-                && let Object::Structure(tail) = tail
+            } if let Object::Composite(Composite::Character(item)) = item
+                && let Object::Composite(tail) = tail
                 && let Some(tail) = tail.exact_text() =>
             {
                 Some(Specialization::Text { item: *item, tail })
@@ -184,35 +184,35 @@ impl StructureMetaInfo {
 pub(super) static GLOBAL_PROPERTIES: LazyLock<DashMap<u64, Arc<[Property]>>> =
     LazyLock::new(DashMap::new);
 
-pub fn remove(s: &AnyStructure) {
+pub fn remove(s: &AnyComposite) {
     GLOBAL_PROPERTIES.remove_if(&s.registry_hash, |_, arc| Arc::strong_count(arc) == 2);
 }
 
 pub fn resolve(
-    base: &Structure,
+    base: &Composite,
     remove_properties: &mut [Property],
     mut add_properties: &mut [Property],
-) -> Structure {
+) -> Composite {
     // Prepare properties
     remove_properties.sort();
 
     add_properties = add_properties.partition_dedup().0;
     add_properties.sort();
 
-    let mut info = structure_meta_info(base, remove_properties, add_properties);
+    let mut info = composite_meta_info(base, remove_properties, add_properties);
 
     match info.specialization() {
-        Some(Specialization::Empty) => return Structure::Empty,
-        Some(Specialization::Integer(n)) => return Structure::Integer(n),
-        Some(Specialization::Character(c)) => return Structure::Character(c),
+        Some(Specialization::Empty) => return Composite::Empty,
+        Some(Specialization::Integer(n)) => return Composite::Integer(n),
+        Some(Specialization::Character(c)) => return Composite::Character(c),
         Some(Specialization::Text { item, tail }) => {
-            return Structure::Text(TextStructure::from_parts(item, tail.as_ref()));
+            return Composite::Text(TextComposite::from_parts(item, tail.as_ref()));
         }
         Some(Specialization::Bytes { item, tail }) => {
             // This unwrap is safe because [head].len() > 0.
-            return Structure::Bytes(BytesStructure::from_parts(&[item.0], tail.as_ref()).unwrap());
+            return Composite::Bytes(BytesComposite::from_parts(&[item.0], tail.as_ref()).unwrap());
         }
-        Some(Specialization::Byte(byte)) => return Structure::Byte(byte),
+        Some(Specialization::Byte(byte)) => return Composite::Byte(byte),
         None => {
             // We have no specialization, so we just
             // allocate that.
@@ -222,20 +222,20 @@ pub fn resolve(
     let hash = info.final_hash();
 
     match GLOBAL_PROPERTIES.entry(hash) {
-        dashmap::Entry::Occupied(occupied_entry) => Structure::Any(AnyStructure {
+        dashmap::Entry::Occupied(occupied_entry) => Composite::Any(AnyComposite {
             properties: Arc::clone(occupied_entry.get()),
             registry_hash: hash,
         }),
         dashmap::Entry::Vacant(vacant_entry) => {
-            // The structure does not exist yet,
+            // The Composite does not exist yet,
             // so we have to create it.
 
             let new_properties =
-                allocate_new_structure(base, remove_properties, add_properties, info.prop_count);
+                allocate_new_composite(base, remove_properties, add_properties, info.prop_count);
 
             vacant_entry.insert(Arc::clone(&new_properties));
 
-            Structure::Any(AnyStructure {
+            Composite::Any(AnyComposite {
                 properties: new_properties,
                 registry_hash: hash,
             })
@@ -243,17 +243,17 @@ pub fn resolve(
     }
 }
 
-/// Calculates meta information about the structure with all
+/// Calculates meta information about the Composite with all
 /// specified properties removed and then all specified properties added.
 ///
 /// Both `remove_properties` and `add_properties` must be sorted;
 /// `add_properties` must be deduped.
-fn structure_meta_info(
-    base: &Structure,
+fn composite_meta_info(
+    base: &Composite,
     remove_properties: &[Property],
     add_properties: &[Property],
-) -> StructureMetaInfo {
-    let mut info = StructureMetaInfo::default();
+) -> CompositeMetaInfo {
+    let mut info = CompositeMetaInfo::default();
 
     let mut base_properties = base.properties().peekable();
     let mut add_iter = add_properties.iter().peekable();
@@ -322,8 +322,8 @@ fn structure_meta_info(
 ///
 /// `add_properties` and `remove_properties` must both be sorted;
 /// additionally, `add_properties` must be deduped.
-fn allocate_new_structure(
-    base: &Structure,
+fn allocate_new_composite(
+    base: &Composite,
     remove_properties: &[Property],
     add_properties: &[Property],
     prop_count: usize,

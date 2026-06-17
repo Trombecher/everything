@@ -12,25 +12,25 @@ use std::{
 
 use dashmap::DashMap;
 
-use crate::{Abstract, Byte, Object, Property, Structure};
+use crate::{Abstract, Byte, Composite, Object, Property};
 
 static GLOBAL_BINARY_DATA: LazyLock<DashMap<u64, Arc<[u8]>>> = LazyLock::new(DashMap::new);
 
 #[derive(Clone, Eq)]
-pub struct BytesStructure {
+pub struct BytesComposite {
     /// This will not be empty.
     data: Arc<[u8]>,
 }
 
-impl BytesStructure {
-    /// Creates a new binary structure. Returns `None` if the slice is empty
-    /// (which is represented using [crate::Structure::Empty])
+impl BytesComposite {
+    /// Creates a new binary composite. Returns `None` if the slice is empty
+    /// (which is represented using [`crate::Composite::Empty`])
     #[must_use]
     pub fn new(bytes: &[u8]) -> Option<Self> {
         Self::from_parts(bytes, &[])
     }
 
-    /// Creates a new [`BytesStructure`] from an iterator and a length.
+    /// Creates a new [`BytesComposite`] from an iterator and a length.
     /// This function will extract `length` items from the iterator and
     /// write them to a preallocated [`Arc`].
     ///
@@ -136,16 +136,16 @@ impl BytesStructure {
     pub fn has(&self, tag: &Object, value: &Object) -> bool {
         match tag {
             Object::Abstract(Abstract::LIST_ITEM) => {
-                value == &Object::Structure(Structure::Byte(self.parts().0))
+                value == &Object::Composite(Composite::Byte(self.parts().0))
             }
             Object::Abstract(Abstract::LIST_TAIL)
-                if let Object::Structure(Structure::Empty) = value =>
+                if let Object::Composite(Composite::Empty) = value =>
             {
                 // Tail is empty
                 self.as_ref().len() == 1
             }
             Object::Abstract(Abstract::LIST_TAIL)
-                if let Object::Structure(Structure::Bytes(tail)) = &value =>
+                if let Object::Composite(Composite::Bytes(tail)) = &value =>
             {
                 // Tail is non empty
                 tail.as_ref() == self.parts().1
@@ -154,26 +154,26 @@ impl BytesStructure {
         }
     }
 
-    pub fn properties(&self) -> BytesStructureProperties {
-        BytesStructureProperties::TailAndItem(self.clone())
+    pub fn properties(&self) -> BytesCompositeProperties {
+        BytesCompositeProperties::TailAndItem(self.clone())
     }
 
-    pub fn values(&self, tag: Object) -> BytesStructureValues {
+    pub fn values(&self, tag: Object) -> BytesCompositeValues {
         match tag {
-            Object::Abstract(Abstract::LIST_ITEM) => BytesStructureValues::ListItem(self.parts().0),
-            Object::Abstract(Abstract::LIST_TAIL) => BytesStructureValues::Tail(self.clone()),
-            _ => BytesStructureValues::None,
+            Object::Abstract(Abstract::LIST_ITEM) => BytesCompositeValues::ListItem(self.parts().0),
+            Object::Abstract(Abstract::LIST_TAIL) => BytesCompositeValues::Tail(self.clone()),
+            _ => BytesCompositeValues::None,
         }
     }
 }
 
-impl AsRef<[u8]> for BytesStructure {
+impl AsRef<[u8]> for BytesComposite {
     fn as_ref(&self) -> &[u8] {
         &self.data
     }
 }
 
-impl Debug for BytesStructure {
+impl Debug for BytesComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("X")?;
 
@@ -185,25 +185,25 @@ impl Debug for BytesStructure {
     }
 }
 
-impl Hash for BytesStructure {
+impl Hash for BytesComposite {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         Arc::as_ptr(&self.data).hash(state);
     }
 }
 
-impl PartialEq for BytesStructure {
+impl PartialEq for BytesComposite {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.data, &other.data)
     }
 }
 
-impl PartialOrd for BytesStructure {
+impl PartialOrd for BytesComposite {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for BytesStructure {
+impl Ord for BytesComposite {
     fn cmp(&self, other: &Self) -> Ordering {
         Arc::as_ptr(&self.data)
             .cast::<()>()
@@ -211,7 +211,7 @@ impl Ord for BytesStructure {
     }
 }
 
-impl Drop for BytesStructure {
+impl Drop for BytesComposite {
     fn drop(&mut self) {
         let ref_count = Arc::strong_count(&self.data);
 
@@ -232,20 +232,20 @@ impl Drop for BytesStructure {
 }
 
 /// An iterator over the (virtual) properties of
-/// a [BytesStructure]. You can obtain an instance
-/// of this iterator by calling [BytesStructure::properties].
+/// a [BytesComposite]. You can obtain an instance
+/// of this iterator by calling [BytesComposite::properties].
 ///
 /// This iterator is guaranteed to return items in
 /// lexicographical [Ord]er.
 #[derive(Clone, Default)]
-pub enum BytesStructureProperties {
+pub enum BytesCompositeProperties {
     #[default]
     None,
-    Tail(BytesStructure),
-    TailAndItem(BytesStructure),
+    Tail(BytesComposite),
+    TailAndItem(BytesComposite),
 }
 
-impl Iterator for BytesStructureProperties {
+impl Iterator for BytesCompositeProperties {
     type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -254,11 +254,11 @@ impl Iterator for BytesStructureProperties {
                 let (item, _) = bytes.parts();
                 *self = Self::Tail(bytes);
 
-                Some(Property::new_list_item(Object::from(Structure::from(item))))
+                Some(Property::new_list_item(Object::from(Composite::from(item))))
             }
             Self::Tail(bytes) => {
                 let (_, tail) = bytes.parts();
-                Some(Property::new_list_tail(Object::from(Structure::from(tail))))
+                Some(Property::new_list_tail(Object::from(Composite::from(tail))))
             }
             Self::None => None,
         }
@@ -266,40 +266,40 @@ impl Iterator for BytesStructureProperties {
 }
 
 /// An iterator over the (virtual) values of
-/// a [BytesStructure] which are associated with a
+/// a [BytesComposite] which are associated with a
 /// tag. You can obtain an instance of this
-/// iterator by calling [BytesStructure::values].
+/// iterator by calling [BytesComposite::values].
 ///
 /// This iterator is guaranteed to return items in
 /// lexicographical [Ord]er. Also the iterator will
 /// yield exactly one [Object].
 #[derive(Clone, Default)]
-pub enum BytesStructureValues {
+pub enum BytesCompositeValues {
     #[default]
     None,
     ListItem(Byte),
-    Tail(BytesStructure),
+    Tail(BytesComposite),
 }
 
-impl Iterator for BytesStructureValues {
+impl Iterator for BytesCompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         match take(self) {
             Self::None => None,
-            Self::ListItem(byte) => Some(Object::from(Structure::from(byte))),
+            Self::ListItem(byte) => Some(Object::from(Composite::from(byte))),
             Self::Tail(bytes) => {
                 let (_, tail) = bytes.parts();
-                Some(Object::Structure(Structure::from(tail)))
+                Some(Object::Composite(Composite::from(tail)))
             }
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MaybeEmptyBytesStructure(pub Option<BytesStructure>);
+pub struct MaybeEmptyBytesComposite(pub Option<BytesComposite>);
 
-impl AsRef<[u8]> for MaybeEmptyBytesStructure {
+impl AsRef<[u8]> for MaybeEmptyBytesComposite {
     fn as_ref(&self) -> &[u8] {
         match &self.0 {
             None => &[],
@@ -308,13 +308,13 @@ impl AsRef<[u8]> for MaybeEmptyBytesStructure {
     }
 }
 
-impl TryFrom<&Structure> for MaybeEmptyBytesStructure {
+impl TryFrom<&Composite> for MaybeEmptyBytesComposite {
     type Error = ();
 
-    fn try_from(value: &Structure) -> Result<Self, Self::Error> {
+    fn try_from(value: &Composite) -> Result<Self, Self::Error> {
         match value {
-            Structure::Empty => Ok(Self(None)),
-            Structure::Bytes(bytes) => Ok(Self(Some(bytes.clone()))),
+            Composite::Empty => Ok(Self(None)),
+            Composite::Bytes(bytes) => Ok(Self(Some(bytes.clone()))),
             _ => Err(()),
         }
     }

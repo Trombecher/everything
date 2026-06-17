@@ -15,12 +15,12 @@ pub use text::*;
 
 use crate::{Abstract, Object, Property};
 
-/// A structure is a set of [`Property`]s. Natural numbers, text, binary data,
-/// and the structure with no properties are stored more efficiently than an
-/// [`AnyStructure`]. These are called specializations.
+/// A Composite is a set of [`Property`]s. Natural numbers, text, binary data,
+/// and the Composite with no properties are stored more efficiently than an
+/// [`AnyComposite`]. These are called specializations.
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Structure {
-    /// The empty structure `{}`.
+pub enum Composite {
+    /// The empty Composite `{}`.
     Empty,
 
     /// An integer. Positive integers are of this form
@@ -36,7 +36,7 @@ pub enum Structure {
     /// ```
     ///
     /// Note that the associated field in this variant stores
-    /// the **actual integer that this structure represents**,
+    /// the **actual integer that this Composite represents**,
     /// not the value of the property.
     Integer(NonZeroI128),
 
@@ -48,7 +48,7 @@ pub enum Structure {
     ///     (@LIST_TAIL, <binary>)
     /// }
     /// ```
-    Bytes(BytesStructure),
+    Bytes(BytesComposite),
 
     /// A list of characters.
     ///
@@ -58,7 +58,7 @@ pub enum Structure {
     ///     (@LIST_TAIL, <text>)
     /// }
     /// ```
-    Text(TextStructure),
+    Text(TextComposite),
 
     /// A byte is specialized storage for eight slots for bits.
     /// The LSB corresponds to slot 0.
@@ -81,50 +81,50 @@ pub enum Structure {
     /// which is at most 0x10FFFF and not in the range 0xD800 (including) to 0xDFFF (excluding).
     Character(char),
 
-    /// Any structure, a structure that is not a specialization.
-    Any(AnyStructure),
+    /// Any Composite, a Composite that is not a specialization.
+    Any(AnyComposite),
 }
 
-impl Structure {
-    /// Creates a structure from the given properties.
+impl Composite {
+    /// Creates a Composite from the given properties.
     #[must_use]
     pub fn new(properties: &mut [Property]) -> Self {
         Self::Empty.add(properties)
     }
 
-    /// Adds the given properties to this structure.
+    /// Adds the given properties to this Composite.
     #[must_use]
     pub fn add(&self, properties: &mut [Property]) -> Self {
         self.change(&mut [], properties)
     }
 
-    /// Removes the given properties from this structure.
+    /// Removes the given properties from this Composite.
     #[must_use]
     pub fn remove(&self, properties: &mut [Property]) -> Self {
         self.change(properties, &mut [])
     }
 
-    /// Modifies this AnyStructure by adding and removing properties.
-    /// Returns the modified AnyStructure.
+    /// Modifies this AnyComposite by adding and removing properties.
+    /// Returns the modified AnyComposite.
     ///
     /// The properties need to be mutable because this method needs to
     /// reorder and dedup changes in-place to avoid unneccessary
     /// allocations.
     ///
     /// Note that first all indicated properties are removed from
-    /// the AnyStructure and then all indicated properties are added.
+    /// the AnyComposite and then all indicated properties are added.
     #[must_use]
     pub fn change(
         &self,
         remove_properties: &mut [Property],
         add_properties: &mut [Property],
-    ) -> Structure {
+    ) -> Composite {
         registry::resolve(self, remove_properties, add_properties)
     }
 
-    /// Returns `Some(_)` if `self` is an [`AnyStructure`];
+    /// Returns `Some(_)` if `self` is an [`AnyComposite`];
     /// else `None`.
-    pub fn any(&self) -> Option<&AnyStructure> {
+    pub fn any(&self) -> Option<&AnyComposite> {
         match self {
             Self::Any(any) => Some(any),
             _ => None,
@@ -132,11 +132,11 @@ impl Structure {
     }
 
     /// Returns an iterator over all properties of `self`.
-    pub fn properties(&self) -> StructureProperties {
-        StructureProperties::new(self)
+    pub fn properties(&self) -> CompositeProperties {
+        CompositeProperties::new(self)
     }
 
-    /// Merges the properties of `self` and `other` into a new AnyStructure.
+    /// Merges the properties of `self` and `other` into a new AnyComposite.
     #[must_use]
     pub fn union(&self, other: &Self) -> Self {
         let mut add_properties = other.properties().collect::<Vec<_>>();
@@ -175,39 +175,39 @@ impl Structure {
     /// Returns an iterator over all values that this tag has
     /// in `self`.
     #[must_use]
-    pub fn values(&self, tag: Object) -> StructureValues {
+    pub fn values(&self, tag: Object) -> CompositeValues {
         match self {
             Self::Integer(non_zero) => {
                 if Property::new_integer(*non_zero).tag == tag {
-                    StructureValues::Integer(*non_zero)
+                    CompositeValues::Integer(*non_zero)
                 } else {
-                    StructureValues::None
+                    CompositeValues::None
                 }
             }
-            Self::Bytes(bytes) => StructureValues::Bytes(bytes.values(tag)),
-            Self::Text(text) => StructureValues::Text(text.values(tag)),
-            Self::Any(any_structure) => StructureValues::Any(any_structure.values(tag)),
-            Self::Empty => StructureValues::None,
-            Self::Byte(byte) => StructureValues::Byte(byte.values(tag)),
+            Self::Bytes(bytes) => CompositeValues::Bytes(bytes.values(tag)),
+            Self::Text(text) => CompositeValues::Text(text.values(tag)),
+            Self::Any(any_composite) => CompositeValues::Any(any_composite.values(tag)),
+            Self::Empty => CompositeValues::None,
+            Self::Byte(byte) => CompositeValues::Byte(byte.values(tag)),
             Self::Character(c) => {
                 if tag == Abstract::CODE_POINT.into() {
-                    StructureValues::CodePoint(*c)
+                    CompositeValues::CodePoint(*c)
                 } else {
-                    StructureValues::None
+                    CompositeValues::None
                 }
             }
         }
     }
 
     /// Returns an iterator over all tags that this value has in `self`.
-    pub fn tags(&self, value: Object) -> StructureTags {
+    pub fn tags(&self, value: Object) -> CompositeTags {
         match self {
-            Self::Empty => StructureTags::None,
+            Self::Empty => CompositeTags::None,
             Self::Character(c) => {
-                if value == Object::from(Structure::from(*c)) {
-                    StructureTags::CodePoint
+                if value == Object::from(Composite::from(*c)) {
+                    CompositeTags::CodePoint
                 } else {
-                    StructureTags::None
+                    CompositeTags::None
                 }
             }
             Self::Integer(non_zero) => {
@@ -215,97 +215,97 @@ impl Structure {
 
                 if self_as_property.value == value {
                     if self_as_property.tag == Object::Abstract(Abstract::SUCCESSOR_OF) {
-                        StructureTags::SuccessorOf
+                        CompositeTags::SuccessorOf
                     } else {
-                        StructureTags::PredecessorOf
+                        CompositeTags::PredecessorOf
                     }
                 } else {
-                    StructureTags::None
+                    CompositeTags::None
                 }
             }
             Self::Bytes(bytes) => {
                 let (item, tail) = bytes.parts();
 
-                if Object::from(Structure::from(item)) == value {
-                    StructureTags::ListItem
+                if Object::from(Composite::from(item)) == value {
+                    CompositeTags::ListItem
                 } else if bytes.as_ref() == tail {
-                    StructureTags::Tail
+                    CompositeTags::Tail
                 } else {
-                    StructureTags::None
+                    CompositeTags::None
                 }
             }
             Self::Text(text) => {
                 let (item, tail) = text.parts();
 
-                if Object::from(Structure::from(item)) == value {
-                    StructureTags::ListItem
+                if Object::from(Composite::from(item)) == value {
+                    CompositeTags::ListItem
                 } else if text.as_ref() == tail {
-                    StructureTags::Tail
+                    CompositeTags::Tail
                 } else {
-                    StructureTags::None
+                    CompositeTags::None
                 }
             }
-            Self::Any(any_structure) => StructureTags::Any(any_structure.tags(value)),
-            Self::Byte(byte) => StructureTags::Byte(byte.tags(value)),
+            Self::Any(any_composite) => CompositeTags::Any(any_composite.tags(value)),
+            Self::Byte(byte) => CompositeTags::Byte(byte.tags(value)),
         }
     }
 
     /// Extracts and clones `self` into some bytes which may be empty.
     #[must_use]
-    pub fn exact_bytes(&self) -> Option<MaybeEmptyBytesStructure> {
-        MaybeEmptyBytesStructure::try_from(self).ok()
+    pub fn exact_bytes(&self) -> Option<MaybeEmptyBytesComposite> {
+        MaybeEmptyBytesComposite::try_from(self).ok()
     }
 
     /// Extracts and clones `self` into some text which may be empty.
     #[must_use]
-    pub fn exact_text(&self) -> Option<MaybeEmptyTextStructure> {
-        MaybeEmptyTextStructure::try_from(self).ok()
+    pub fn exact_text(&self) -> Option<MaybeEmptyTextComposite> {
+        MaybeEmptyTextComposite::try_from(self).ok()
     }
 }
 
-impl From<char> for Structure {
+impl From<char> for Composite {
     fn from(value: char) -> Self {
         Self::Character(value)
     }
 }
 
-impl From<AnyStructure> for Structure {
-    fn from(value: AnyStructure) -> Self {
+impl From<AnyComposite> for Composite {
+    fn from(value: AnyComposite) -> Self {
         Self::Any(value)
     }
 }
 
-impl From<&[u8]> for Structure {
+impl From<&[u8]> for Composite {
     fn from(slice: &[u8]) -> Self {
-        BytesStructure::new(slice).map_or(Self::Empty, Self::Bytes)
+        BytesComposite::new(slice).map_or(Self::Empty, Self::Bytes)
     }
 }
 
-impl From<&str> for Structure {
+impl From<&str> for Composite {
     fn from(slice: &str) -> Self {
-        TextStructure::new(slice).map_or(Self::Empty, Self::Text)
+        TextComposite::new(slice).map_or(Self::Empty, Self::Text)
     }
 }
 
-impl From<Byte> for Structure {
+impl From<Byte> for Composite {
     fn from(value: Byte) -> Self {
         Self::Byte(value)
     }
 }
 
-impl From<BytesStructure> for Structure {
-    fn from(value: BytesStructure) -> Self {
+impl From<BytesComposite> for Composite {
+    fn from(value: BytesComposite) -> Self {
         Self::Bytes(value)
     }
 }
 
-impl From<TextStructure> for Structure {
-    fn from(value: TextStructure) -> Self {
+impl From<TextComposite> for Composite {
+    fn from(value: TextComposite) -> Self {
         Self::Text(value)
     }
 }
 
-impl Debug for Structure {
+impl Debug for Composite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Empty => f.write_str("{}"),
@@ -319,47 +319,47 @@ impl Debug for Structure {
     }
 }
 
-impl<const N: usize> PartialEq<[Property; N]> for Structure {
+impl<const N: usize> PartialEq<[Property; N]> for Composite {
     fn eq(&self, other: &[Property; N]) -> bool {
         self == other.as_slice()
     }
 }
 
-impl PartialEq<[Property]> for Structure {
+impl PartialEq<[Property]> for Composite {
     fn eq(&self, other: &[Property]) -> bool {
         self.properties().eq_by(other.iter(), |a, b| &a == b)
     }
 }
 
-/// An iterator over all [`Property`]s of a [`Structure`].
+/// An iterator over all [`Property`]s of a [`Composite`].
 ///
-/// You can get an instance of this type via [`Structure::properties`].
+/// You can get an instance of this type via [`Composite::properties`].
 #[derive(Clone)]
-pub enum StructureProperties {
+pub enum CompositeProperties {
     Empty,
     Integer(NonZeroI128),
     CodePoint(char),
     Byte(ByteProperties),
-    Any(AnyStructureProperties),
-    Text(TextStructureProperties),
-    Bytes(BytesStructureProperties),
+    Any(AnyCompositeProperties),
+    Text(TextCompositeProperties),
+    Bytes(BytesCompositeProperties),
 }
 
-impl StructureProperties {
-    pub fn new(structure: &Structure) -> Self {
-        match structure {
-            Structure::Empty => Self::Empty,
-            Structure::Integer(n) => Self::Integer(*n),
-            Structure::Bytes(bytes) => Self::Bytes(bytes.properties()),
-            Structure::Text(text) => Self::Text(text.properties()),
-            Structure::Any(any_structure) => Self::Any(any_structure.properties()),
-            Structure::Character(c) => Self::CodePoint(*c),
-            Structure::Byte(byte) => Self::Byte(byte.properties()),
+impl CompositeProperties {
+    pub fn new(composite: &Composite) -> Self {
+        match composite {
+            Composite::Empty => Self::Empty,
+            Composite::Integer(n) => Self::Integer(*n),
+            Composite::Bytes(bytes) => Self::Bytes(bytes.properties()),
+            Composite::Text(text) => Self::Text(text.properties()),
+            Composite::Any(any) => Self::Any(any.properties()),
+            Composite::Character(c) => Self::CodePoint(*c),
+            Composite::Byte(byte) => Self::Byte(byte.properties()),
         }
     }
 }
 
-impl Iterator for StructureProperties {
+impl Iterator for CompositeProperties {
     type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -385,30 +385,30 @@ impl Iterator for StructureProperties {
     }
 }
 
-impl std::fmt::Debug for StructureProperties {
+impl std::fmt::Debug for CompositeProperties {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set().entries(&mut self.clone()).finish()
     }
 }
 
 /// An iterator over all [`Object`]s that are values in
-/// the properties of a [`Structure`].
+/// the properties of a [`Composite`].
 ///
-/// You can get an instance of this type from [`Structure::values`].
+/// You can get an instance of this type from [`Composite::values`].
 #[derive(Clone)]
-pub enum StructureValues {
+pub enum CompositeValues {
     None,
     /// Either "successor of" iff the value is positive;
     /// else "predecessor of".
     Integer(NonZeroI128),
     CodePoint(char),
     Byte(ByteValues),
-    Bytes(BytesStructureValues),
-    Text(TextStructureValues),
-    Any(AnyStructureValues),
+    Bytes(BytesCompositeValues),
+    Text(TextCompositeValues),
+    Any(AnyCompositeValues),
 }
 
-impl Iterator for StructureValues {
+impl Iterator for CompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -424,7 +424,7 @@ impl Iterator for StructureValues {
                 let c = *c;
                 *self = Self::None;
 
-                Some(Object::Structure(Structure::from(c)))
+                Some(Object::Composite(Composite::from(c)))
             }
             Self::Bytes(bytes) => bytes.next(),
             Self::Text(text) => text.next(),
@@ -434,7 +434,7 @@ impl Iterator for StructureValues {
     }
 }
 
-impl std::fmt::Debug for StructureValues {
+impl std::fmt::Debug for CompositeValues {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut this = self.clone();
         f.debug_set().entries(&mut this).finish()
@@ -442,22 +442,22 @@ impl std::fmt::Debug for StructureValues {
 }
 
 /// An iterator over all [`Object`]s that are tags in
-/// a [`Structure`].
+/// a [`Composite`].
 ///
-/// You can get an instance of this type from [`Structure::tags`].
+/// You can get an instance of this type from [`Composite::tags`].
 #[derive(Clone)]
-pub enum StructureTags {
+pub enum CompositeTags {
     None,
     SuccessorOf,
     PredecessorOf,
     ListItem,
     Tail,
     CodePoint,
-    Any(AnyStructureTags),
+    Any(AnyCompositeTags),
     Byte(ByteTags),
 }
 
-impl Iterator for StructureTags {
+impl Iterator for CompositeTags {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -489,7 +489,7 @@ impl Iterator for StructureTags {
     }
 }
 
-impl std::fmt::Debug for StructureTags {
+impl std::fmt::Debug for CompositeTags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut this = self.clone();
         f.debug_set().entries(&mut this).finish()

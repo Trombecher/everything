@@ -4,20 +4,18 @@ pub const ALICE: Object = Object::Abstract(Abstract(u128::from_be_bytes(*b"This 
 pub const BOB: Object = Object::Abstract(Abstract(u128::from_be_bytes(*b"This is Bob!!!!!")));
 
 #[allow(non_snake_case)]
-mod AnyStructure {
-    use crate::{
-        Abstract, Structure,
-        structures::any::tests::{ALICE, BOB},
-    };
+mod AnyComposite {
+    use crate::{Abstract, Composite};
 
     use super::super::*;
+    use super::{ALICE, BOB};
 
-    fn alice_bob_structure() -> AnyStructure {
-        match Structure::new(&mut [Property {
+    fn alice_bob_composite() -> AnyComposite {
+        match Composite::new(&mut [Property {
             tag: ALICE,
             value: BOB,
         }]) {
-            Structure::Any(any) => any,
+            Composite::Any(any) => any,
             _ => unreachable!(),
         }
     }
@@ -29,61 +27,61 @@ mod AnyStructure {
             value: Object::Abstract(Abstract(543020512)),
         };
 
-        let s = match Structure::new(&mut [PROP]) {
-            Structure::Any(any) => any,
-            _ => unreachable!("structure is not any"),
+        let s = match Composite::new(&mut [PROP]) {
+            Composite::Any(any) => any,
+            _ => unreachable!("composite is not any"),
         };
 
         assert_eq!(s.properties.as_ref(), &[PROP]);
     }
 
     #[test]
-    fn inner_structure() {
-        let inner = alice_bob_structure();
+    fn inner_composite() {
+        let inner = alice_bob_composite();
 
-        let outer = Structure::new(&mut [Property {
+        let outer = Composite::new(&mut [Property {
             tag: ALICE,
-            value: Structure::Any(inner.clone()).into(),
+            value: Composite::Any(inner.clone()).into(),
         }]);
 
         assert_eq!(
             outer,
             [Property {
                 tag: ALICE,
-                value: Structure::Any(inner).into()
+                value: Composite::Any(inner).into()
             }]
         )
     }
 
     #[test]
     fn has() {
-        let structure = alice_bob_structure();
+        let composite = alice_bob_composite();
 
-        assert!(structure.has(&ALICE, &BOB));
-        assert!(!structure.has(&ALICE, &ALICE));
+        assert!(composite.has(&ALICE, &BOB));
+        assert!(!composite.has(&ALICE, &ALICE));
     }
 }
 
 #[allow(non_snake_case)]
-mod AnyStructureValues {
-    use crate::{Abstract, Structure};
+mod AnyCompositeValues {
+    use crate::{Abstract, Composite};
 
     use super::super::*;
 
     #[test]
     fn next() {
-        let structure = match Structure::new(&mut [Property {
+        let composite = match Composite::new(&mut [Property {
             tag: Abstract::BIT_0.into(),
             value: Abstract(543539).into(),
         }]) {
-            Structure::Any(any) => any,
+            Composite::Any(any) => any,
             _ => unreachable!(),
         };
 
-        let mut values = AnyStructureValues {
+        let mut values = AnyCompositeValues {
             tag: Abstract::BIT_0.into(),
-            properties: AnyStructureProperties {
-                subject: structure,
+            properties: AnyCompositeProperties {
+                subject: composite,
                 index: 0,
             },
         };

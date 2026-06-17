@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-everything_structures = { path = "../everything_structures" }
+everything_objects = { path = "../everything_objects" }
 tracing = "0.1.44"
 tracing-test = { version = "0.2.6", features = ["no-env-filter"] }
 fallible-iterator = "0.3.0"

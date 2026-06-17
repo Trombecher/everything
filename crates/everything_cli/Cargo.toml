@@ -7,7 +7,7 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5.60", features = ["derive"] }
 colored = "3.1.1"
-everything_structures = { path = "../everything_structures" }
+everything_objects = { path = "../everything_objects" }
 everything_otn = { path = "../everything_otn" }
 everything = { path = "../everything" }
 ulid = "1.2.1"

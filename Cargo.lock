@@ -170,7 +170,7 @@ dependencies = [
 name = "everything"
 version = "0.1.0"
 dependencies = [
- "everything_structures",
+ "everything_objects",
  "fallible-iterator",
  "tracing",
  "tracing-test",
@@ -183,8 +183,8 @@ dependencies = [
  "clap",
  "colored",
  "everything",
+ "everything_objects",
  "everything_otn",
- "everything_structures",
  "regex",
  "tracing",
  "tracing-subscriber",
@@ -197,25 +197,25 @@ name = "everything_db"
 version = "0.1.0"
 dependencies = [
  "everything",
- "everything_structures",
+ "everything_objects",
  "everything_tff",
  "memmap2",
  "tokio",
 ]
 
 [[package]]
-name = "everything_otn"
-version = "0.1.0"
-dependencies = [
- "everything_structures",
- "parser_tools",
-]
-
-[[package]]
-name = "everything_structures"
+name = "everything_objects"
 version = "0.1.0"
 dependencies = [
  "dashmap",
+]
+
+[[package]]
+name = "everything_otn"
+version = "0.1.0"
+dependencies = [
+ "everything_objects",
+ "parser_tools",
 ]
 
 [[package]]
@@ -223,7 +223,7 @@ name = "everything_tff"
 version = "0.1.0"
 dependencies = [
  "base64",
- "everything_structures",
+ "everything_objects",
 ]
 
 [[package]]

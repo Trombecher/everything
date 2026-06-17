@@ -11,7 +11,7 @@ mod Object {
                 Object::new_integer(i),
                 NonZeroI128::new(i).map_or_else(
                     || Object::Abstract(Abstract::ZERO),
-                    |i| { Object::Structure(Structure::Integer(i)) }
+                    |i| { Object::Composite(Composite::Integer(i)) }
                 )
             );
         }
@@ -27,12 +27,12 @@ mod Object {
         );
 
         assert_eq!(
-            Object::Structure(Structure::Integer(NonZeroI128::new(10).unwrap())).exact_integer(),
+            Object::Composite(Composite::Integer(NonZeroI128::new(10).unwrap())).exact_integer(),
             Some(10)
         );
 
         assert_eq!(
-            Object::Structure(Structure::Character('x')).exact_integer(),
+            Object::Composite(Composite::Character('x')).exact_integer(),
             None
         );
     }

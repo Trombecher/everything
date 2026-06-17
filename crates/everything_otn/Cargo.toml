@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-everything_structures = { path = "../everything_structures" }
+everything_objects = { path = "../everything_objects" }
 parser_tools = { git = "https://codeberg.org/Trombecher/parser_tools", version = "0.2.0" }

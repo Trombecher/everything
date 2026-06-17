@@ -8,37 +8,37 @@ use std::{
     sync::Arc,
 };
 
-use crate::{Object, Property, structures::registry};
+use crate::{Object, Property, composite::registry};
 
-/// An arbitrary structure with no specialization.
+/// An arbitrary composite object with no specialization.
 #[derive(Clone)]
-pub struct AnyStructure {
+pub struct AnyComposite {
     pub(super) properties: Arc<[Property]>,
 
-    /// This is not the hash returned by [`AnyStructure::hash`] but
+    /// This is not the hash returned by [`AnyComposite::hash`] but
     /// a hash of all properties + the number of properties.
     ///
     /// This hash is used by the registry.
     pub(super) registry_hash: u64,
 }
 
-impl AnyStructure {
+impl AnyComposite {
     /// Returns an iterator over all values that this tag has
     /// in `self`.
-    pub fn values(&self, tag: Object) -> AnyStructureValues {
-        AnyStructureValues::new(self.clone(), tag)
+    pub fn values(&self, tag: Object) -> AnyCompositeValues {
+        AnyCompositeValues::new(self.clone(), tag)
     }
 
     /// Returns an iterator of all tags that this value has in `self`.
-    pub fn tags(&self, value: Object) -> AnyStructureTags {
-        AnyStructureTags {
+    pub fn tags(&self, value: Object) -> AnyCompositeTags {
+        AnyCompositeTags {
             properties: self.properties(),
             value,
         }
     }
 
-    pub fn properties(&self) -> AnyStructureProperties {
-        AnyStructureProperties::new(self.clone())
+    pub fn properties(&self) -> AnyCompositeProperties {
+        AnyCompositeProperties::new(self.clone())
     }
 
     #[must_use]
@@ -54,39 +54,39 @@ impl AnyStructure {
     }
 }
 
-impl fmt::Debug for AnyStructure {
+impl fmt::Debug for AnyComposite {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_set().entries(self.properties.iter()).finish()
     }
 }
 
-impl AsRef<[Property]> for AnyStructure {
+impl AsRef<[Property]> for AnyComposite {
     fn as_ref(&self) -> &[Property] {
         &self.properties
     }
 }
 
-impl Hash for AnyStructure {
+impl Hash for AnyComposite {
     fn hash<H: Hasher>(&self, state: &mut H) {
         Arc::as_ptr(&self.properties).hash(state);
     }
 }
 
-impl PartialEq for AnyStructure {
+impl PartialEq for AnyComposite {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.properties, &other.properties)
     }
 }
 
-impl Eq for AnyStructure {}
+impl Eq for AnyComposite {}
 
-impl PartialOrd for AnyStructure {
+impl PartialOrd for AnyComposite {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for AnyStructure {
+impl Ord for AnyComposite {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reasons why we can do this:
         //
@@ -101,13 +101,13 @@ impl Ord for AnyStructure {
     }
 }
 
-impl Drop for AnyStructure {
+impl Drop for AnyComposite {
     fn drop(&mut self) {
         let ref_count = Arc::strong_count(&self.properties);
 
         if ref_count == 2 {
             // We and the registry are the only ones
-            // that have a ref. When removing this AnyStructure
+            // that have a ref. When removing this AnyComposite
             // from the registry, `self` will be the
             // only reference and thus will deallocate
             // after drop.
@@ -119,26 +119,26 @@ impl Drop for AnyStructure {
     }
 }
 
-/// Iterator over values for a tag in an [AnyStructure].
-/// It is a `FilterMap` over [`AnyStructureProperties`].
+/// Iterator over values for a tag in an [AnyComposite].
+/// It is a `FilterMap` over [`AnyCompositeProperties`].
 #[derive(Clone)]
-pub struct AnyStructureValues {
-    properties: AnyStructureProperties,
+pub struct AnyCompositeValues {
+    properties: AnyCompositeProperties,
     tag: Object,
 }
 
-impl AnyStructureValues {
+impl AnyCompositeValues {
     /// Creates a new iterator over values for a `tag` in the given
     /// `subject`.
-    pub fn new(subject: AnyStructure, tag: Object) -> Self {
+    pub fn new(subject: AnyComposite, tag: Object) -> Self {
         Self {
-            properties: AnyStructureProperties::new_starting_from_tag(subject, tag.clone()),
+            properties: AnyCompositeProperties::new_starting_from_tag(subject, tag.clone()),
             tag: tag,
         }
     }
 }
 
-impl Iterator for AnyStructureValues {
+impl Iterator for AnyCompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -147,14 +147,14 @@ impl Iterator for AnyStructureValues {
     }
 }
 
-/// An iterator over all tags a value has on an [`AnyStructure`].
+/// An iterator over all tags a value has on an [`AnyComposite`].
 #[derive(Clone)]
-pub struct AnyStructureTags {
-    pub properties: AnyStructureProperties,
+pub struct AnyCompositeTags {
+    pub properties: AnyCompositeProperties,
     pub value: Object,
 }
 
-impl Iterator for AnyStructureTags {
+impl Iterator for AnyCompositeTags {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -163,15 +163,15 @@ impl Iterator for AnyStructureTags {
     }
 }
 
-/// An iterator over all properties of an [`AnyStructure`].
+/// An iterator over all properties of an [`AnyComposite`].
 #[derive(Clone)]
-pub struct AnyStructureProperties {
-    subject: AnyStructure,
+pub struct AnyCompositeProperties {
+    subject: AnyComposite,
     index: usize,
 }
 
-impl AnyStructureProperties {
-    pub const fn new(subject: AnyStructure) -> Self {
+impl AnyCompositeProperties {
+    pub const fn new(subject: AnyComposite) -> Self {
         Self { subject, index: 0 }
     }
 
@@ -179,9 +179,9 @@ impl AnyStructureProperties {
     /// of the tag in the subject.
     ///
     /// You can use this function to implement efficient value iteration for
-    /// a given tag by exploiting the fact that properties in an [`AnyStructure`]
+    /// a given tag by exploiting the fact that properties in an [`AnyComposite`]
     /// are lexicographically sorted.
-    pub fn new_starting_from_tag(subject: AnyStructure, tag: Object) -> Self {
+    pub fn new_starting_from_tag(subject: AnyComposite, tag: Object) -> Self {
         let start = subject
             .properties
             .partition_point(|property| property.tag < tag);
@@ -193,7 +193,7 @@ impl AnyStructureProperties {
     }
 }
 
-impl Iterator for AnyStructureProperties {
+impl Iterator for AnyCompositeProperties {
     type Item = Property;
 
     fn next(&mut self) -> Option<Self::Item> {

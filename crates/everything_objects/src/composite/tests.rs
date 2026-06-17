@@ -1,5 +1,5 @@
 #[allow(non_snake_case)]
-mod Structure {
+mod Composite {
     use std::sync::Arc;
 
     use super::super::*;
@@ -9,19 +9,19 @@ mod Structure {
 
     #[test]
     fn union() {
-        let a = Structure::new(&mut [Property {
+        let a = Composite::new(&mut [Property {
             tag: ALICE,
             value: BOB,
         }]);
 
-        let b = Structure::new(&mut [Property {
+        let b = Composite::new(&mut [Property {
             tag: BOB,
             value: ALICE,
         }]);
 
         assert_eq!(
             a.union(&b),
-            Structure::new(&mut [
+            Composite::new(&mut [
                 Property {
                     tag: ALICE,
                     value: BOB
@@ -38,40 +38,40 @@ mod Structure {
     fn integer_specialization() {
         for i in (-259..1000_i128).filter_map(|x| NonZeroI128::new(x * 7)) {
             assert_eq!(
-                Structure::Integer(i),
-                Structure::new(&mut [Property::new_integer(i)])
+                Composite::Integer(i),
+                Composite::new(&mut [Property::new_integer(i)])
             );
         }
     }
 
     #[test]
     fn subset() {
-        let structure = Structure::new(&mut [Property {
+        let Composite = Composite::new(&mut [Property {
             tag: ALICE,
             value: BOB,
         }]);
 
-        assert!(structure.is_subset_of(&structure.add(&mut [Property {
+        assert!(Composite.is_subset_of(&Composite.add(&mut [Property {
             tag: ALICE,
             value: ALICE
         }])));
 
-        assert!(!structure.is_subset_of(&Structure::Empty));
+        assert!(!Composite.is_subset_of(&Composite::Empty));
     }
 
     #[test]
     fn no_values() {
-        assert_eq!(Structure::Empty.values(ALICE).next(), None)
+        assert_eq!(Composite::Empty.values(ALICE).next(), None)
     }
 
     #[test]
     fn no_tags() {
-        assert_eq!(Structure::Empty.tags(ALICE).next(), None);
+        assert_eq!(Composite::Empty.tags(ALICE).next(), None);
     }
 
     #[test]
     fn one_tag() {
-        let s = Structure::new(&mut [Property {
+        let s = Composite::new(&mut [Property {
             tag: ALICE,
             value: BOB,
         }]);
@@ -91,11 +91,11 @@ mod Structure {
     #[test]
     fn debug_fmt() {
         let abstr = Object::Abstract(Abstract(34985));
-        let empty = Object::Structure(Structure::Empty);
-        let byte = Object::Structure(Structure::Byte(Byte(0xA1)));
-        let c = Object::Structure(Structure::Character('ß'));
+        let empty = Object::Composite(Composite::Empty);
+        let byte = Object::Composite(Composite::Byte(Byte(0xA1)));
+        let c = Object::Composite(Composite::Character('ß'));
 
-        let structure = Structure::new(&mut [
+        let Composite = Composite::new(&mut [
             Property {
                 tag: abstr.clone(),
                 value: empty.clone(),
@@ -107,7 +107,7 @@ mod Structure {
         ]);
 
         assert_eq!(
-            format!("{structure:?}"),
+            format!("{Composite:?}"),
             format!("{{({abstr:?}, {empty:?}), ({byte:?}, {c:?})}}")
         );
         // TODO: more
@@ -115,12 +115,12 @@ mod Structure {
 
     #[test]
     fn remove_props() {
-        let structure = Structure::new(&mut [Property {
+        let Composite = Composite::new(&mut [Property {
             tag: ALICE,
             value: BOB,
         }]);
 
-        let should_be_empty = structure.remove(&mut [Property {
+        let should_be_empty = Composite.remove(&mut [Property {
             tag: ALICE,
             value: BOB,
         }]);
@@ -132,24 +132,24 @@ mod Structure {
     /// will have the same allocation.
     #[test]
     fn deduping() {
-        let structure_a = Structure::new(&mut [Property {
+        let Composite_a = Composite::new(&mut [Property {
             tag: ALICE,
             value: BOB,
         }]);
-        let structure_b = Structure::new(&mut [Property {
+        let Composite_b = Composite::new(&mut [Property {
             tag: ALICE,
             value: BOB,
         }]);
 
         assert!(Arc::ptr_eq(
-            &structure_a.any().unwrap().properties,
-            &structure_b.any().unwrap().properties
+            &Composite_a.any().unwrap().properties,
+            &Composite_b.any().unwrap().properties
         ))
     }
 
     #[test]
     fn one_value() {
-        let s = Structure::new(&mut [Property {
+        let s = Composite::new(&mut [Property {
             tag: ALICE,
             value: BOB,
         }]);
@@ -163,7 +163,7 @@ mod Structure {
 
     #[test]
     fn multiple_values() {
-        let s = Structure::new(&mut [
+        let s = Composite::new(&mut [
             Property {
                 tag: ALICE,
                 value: ALICE,
@@ -182,7 +182,7 @@ mod Structure {
 
     #[test]
     fn multiple_tags() {
-        let s = Structure::new(&mut [
+        let s = Composite::new(&mut [
             Property {
                 tag: ALICE,
                 value: ALICE,

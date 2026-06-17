@@ -1,11 +1,11 @@
 #[allow(non_snake_case)]
-mod TextStructureProperties {
+mod TextCompositeProperties {
     use super::super::*;
 
     #[test]
     fn next_is_sorted() {
         assert!(
-            TextStructureProperties::TailAndItem(TextStructure::new("Hello, world!").unwrap())
+            TextCompositeProperties::TailAndItem(TextComposite::new("Hello, world!").unwrap())
                 .is_sorted()
         );
     }
@@ -13,20 +13,20 @@ mod TextStructureProperties {
     #[test]
     fn next() {
         let mut properties =
-            TextStructureProperties::TailAndItem(TextStructure::new("atail").unwrap());
+            TextCompositeProperties::TailAndItem(TextComposite::new("atail").unwrap());
 
         assert_eq!(
             properties.next(),
             Some(Property {
                 tag: Object::Abstract(Abstract::LIST_ITEM),
-                value: Object::Structure(Structure::Character('a'))
+                value: Object::Composite(Composite::Character('a'))
             })
         );
         assert_eq!(
             properties.next(),
             Some(Property {
                 tag: Object::Abstract(Abstract::LIST_TAIL),
-                value: Object::Structure(Structure::Text(TextStructure::new("tail").unwrap()))
+                value: Object::Composite(Composite::Text(TextComposite::new("tail").unwrap()))
             })
         );
         assert_eq!(properties.next(), None);

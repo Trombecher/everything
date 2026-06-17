@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 base64 = "0.22.1"
-everything_structures = { path = "../everything_structures" }
+everything_objects = { path = "../everything_objects" }

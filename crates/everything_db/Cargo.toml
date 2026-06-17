@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1.52.3", features = ["fs", "rt", "io-util"] }
-everything_structures = { path = "../everything_structures" }
+everything_objects = { path = "../everything_objects" }
 everything_tff = { path = "../everything_tff" }
 everything = { path = "../everything" }
 memmap2 = "0.9.10"

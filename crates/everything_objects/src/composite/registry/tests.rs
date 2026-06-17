@@ -3,12 +3,12 @@ use std::{
     num::NonZeroI128,
 };
 
-use crate::{Abstract, Bit, BitSlot, Object, Property, Structure};
+use crate::{Abstract, Bit, BitSlot, Composite, Object, Property};
 
 #[test]
-fn structure_meta_info_of_empty() {
-    let base = Structure::Empty;
-    let mut info = super::structure_meta_info(&base, &[], &[]);
+fn composite_meta_info_of_empty() {
+    let base = Composite::Empty;
+    let mut info = super::composite_meta_info(&base, &[], &[]);
 
     let empty_hash = {
         let mut hasher = DefaultHasher::new();
@@ -27,15 +27,15 @@ fn structure_meta_info_of_empty() {
 }
 
 /// This removes `SUCCESSOR_OF` from a natural number and checks wheather
-/// [Structure::Empty] is the result.
+/// [Composite::Empty] is the result.
 #[test]
-fn structure_meta_info_of_empty_2() {
-    let base = Structure::Integer(NonZeroI128::new(42).unwrap());
-    let mut info = super::structure_meta_info(
+fn composite_meta_info_of_empty_2() {
+    let base = Composite::Integer(NonZeroI128::new(42).unwrap());
+    let mut info = super::composite_meta_info(
         &base,
         &[Property {
             tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-            value: Object::Structure(Structure::Integer(NonZeroI128::new(41).unwrap())),
+            value: Object::Composite(Composite::Integer(NonZeroI128::new(41).unwrap())),
         }],
         &[],
     );
@@ -57,23 +57,23 @@ fn structure_meta_info_of_empty_2() {
 }
 
 #[test]
-fn structure_meta_info_of_integer() {
+fn composite_meta_info_of_integer() {
     const PROP: Property = Property {
         tag: Object::Abstract(Abstract::SUCCESSOR_OF),
-        value: Object::Structure(Structure::Integer(NonZeroI128::new(41).unwrap())),
+        value: Object::Composite(Composite::Integer(NonZeroI128::new(41).unwrap())),
     };
 
-    let base = Structure::Empty;
-    let mut info = super::structure_meta_info(&base, &[], &[PROP]);
+    let base = Composite::Empty;
+    let mut info = super::composite_meta_info(&base, &[], &[PROP]);
 
-    let hash_of_structure = {
+    let hash_of_composite = {
         let mut hasher = DefaultHasher::new();
         PROP.hash(&mut hasher);
         hasher.write_usize(1);
         hasher.finish()
     };
 
-    assert_eq!(info.final_hash(), hash_of_structure);
+    assert_eq!(info.final_hash(), hash_of_composite);
     assert_eq!(info.last_bit_slots, [None; 8]);
     assert_eq!(info.last_code_point, None);
     assert_eq!(info.last_list_item, None);
@@ -83,7 +83,7 @@ fn structure_meta_info_of_integer() {
 }
 
 #[test]
-fn structure_meta_info_of_byte() {
+fn composite_meta_info_of_byte() {
     for byte in 0..=255_u8 {
         let properties = [
             Property::new_bit_slot(BitSlot::Slot0, Bit::from(byte & 1 != 0)),
@@ -96,7 +96,7 @@ fn structure_meta_info_of_byte() {
             Property::new_bit_slot(BitSlot::Slot7, Bit::from(byte & 128 != 0)),
         ];
 
-        let info = super::structure_meta_info(&Structure::Empty, &[], &properties);
+        let info = super::composite_meta_info(&Composite::Empty, &[], &properties);
 
         assert_eq!(
             info.last_bit_slots,
