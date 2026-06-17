@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use everything_structures::{Abstract, Object, Property, Structure};
+use everything_objects::{Abstract, Composite, Object, Property};
 use tracing::instrument;
 
 use crate::{
@@ -46,7 +46,7 @@ pub struct StatementForm {
 #[derive(PartialEq, Clone, Debug)]
 pub enum KnowledgeError {
     IsNotSupersetOfBase,
-    SubjectIsNotStatementStructure(Object),
+    SubjectIsNotStatementComposite(Object),
     NeedsToBeTrueButIsFalse(StatementForm),
     NeedsToBeFalseButIsTrue(StatementForm),
     ValueOnSubjectDoesNotMatchTagsConstraint {
@@ -56,8 +56,8 @@ pub enum KnowledgeError {
     },
 }
 
-/// Nice-to-have functions for [Structure]s.
-pub trait StructureExt {
+/// Nice-to-have functions for [Composite]s.
+pub trait CompositeExt {
     /// Creates a new set.
     ///
     /// ```plain
@@ -67,24 +67,24 @@ pub trait StructureExt {
 
     fn is_knowledge(&self) -> Result<(), KnowledgeError>;
 
-    fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
+    fn is_valid(&self, knowledge: &Composite, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self;
 
     fn new_bool(b: bool) -> Self;
 }
 
-impl StructureExt for Structure {
+impl CompositeExt for Composite {
     fn new_bool(b: bool) -> Self {
         if b {
-            Self::new_set([Structure::Empty.into()])
+            Self::new_set([Composite::Empty.into()])
         } else {
-            Structure::Empty
+            Composite::Empty
         }
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
+    fn is_valid(&self, knowledge: &Composite, recursive: bool) -> Result<(), KnowledgeError> {
         if self.any().is_none() {
             // All specializations are valid
             return Ok(());
@@ -138,7 +138,7 @@ impl StructureExt for Structure {
 
         for set_value in self.values(Object::Abstract(Abstract::CONTAINS)) {
             if set_value.intrinsic_statement().is_none() {
-                return Err(KnowledgeError::SubjectIsNotStatementStructure(set_value));
+                return Err(KnowledgeError::SubjectIsNotStatementComposite(set_value));
             }
         }
 

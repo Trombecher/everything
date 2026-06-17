@@ -1,4 +1,4 @@
-use everything_structures::{Abstract, Object, Property};
+use everything_objects::{Abstract, Object, Property};
 
 use crate::ext::AbstractExt;
 

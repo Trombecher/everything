@@ -4,11 +4,11 @@
 //! read README
 
 mod abstracts;
-mod composite;
+mod composites;
 mod objects;
 mod properties;
 
 pub use abstracts::*;
-pub use composite::*;
+pub use composites::*;
 pub use objects::*;
 pub use properties::*;

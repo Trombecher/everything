@@ -3,7 +3,7 @@ mod tests;
 
 use std::{hash::Hash, num::NonZeroI128};
 
-use crate::{Abstract, composite::Composite};
+use crate::{Abstract, Composite};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Object {

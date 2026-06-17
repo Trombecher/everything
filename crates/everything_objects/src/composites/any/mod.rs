@@ -8,7 +8,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::{Object, Property, composite::registry};
+use crate::{Object, Property, composites::registry};
 
 /// An arbitrary composite object with no specialization.
 #[derive(Clone)]

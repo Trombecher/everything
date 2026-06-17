@@ -1,17 +1,17 @@
 //! Extension traits and implementations [AbstractExt], [ObjectExt], [PropertyExt], and [StructureExt].
 
 mod abstracts;
+mod composites;
 mod iter;
 mod objects;
 mod properties;
-mod structures;
 
 pub use abstracts::*;
+pub use composites::*;
 pub use objects::*;
 pub use properties::*;
-pub use structures::*;
 
-use everything_structures::Object;
+use everything_objects::Object;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Statement {

@@ -1,5 +1,5 @@
-use everything_structures::{
-    Abstract, AnyStructureProperties, Object, Property, Structure, StructureProperties,
+use everything_objects::{
+    Abstract, AnyCompositeProperties, Composite, CompositeProperties, Object, Property,
 };
 
 use crate::{
@@ -13,28 +13,28 @@ use crate::{
 
 use crate::ext::AbstractExt;
 
-/// An iterator over all set values of a given structure.
+/// An iterator over all set values of a given Composite.
 #[derive(Clone)]
-pub struct StructureSetValues {
-    properties: StructureProperties,
+pub struct CompositeSetValues {
+    properties: CompositeProperties,
 }
 
-impl StructureSetValues {
-    pub fn new(structure: &Structure) -> Self {
+impl CompositeSetValues {
+    pub fn new(composite: &Composite) -> Self {
         Self {
-            properties: match structure {
-                Structure::Empty
-                | Structure::Integer(_)
-                | Structure::Bytes(_)
-                | Structure::Text(_)
-                | Structure::Byte(_)
-                | Structure::Character(_) => {
+            properties: match composite {
+                Composite::Empty
+                | Composite::Integer(_)
+                | Composite::Bytes(_)
+                | Composite::Text(_)
+                | Composite::Byte(_)
+                | Composite::Character(_) => {
                     // These do not have set values.
-                    Structure::Empty.properties()
+                    Composite::Empty.properties()
                 }
-                Structure::Any(any_structure) => {
-                    StructureProperties::Any(AnyStructureProperties::new_starting_from_tag(
-                        any_structure.clone(),
+                Composite::Any(any) => {
+                    CompositeProperties::Any(AnyCompositeProperties::new_starting_from_tag(
+                        any.clone(),
                         Abstract::CONTAINS.into(),
                     ))
                 }
@@ -43,7 +43,7 @@ impl StructureSetValues {
     }
 }
 
-impl Iterator for StructureSetValues {
+impl Iterator for CompositeSetValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -57,7 +57,7 @@ impl Iterator for StructureSetValues {
     }
 }
 
-impl std::fmt::Debug for StructureSetValues {
+impl std::fmt::Debug for CompositeSetValues {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set().entries(&mut self.clone()).finish()
     }
@@ -94,7 +94,7 @@ impl ObjectOrSetValues {
     /// Interprets the [`Self::AxiomaticQueryValues`] variant as an iterator
     /// over the set items and returns an iterator over set items.
     #[inline]
-    pub fn set_values(&self, knowledge: &Structure) -> SetValues {
+    pub fn set_values(&self, knowledge: &Composite) -> SetValues {
         match self {
             Self::SetValues(values) => values.clone(),
             Self::Object(eager) => SetValues::QueryValues(eager.set_values(knowledge)),
@@ -115,7 +115,7 @@ impl ObjectOrSetValues {
 
     /// Determines if `self` is "truthy", i.e. iff it has at
     /// least one property.
-    pub fn is_truthy(&mut self, knowledge: &Structure) -> bool {
+    pub fn is_truthy(&mut self, knowledge: &Composite) -> bool {
         match self {
             ObjectOrSetValues::Object(object) => object.is_truthy(knowledge),
             ObjectOrSetValues::SetValues(iter) => iter.next().is_some(),
@@ -148,7 +148,7 @@ pub enum SetValues {
 
     /// Maps every value of a given set with a mapper function.
     Map {
-        knowledge: Structure,
+        knowledge: Composite,
         set: Box<Self>,
         /// This function is captured.
         mapper_function: Object,
@@ -156,7 +156,7 @@ pub enum SetValues {
 
     /// Retains all values for that the filter function returns a truthy value.
     Filter {
-        knowledge: Structure,
+        knowledge: Composite,
         set: Box<Self>,
         /// This function is captured.
         filter_function: Object,
@@ -172,9 +172,9 @@ impl std::fmt::Debug for SetValues {
 }
 
 impl SetValues {
-    pub fn collect_to_set(self) -> Structure {
+    pub fn collect_to_set(self) -> Composite {
         let mut properties: Vec<_> = self.map(Property::new_contains).collect();
-        Structure::new(&mut properties)
+        Composite::new(&mut properties)
     }
 
     /// Counts the (remaining) set values of this iterator.
@@ -204,7 +204,7 @@ impl Iterator for SetValues {
                 subjects_and_tags
                     .next()
                     .map(|SubjectAndTag { subject, tag }| {
-                        Structure::new(&mut [
+                        Composite::new(&mut [
                             Property::new_statement_subject(subject),
                             Property::new_statement_tag(tag),
                         ])
@@ -213,7 +213,7 @@ impl Iterator for SetValues {
             }
             Self::QueryTagsAndValues(tags_and_values) => {
                 tags_and_values.next().map(|Property { tag, value }| {
-                    Structure::new(&mut [
+                    Composite::new(&mut [
                         Property::new_statement_tag(tag),
                         Property::new_statement_value(value),
                     ])
@@ -222,7 +222,7 @@ impl Iterator for SetValues {
             }
             Self::QuerySubjectsAndValues(iter) => {
                 iter.next().map(|SubjectAndValue { subject, value }| {
-                    Structure::new(&mut [
+                    Composite::new(&mut [
                         Property::new_statement_subject(subject),
                         Property::new_statement_value(value),
                     ])
