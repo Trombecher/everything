@@ -1,6 +1,8 @@
 #![feature(str_from_raw_parts)]
 #![no_std]
 
+//! Parsing for the Everything Object Text Notation.
+
 extern crate alloc;
 
 mod filtered_tokens;

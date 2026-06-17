@@ -8,7 +8,7 @@ edition = "2024"
 clap = { version = "4.5.60", features = ["derive"] }
 colored = "3.1.1"
 everything_structures = { path = "../everything_structures" }
-everything_structures_ff = { path = "../everything_structures_ff" }
+everything_otn = { path = "../everything_otn" }
 everything = { path = "../everything" }
 ulid = "1.2.1"
 tracing = "0.1.44"

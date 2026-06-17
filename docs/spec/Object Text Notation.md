@@ -1,10 +1,27 @@
 # Everything Object Text Notation
 
-The _Object Text Notation_ (OTN) is a functional-style programming language to represent queries, expressions and objects concisely. This document describes a mapping between OTN syntax and raw abstract object and structures. The latter will be written using a subset of OTN which is desugared (only abstract objects and raw structures).
+The _Everything Object Text Notation_ (OTN) is a functional-style programming language to represent queries, expressions, and objects concisely. This document describes a mapping between OTN syntax and raw abstract objects and structures. The latter will be written using a subset of OTN which is desugared (only abstract objects and raw structures).
 
-Note that this document does not cover the _meaning of these structures_. For that, read [how the engine evaluates objects](./Object%20Evaluation%20Specification.md).
+Note that this document does not cover the _meaning of these structures_. For that, read up on [how the engine evaluates objects](./Object%20Evaluation%20Specification.md).
 
 ## Expression Types
+
+## Meta (Literal)
+
+A meta literal is an expression starting with `$` which is followed by an identifier. Meta literals will resolve either to
+
+* function parameter references (if the name matches with a parameter), or
+* to some library user defined object at transform time.
+
+The purpose of this expression type is to allow addressation of objects by their (local) semantic meaning. Therefore, one (popular) decision is to resolve these literals to objects that have same _name_. If there is no object (or multiple objects) with this name, resolution should fail.
+
+Examples include:
+
+* `$Xä`
+* `$343`
+* `$SomeObjectName`
+
+### Raw Structure
 
 ### Calls
 
@@ -24,6 +41,8 @@ A function expression `function <<VAR>> => <<BODY>>` is syntactic sugar for:
 ```eotn
 {@2148623901005465698003044719488417081 = <<BODY>>}
 ```
+
+`<<VAR>>` must be a meta literal, e.g. `$x` or `$variable_name123`.
 
 ### Escape `escape`
 

@@ -183,8 +183,8 @@ dependencies = [
  "clap",
  "colored",
  "everything",
+ "everything_otn",
  "everything_structures",
- "everything_structures_ff",
  "regex",
  "tracing",
  "tracing-subscriber",
@@ -204,18 +204,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "everything_structures"
-version = "0.1.0"
-dependencies = [
- "dashmap",
-]
-
-[[package]]
-name = "everything_structures_ff"
+name = "everything_otn"
 version = "0.1.0"
 dependencies = [
  "everything_structures",
  "parser_tools",
+]
+
+[[package]]
+name = "everything_structures"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
 ]
 
 [[package]]
