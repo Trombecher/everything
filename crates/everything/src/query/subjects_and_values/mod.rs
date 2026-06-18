@@ -1,6 +1,6 @@
-use everything_structures::{Object, Structure};
+use everything_objects::{Composite, Object};
 
-use crate::{StructureSetValues, ext::ObjectExt};
+use crate::{CompositeSetValues, ext::ObjectExt};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SubjectAndValue {
@@ -10,14 +10,14 @@ pub struct SubjectAndValue {
 
 #[derive(Clone, Debug)]
 pub struct QuerySubjectsAndValues {
-    statements_from_knowledge: StructureSetValues,
+    statements_from_knowledge: CompositeSetValues,
     tag: Object,
 }
 
 impl QuerySubjectsAndValues {
-    pub fn new(knowledge: &Structure, tag: Object) -> Self {
+    pub fn new(knowledge: &Composite, tag: Object) -> Self {
         Self {
-            statements_from_knowledge: StructureSetValues::new(knowledge),
+            statements_from_knowledge: CompositeSetValues::new(knowledge),
             tag,
         }
     }

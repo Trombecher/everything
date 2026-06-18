@@ -1,4 +1,4 @@
-use everything_structures::Object;
+use everything_objects::Object;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BinaryNode {

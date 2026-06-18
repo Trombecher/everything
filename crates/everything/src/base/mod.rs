@@ -3,10 +3,10 @@ mod tests;
 
 use std::sync::LazyLock;
 
-use everything_structures::{Abstract, Object, Structure};
+use everything_objects::{Abstract, Composite, Object};
 
 use crate::{
-    ext::{AbstractExt, ObjectExt, StructureExt},
+    ext::{AbstractExt, CompositeExt, ObjectExt},
     nodes::{BinaryNode, CallNode, Node},
 };
 
@@ -55,7 +55,7 @@ pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
 });
 
 fn bit_slot_statement(slot: Object) -> Object {
-    Structure::new_statement(
+    Composite::new_statement(
         slot.clone(),
         Abstract::AXIOMATIC.into(),
         Object::new_node(Node::Function(Object::new_node(Node::Function(
@@ -77,46 +77,46 @@ fn bit_slot_statement(slot: Object) -> Object {
     .into()
 }
 
-pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
-    Structure::new_set([
-        Structure::new_statement(
+pub static BASE: LazyLock<Composite> = LazyLock::new(|| {
+    Composite::new_set([
+        Composite::new_statement(
             Abstract::CONTAINS.into(),
             Abstract::AXIOMATIC.into(),
-            Structure::new_bool(true).into(),
+            Composite::new_bool(true).into(),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::AXIOMATIC.into(),
             Abstract::AXIOMATIC.into(),
             AXIOMATIC_AXIOMATIC_CONSTRAINT.clone(),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::FUNCTION.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::FUNCTION.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::STATEMENT_SUBJECT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::STATEMENT_SUBJECT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::STATEMENT_TAG.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::STATEMENT_TAG.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::STATEMENT_VALUE.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::STATEMENT_VALUE.into(), 0),
         )
         .into(),
         // ---- Primitives -------------------------
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::SUCCESSOR_OF.into(),
             Abstract::AXIOMATIC.into(),
             Object::new_node(Node::Function(Object::new_node(Node::Function(
@@ -130,7 +130,7 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             )))),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::PREDECESSOR_OF.into(),
             Abstract::AXIOMATIC.into(),
             Object::new_node(Node::Function(Object::new_node(Node::Function(
@@ -150,19 +150,19 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             )))),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::CODE_POINT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::CODE_POINT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::LIST_ITEM.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::LIST_ITEM.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::LIST_TAIL.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::LIST_TAIL.into(), 0),
@@ -176,7 +176,7 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         bit_slot_statement(Abstract::BIT_SLOT_5.into()),
         bit_slot_statement(Abstract::BIT_SLOT_6.into()),
         bit_slot_statement(Abstract::BIT_SLOT_7.into()),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::KNOWLEDGE.into(),
             Abstract::FUNCTION.into(),
             // A function that calls itself. In theory this would loop forever
@@ -188,19 +188,19 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
         )
         .into(),
         // --------------------- NODES ---------------------
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_LITERAL.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_LITERAL.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_COUNT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_COUNT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_PARAMETER.into(),
             Abstract::AXIOMATIC.into(),
             Object::new_node(Node::Function(Object::new_node(Node::Function(
@@ -215,7 +215,7 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             )))),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_FUNCTION_SELF.into(),
             Abstract::AXIOMATIC.into(),
             Object::new_node(Node::Function(Object::new_node(Node::Function(
@@ -233,175 +233,175 @@ pub static BASE: LazyLock<Structure> = LazyLock::new(|| {
             )))),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_AND_LEFT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_AND_LEFT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_AND_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_AND_RIGHT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_OR_LEFT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_OR_LEFT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_OR_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_OR_RIGHT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_XOR_LEFT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_XOR_LEFT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_XOR_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_XOR_RIGHT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_EQUAL_LEFT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_EQUAL_LEFT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_EQUAL_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_EQUAL_RIGHT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_QUERY.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_QUERY.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_NOT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_NOT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_ADD_LEFT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_ADD_LEFT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_ADD_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_ADD_RIGHT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_UNION_LEFT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_UNION_LEFT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_UNION_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_UNION_RIGHT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_MAP_MAPPER.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_MAP_MAPPER.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_MAP_SET.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_MAP_SET.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_FILTER_FILTER.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_FILTER_FILTER.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_FILTER_SET.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_FILTER_SET.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_LESS_LEFT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_LESS_LEFT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_LESS_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_LESS_RIGHT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_IF_CONDITION.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_IF_CONDITION.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_IF_THEN.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_IF_THEN.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_IF_ELSE.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_IF_ELSE.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_UNWRAP_OR_SET.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_UNWRAP_OR_SET.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_UNWRAP_OR_DEFAULT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_UNWRAP_OR_DEFAULT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_MULTIPLY_LEFT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_MULTIPLY_LEFT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_MULTIPLY_RIGHT.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_MULTIPLY_RIGHT.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_CALL_CALLEE.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_CALL_CALLEE.into(), 0),
         )
         .into(),
-        Structure::new_statement(
+        Composite::new_statement(
             Abstract::NODE_CALL_WITH.into(),
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_CALL_WITH.into(), 0),

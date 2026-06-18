@@ -1,4 +1,4 @@
-use everything_structures::Abstract;
+use everything_objects::Abstract;
 
 /// An extension to [Abstract], providing useful constants.
 pub trait AbstractExt {

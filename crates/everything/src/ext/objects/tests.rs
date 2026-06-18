@@ -1,4 +1,4 @@
-use everything_structures::{Abstract, Object, Property, Structure};
+use everything_objects::{Abstract, Composite, Object, Property};
 
 use crate::{
     base::BASE,
@@ -12,17 +12,17 @@ fn new_integer() {
 
     assert_eq!(
         Object::new_integer(2),
-        Structure::new(&mut [Property::new_successor_of(
-            Structure::new(&mut [Property::new_successor_of(Abstract::ZERO.into())]).into()
+        Composite::new(&mut [Property::new_successor_of(
+            Composite::new(&mut [Property::new_successor_of(Abstract::ZERO.into())]).into()
         )])
         .into()
     );
 
     assert_eq!(
         Object::new_integer(-3),
-        Structure::new(&mut [Property::new_predecessor_of(
-            Structure::new(&mut [Property::new_predecessor_of(
-                Structure::new(&mut [Property::new_predecessor_of(Abstract::ZERO.into())]).into()
+        Composite::new(&mut [Property::new_predecessor_of(
+            Composite::new(&mut [Property::new_predecessor_of(
+                Composite::new(&mut [Property::new_predecessor_of(Abstract::ZERO.into())]).into()
             )])
             .into()
         )])
@@ -35,7 +35,7 @@ fn node_type() {
     let knowledge = &BASE;
 
     // None
-    assert_eq!(Object::Structure(Structure::Empty).node(knowledge), None);
+    assert_eq!(Object::Composite(Composite::Empty).node(knowledge), None);
 
     // Single
     assert_eq!(
@@ -62,12 +62,12 @@ fn call() {
 }
 
 mod eval {
-    use everything_structures::{Abstract, Object, Property, Structure};
+    use everything_objects::{Abstract, Composite, Object, Property};
 
     use crate::{
         ObjectOrSetValues,
         base::BASE,
-        ext::{AbstractExt, ObjectExt, PropertyExt, StructureExt},
+        ext::{AbstractExt, CompositeExt, ObjectExt, PropertyExt},
         nodes::{BinaryNode, Node},
     };
 
@@ -83,8 +83,8 @@ mod eval {
         for (left, right, result) in CASES.iter().copied() {
             assert_eq!(
                 Object::new_node(Node::And(BinaryNode {
-                    left: Structure::new_bool(left).into(),
-                    right: Structure::new_bool(right).into()
+                    left: Composite::new_bool(left).into(),
+                    right: Composite::new_bool(right).into()
                 }))
                 .evaluate(&BASE, &mut Default::default())
                 .is_truthy(&BASE),
@@ -105,8 +105,8 @@ mod eval {
         for (left, right, result) in CASES.iter().copied() {
             assert_eq!(
                 Object::new_node(Node::Or(BinaryNode {
-                    left: Structure::new_bool(left).into(),
-                    right: Structure::new_bool(right).into()
+                    left: Composite::new_bool(left).into(),
+                    right: Composite::new_bool(right).into()
                 }))
                 .evaluate(&BASE, &mut Default::default())
                 .is_truthy(&BASE),
@@ -135,7 +135,7 @@ mod eval {
     #[test]
     fn eval_count() {
         assert_eq!(
-            Object::new_node(Node::Count(Structure::Empty.into()))
+            Object::new_node(Node::Count(Composite::Empty.into()))
                 .evaluate(&BASE, &mut Default::default())
                 .into_object(),
             Object::new_integer(0)
@@ -143,7 +143,7 @@ mod eval {
 
         assert_eq!(
             Object::new_node(Node::Count(Object::new_node(Node::Literal(
-                Structure::new(&mut [
+                Composite::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
                     Property::new_contains(Abstract::KNOWLEDGE.into()),
                 ])
@@ -159,7 +159,7 @@ mod eval {
     fn eval_query() {
         assert_eq!(
             Object::new_node_query_values(
-                Structure::new(&mut [
+                Composite::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
                     Property::new_contains(Abstract::BIT_0.into()),
                     Property::new_successor_of(Object::new_integer(0)),
@@ -169,14 +169,14 @@ mod eval {
             )
             .evaluate(&BASE, &mut Default::default())
             .into_object(),
-            Structure::new_set([Abstract::BIT_0.into(), Object::Abstract(Abstract::ZERO)]).into(),
+            Composite::new_set([Abstract::BIT_0.into(), Object::Abstract(Abstract::ZERO)]).into(),
         );
     }
 
     #[test]
     fn set_items() {
         let f = Object::new_node(Node::Function(Object::new_node(Node::Function(
-            Structure::new_set([
+            Composite::new_set([
                 Object::new_node(Node::Parameter(0)),
                 Object::new_node(Node::Parameter(1)),
             ])
@@ -194,7 +194,7 @@ mod eval {
                 &mut Default::default(),
             )
             .into_object(),
-            Structure::new_set([
+            Composite::new_set([
                 Object::Abstract(Abstract(1337)),
                 Object::Abstract(Abstract(1338))
             ])
@@ -210,7 +210,7 @@ mod eval {
                 .collect::<Vec<_>>();
 
             let node = Object::new_node(Node::Count(Object::new_node(Node::Literal(
-                Structure::new(&mut properties).into(),
+                Composite::new(&mut properties).into(),
             ))));
 
             assert_eq!(
@@ -247,7 +247,7 @@ mod eval {
         let objects = [
             Object::new_integer(3458349),
             Abstract(58349580234958034).into(),
-            Object::new_node(Node::Not(Structure::Empty.into())),
+            Object::new_node(Node::Not(Composite::Empty.into())),
         ];
 
         let identity = Object::new_node(Node::Function(Object::new_node(Node::Parameter(0))));
@@ -275,7 +275,7 @@ mod eval {
                     &mut Default::default()
                 )
                 .into_object(),
-            Object::Structure(Structure::Empty)
+            Object::Composite(Composite::Empty)
         );
 
         let capture_to_constant = Object::new_node(Node::Function(Object::new_node(

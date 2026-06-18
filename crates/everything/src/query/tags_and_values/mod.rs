@@ -1,22 +1,22 @@
-use everything_structures::{Object, Property, Structure, StructureProperties};
+use everything_objects::{Composite, CompositeProperties, Object, Property};
 
-use crate::{StructureSetValues, ext::ObjectExt};
+use crate::{CompositeSetValues, ext::ObjectExt};
 
 #[derive(Clone)]
 pub struct QueryTagsAndValues {
-    properties_from_subject: StructureProperties,
-    statements_from_knowledge: StructureSetValues,
+    properties_from_subject: CompositeProperties,
+    statements_from_knowledge: CompositeSetValues,
     subject: Object,
 }
 
 impl QueryTagsAndValues {
-    pub fn new(knowledge: &Structure, subject: Object) -> Self {
+    pub fn new(knowledge: &Composite, subject: Object) -> Self {
         let properties_from_subject = match &subject {
-            Object::Abstract(_) => StructureProperties::Empty,
-            Object::Structure(structure) => structure.properties(),
+            Object::Abstract(_) => CompositeProperties::Empty,
+            Object::Composite(composite) => composite.properties(),
         };
 
-        let statements_from_knowledge = StructureSetValues::new(knowledge);
+        let statements_from_knowledge = CompositeSetValues::new(knowledge);
 
         Self {
             properties_from_subject,

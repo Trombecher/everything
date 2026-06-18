@@ -1,7 +1,7 @@
-use everything_structures::{Abstract, Object, Property, Structure, StructureValues};
+use everything_objects::{Abstract, Composite, CompositeValues, Object, Property};
 
 use crate::{
-    StructureSetValues, base,
+    CompositeSetValues, base,
     ext::{AbstractExt, ObjectExt, PropertyExt},
 };
 
@@ -19,8 +19,8 @@ pub enum QueryValues {
     /// and then nothing else.
     AxiomaticAxiomaticConstraint,
 
-    /// The variant that only yields [`Structure::Empty`] and then nothing else.
-    EmptyStructure,
+    /// The variant that only yields [`Composite::Empty`] and then nothing else.
+    EmptyComposite,
 
     /// The variant that yields values from [AxiomaticBorrowedQueryValues].
     Borrowed(BorrowedQueryValues),
@@ -34,7 +34,7 @@ impl QueryValues {
     ///
     /// * `tag` and all downstream tags are assumed to be axiomatic.
     /// * `knowledge` is a superset of [crate::base::BASE].
-    pub fn new(knowledge: &Structure, subject: Object, tag: Object) -> Self {
+    pub fn new(knowledge: &Composite, subject: Object, tag: Object) -> Self {
         match (&subject, &tag) {
             (Object::Abstract(Abstract::AXIOMATIC), Object::Abstract(Abstract::AXIOMATIC)) => {
                 Self::AxiomaticAxiomaticConstraint
@@ -45,11 +45,11 @@ impl QueryValues {
             ) => Self::None,
             _ => {
                 let values_from_subject = match &subject {
-                    Object::Abstract(_) => StructureValues::None,
-                    Object::Structure(structure) => structure.values(tag.clone()),
+                    Object::Abstract(_) => CompositeValues::None,
+                    Object::Composite(composite) => composite.values(tag.clone()),
                 };
 
-                let statements_from_knowledge = StructureSetValues::new(knowledge);
+                let statements_from_knowledge = CompositeSetValues::new(knowledge);
 
                 Self::Borrowed(BorrowedQueryValues {
                     values_from_subject,
@@ -61,11 +61,11 @@ impl QueryValues {
         }
     }
 
-    /// Creates a structure with all set values from `self`.
+    /// Creates a Composite with all set values from `self`.
     #[deprecated]
-    pub fn collect_to_set(self) -> Structure {
+    pub fn collect_to_set(self) -> Composite {
         let mut properties: Vec<_> = self.map(Property::new_contains).collect();
-        Structure::new(&mut properties)
+        Composite::new(&mut properties)
     }
 }
 
@@ -79,9 +79,9 @@ impl Iterator for QueryValues {
                 *self = Self::None;
                 Some(base::AXIOMATIC_AXIOMATIC_CONSTRAINT.clone())
             }
-            Self::EmptyStructure => {
+            Self::EmptyComposite => {
                 *self = Self::None;
-                Some(Structure::Empty.into())
+                Some(Composite::Empty.into())
             }
             Self::Borrowed(values) => values.next(),
         }
@@ -97,8 +97,8 @@ impl std::fmt::Debug for QueryValues {
 
 #[derive(Clone)]
 pub struct BorrowedQueryValues {
-    values_from_subject: StructureValues,
-    statements_from_knowledge: StructureSetValues,
+    values_from_subject: CompositeValues,
+    statements_from_knowledge: CompositeSetValues,
     subject: Object,
     tag: Object,
 }
@@ -124,11 +124,11 @@ impl Iterator for BorrowedQueryValues {
             let value = statement.intrinsic_statement_value().unwrap();
 
             // Now this value may be already been in
-            // the subject if it is a structure. So we
+            // the subject if it is a Composite. So we
             // need to dedup here.
 
-            if let Object::Structure(structure) = &self.subject
-                && structure.has(&tag, &value)
+            if let Object::Composite(composite) = &self.subject
+                && composite.has(&tag, &value)
             {
                 return None;
             }

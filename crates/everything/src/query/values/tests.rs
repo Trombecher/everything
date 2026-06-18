@@ -1,4 +1,4 @@
-use everything_structures::{Abstract, Object, Property, Structure};
+use everything_objects::{Abstract, Composite, Object, Property};
 
 use crate::{
     base::BASE,
@@ -7,15 +7,15 @@ use crate::{
 };
 
 #[test]
-fn structure_props() {
-    let structure: Object = Structure::new(&mut [
+fn composite_props() {
+    let composite: Object = Composite::new(&mut [
         Property::new_contains(Abstract(4242).into()),
         Property::new_contains(Abstract(6969).into()),
         Property::new_successor_of(Abstract::ZERO.into()),
     ])
     .into();
 
-    let mut values = QueryValues::new(&BASE, structure, Abstract::CONTAINS.into());
+    let mut values = QueryValues::new(&BASE, composite, Abstract::CONTAINS.into());
 
     assert_eq!(values.next(), Some(Object::Abstract(Abstract(4242))));
     assert_eq!(values.next(), Some(Object::Abstract(Abstract(6969))));

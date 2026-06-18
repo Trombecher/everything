@@ -1,21 +1,21 @@
-use everything_structures::{Object, Structure};
+use everything_objects::{Composite, Object};
 
-use crate::{StructureSetValues, ext::ObjectExt};
+use crate::{CompositeSetValues, ext::ObjectExt};
 
 /// An iterator over all subjects in the knowledge
 /// that have a given tag and value.
 #[derive(Clone, Debug)]
 pub struct QuerySubjects {
-    statements_from_knowledge: StructureSetValues,
+    statements_from_knowledge: CompositeSetValues,
     tag: Object,
     value: Object,
 }
 
 impl QuerySubjects {
     #[inline]
-    pub fn new(knowledge: &Structure, tag: Object, value: Object) -> Self {
+    pub fn new(knowledge: &Composite, tag: Object, value: Object) -> Self {
         Self {
-            statements_from_knowledge: StructureSetValues::new(knowledge),
+            statements_from_knowledge: CompositeSetValues::new(knowledge),
             tag,
             value,
         }

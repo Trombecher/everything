@@ -1,8 +1,8 @@
-use everything_structures::{Object, Structure};
+use everything_objects::{Composite, Object};
 
 use crate::{
     ObjectOrSetValues,
-    ext::{KnowledgeError, ObjectExt, StructureExt},
+    ext::{CompositeExt, KnowledgeError, ObjectExt},
     query::{
         QueryExists, QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags,
         QueryTagsAndValues, QueryValues,
@@ -10,28 +10,28 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Knowledge(Structure);
+pub struct Knowledge(Composite);
 
 impl Knowledge {
-    /// Creates a new knowledge from a structure.
+    /// Creates a new knowledge from a Composite.
     ///
-    /// * Returns `Ok(...)` if the given structure is valid knowledge;
+    /// * Returns `Ok(...)` if the given Composite is valid knowledge;
     /// * `Err(...)` otherwise.
     #[inline]
-    pub fn new(structure: Structure) -> Result<Self, KnowledgeError> {
-        structure.is_knowledge().map(|()| Self(structure))
+    pub fn new(composite: Composite) -> Result<Self, KnowledgeError> {
+        composite.is_knowledge().map(|()| Self(composite))
     }
 
-    /// Returns the underlying structure.
+    /// Returns the underlying Composite.
     #[must_use]
     #[inline]
-    pub fn structure(&self) -> &Structure {
+    pub fn composite(&self) -> &Composite {
         &self.0
     }
 
     #[inline]
     pub fn query_values(&self, subject: Object, tag: Object) -> QueryValues {
-        QueryValues::new(self.structure(), subject, tag.clone())
+        QueryValues::new(self.composite(), subject, tag.clone())
     }
 
     #[inline]
@@ -83,15 +83,15 @@ impl Knowledge {
     }
 }
 
-impl TryFrom<Structure> for Knowledge {
+impl TryFrom<Composite> for Knowledge {
     type Error = KnowledgeError;
 
-    fn try_from(value: Structure) -> Result<Self, Self::Error> {
+    fn try_from(value: Composite) -> Result<Self, Self::Error> {
         Self::new(value)
     }
 }
 
-impl From<Knowledge> for Structure {
+impl From<Knowledge> for Composite {
     fn from(value: Knowledge) -> Self {
         value.0
     }

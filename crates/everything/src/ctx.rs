@@ -1,4 +1,4 @@
-use everything_structures::{Object, Structure};
+use everything_objects::{Composite, Object};
 use tracing::instrument;
 
 use crate::ObjectOrSetValues;
@@ -9,7 +9,7 @@ use crate::ObjectOrSetValues;
 ///
 /// Instead of capturing every variable on each call,
 /// the evaluation engine can just lookup parameter values
-/// from this structure.
+/// from this Composite.
 #[derive(Debug, Clone, Default)]
 pub struct EvaluationContext {
     stack: Vec<FunctionContext>,
@@ -26,7 +26,7 @@ impl EvaluationContext {
     #[instrument(ret)]
     pub fn parameter_value(&self, relative_depth: usize) -> ObjectOrSetValues {
         self.function_context(relative_depth)
-            .map_or(Object::Structure(Structure::Empty).into(), |context| {
+            .map_or(Object::Composite(Composite::Empty).into(), |context| {
                 context.parameter.clone()
             })
     }
@@ -34,7 +34,7 @@ impl EvaluationContext {
     #[instrument(ret)]
     pub fn function_self(&self, relative_depth: usize) -> Object {
         self.function_context(relative_depth)
-            .map_or(Object::Structure(Structure::Empty), |context| {
+            .map_or(Object::Composite(Composite::Empty), |context| {
                 context.function.clone()
             })
     }

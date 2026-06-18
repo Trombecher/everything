@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use everything_structures::{Abstract, Object, Property, Structure};
+use everything_objects::{Abstract, Composite, Object, Property};
 use fallible_iterator::{FallibleIterator, IteratorExt};
 use tracing::{debug, instrument, warn};
 
@@ -9,8 +9,8 @@ use crate::{
     ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, KnowledgeError, ObjectForm, PropertyExt, Statement, StatementForm,
-        StructureExt, iter::IteratorExtNextAndLast,
+        AbstractExt, CompositeExt, KnowledgeError, ObjectForm, PropertyExt, Statement,
+        StatementForm, iter::IteratorExtNextAndLast,
     },
     nodes::{BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, Task, UnwrapOrNode},
     query::{
@@ -22,26 +22,26 @@ use crate::{
 /// An extension trait implemented for [`Object`], providing many useful functions.
 pub trait ObjectExt {
     /// Extracts the first (and last) [Abstract::NODE_COUNT] from `self`.
-    fn node_count(&self, knowledge: &Structure) -> Option<Object>;
+    fn node_count(&self, knowledge: &Composite) -> Option<Object>;
 
     /// Extracts the first (and last) [Abstract::FUNCTION] from `self`.
-    fn function_body(&self, knowledge: &Structure) -> Option<Object>;
+    fn function_body(&self, knowledge: &Composite) -> Option<Object>;
 
-    fn node_equal(&self, knowledge: &Structure) -> Option<BinaryNode>;
+    fn node_equal(&self, knowledge: &Composite) -> Option<BinaryNode>;
 
-    fn node_and(&self, knowledge: &Structure) -> Option<BinaryNode>;
+    fn node_and(&self, knowledge: &Composite) -> Option<BinaryNode>;
 
-    fn node_or(&self, knowledge: &Structure) -> Option<BinaryNode>;
+    fn node_or(&self, knowledge: &Composite) -> Option<BinaryNode>;
 
-    fn node_add(&self, knowledge: &Structure) -> Option<BinaryNode>;
+    fn node_add(&self, knowledge: &Composite) -> Option<BinaryNode>;
 
-    fn node_xor(&self, knowledge: &Structure) -> Option<BinaryNode>;
+    fn node_xor(&self, knowledge: &Composite) -> Option<BinaryNode>;
 
-    fn node_union(&self, knowledge: &Structure) -> Option<BinaryNode>;
+    fn node_union(&self, knowledge: &Composite) -> Option<BinaryNode>;
 
     fn capture(
         &self,
-        knowledge: &Structure,
+        knowledge: &Composite,
         additional_depth: usize,
         ctx: &EvaluationContext,
     ) -> ObjectOrSetValues;
@@ -51,18 +51,18 @@ pub trait ObjectExt {
     ///
     /// If you don't know what to pass into the context, pass
     /// `&mut Default::default()`.
-    fn evaluate(&self, knowledge: &Structure, context: &mut EvaluationContext)
+    fn evaluate(&self, knowledge: &Composite, context: &mut EvaluationContext)
     -> ObjectOrSetValues;
 
     /// Parses a node from `self`.
-    fn node(&self, knowledge: &Structure) -> Option<Node>;
+    fn node(&self, knowledge: &Composite) -> Option<Node>;
 
     /// Returns an iterator over all set items.
-    fn set_values(&self, knowledge: &Structure) -> QueryValues;
+    fn set_values(&self, knowledge: &Composite) -> QueryValues;
 
-    fn structure(&self) -> Option<&Structure>;
+    fn composite(&self) -> Option<&Composite>;
 
-    fn is_truthy(&self, knowledge: &Structure) -> bool;
+    fn is_truthy(&self, knowledge: &Composite) -> bool;
 
     /// Calls `self` with a list of parameters.
     /// If none are provided, `self` will just be evaluated.
@@ -70,52 +70,52 @@ pub trait ObjectExt {
     /// Note that it does not evaluate any parameters.
     fn call(
         &self,
-        knowledge: &Structure,
+        knowledge: &Composite,
         parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
     ) -> ObjectOrSetValues;
 
-    fn to_integer(&self, knowledge: &Structure) -> Option<i128>;
+    fn to_integer(&self, knowledge: &Composite) -> Option<i128>;
 
-    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u64>;
+    fn node_parameter_depth(&self, knowledge: &Composite) -> Option<u64>;
 
-    fn node_literal(&self, knowledge: &Structure) -> Option<Object>;
+    fn node_literal(&self, knowledge: &Composite) -> Option<Object>;
 
-    fn statement_subject(&self, knowledge: &Structure) -> Option<Object>;
-    fn statement_tag(&self, knowledge: &Structure) -> Option<Object>;
-    fn statement_value(&self, knowledge: &Structure) -> Option<Object>;
+    fn statement_subject(&self, knowledge: &Composite) -> Option<Object>;
+    fn statement_tag(&self, knowledge: &Composite) -> Option<Object>;
+    fn statement_value(&self, knowledge: &Composite) -> Option<Object>;
 
-    fn statement_form(&self, knowledge: &Structure) -> StatementForm;
+    fn statement_form(&self, knowledge: &Composite) -> StatementForm;
 
-    fn node_query(&self, knowledge: &Structure) -> Option<Object>;
+    fn node_query(&self, knowledge: &Composite) -> Option<Object>;
 
-    fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError>;
+    fn is_valid(&self, knowledge: &Composite, recursive: bool) -> Result<(), KnowledgeError>;
 
-    fn is_natural_number(&self, knowledge: &Structure) -> bool;
-    fn node_map(&self, knowledge: &Structure) -> Option<MapNode>;
-    fn node_filter(&self, knowledge: &Structure) -> Option<FilterNode>;
-    fn node_multiply(&self, knowledge: &Structure) -> Option<BinaryNode>;
+    fn is_natural_number(&self, knowledge: &Composite) -> bool;
+    fn node_map(&self, knowledge: &Composite) -> Option<MapNode>;
+    fn node_filter(&self, knowledge: &Composite) -> Option<FilterNode>;
+    fn node_multiply(&self, knowledge: &Composite) -> Option<BinaryNode>;
 
-    fn add(&self, knowledge: &Structure, other: &Object) -> Object;
+    fn add(&self, knowledge: &Composite, other: &Object) -> Object;
 
-    fn node_function_self(&self, knowledge: &Structure) -> Option<u64>;
+    fn node_function_self(&self, knowledge: &Composite) -> Option<u64>;
 
-    fn node_not(&self, knowledge: &Structure) -> Option<Object>;
+    fn node_not(&self, knowledge: &Composite) -> Option<Object>;
 
     /// Parses a binary node by querying (axiomatically)
     /// for `left_tag` and `right_tag`.
     fn binary_node(
         &self,
-        knowledge: &Structure,
+        knowledge: &Composite,
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode>;
-    fn node_unwrap_or(&self, knowledge: &Structure) -> Option<UnwrapOrNode>;
+    fn node_unwrap_or(&self, knowledge: &Composite) -> Option<UnwrapOrNode>;
 
-    fn node_if(&self, knowledge: &Structure) -> Option<IfNode>;
+    fn node_if(&self, knowledge: &Composite) -> Option<IfNode>;
 
-    fn node_less(&self, knowledge: &Structure) -> Option<BinaryNode>;
-    fn node_call(&self, knowledge: &Structure) -> Option<CallNode>;
+    fn node_less(&self, knowledge: &Composite) -> Option<BinaryNode>;
+    fn node_call(&self, knowledge: &Composite) -> Option<CallNode>;
 
     fn intrinsic_statement_subject(&self) -> Option<Object>;
 
@@ -125,7 +125,7 @@ pub trait ObjectExt {
 
     fn intrinsic_statement(&self) -> Option<Statement>;
 
-    fn multiply(&self, knowledge: &Structure, other: &Object) -> Object;
+    fn multiply(&self, knowledge: &Composite, other: &Object) -> Object;
 
     fn new_node(node: Node) -> Self;
 
@@ -136,7 +136,7 @@ pub trait ObjectExt {
 impl ObjectExt for Object {
     fn new_node_query_values(subject: Object, tag: Object) -> Self {
         Self::new_node(Node::Query(
-            Structure::new(&mut [
+            Composite::new(&mut [
                 Property::new_statement_subject(subject),
                 Property::new_statement_tag(tag),
             ])
@@ -147,7 +147,7 @@ impl ObjectExt for Object {
     fn new_node(node: Node) -> Self {
         match node {
             Node::Knowledge => Abstract::NODE_KNOWLEDGE.into(),
-            Node::Call(CallNode { callee, with }) => Structure::new(&mut [
+            Node::Call(CallNode { callee, with }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_CALL_CALLEE.into(),
                     value: callee,
@@ -158,17 +158,17 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
-            Node::Function(body) => Structure::new(&mut [Property {
+            Node::Function(body) => Composite::new(&mut [Property {
                 tag: Abstract::FUNCTION.into(),
                 value: body,
             }])
             .into(),
-            Node::Literal(literal) => Structure::new(&mut [Property {
+            Node::Literal(literal) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_LITERAL.into(),
                 value: literal,
             }])
             .into(),
-            Node::And(BinaryNode { left, right }) => Structure::new(&mut [
+            Node::And(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_AND_LEFT.into(),
                     value: left,
@@ -179,27 +179,27 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
-            Node::FunctionSelf(depth) => Structure::new(&mut [Property {
+            Node::FunctionSelf(depth) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_FUNCTION_SELF.into(),
                 value: Object::new_integer(depth as i128),
             }])
             .into(),
-            Node::Parameter(depth) => Structure::new(&mut [Property {
+            Node::Parameter(depth) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_PARAMETER.into(),
                 value: Object::new_integer(depth as i128),
             }])
             .into(),
-            Node::Count(object) => Structure::new(&mut [Property {
+            Node::Count(object) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_COUNT.into(),
                 value: object,
             }])
             .into(),
-            Node::Query(query) => Structure::new(&mut [Property {
+            Node::Query(query) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_QUERY.into(),
                 value: query,
             }])
             .into(),
-            Node::Equal(BinaryNode { left, right }) => Structure::new(&mut [
+            Node::Equal(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_EQUAL_LEFT.into(),
                     value: left,
@@ -210,7 +210,7 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
-            Node::Or(BinaryNode { left, right }) => Structure::new(&mut [
+            Node::Or(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_OR_LEFT.into(),
                     value: left,
@@ -221,7 +221,7 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
-            Node::Xor(BinaryNode { left, right }) => Structure::new(&mut [
+            Node::Xor(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_XOR_LEFT.into(),
                     value: left,
@@ -232,12 +232,12 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
-            Node::Not(node) => Structure::new(&mut [Property {
+            Node::Not(node) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_NOT.into(),
                 value: node,
             }])
             .into(),
-            Node::Add(BinaryNode { left, right }) => Structure::new(&mut [
+            Node::Add(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_ADD_LEFT.into(),
                     value: left,
@@ -248,7 +248,7 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
-            Node::Union(BinaryNode { left, right }) => Structure::new(&mut [
+            Node::Union(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_UNION_LEFT.into(),
                     value: left,
@@ -262,7 +262,7 @@ impl ObjectExt for Object {
             Node::Map(MapNode {
                 set,
                 mapper_function,
-            }) => Structure::new(&mut [
+            }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_MAP_SET.into(),
                     value: set,
@@ -276,7 +276,7 @@ impl ObjectExt for Object {
             Node::Filter(FilterNode {
                 set,
                 filter_function,
-            }) => Structure::new(&mut [
+            }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_FILTER_SET.into(),
                     value: set,
@@ -287,7 +287,7 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
-            Node::Less(BinaryNode { left, right }) => Structure::new(&mut [
+            Node::Less(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_LESS_LEFT.into(),
                     value: left,
@@ -302,7 +302,7 @@ impl ObjectExt for Object {
                 condition,
                 otherwise,
                 then,
-            }) => Structure::new(&mut [
+            }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_IF_CONDITION.into(),
                     value: condition,
@@ -317,7 +317,7 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
-            Node::UnwrapOr(UnwrapOrNode { set, default }) => Structure::new(&mut [
+            Node::UnwrapOr(UnwrapOrNode { set, default }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_UNWRAP_OR_SET.into(),
                     value: set,
@@ -328,7 +328,7 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
-            Node::Multiply(BinaryNode { left, right }) => Structure::new(&mut [
+            Node::Multiply(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_MULTIPLY_LEFT.into(),
                     value: left,
@@ -342,7 +342,7 @@ impl ObjectExt for Object {
         }
     }
 
-    fn is_natural_number(&self, knowledge: &Structure) -> bool {
+    fn is_natural_number(&self, knowledge: &Composite) -> bool {
         if self.exact_integer().is_some() {
             // Fast path of exact natural numbers.
             return true;
@@ -360,22 +360,22 @@ impl ObjectExt for Object {
         }
     }
 
-    fn set_values(&self, knowledge: &Structure) -> QueryValues {
+    fn set_values(&self, knowledge: &Composite) -> QueryValues {
         QueryValues::new(knowledge, self.clone(), Abstract::CONTAINS.into())
     }
 
-    fn structure(&self) -> Option<&Structure> {
+    fn composite(&self) -> Option<&Composite> {
         match self {
             Self::Abstract(_) => None,
-            Self::Structure(structure) => Some(structure),
+            Self::Composite(composite) => Some(composite),
         }
     }
 
-    fn is_truthy(&self, knowledge: &Structure) -> bool {
+    fn is_truthy(&self, knowledge: &Composite) -> bool {
         self.set_values(knowledge).next().is_some()
     }
 
-    fn node_equal(&self, knowledge: &Structure) -> Option<BinaryNode> {
+    fn node_equal(&self, knowledge: &Composite) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
             Abstract::NODE_EQUAL_LEFT.into(),
@@ -383,7 +383,7 @@ impl ObjectExt for Object {
         )
     }
 
-    fn node_and(&self, knowledge: &Structure) -> Option<BinaryNode> {
+    fn node_and(&self, knowledge: &Composite) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
             Abstract::NODE_AND_LEFT.into(),
@@ -391,7 +391,7 @@ impl ObjectExt for Object {
         )
     }
 
-    fn node_or(&self, knowledge: &Structure) -> Option<BinaryNode> {
+    fn node_or(&self, knowledge: &Composite) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
             Abstract::NODE_OR_LEFT.into(),
@@ -399,7 +399,7 @@ impl ObjectExt for Object {
         )
     }
 
-    fn node_union(&self, knowledge: &Structure) -> Option<BinaryNode> {
+    fn node_union(&self, knowledge: &Composite) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
             Abstract::NODE_UNION_LEFT.into(),
@@ -407,7 +407,7 @@ impl ObjectExt for Object {
         )
     }
 
-    fn node_map(&self, knowledge: &Structure) -> Option<MapNode> {
+    fn node_map(&self, knowledge: &Composite) -> Option<MapNode> {
         let set_expression =
             QueryValues::new(knowledge, self.clone(), Abstract::NODE_MAP_SET.into()).next()?;
         let mapper_function_expression =
@@ -419,7 +419,7 @@ impl ObjectExt for Object {
         })
     }
 
-    fn node_filter(&self, knowledge: &Structure) -> Option<FilterNode> {
+    fn node_filter(&self, knowledge: &Composite) -> Option<FilterNode> {
         let set = QueryValues::new(knowledge, self.clone(), Abstract::NODE_FILTER_SET.into())
             .next_and_last()?;
 
@@ -432,7 +432,7 @@ impl ObjectExt for Object {
         })
     }
 
-    fn node_add(&self, knowledge: &Structure) -> Option<BinaryNode> {
+    fn node_add(&self, knowledge: &Composite) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
             Abstract::NODE_ADD_LEFT.into(),
@@ -440,7 +440,7 @@ impl ObjectExt for Object {
         )
     }
 
-    fn node_xor(&self, knowledge: &Structure) -> Option<BinaryNode> {
+    fn node_xor(&self, knowledge: &Composite) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
             Abstract::NODE_XOR_LEFT.into(),
@@ -448,7 +448,7 @@ impl ObjectExt for Object {
         )
     }
 
-    fn node_multiply(&self, knowledge: &Structure) -> Option<BinaryNode> {
+    fn node_multiply(&self, knowledge: &Composite) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
             Abstract::NODE_MULTIPLY_LEFT.into(),
@@ -458,7 +458,7 @@ impl ObjectExt for Object {
 
     fn binary_node(
         &self,
-        knowledge: &Structure,
+        knowledge: &Composite,
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode> {
@@ -469,7 +469,7 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn node(&self, knowledge: &Structure) -> Option<Node> {
+    fn node(&self, knowledge: &Composite) -> Option<Node> {
         let mut node = self.function_body(knowledge).map(Node::Function);
 
         macro_rules! xor_with {
@@ -517,7 +517,7 @@ impl ObjectExt for Object {
         node
     }
 
-    fn node_unwrap_or(&self, knowledge: &Structure) -> Option<UnwrapOrNode> {
+    fn node_unwrap_or(&self, knowledge: &Composite) -> Option<UnwrapOrNode> {
         let set = QueryValues::new(knowledge, self.clone(), Abstract::NODE_UNWRAP_OR_SET.into())
             .next_and_last()?;
 
@@ -531,7 +531,7 @@ impl ObjectExt for Object {
         Some(UnwrapOrNode { set, default })
     }
 
-    fn node_if(&self, knowledge: &Structure) -> Option<IfNode> {
+    fn node_if(&self, knowledge: &Composite) -> Option<IfNode> {
         let condition =
             QueryValues::new(knowledge, self.clone(), Abstract::NODE_IF_CONDITION.into())
                 .next_and_last()?;
@@ -549,7 +549,7 @@ impl ObjectExt for Object {
         })
     }
 
-    fn node_less(&self, knowledge: &Structure) -> Option<BinaryNode> {
+    fn node_less(&self, knowledge: &Composite) -> Option<BinaryNode> {
         self.binary_node(
             knowledge,
             Abstract::NODE_LESS_LEFT.into(),
@@ -557,7 +557,7 @@ impl ObjectExt for Object {
         )
     }
 
-    fn node_call(&self, knowledge: &Structure) -> Option<CallNode> {
+    fn node_call(&self, knowledge: &Composite) -> Option<CallNode> {
         let callee = QueryValues::new(knowledge, self.clone(), Abstract::NODE_CALL_CALLEE.into())
             .next_and_last()?;
 
@@ -567,19 +567,19 @@ impl ObjectExt for Object {
         Some(CallNode { callee, with })
     }
 
-    fn node_not(&self, knowledge: &Structure) -> Option<Object> {
+    fn node_not(&self, knowledge: &Composite) -> Option<Object> {
         QueryValues::new(knowledge, self.clone(), Abstract::NODE_NOT.into()).next_and_last()
     }
 
-    fn node_count(&self, knowledge: &Structure) -> Option<Object> {
+    fn node_count(&self, knowledge: &Composite) -> Option<Object> {
         QueryValues::new(knowledge, self.clone(), Abstract::NODE_COUNT.into()).next_and_last()
     }
 
-    fn function_body(&self, knowledge: &Structure) -> Option<Object> {
+    fn function_body(&self, knowledge: &Composite) -> Option<Object> {
         QueryValues::new(knowledge, self.clone(), Abstract::FUNCTION.into()).next_and_last()
     }
 
-    fn node_parameter_depth(&self, knowledge: &Structure) -> Option<u64> {
+    fn node_parameter_depth(&self, knowledge: &Composite) -> Option<u64> {
         let depth = QueryValues::new(knowledge, self.clone(), Abstract::NODE_PARAMETER.into())
             .next_and_last()?
             .to_integer(knowledge)?;
@@ -587,11 +587,11 @@ impl ObjectExt for Object {
         u64::try_from(depth).ok()
     }
 
-    fn node_literal(&self, knowledge: &Structure) -> Option<Object> {
+    fn node_literal(&self, knowledge: &Composite) -> Option<Object> {
         QueryValues::new(knowledge, self.clone(), Abstract::NODE_LITERAL.into()).next_and_last()
     }
 
-    fn node_function_self(&self, knowledge: &Structure) -> Option<u64> {
+    fn node_function_self(&self, knowledge: &Composite) -> Option<u64> {
         let depth = QueryValues::new(knowledge, self.clone(), Abstract::NODE_FUNCTION_SELF.into())
             .next_and_last()?
             .to_integer(knowledge)?;
@@ -603,7 +603,7 @@ impl ObjectExt for Object {
     fn intrinsic_statement_subject(&self) -> Option<Object> {
         match self {
             Object::Abstract(_) => None,
-            Object::Structure(structure) => structure
+            Object::Composite(composite) => composite
                 .values(Abstract::STATEMENT_SUBJECT.into())
                 .next_and_last(),
         }
@@ -613,7 +613,7 @@ impl ObjectExt for Object {
     fn intrinsic_statement_tag(&self) -> Option<Object> {
         match self {
             Object::Abstract(_) => None,
-            Object::Structure(structure) => structure
+            Object::Composite(composite) => composite
                 .values(Abstract::STATEMENT_TAG.into())
                 .next_and_last(),
         }
@@ -623,7 +623,7 @@ impl ObjectExt for Object {
     fn intrinsic_statement_value(&self) -> Option<Object> {
         match self {
             Object::Abstract(_) => None,
-            Object::Structure(structure) => structure
+            Object::Composite(composite) => composite
                 .values(Abstract::STATEMENT_VALUE.into())
                 .next_and_last(),
         }
@@ -641,7 +641,7 @@ impl ObjectExt for Object {
         })
     }
 
-    fn statement_subject(&self, knowledge: &Structure) -> Option<Object> {
+    fn statement_subject(&self, knowledge: &Composite) -> Option<Object> {
         QueryValues::new(
             knowledge,
             self.clone(),
@@ -650,7 +650,7 @@ impl ObjectExt for Object {
         .next_and_last()
     }
 
-    fn statement_tag(&self, knowledge: &Structure) -> Option<Object> {
+    fn statement_tag(&self, knowledge: &Composite) -> Option<Object> {
         QueryValues::new(
             knowledge,
             self.clone(),
@@ -659,7 +659,7 @@ impl ObjectExt for Object {
         .next_and_last()
     }
 
-    fn statement_value(&self, knowledge: &Structure) -> Option<Object> {
+    fn statement_value(&self, knowledge: &Composite) -> Option<Object> {
         QueryValues::new(
             knowledge,
             self.clone(),
@@ -668,7 +668,7 @@ impl ObjectExt for Object {
         .next_and_last()
     }
 
-    fn statement_form(&self, knowledge: &Structure) -> StatementForm {
+    fn statement_form(&self, knowledge: &Composite) -> StatementForm {
         let subject: ObjectForm = self.statement_subject(knowledge).into();
         let tag: ObjectForm = self.statement_tag(knowledge).into();
         let value: ObjectForm = self.statement_value(knowledge).into();
@@ -680,7 +680,7 @@ impl ObjectExt for Object {
         }
     }
 
-    fn node_query(&self, knowledge: &Structure) -> Option<Self> {
+    fn node_query(&self, knowledge: &Composite) -> Option<Self> {
         QueryValues::new(
             knowledge,
             self.clone(),
@@ -692,7 +692,7 @@ impl ObjectExt for Object {
     #[instrument(skip(knowledge), ret)]
     fn capture(
         &self,
-        knowledge: &Structure,
+        knowledge: &Composite,
         additional_depth: usize,
         ctx: &EvaluationContext,
     ) -> ObjectOrSetValues {
@@ -723,7 +723,7 @@ impl ObjectExt for Object {
                 }
             }
             _ => match self {
-                Self::Structure(Structure::Any(structure)) => structure
+                Self::Composite(Composite::Any(composite)) => composite
                     .as_ref()
                     .iter()
                     .map(|property| {
@@ -750,19 +750,19 @@ impl ObjectExt for Object {
                     .transpose_into_fallible()
                     .collect::<Vec<_>>()
                     .map(|mut properties| {
-                        ObjectOrSetValues::Object(Self::Structure(Structure::new(&mut properties)))
+                        ObjectOrSetValues::Object(Self::Composite(Composite::new(&mut properties)))
                     })
                     .unwrap_or_else(|(o, error)| {
                         warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                        ObjectOrSetValues::Object(Structure::Empty.into())
+                        ObjectOrSetValues::Object(Composite::Empty.into())
                     }),
                 _ => ObjectOrSetValues::Object(self.clone()),
             },
         }
     }
 
-    fn multiply(&self, knowledge: &Structure, other: &Object) -> Object {
+    fn multiply(&self, knowledge: &Composite, other: &Object) -> Object {
         if let Some(left) = self.to_integer(knowledge)
             && let Some(right) = other.to_integer(knowledge)
         {
@@ -779,7 +779,7 @@ impl ObjectExt for Object {
     #[instrument(skip(knowledge), ret)]
     fn evaluate(
         &self,
-        knowledge: &Structure,
+        knowledge: &Composite,
         context: &mut EvaluationContext,
     ) -> ObjectOrSetValues {
         let mut tasks = vec![Task::Eval(self.clone())];
@@ -954,8 +954,8 @@ impl ObjectExt for Object {
                         tasks.push(Task::PartialIf { then, otherwise });
                         tasks.push(Task::Eval(condition));
                     }
-                    None if let Object::Structure(Structure::Any(any_structure)) = object => {
-                        let result = any_structure
+                    None if let Object::Composite(Composite::Any(any_composite)) = object => {
+                        let result = any_composite
                             .properties()
                             .map(|property| {
                                 // TODO: DEBATE THIS BS
@@ -982,14 +982,14 @@ impl ObjectExt for Object {
                             .transpose_into_fallible()
                             .collect::<Vec<_>>()
                             .map(|mut properties| {
-                                Object::Structure(Structure::new(&mut properties)).into()
+                                Object::Composite(Composite::new(&mut properties)).into()
                             })
                             .unwrap_or_else(|(o, error)| {
                                 warn!(
                                     "invalid object {o:?} with error {error:?}; replacing with {{}}"
                                 );
 
-                                ObjectOrSetValues::Object(Object::Structure(Structure::Empty))
+                                ObjectOrSetValues::Object(Object::Composite(Composite::Empty))
                             });
 
                         evaluated.push(result);
@@ -1018,7 +1018,7 @@ impl ObjectExt for Object {
                         tasks.push(Task::Eval(right));
                     } else {
                         evaluated
-                            .push(ObjectOrSetValues::Object(Structure::new_bool(false).into()));
+                            .push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
                     }
                 }
                 Task::Count => {
@@ -1090,7 +1090,7 @@ impl ObjectExt for Object {
                     let subject = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(ObjectOrSetValues::Object(
-                        Structure::new_bool(QueryExists::new(
+                        Composite::new_bool(QueryExists::new(
                             knowledge,
                             subject,
                             tag.clone(),
@@ -1103,18 +1103,18 @@ impl ObjectExt for Object {
                     let mut object = evaluated.pop().unwrap();
 
                     evaluated.push(ObjectOrSetValues::Object(
-                        Structure::new_bool(object.is_truthy(knowledge)).into(),
+                        Composite::new_bool(object.is_truthy(knowledge)).into(),
                     ))
                 }
                 Task::Equal => {
                     let right = evaluated.pop().unwrap().into_object();
                     let left = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(Object::Structure(Structure::new_bool(left == right)).into());
+                    evaluated.push(Object::Composite(Composite::new_bool(left == right)).into());
                 }
                 Task::PartialOr { right } => {
                     if evaluated.pop().unwrap().is_truthy(knowledge) {
-                        evaluated.push(ObjectOrSetValues::Object(Structure::new_bool(true).into()));
+                        evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
                     } else {
                         tasks.push(Task::ToBoolean);
                         tasks.push(Task::Eval(right));
@@ -1125,14 +1125,14 @@ impl ObjectExt for Object {
                     let left = evaluated.pop().unwrap().is_truthy(knowledge);
 
                     evaluated.push(ObjectOrSetValues::Object(
-                        Structure::new_bool((left || right) && !(left && right)).into(),
+                        Composite::new_bool((left || right) && !(left && right)).into(),
                     ));
                 }
                 Task::Not => {
                     let mut object = evaluated.pop().unwrap();
 
                     evaluated.push(ObjectOrSetValues::Object(
-                        Structure::new_bool(!object.is_truthy(knowledge)).into(),
+                        Composite::new_bool(!object.is_truthy(knowledge)).into(),
                     ));
                 }
                 Task::Add => {
@@ -1183,7 +1183,7 @@ impl ObjectExt for Object {
                     let left = evaluated.pop().unwrap();
 
                     evaluated.push(
-                        Object::Structure(Structure::new_bool(match (left, right) {
+                        Object::Composite(Composite::new_bool(match (left, right) {
                             (ObjectOrSetValues::Object(left), ObjectOrSetValues::Object(right))
                                 if let Some(left) = left.to_integer(knowledge)
                                     && let Some(right) = right.to_integer(knowledge) =>
@@ -1229,7 +1229,7 @@ impl ObjectExt for Object {
     #[instrument(skip(knowledge), ret)]
     fn call(
         &self,
-        knowledge: &Structure,
+        knowledge: &Composite,
         parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
     ) -> ObjectOrSetValues {
@@ -1237,10 +1237,10 @@ impl ObjectExt for Object {
             && let Some(parameter) = parameters.first()
         {
             return match parameter.clone().into_object() {
-                Object::Structure(structure) => {
-                    Object::Structure(Structure::new_bool(structure.is_knowledge().is_ok()))
+                Object::Composite(composite) => {
+                    Object::Composite(Composite::new_bool(composite.is_knowledge().is_ok()))
                 }
-                Object::Abstract(_) => Object::Structure(Structure::Empty),
+                Object::Abstract(_) => Object::Composite(Composite::Empty),
             }
             .into();
         }
@@ -1264,7 +1264,7 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn to_integer(&self, knowledge: &Structure) -> Option<i128> {
+    fn to_integer(&self, knowledge: &Composite) -> Option<i128> {
         if let Some(n) = self.exact_integer() {
             // Fast path for exact natural numbers.
             Some(n)
@@ -1286,14 +1286,14 @@ impl ObjectExt for Object {
         }
     }
 
-    fn is_valid(&self, knowledge: &Structure, recursive: bool) -> Result<(), KnowledgeError> {
+    fn is_valid(&self, knowledge: &Composite, recursive: bool) -> Result<(), KnowledgeError> {
         match self {
             Self::Abstract(_) => Ok(()),
-            Self::Structure(structure) => structure.is_valid(knowledge, recursive),
+            Self::Composite(composite) => composite.is_valid(knowledge, recursive),
         }
     }
 
-    fn add(&self, knowledge: &Structure, other: &Object) -> Object {
+    fn add(&self, knowledge: &Composite, other: &Object) -> Object {
         if let Some(left) = self.to_integer(knowledge)
             && let Some(right) = other.to_integer(knowledge)
         {

@@ -1,4 +1,4 @@
-use crate::{base::BASE, ext::StructureExt};
+use crate::{base::BASE, ext::CompositeExt};
 use std::assert_matches;
 
 #[test]
