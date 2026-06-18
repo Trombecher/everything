@@ -7,7 +7,7 @@ mod Parser {
         use core::assert_matches;
 
         #[test]
-        fn character_structure() {
+        fn character_Composite() {
             let cases = ['1', 'ä', '🤙'];
 
             for c in cases {
@@ -16,7 +16,7 @@ mod Parser {
 
                 assert_eq!(
                     parser.parse_object(),
-                    Ok(Object::Structure(Structure::Character(c)))
+                    Ok(Object::Composite(Composite::Character(c)))
                 );
 
                 assert_eq!(parser.bytes.index(), 1 + c.len_utf8());
@@ -24,12 +24,12 @@ mod Parser {
         }
 
         #[test]
-        fn empty_structure() {
+        fn empty_Composite() {
             let mut parser = Parser::new("ExyzÜ");
 
             assert_eq!(
                 parser.parse_object(),
-                Ok(Object::Structure(Structure::Empty))
+                Ok(Object::Composite(Composite::Empty))
             );
 
             assert_eq!(parser.bytes.index(), 1);

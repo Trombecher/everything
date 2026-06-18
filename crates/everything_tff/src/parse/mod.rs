@@ -2,7 +2,7 @@
 mod tests;
 
 use base64::Engine;
-use everything_structures::{Abstract, BytesStructure, Object, Property, Structure, TextStructure};
+use everything_objects::{Abstract, BytesComposite, Composite, Object, Property, TextComposite};
 
 use crate::bytes::Bytes;
 
@@ -26,7 +26,7 @@ macro_rules! bail {
 #[derive(Debug, Clone)]
 pub struct Parser<'source> {
     bytes: Bytes<'source>,
-    previous_aliases: Vec<Structure>,
+    previous_aliases: Vec<Composite>,
 }
 
 impl<'source> Parser<'source> {
@@ -42,7 +42,7 @@ impl<'source> Parser<'source> {
             bail!(self.bytes.index(), "invalid header")
         }
 
-        while let Some(alias) = self.try_parse_structure_alias()? {
+        while let Some(alias) = self.try_parse_composite_alias()? {
             self.previous_aliases.push(alias);
 
             // Every alias ends with a LF.
@@ -88,7 +88,7 @@ impl<'source> Parser<'source> {
         Ok(Property { tag, value })
     }
 
-    fn try_parse_structure_alias(&mut self) -> Result<Option<Structure>, Error> {
+    fn try_parse_composite_alias(&mut self) -> Result<Option<Composite>, Error> {
         match self.bytes.peek() {
             Some(b'T') => {
                 self.bytes.next();
@@ -124,20 +124,20 @@ impl<'source> Parser<'source> {
 
                 let text = &self.bytes.whole_str().as_bytes()[start..end];
 
-                Ok(Some(BytesStructure::new(text).map_or(
-                    Structure::Empty,
+                Ok(Some(BytesComposite::new(text).map_or(
+                    Composite::Empty,
                     |bytes| {
-                        Structure::Text(unsafe {
+                        Composite::Text(unsafe {
                             // SAFETY: start is at a char boundary, and end is too.
                             // Also, the whole source is a string, so this is safe.
-                            TextStructure::new_unchecked(bytes)
+                            TextComposite::new_unchecked(bytes)
                         })
                     },
                 )))
             }
             Some(b'A') => {
                 self.bytes.next();
-                // Any structure
+                // Any Composite
 
                 let number_of_properties = self.parse_u64()?;
 
@@ -147,7 +147,7 @@ impl<'source> Parser<'source> {
                     properties.push(self.parse_property()?);
                 }
 
-                Ok(Some(Structure::new(&mut properties)))
+                Ok(Some(Composite::new(&mut properties)))
             }
             Some(b'B') => {
                 self.bytes.next();
@@ -179,7 +179,7 @@ impl<'source> Parser<'source> {
                 };
 
                 Ok(Some(
-                    BytesStructure::new(&bytes).map_or(Structure::Empty, Structure::Bytes),
+                    BytesComposite::new(&bytes).map_or(Composite::Empty, Composite::Bytes),
                 ))
             }
             _ => Ok(None),
@@ -212,36 +212,36 @@ impl<'source> Parser<'source> {
         Ok(n)
     }
 
-    fn get_text_structure(&mut self, index: u64) -> Result<TextStructure, Error> {
-        let Some(structure) = self.previous_aliases.get_mut(index as usize) else {
-            bail!(self.bytes.index(), "invalid structure reference")
+    fn get_text_composite(&mut self, index: u64) -> Result<TextComposite, Error> {
+        let Some(composite) = self.previous_aliases.get_mut(index as usize) else {
+            bail!(self.bytes.index(), "invalid Composite reference")
         };
 
-        match structure.clone() {
-            Structure::Text(text) => Ok(text),
-            Structure::Bytes(bytes) => {
+        match composite.clone() {
+            Composite::Text(text) => Ok(text),
+            Composite::Bytes(bytes) => {
                 if let Ok(_) = str::from_utf8(bytes.as_ref()) {
-                    let ret = unsafe { TextStructure::new_unchecked(bytes) };
-                    *structure = Structure::Text(ret.clone());
+                    let ret = unsafe { TextComposite::new_unchecked(bytes) };
+                    *composite = Composite::Text(ret.clone());
 
                     Ok(ret)
                 } else {
                     bail!(self.bytes.index(), ":/")
                 }
             }
-            _ => bail!(self.bytes.index(), "does not reference text-like structure"),
+            _ => bail!(self.bytes.index(), "does not reference text-like Composite"),
         }
     }
 
-    fn get_bytes_structure(&mut self, index: u64) -> Result<BytesStructure, Error> {
-        let Some(structure) = self.previous_aliases.get_mut(index as usize) else {
-            bail!(self.bytes.index(), "invalid structure reference")
+    fn get_bytes_composite(&mut self, index: u64) -> Result<BytesComposite, Error> {
+        let Some(composite) = self.previous_aliases.get_mut(index as usize) else {
+            bail!(self.bytes.index(), "invalid Composite reference")
         };
 
-        match structure.clone() {
-            Structure::Bytes(bytes) => Ok(bytes),
-            Structure::Text(text) => Ok(text.into_bytes()),
-            _ => bail!(self.bytes.index(), "does not reference text-like structure"),
+        match composite.clone() {
+            Composite::Bytes(bytes) => Ok(bytes),
+            Composite::Text(text) => Ok(text.into_bytes()),
+            _ => bail!(self.bytes.index(), "does not reference text-like Composite"),
         }
     }
 
@@ -278,7 +278,7 @@ impl<'source> Parser<'source> {
 
                 let _ = self.bytes.advance_by(c.len_utf8());
 
-                Ok(Structure::Character(c).into())
+                Ok(Composite::Character(c).into())
             }
             Some(b'-') => {
                 self.bytes.next();
@@ -326,34 +326,34 @@ impl<'source> Parser<'source> {
 
                 let index = self.parse_u64()?;
 
-                let Some(structure) = self.previous_aliases.get(index as usize) else {
-                    bail!(self.bytes.index(), "invalid structure reference")
+                let Some(composite) = self.previous_aliases.get(index as usize) else {
+                    bail!(self.bytes.index(), "invalid Composite reference")
                 };
 
-                Ok(Object::Structure(structure.clone()))
+                Ok(Object::Composite(composite.clone()))
             }
             Some(b't') => {
                 self.bytes.next();
 
                 let index = self.parse_u64()?;
 
-                self.get_text_structure(index)
-                    .map(Structure::Text)
-                    .map(Object::Structure)
+                self.get_text_composite(index)
+                    .map(Composite::Text)
+                    .map(Object::Composite)
             }
             Some(b'b') => {
                 self.bytes.next();
 
                 let index = self.parse_u64()?;
 
-                self.get_bytes_structure(index)
-                    .map(Structure::Bytes)
-                    .map(Object::Structure)
+                self.get_bytes_composite(index)
+                    .map(Composite::Bytes)
+                    .map(Object::Composite)
             }
             Some(b'E') => {
                 self.bytes.next();
 
-                Ok(Structure::Empty.into())
+                Ok(Composite::Empty.into())
             }
             _ => bail!(self.bytes.index(), "an ASCII digit, '@', or 'R'"),
         }

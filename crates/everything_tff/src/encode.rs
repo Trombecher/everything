@@ -2,16 +2,16 @@ use core::fmt;
 use std::{collections::HashMap, fmt::Write};
 
 use base64::display::Base64Display;
-use everything_structures::{Abstract, AnyStructure, BytesStructure, Object, Structure};
+use everything_objects::{Abstract, AnyComposite, BytesComposite, Composite, Object};
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum DeduplicatedStructure {
-    Any(AnyStructure),
-    BytesOrText(BytesStructure),
+pub enum DeduplicatedComposite {
+    Any(AnyComposite),
+    BytesOrText(BytesComposite),
 }
 
 pub struct Encoder<Out: Write> {
-    encoded_structures: HashMap<DeduplicatedStructure, u64>,
+    encoded_composites: HashMap<DeduplicatedComposite, u64>,
     out: Out,
 }
 
@@ -20,7 +20,7 @@ impl<Out: Write> Encoder<Out> {
     #[inline]
     pub fn new(out: Out) -> Self {
         Self {
-            encoded_structures: HashMap::new(),
+            encoded_composites: HashMap::new(),
             out,
         }
     }
@@ -38,32 +38,32 @@ impl<Out: Write> Encoder<Out> {
                     )
                 )
             }
-            Object::Structure(Structure::Empty) => self.out.write_char('E'),
-            Object::Structure(Structure::Integer(i)) => {
+            Object::Composite(Composite::Empty) => self.out.write_char('E'),
+            Object::Composite(Composite::Integer(i)) => {
                 write!(self.out, "{i}")
             }
-            Object::Structure(Structure::Any(a)) => {
-                let ds = DeduplicatedStructure::Any(a);
-                let index = *self.encoded_structures.get(&ds).unwrap();
+            Object::Composite(Composite::Any(a)) => {
+                let ds = DeduplicatedComposite::Any(a);
+                let index = *self.encoded_composites.get(&ds).unwrap();
 
                 write!(self.out, "r{index}")
             }
-            Object::Structure(Structure::Text(text)) => {
-                let ds = DeduplicatedStructure::BytesOrText(text.into_bytes());
-                let index = *&self.encoded_structures.get(&ds).unwrap();
+            Object::Composite(Composite::Text(text)) => {
+                let ds = DeduplicatedComposite::BytesOrText(text.into_bytes());
+                let index = *&self.encoded_composites.get(&ds).unwrap();
 
                 write!(self.out, "t{index}")
             }
-            Object::Structure(Structure::Bytes(bytes)) => {
-                let ds = DeduplicatedStructure::BytesOrText(bytes);
-                let index = *&self.encoded_structures.get(&ds).unwrap();
+            Object::Composite(Composite::Bytes(bytes)) => {
+                let ds = DeduplicatedComposite::BytesOrText(bytes);
+                let index = *&self.encoded_composites.get(&ds).unwrap();
 
                 write!(self.out, "b{index}")
             }
-            Object::Structure(Structure::Byte(byte)) => {
+            Object::Composite(Composite::Byte(byte)) => {
                 write!(self.out, "x{:02x}", byte.0)
             }
-            Object::Structure(Structure::Character(c)) => {
+            Object::Composite(Composite::Character(c)) => {
                 write!(self.out, ">{c}")
             }
         }
@@ -71,15 +71,15 @@ impl<Out: Write> Encoder<Out> {
 
     fn ensure_refs_are_encoded(&mut self, object: Object) -> Result<(), fmt::Error> {
         match object {
-            Object::Structure(Structure::Text(text)) => {
-                let ds = DeduplicatedStructure::BytesOrText(text.into_bytes());
+            Object::Composite(Composite::Text(text)) => {
+                let ds = DeduplicatedComposite::BytesOrText(text.into_bytes());
 
-                if !self.encoded_structures.contains_key(&ds) {
-                    self.encoded_structures
-                        .insert(ds.clone(), self.encoded_structures.len() as u64);
+                if !self.encoded_composites.contains_key(&ds) {
+                    self.encoded_composites
+                        .insert(ds.clone(), self.encoded_composites.len() as u64);
 
                     let text_bytes = match ds {
-                        DeduplicatedStructure::BytesOrText(bytes) => bytes,
+                        DeduplicatedComposite::BytesOrText(bytes) => bytes,
                         _ => unreachable!(),
                     };
 
@@ -88,15 +88,15 @@ impl<Out: Write> Encoder<Out> {
                     })?;
                 }
             }
-            Object::Structure(Structure::Bytes(bytes)) => {
-                let ds = DeduplicatedStructure::BytesOrText(bytes);
+            Object::Composite(Composite::Bytes(bytes)) => {
+                let ds = DeduplicatedComposite::BytesOrText(bytes);
 
-                if !self.encoded_structures.contains_key(&ds) {
-                    self.encoded_structures
-                        .insert(ds.clone(), self.encoded_structures.len() as u64);
+                if !self.encoded_composites.contains_key(&ds) {
+                    self.encoded_composites
+                        .insert(ds.clone(), self.encoded_composites.len() as u64);
 
                     let bytes = match ds {
-                        DeduplicatedStructure::BytesOrText(bytes) => bytes,
+                        DeduplicatedComposite::BytesOrText(bytes) => bytes,
                         _ => unreachable!(),
                     };
 
@@ -111,12 +111,12 @@ impl<Out: Write> Encoder<Out> {
                     )?;
                 }
             }
-            Object::Structure(Structure::Any(any)) => {
-                let ds = DeduplicatedStructure::Any(any);
+            Object::Composite(Composite::Any(any)) => {
+                let ds = DeduplicatedComposite::Any(any);
 
-                if !self.encoded_structures.contains_key(&ds) {
+                if !self.encoded_composites.contains_key(&ds) {
                     let any = match &ds {
-                        DeduplicatedStructure::Any(any) => any,
+                        DeduplicatedComposite::Any(any) => any,
                         _ => unreachable!(),
                     };
 
@@ -125,8 +125,8 @@ impl<Out: Write> Encoder<Out> {
                         self.ensure_refs_are_encoded(property.value)?;
                     }
 
-                    self.encoded_structures
-                        .insert(ds.clone(), self.encoded_structures.len() as u64);
+                    self.encoded_composites
+                        .insert(ds.clone(), self.encoded_composites.len() as u64);
 
                     write!(self.out, "\nA{}", any.as_ref().len())?;
 
