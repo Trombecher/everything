@@ -1,6 +1,6 @@
 use std::{io::ErrorKind, path::PathBuf};
 
-use everything_structures::{Object, Structure};
+use everything_objects::{Composite, Object};
 use everything_tff::{encode::Encoder, parse::Parser};
 use memmap2::Mmap;
 use tokio::{
@@ -23,7 +23,7 @@ impl Database {
     pub const fn empty(path: PathBuf) -> Self {
         Self {
             path,
-            root: Object::Structure(Structure::Empty),
+            root: Object::Composite(Composite::Empty),
         }
     }
 
