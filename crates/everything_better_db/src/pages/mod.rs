@@ -2,6 +2,7 @@
 mod meta;
 mod mstorage;
 mod pam;
+mod storage;
 
 use derive_where::derive_where;
 pub use meta::*;

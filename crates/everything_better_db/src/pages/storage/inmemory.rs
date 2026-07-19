@@ -5,8 +5,7 @@ use memmap2::MmapMut;
 
 use crate::{
     convert::safe_u64_to_usize,
-    pages::{OpaquePage, OpaquePageReference, RawPageId},
-    storage::Storage,
+    pages::{OpaquePage, OpaquePageReference, RawPageId, storage::Storage},
 };
 
 pub struct InMemoryStorage {

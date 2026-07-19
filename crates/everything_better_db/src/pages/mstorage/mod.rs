@@ -1,10 +1,8 @@
 use std::ops::Deref;
 
-use crate::{
-    pages::{
-        Page, PageId, RawPageId,
-        pam::{self, PageAccessGuard, PageAccessManager},
-    },
+use crate::pages::{
+    Page, PageId, RawPageId,
+    pam::{self, PageAccessGuard, PageAccessManager},
     storage::Storage,
 };
 
