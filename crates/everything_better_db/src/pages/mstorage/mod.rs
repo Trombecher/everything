@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::ops::Deref;
 
 use crate::pages::{
@@ -28,6 +31,7 @@ impl<'page, P: Page> Deref for PageReference<'_, 'page, P> {
     }
 }
 
+/// Manages a storage by guarding page access.
 pub struct ManagedStorage<S: Storage> {
     storage: S,
     pam: PageAccessManager,
@@ -41,7 +45,10 @@ impl<S: Storage> ManagedStorage<S> {
         }
     }
 
-    pub fn page<P: Page>(&self, page_id: PageId<P>) -> Result<PageReference<P>, Error> {
+    pub fn page<'storage, P: Page>(
+        &'storage self,
+        page_id: PageId<P>,
+    ) -> Result<PageReference<'storage, 'storage, P>, Error> {
         let Some(page_reference) = self.storage.page(page_id.raw) else {
             return Err(Error::PageIdOutOfBounds {
                 page_id: page_id.raw,

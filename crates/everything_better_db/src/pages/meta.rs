@@ -3,8 +3,9 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use zerocopy::FromBytes;
 
 use crate::{
-    pages::{FreePage, PageIdLocation},
+    pages::{FreePage, PageIdLocation, PageKind},
     sync::{U32LeLocation, U64LeLocation},
+    unsafe_declare_page,
 };
 
 #[repr(C, align(4096))]
@@ -14,6 +15,8 @@ pub struct MetaPage {
     pub super_block_a: SuperBlock,
     pub super_block_b: SuperBlock,
 }
+
+unsafe_declare_page!(MetaPage, PageKind::Meta);
 
 #[derive(FromBytes)]
 pub struct CurrentSuperBlockLocation(AtomicU8);
@@ -32,6 +35,7 @@ impl CurrentSuperBlockLocation {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum CurrentSuperBlock {
     A,
     B,

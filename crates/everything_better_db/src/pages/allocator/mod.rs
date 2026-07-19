@@ -2,8 +2,7 @@ use std::{num::NonZeroU64, sync::Mutex};
 
 use crate::{
     error::Error,
-    pages::{FreePage, OpaquePage, Page, PageId, mstorage::ManagedStorage},
-    storage::Storage,
+    pages::{FreePage, OpaquePage, Page, PageId, mstorage::ManagedStorage, storage::Storage},
 };
 
 pub struct PageAllocator<S: Storage> {
