@@ -6,15 +6,15 @@ use crate::pages::PageKind;
 
 #[test]
 pub fn open_one_and_close() {
-    let pam = PageAccessManager::empty();
+    let pam = PageAccessManager::new();
 
     let guard = pam.open_page_as(42, PageKind::BTreeChild).unwrap();
-    assert_eq!(guard.page_index, 42);
+    assert_eq!(guard.page_id, 42);
 
     assert_eq!(
         pam.open_pages.lock().unwrap().as_slice(),
         &[OpenPage {
-            page_index: 42,
+            page_id: 42,
             info: OpenPageInfo {
                 used_as: PageKind::BTreeChild,
                 uses_minus_one: 0
@@ -31,7 +31,7 @@ pub fn open_one_and_close() {
 pub fn open_one_fail_exhausted() {
     let pam = PageAccessManager {
         open_pages: Mutex::new(vec![OpenPage {
-            page_index: 42,
+            page_id: 42,
             info: OpenPageInfo {
                 used_as: PageKind::BTreeChild,
                 uses_minus_one: u32::MAX,
@@ -41,20 +41,20 @@ pub fn open_one_fail_exhausted() {
 
     assert_eq!(
         pam.open_page_as(42, PageKind::BTreeChild).unwrap_err(),
-        PamError::PageUseCountExhausted { page_index: 42 }
+        Error::PageUseCountExhausted { page_id: 42 }
     );
 }
 
 #[test]
 pub fn open_one_fail_invalid_page_access() {
-    let pam = PageAccessManager::empty();
+    let pam = PageAccessManager::new();
 
     let first = pam.open_page_as(42, PageKind::BTreeChild).unwrap();
 
     assert_eq!(
         pam.open_page_as(42, PageKind::BTreeRoot).unwrap_err(),
-        PamError::InvalidPageAccess {
-            page_index: 42,
+        Error::InvalidPageAccess {
+            page_id: 42,
             page_in_use_as: PageKind::BTreeChild,
             requested: PageKind::BTreeRoot
         }
@@ -65,7 +65,7 @@ pub fn open_one_fail_invalid_page_access() {
 
 #[test]
 pub fn open_multiple_of_same_kind_and_close() {
-    let pam = PageAccessManager::empty();
+    let pam = PageAccessManager::new();
 
     let ref_1 = pam
         .open_page_as(4534095832344, PageKind::BTreeRoot)
@@ -82,7 +82,7 @@ pub fn open_multiple_of_same_kind_and_close() {
     assert_eq!(
         pam.open_pages.lock().unwrap().as_slice(),
         &[OpenPage {
-            page_index: 4534095832344,
+            page_id: 4534095832344,
             info: OpenPageInfo {
                 used_as: PageKind::BTreeRoot,
                 uses_minus_one: 2
@@ -95,7 +95,7 @@ pub fn open_multiple_of_same_kind_and_close() {
     assert_eq!(
         pam.open_pages.lock().unwrap().as_slice(),
         &[OpenPage {
-            page_index: 4534095832344,
+            page_id: 4534095832344,
             info: OpenPageInfo {
                 used_as: PageKind::BTreeRoot,
                 uses_minus_one: 1
@@ -108,7 +108,7 @@ pub fn open_multiple_of_same_kind_and_close() {
     assert_eq!(
         pam.open_pages.lock().unwrap().as_slice(),
         &[OpenPage {
-            page_index: 4534095832344,
+            page_id: 4534095832344,
             info: OpenPageInfo {
                 used_as: PageKind::BTreeRoot,
                 uses_minus_one: 0
@@ -121,7 +121,7 @@ pub fn open_multiple_of_same_kind_and_close() {
 
 #[test]
 pub fn open_multiple_and_close() {
-    let pam = PageAccessManager::empty();
+    let pam = PageAccessManager::new();
 
     let a = pam.open_page_as(410, PageKind::BTreeChild).unwrap();
     let b = pam.open_page_as(411, PageKind::BTreeChild).unwrap();

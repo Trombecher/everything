@@ -2,12 +2,12 @@ use std::{num::NonZeroU64, sync::Mutex};
 
 use crate::{
     error::Error,
-    pages::{FreePage, Page, PageId},
+    pages::{FreePage, OpaquePage, Page, PageId, mstorage::ManagedStorage},
     storage::Storage,
 };
 
 pub struct PageAllocator<S: Storage> {
-    pub storage: S,
+    pub mstorage: ManagedStorage<S>,
     /// Lock for concurrent access to the "allocator".
     lock: Mutex<()>,
 }
@@ -16,16 +16,15 @@ impl<S: Storage> PageAllocator<S> {
     #[must_use]
     pub const fn new(storage: S) -> Self {
         Self {
-            storage,
+            mstorage: ManagedStorage::new(storage),
             lock: Mutex::new(()),
         }
     }
 
+    // pub fn allocate<P: Page>(&self) -> Result<PageReference<P>, ()> {}
+
     #[inline(always)]
-    pub fn free<P>(&self, page_id: PageId<P>) -> Result<(), Error>
-    where
-        Page: AsRef<P>,
-    {
+    pub fn free<P: Page>(&self, page_id: PageId<P>) -> Result<(), Error> {
         self._free(page_id.id)
     }
 
@@ -49,7 +48,7 @@ impl<S: Storage> PageAllocator<S> {
         Ok(())
     }
 
-    pub fn allocate(&self) -> Result<&Page, Error> {
+    pub fn allocate(&self) -> Result<&OpaquePage, Error> {
         let _lock = self.lock.lock().unwrap();
 
         match self.storage.meta_page().allocator_next_free_page.id() {
@@ -71,7 +70,7 @@ impl<S: Storage> PageAllocator<S> {
 
                 let next_page =
                     NonZeroU64::new(self.storage.meta_page().allocator_pages_initialized.get())
-                        .map(PageId::<Page>::new)
+                        .map(PageId::<OpaquePage>::new)
                         .ok_or(Error::OutOfPages)?;
 
                 let page = self

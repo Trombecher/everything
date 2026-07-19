@@ -1,20 +1,50 @@
+use std::sync::atomic::{AtomicU8, Ordering};
+
+use zerocopy::FromBytes;
+
 use crate::{
     pages::{FreePage, PageIdLocation},
     sync::{U32LeLocation, U64LeLocation},
-    unsafe_declare_page,
 };
 
 #[repr(C, align(4096))]
 pub struct MetaPage {
     pub magic_bytes: MagicBytes,
+    pub current_super_block: CurrentSuperBlockLocation,
+    pub super_block_a: SuperBlock,
+    pub super_block_b: SuperBlock,
+}
+
+#[derive(FromBytes)]
+pub struct CurrentSuperBlockLocation(AtomicU8);
+
+impl CurrentSuperBlockLocation {
+    pub fn get(&self) -> CurrentSuperBlock {
+        if self.0.load(Ordering::Relaxed) & 0b1 == 0 {
+            CurrentSuperBlock::A
+        } else {
+            CurrentSuperBlock::B
+        }
+    }
+
+    pub fn set(&self, sb: CurrentSuperBlock) {
+        self.0.store(sb as u8, Ordering::Relaxed);
+    }
+}
+
+pub enum CurrentSuperBlock {
+    A,
+    B,
+}
+
+pub struct SuperBlock {
     pub version: U32LeLocation,
     pub _reserved: U32LeLocation,
     pub allocator_next_free_page: PageIdLocation<FreePage>,
     pub allocator_pages_initialized: U64LeLocation,
 }
 
-unsafe_declare_page!(MetaPage);
-
+#[derive(FromBytes)]
 pub struct MagicBytes {
     low: U64LeLocation,
     high: U64LeLocation,

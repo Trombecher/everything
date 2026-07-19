@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 macro_rules! impl_le_location {
     ($LeLocation:ident, $Primitive:ty, $Atomic:ty) => {
         #[repr(transparent)]
+        #[derive(::zerocopy::FromBytes)]
         pub struct $LeLocation($Atomic);
 
         impl $LeLocation {

@@ -4,24 +4,12 @@ pub use inmemory::*;
 
 use std::io;
 
-use crate::{
-    error::Error,
-    pages::{MetaPage, Page, PageId},
-};
+use crate::pages::{OpaquePageReference, RawPageId};
 
 pub trait Storage {
-    fn meta_page(&self) -> &MetaPage;
+    /// Creates a reference to an opaque page.
+    fn page<'page>(&'page self, page_id: RawPageId) -> Option<OpaquePageReference<'page>>;
 
-    fn page(&self, index: usize) -> Option<&Page>;
-
+    /// Flushes dirty pages back to the storage medium.
     fn flush(&self) -> Result<(), io::Error>;
-
-    fn resolve_page<P>(&self, id: PageId<P>) -> Result<&P, Error>
-    where
-        Page: AsRef<P>,
-    {
-        self.page(id.id.get().try_into().unwrap())
-            .map(AsRef::as_ref)
-            .ok_or_else(|| Error::PageIdDoesNotExist(id.id))
-    }
 }

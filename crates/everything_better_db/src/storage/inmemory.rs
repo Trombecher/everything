@@ -1,10 +1,11 @@
 use core::slice;
-use std::{io, num::NonZeroUsize};
+use std::{io, num::NonZeroUsize, ptr::NonNull};
 
 use memmap2::MmapMut;
 
 use crate::{
-    pages::{MetaPage, Page},
+    convert::safe_u64_to_usize,
+    pages::{OpaquePage, OpaquePageReference, RawPageId},
     storage::Storage,
 };
 
@@ -17,34 +18,32 @@ pub struct InMemoryStorage {
 
 impl InMemoryStorage {
     pub fn new(max_pages: NonZeroUsize) -> Result<Self, io::Error> {
-        let map = MmapMut::map_anon(max_pages.get() * Page::SIZE)?;
+        let map = MmapMut::map_anon(max_pages.get() * OpaquePage::SIZE)?;
 
-        if !map.as_ptr().is_aligned_to(Page::SIZE) {
+        if !map.as_ptr().is_aligned_to(OpaquePage::SIZE) {
             panic!("got a memory map slice that is not aligned to OS page size.")
         }
 
         Ok(Self { map })
     }
 
-    fn pages(&self) -> &[Page] {
+    fn pages(&self) -> &[OpaquePage] {
         let bytes = self.map.as_ref();
 
         // SAFETY: `bytes` is aligned to Page::Size
         // and Page is equivalent to [u8; Page::Size].
-        unsafe { slice::from_raw_parts(bytes.as_ptr() as _, bytes.len() / Page::SIZE) }
+        unsafe { slice::from_raw_parts(bytes.as_ptr() as _, bytes.len() / OpaquePage::SIZE) }
     }
 }
 
 impl Storage for InMemoryStorage {
-    fn meta_page(&self) -> &MetaPage {
-        unsafe { self.pages().first().unwrap_unchecked() }.as_ref()
-    }
-
     fn flush(&self) -> Result<(), std::io::Error> {
         Ok(())
     }
 
-    fn page(&self, index: usize) -> Option<&Page> {
-        self.pages().get(index)
+    fn page(&self, page_id: RawPageId) -> Option<OpaquePageReference> {
+        self.pages()
+            .get(safe_u64_to_usize(page_id))
+            .map(|page| unsafe { OpaquePageReference::new(NonNull::from(page)) })
     }
 }
