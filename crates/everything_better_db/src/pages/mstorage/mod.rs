@@ -12,7 +12,7 @@ use crate::pages::{
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("")]
-    Pam(#[from] pam::Error),
+    PageAccessManager(#[from] pam::Error),
     #[error("page id {page_id} out of bounds")]
     PageIdOutOfBounds { page_id: RawPageId },
 }
@@ -21,6 +21,22 @@ pub enum Error {
 pub struct PageReference<'pam, 'page, P: Page> {
     guard: PageAccessGuard<'pam>,
     page: &'page P,
+}
+
+impl<'pam, 'page, Source: Page> PageReference<'pam, 'page, Source> {
+    pub fn cast<ToPage: Page>(self) -> Result<PageReference<'pam, 'page, ToPage>, pam::Error> {
+        self.guard.cast(ToPage::KIND)?;
+
+        Ok(PageReference {
+            guard: self.guard,
+            // SAFETY: TODO
+            page: unsafe {
+                (self.page as *const Source)
+                    .cast::<ToPage>()
+                    .as_ref_unchecked()
+            },
+        })
+    }
 }
 
 impl<'page, P: Page> Deref for PageReference<'_, 'page, P> {
@@ -38,6 +54,7 @@ pub struct ManagedStorage<S: Storage> {
 }
 
 impl<S: Storage> ManagedStorage<S> {
+    /// Creates a new [`ManagedStorage`].
     pub const fn new(storage: S) -> Self {
         Self {
             storage,
@@ -45,6 +62,7 @@ impl<S: Storage> ManagedStorage<S> {
         }
     }
 
+    /// Retrieves a [`PageReference`] from a [`PageId`].
     pub fn page<'storage, P: Page>(
         &'storage self,
         page_id: PageId<P>,

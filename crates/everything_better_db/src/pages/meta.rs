@@ -18,6 +18,15 @@ pub struct MetaPage {
 
 unsafe_declare_page!(MetaPage, PageKind::Meta);
 
+impl MetaPage {
+    pub fn super_block(&self) -> &SuperBlock {
+        match self.current_super_block.get() {
+            CurrentSuperBlock::A => &self.super_block_a,
+            CurrentSuperBlock::B => &self.super_block_b,
+        }
+    }
+}
+
 pub struct CurrentSuperBlockLocation(AtomicU8);
 
 impl CurrentSuperBlockLocation {

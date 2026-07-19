@@ -1,7 +1,11 @@
 #[cfg(test)]
 mod tests;
 
-use std::{fmt::Debug, hint::cold_path, sync::Mutex};
+use std::{
+    fmt::Debug,
+    hint::cold_path,
+    sync::{Mutex, MutexGuard},
+};
 
 use crate::pages::{PageKind, RawPageId};
 
@@ -17,9 +21,14 @@ pub enum Error {
     },
     #[error("could not open page {page_id}: its use count is exhausted")]
     PageUseCountExhausted { page_id: RawPageId },
+    #[error("page cast failed for page {open_page:?} to kind {requested_use:?}")]
+    PageCastFailed {
+        open_page: OpenPage,
+        requested_use: PageKind,
+    },
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 struct OpenPage {
     page_id: RawPageId,
     info: OpenPageInfo,
@@ -39,7 +48,7 @@ impl OpenPageInfo {
     }
 
     #[inline(always)]
-    pub fn increment_use_count(&mut self) -> Result<(), ()> {
+    fn increment_use_count(&mut self) -> Result<(), ()> {
         match self.uses_minus_one.checked_add(1) {
             Some(new_ref_count) => {
                 self.uses_minus_one = new_ref_count;
@@ -55,7 +64,7 @@ impl OpenPageInfo {
     }
 
     #[inline(always)]
-    pub fn decrement_use_count(&mut self) -> Result<(), ()> {
+    fn decrement_use_count(&mut self) -> Result<(), ()> {
         if let Some(new_page_use_count) = self.uses_minus_one.checked_sub(1) {
             self.uses_minus_one = new_page_use_count;
             Ok(())
@@ -77,6 +86,10 @@ impl<'pam> PageAccessGuard<'pam> {
 
     pub const fn page_id(&self) -> RawPageId {
         self.page_id
+    }
+
+    pub fn cast(&self, new_kind: PageKind) -> Result<(), Error> {
+        self.pam.cast_open_page(self.page_id, new_kind)
     }
 }
 
@@ -115,16 +128,22 @@ impl PageAccessManager {
             .map(|open_page| open_page.info.clone())
     }
 
+    fn try_to_find_already_open_page<'a>(
+        open_pages: &'a mut MutexGuard<'_, Vec<OpenPage>>,
+        page_id: RawPageId,
+    ) -> Option<&'a mut OpenPage> {
+        open_pages
+            .iter_mut()
+            .find(|open_page| open_page.page_id == page_id)
+    }
+
     pub fn open_page_as<'pam>(
         &'pam self,
         page_id: RawPageId,
         requested_use: PageKind,
     ) -> Result<PageAccessGuard<'pam>, Error> {
         let mut open_pages = self.open_pages.lock().unwrap();
-
-        let maybe_already_open_page = open_pages
-            .iter_mut()
-            .find(|open_page| open_page.page_id == page_id);
+        let maybe_already_open_page = Self::try_to_find_already_open_page(&mut open_pages, page_id);
 
         match maybe_already_open_page {
             None => {
@@ -161,7 +180,27 @@ impl PageAccessManager {
         }
     }
 
-    /// This method must only be called by a valid page guard.
+    /// This method must only be called by a page guard.
+    fn cast_open_page<'pam>(
+        &'pam self,
+        page_id: RawPageId,
+        requested_use: PageKind,
+    ) -> Result<(), Error> {
+        let mut open_pages = self.open_pages.lock().unwrap();
+        let already_open_page = Self::try_to_find_already_open_page(&mut open_pages, page_id)
+            .expect("internal error: got invalid page id from guard");
+
+        if already_open_page.info.uses_minus_one == 0 {
+            Ok(())
+        } else {
+            Err(Error::PageCastFailed {
+                open_page: already_open_page.clone(),
+                requested_use,
+            })
+        }
+    }
+
+    /// This method must only be called by a page guard.
     fn close_page(&self, page_id: RawPageId) {
         let mut open_pages = self.open_pages.lock().unwrap();
 

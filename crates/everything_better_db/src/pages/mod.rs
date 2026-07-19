@@ -1,10 +1,10 @@
-// mod allocator;
+mod allocator;
 mod meta;
 mod mstorage;
 mod pam;
 pub mod storage;
 
-// pub use allocator::*;
+pub use allocator::*;
 pub use meta::*;
 
 use derive_where::derive_where;
@@ -55,8 +55,8 @@ const fn is_from_bytes<T: FromBytes>() {}
 
 /// A little-endian u64 location that
 pub struct MutablePageIdLocation<P: Page> {
-    pub raw: MutableU64LeLocation,
-    pub _marker: PhantomData<P>,
+    raw: MutableU64LeLocation,
+    _marker: PhantomData<P>,
 }
 
 impl<P: Page> MutablePageIdLocation<P> {
@@ -67,6 +67,7 @@ impl<P: Page> MutablePageIdLocation<P> {
         PageId::new(self.raw.get())
     }
 
+    #[inline(always)]
     pub fn set(&self, value: PageId<P>) {
         self.raw.set(value.raw);
     }
