@@ -4,4 +4,3 @@ mod asserts;
 mod convert;
 mod error;
 pub mod pages;
-mod sync;

@@ -5,7 +5,10 @@ use memmap2::MmapMut;
 
 use crate::{
     convert::safe_u64_to_usize,
-    pages::{OpaquePage, OpaquePageReference, RawPageId, storage::Storage},
+    pages::{
+        RawPageId,
+        storage::{OpaquePage, OpaquePageReference, Storage},
+    },
 };
 
 pub struct InMemoryStorage {
@@ -40,7 +43,7 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
-    fn page(&self, page_id: RawPageId) -> Option<OpaquePageReference> {
+    fn page<'page>(&'page self, page_id: RawPageId) -> Option<OpaquePageReference<'page>> {
         self.pages()
             .get(safe_u64_to_usize(page_id))
             .map(|page| unsafe { OpaquePageReference::new(NonNull::from(page)) })

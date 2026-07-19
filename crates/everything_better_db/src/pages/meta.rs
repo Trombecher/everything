@@ -1,10 +1,10 @@
 use std::sync::atomic::{AtomicU8, Ordering};
 
-use zerocopy::FromBytes;
-
 use crate::{
-    pages::{FreePage, PageIdLocation, PageKind},
-    sync::{U32LeLocation, U64LeLocation},
+    pages::{
+        FreePage, MutablePageIdLocation, PageKind,
+        storage::sync::{ImmutableU32LeLocation, MutableU32LeLocation, MutableU64LeLocation},
+    },
     unsafe_declare_page,
 };
 
@@ -18,7 +18,6 @@ pub struct MetaPage {
 
 unsafe_declare_page!(MetaPage, PageKind::Meta);
 
-#[derive(FromBytes)]
 pub struct CurrentSuperBlockLocation(AtomicU8);
 
 impl CurrentSuperBlockLocation {
@@ -42,16 +41,15 @@ pub enum CurrentSuperBlock {
 }
 
 pub struct SuperBlock {
-    pub version: U32LeLocation,
-    pub _reserved: U32LeLocation,
-    pub allocator_next_free_page: PageIdLocation<FreePage>,
-    pub allocator_pages_initialized: U64LeLocation,
+    pub version: MutableU32LeLocation,
+    pub _reserved: ImmutableU32LeLocation,
+    pub allocator_next_free_page: MutablePageIdLocation<FreePage>,
+    pub allocator_pages_initialized: MutableU64LeLocation,
 }
 
-#[derive(FromBytes)]
 pub struct MagicBytes {
-    low: U64LeLocation,
-    high: U64LeLocation,
+    low: MutableU64LeLocation,
+    high: MutableU64LeLocation,
 }
 
 impl MagicBytes {

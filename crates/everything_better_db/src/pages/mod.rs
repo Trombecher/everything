@@ -2,7 +2,7 @@
 mod meta;
 mod mstorage;
 mod pam;
-mod storage;
+pub mod storage;
 
 // pub use allocator::*;
 pub use meta::*;
@@ -10,9 +10,9 @@ pub use meta::*;
 use derive_where::derive_where;
 use zerocopy::FromBytes;
 
-use core::{marker::PhantomData, ptr::NonNull};
+use core::marker::PhantomData;
 
-use crate::sync::U64LeLocation;
+use crate::pages::storage::sync::MutableU64LeLocation;
 
 pub unsafe trait Page {
     const KIND: PageKind;
@@ -29,7 +29,7 @@ pub enum PageKind {
 
 #[repr(C, align(4096))]
 pub struct FreePage {
-    pub next_page: PageIdLocation<FreePage>,
+    pub next_page: MutablePageIdLocation<FreePage>,
     // TODO: maybe duplicate or save free page otherwise...
     _rest: [u8; 4088],
 }
@@ -54,17 +54,21 @@ unsafe_declare_page!(FreePage, PageKind::Free);
 const fn is_from_bytes<T: FromBytes>() {}
 
 /// A little-endian u64 location that
-pub struct PageIdLocation<P: Page> {
-    pub raw: U64LeLocation,
+pub struct MutablePageIdLocation<P: Page> {
+    pub raw: MutableU64LeLocation,
     pub _marker: PhantomData<P>,
 }
 
-impl<P: Page> PageIdLocation<P> {
+impl<P: Page> MutablePageIdLocation<P> {
     /// Returns the page id; or `None` if it is zero.
     #[inline]
     #[must_use]
-    pub fn id(&self) -> PageId<P> {
+    pub fn get(&self) -> PageId<P> {
         PageId::new(self.raw.get())
+    }
+
+    pub fn set(&self, value: PageId<P>) {
+        self.raw.set(value.raw);
     }
 }
 
@@ -85,40 +89,4 @@ impl<P: Page> PageId<P> {
             _marker: PhantomData,
         }
     }
-}
-
-/// A reference to an opaque page.
-pub struct OpaquePageReference<'page> {
-    pointer: NonNull<OpaquePage>,
-    _marker: PhantomData<&'page OpaquePage>,
-}
-
-impl<'page> OpaquePageReference<'page> {
-    /// # SAFETY
-    ///
-    /// The pointer must be correctly aligned and
-    /// valid for the page.
-    pub const unsafe fn new(pointer: NonNull<OpaquePage>) -> Self {
-        Self {
-            pointer,
-            _marker: PhantomData,
-        }
-    }
-
-    pub const unsafe fn cast<'a, P: Page>(self) -> &'a P {
-        unsafe { self.pointer.as_ptr().cast::<P>().as_ref_unchecked() }
-    }
-}
-
-/// A struct representing a page that has not been yet interpreted.
-///
-/// **You should never have an actual reference to a struct of this type,
-/// but via [`OpaquePageReference`].**
-#[repr(C, align(4096))]
-pub struct OpaquePage {
-    pub bytes: [u8; 4096],
-}
-
-impl OpaquePage {
-    pub const SIZE: usize = size_of::<Self>();
 }
