@@ -195,6 +195,7 @@ dependencies = [
  "memmap2",
  "thiserror",
  "tokio",
+ "tracing",
  "zerocopy",
 ]
 

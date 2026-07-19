@@ -3,9 +3,10 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use crate::{
     pages::{
         FreePage, MutablePageIdLocation, PageKind,
-        storage::sync::{ImmutableU32LeLocation, MutableU32LeLocation, MutableU64LeLocation},
+        storage::sync::{ImmutableU32LeLocation, MutableU64LeLocation},
     },
     unsafe_declare_page,
+    versions::MutableDatabaseFormatVersionLocation,
 };
 
 #[repr(C, align(4096))]
@@ -19,6 +20,11 @@ pub struct MetaPage {
 unsafe_declare_page!(MetaPage, PageKind::Meta);
 
 impl MetaPage {
+    pub fn init(&self) {
+        self.magic_bytes.init();
+        self.current_super_block.set(CurrentSuperBlock::A);
+    }
+
     pub fn super_block(&self) -> &SuperBlock {
         match self.current_super_block.get() {
             CurrentSuperBlock::A => &self.super_block_a,
@@ -27,6 +33,7 @@ impl MetaPage {
     }
 }
 
+#[repr(transparent)]
 pub struct CurrentSuperBlockLocation(AtomicU8);
 
 impl CurrentSuperBlockLocation {
@@ -49,11 +56,16 @@ pub enum CurrentSuperBlock {
     B,
 }
 
+#[repr(C)]
 pub struct SuperBlock {
-    pub version: MutableU32LeLocation,
+    /// The version of the disk format.
+    pub version: MutableDatabaseFormatVersionLocation,
     pub _reserved: ImmutableU32LeLocation,
     pub allocator_next_free_page: MutablePageIdLocation<FreePage>,
     pub allocator_pages_initialized: MutableU64LeLocation,
+
+    /// The database revision id.
+    pub revision_id: MutableU64LeLocation,
 }
 
 pub struct MagicBytes {
@@ -64,6 +76,11 @@ pub struct MagicBytes {
 impl MagicBytes {
     const EXPECTED_LOW: [u8; 8] = *b"EVERYTHI";
     const EXPECTED_HIGH: [u8; 8] = *b"NGDB    ";
+
+    pub fn init(&self) {
+        self.low.set(u64::from_le_bytes(Self::EXPECTED_LOW));
+        self.high.set(u64::from_le_bytes(Self::EXPECTED_HIGH));
+    }
 
     pub fn validate(&self) -> Result<(), ()> {
         let low = self.low.get().to_le_bytes();

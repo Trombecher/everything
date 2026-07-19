@@ -1,5 +1,5 @@
 use core::slice;
-use std::{io, num::NonZeroUsize, ptr::NonNull};
+use std::{convert::Infallible, io, num::NonZeroUsize, ptr::NonNull};
 
 use memmap2::MmapMut;
 
@@ -39,7 +39,9 @@ impl InMemoryStorage {
 }
 
 impl Storage for InMemoryStorage {
-    fn flush(&self) -> Result<(), std::io::Error> {
+    type Error = Infallible;
+
+    fn flush(&self) -> Result<(), Self::Error> {
         Ok(())
     }
 

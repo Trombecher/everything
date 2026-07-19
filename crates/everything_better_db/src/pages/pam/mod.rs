@@ -29,7 +29,7 @@ pub enum Error {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-struct OpenPage {
+pub struct OpenPage {
     page_id: RawPageId,
     info: OpenPageInfo,
 }

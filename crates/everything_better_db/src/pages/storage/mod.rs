@@ -5,16 +5,16 @@ pub use inmemory::*;
 
 use core::{marker::PhantomData, ptr::NonNull};
 
-use std::io;
-
 use crate::pages::{Page, RawPageId};
 
 pub trait Storage {
+    type Error;
+
     /// Creates a reference to an opaque page.
     fn page<'page>(&'page self, page_id: RawPageId) -> Option<OpaquePageReference<'page>>;
 
     /// Flushes dirty pages back to the storage medium.
-    fn flush(&self) -> Result<(), io::Error>;
+    fn flush(&self) -> Result<(), Self::Error>;
 }
 
 /// A reference to an opaque page.
