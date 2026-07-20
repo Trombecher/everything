@@ -1,5 +1,5 @@
-use core::slice;
-use std::{convert::Infallible, io, ptr::NonNull};
+use core::{convert::Infallible, ptr::NonNull, slice};
+use std::io;
 
 use memmap2::MmapMut;
 

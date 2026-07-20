@@ -1,6 +1,6 @@
 //! Synchronization primitives that can be memory-mapped.
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 macro_rules! impl_le_location {
     (

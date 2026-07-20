@@ -9,12 +9,11 @@ pub use meta::*;
 
 use derive_where::derive_where;
 
-use core::marker::PhantomData;
-use core::mem::transmute;
+use core::{marker::PhantomData, mem::transmute};
 
 use crate::pages::storage::sync::{MutableU32LeLocation, MutableU64LeLocation};
 
-/// # SAFETY
+/// # Safety
 ///
 /// For some type to be a page, it must satisfy the following constraints:
 ///
@@ -25,6 +24,20 @@ use crate::pages::storage::sync::{MutableU32LeLocation, MutableU64LeLocation};
 ///   and another mutable atomic u32 followed right after that (page kind).
 pub unsafe trait Page {
     const KIND: PageKind;
+}
+
+#[macro_export]
+macro_rules! unsafe_declare_page {
+    ($Page:ty, $kind:expr) => {
+        $crate::const_assert!(size_of::<$Page>() == 4096);
+        $crate::const_assert!(align_of::<$Page>() == 4096);
+
+        unsafe impl $crate::pages::Page for $Page {
+            const KIND: PageKind = $kind;
+        }
+
+        // const _: () = is_from_bytes::<$Page>();
+    };
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -74,20 +87,6 @@ pub struct FreePage {
 
     // TODO: maybe duplicate or save free page otherwise...
     _rest: [u8; 4080],
-}
-
-#[macro_export]
-macro_rules! unsafe_declare_page {
-    ($Page:ty, $kind:expr) => {
-        $crate::const_assert!(size_of::<$Page>() == 4096);
-        $crate::const_assert!(align_of::<$Page>() == 4096);
-
-        unsafe impl $crate::pages::Page for $Page {
-            const KIND: PageKind = $kind;
-        }
-
-        // const _: () = is_from_bytes::<$Page>();
-    };
 }
 
 unsafe_declare_page!(FreePage, PageKind::Free);

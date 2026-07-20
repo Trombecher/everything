@@ -2,6 +2,7 @@
 #![warn(clippy::pedantic)]
 #![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::missing_errors_doc)]
+#![deny(clippy::std_instead_of_core)]
 
 mod asserts;
 mod convert;

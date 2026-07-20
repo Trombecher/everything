@@ -1,11 +1,9 @@
 #[cfg(test)]
 mod tests;
 
-use std::{
-    fmt::Debug,
-    hint::cold_path,
-    sync::{Mutex, MutexGuard},
-};
+use core::{fmt::Debug, hint::cold_path};
+
+use std::sync::{Mutex, MutexGuard};
 
 use crate::pages::{PageKind, RawPageId};
 
@@ -88,7 +86,7 @@ impl PageAccessGuard<'_> {
 }
 
 impl Debug for PageAccessGuard<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("PageAccessGuard")
             .field("page_index", &self.page_id)
             .finish()
