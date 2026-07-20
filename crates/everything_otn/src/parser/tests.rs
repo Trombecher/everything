@@ -1,6 +1,6 @@
 //! Tests for the parser.
 
-use everything_structures::{Abstract, Object, Property, Structure};
+use everything_objects::{Abstract, Composite, Object, Property};
 use parser_tools::Span;
 
 use crate::{FilteredToken, Parser};
@@ -39,7 +39,7 @@ fn parse_structure_continue() {
 
     assert_eq!(
         parser.parse_explicit_structure(),
-        Ok(Structure::new(&mut [Property {
+        Ok(Composite::new(&mut [Property {
             tag: Object::Abstract(Abstract(1)),
             value: Object::Abstract(Abstract(9))
         }]))

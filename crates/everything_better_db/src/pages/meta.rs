@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     pages::{
         FreePage, MutablePageIdLocation, PageKind,
@@ -37,6 +39,17 @@ impl MetaPage {
         self.magic_bytes.init();
     }
 }
+
+#[derive(Debug)]
+pub struct MagicBytesValidationError;
+
+impl Display for MagicBytesValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("invalid magic bytes")
+    }
+}
+
+impl core::error::Error for MagicBytesValidationError {}
 
 #[repr(transparent)]
 pub struct MagicBytes {

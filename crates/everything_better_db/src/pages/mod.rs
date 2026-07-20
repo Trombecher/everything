@@ -79,8 +79,8 @@ pub struct FreePage {
 #[macro_export]
 macro_rules! unsafe_declare_page {
     ($Page:ty, $kind:expr) => {
-        crate::const_assert!(size_of::<$Page>() == 4096);
-        crate::const_assert!(align_of::<$Page>() == 4096);
+        $crate::const_assert!(size_of::<$Page>() == 4096);
+        $crate::const_assert!(align_of::<$Page>() == 4096);
 
         unsafe impl $crate::pages::Page for $Page {
             const KIND: PageKind = $kind;

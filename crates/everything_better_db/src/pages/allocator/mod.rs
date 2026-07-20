@@ -89,7 +89,6 @@ pub struct PageAllocator<S: Storage> {
 }
 
 impl<S: Storage> PageAllocator<S> {
-    #[must_use]
     pub fn new(storage: S) -> Result<Self, Error> {
         let mstorage = ManagedStorage::new(storage);
 
@@ -209,7 +208,7 @@ impl<S: Storage> PageAllocator<S> {
         let page_to_free = self.mstorage.page(PageId::<FreePage>::new(id))?;
 
         let _lock = self.lock.lock().unwrap();
-        let meta_page = self.meta_page().map_err(Error::from)?;
+        let meta_page = self.meta_page()?;
 
         let current_next_free_page_id = meta_page.allocator_next_free_page.get();
         page_to_free.next_page.set(current_next_free_page_id);

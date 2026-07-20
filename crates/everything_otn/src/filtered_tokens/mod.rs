@@ -1,6 +1,6 @@
 use core::iter::Peekable;
 
-use everything_structures::{Abstract, Object, Structure};
+use everything_objects::{Abstract, Composite, Object};
 use parser_tools::Span;
 
 use crate::Token;
@@ -41,17 +41,17 @@ impl<'source> TryFrom<Token<'source>> for FilteredToken<'source> {
                     Ok(Self::Invalid(source.as_str()))
                 }
             }
-            Token::Byte(byte) => Ok(Self::Object(Object::Structure(byte.parse().into()))),
-            Token::Bytes(bytes) => Ok(Self::Object(Object::Structure(bytes.parse().into()))),
+            Token::Byte(byte) => Ok(Self::Object(Object::Composite(byte.parse().into()))),
+            Token::Bytes(bytes) => Ok(Self::Object(Object::Composite(bytes.parse().into()))),
             Token::Whitespace(_) => Err(()),
             Token::LineComment(_) => Err(()),
-            Token::Character(character_source) => Ok(Self::Object(Object::Structure(
+            Token::Character(character_source) => Ok(Self::Object(Object::Composite(
                 character_source.parse().into(),
             ))),
             Token::Text(text_source) => Ok(Self::Object(
                 text_source
                     .parse()
-                    .map_or(Structure::Empty, Structure::Text)
+                    .map_or(Composite::Empty, Composite::Text)
                     .into(),
             )),
         }
