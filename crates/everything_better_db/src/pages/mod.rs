@@ -10,7 +10,7 @@ pub use meta::*;
 use derive_where::derive_where;
 
 use core::marker::PhantomData;
-use std::mem::transmute;
+use core::mem::transmute;
 
 use crate::pages::storage::sync::{MutableU32LeLocation, MutableU64LeLocation};
 
@@ -40,10 +40,14 @@ impl PageKind {
     pub const VALUES: [Self; 4] = [Self::BTreeChild, Self::BTreeRoot, Self::Free, Self::Meta];
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("invalid page kind error")]
+pub struct InvalidPageKindError;
+
 pub struct MutablePageKindLocation(MutableU32LeLocation);
 
 impl MutablePageKindLocation {
-    pub fn get(&self) -> Result<PageKind, ()> {
+    pub fn get(&self) -> Result<PageKind, InvalidPageKindError> {
         let got = self.0.get();
 
         // TODO: maybe SIMD
@@ -56,7 +60,7 @@ impl MutablePageKindLocation {
         ]
         .contains(&got)
         .then(|| unsafe { transmute(got) })
-        .ok_or(())
+        .ok_or(InvalidPageKindError)
     }
 
     pub fn set(&self, page_kind: PageKind) {

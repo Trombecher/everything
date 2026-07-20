@@ -23,8 +23,7 @@ impl InMemoryStorage {
         let map = MmapMut::map_anon(safe_u64_to_usize(max_pages).saturating_mul(OpaquePage::SIZE))?;
 
         if !map.as_ptr().is_aligned_to(OpaquePage::SIZE) {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
+            return Err(io::Error::other(
                 "got a memory map slice that is not aligned to OS page size.",
             ));
         }

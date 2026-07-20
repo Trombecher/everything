@@ -58,7 +58,7 @@ impl OpenPageInfo {
                 // Will probably not happen.
                 cold_path();
 
-                return Err(());
+                Err(())
             }
         }
     }
@@ -81,7 +81,7 @@ pub struct PageAccessGuard<'a> {
 
 impl<'pam> PageAccessGuard<'pam> {
     pub const fn pam(&self) -> &PageAccessManager {
-        &self.pam
+        self.pam
     }
 
     pub const fn page_id(&self) -> RawPageId {
@@ -181,11 +181,7 @@ impl PageAccessManager {
     }
 
     /// This method must only be called by a page guard.
-    fn cast_open_page<'pam>(
-        &'pam self,
-        page_id: RawPageId,
-        requested_use: PageKind,
-    ) -> Result<(), Error> {
+    fn cast_open_page(&self, page_id: RawPageId, requested_use: PageKind) -> Result<(), Error> {
         let mut open_pages = self.open_pages.lock().unwrap();
         let already_open_page = Self::try_to_find_already_open_page(&mut open_pages, page_id)
             .expect("internal error: got invalid page id from guard");

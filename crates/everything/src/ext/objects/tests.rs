@@ -252,9 +252,9 @@ mod eval {
 
         let identity = Object::new_node(Node::Function(Object::new_node(Node::Parameter(0))));
 
-        for object in objects.iter().cloned() {
+        for object in objects.iter() {
             assert_eq!(
-                identity
+                &identity
                     .call(
                         &BASE,
                         &[ObjectOrSetValues::Object(object.clone())],
@@ -282,7 +282,7 @@ mod eval {
             Node::Function(Object::new_node(Node::Parameter(1))),
         )));
 
-        for object in objects.iter().cloned() {
+        for object in objects.iter() {
             let constant = capture_to_constant
                 .call(
                     &BASE,
@@ -291,9 +291,9 @@ mod eval {
                 )
                 .into_object();
 
-            for other in objects.iter().cloned() {
+            for other in objects.iter() {
                 assert_eq!(
-                    constant
+                    &constant
                         .call(
                             &BASE,
                             &[ObjectOrSetValues::Object(other.clone())],
@@ -324,8 +324,7 @@ fn factorial() {
                     right: Object::new_integer(-1),
                 })),
             })),
-        }))
-        .into(),
+        })),
     }))));
 
     let points = [

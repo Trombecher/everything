@@ -59,7 +59,7 @@ impl Iterator for CompositeSetValues {
 
 impl std::fmt::Debug for CompositeSetValues {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set().entries(&mut self.clone()).finish()
+        f.debug_set().entries(self.clone()).finish()
     }
 }
 
@@ -105,7 +105,7 @@ impl ObjectOrSetValues {
     ///
     /// * If `self` was [`LazyObject::Eager`], it just returns that object.
     /// * If `self` was [`LazyObject::LazySetValues`], it collects all
-    /// values into a set and returns that.
+    ///   values into a set and returns that.
     pub fn into_object(self) -> Object {
         match self {
             Self::Object(object) => object,

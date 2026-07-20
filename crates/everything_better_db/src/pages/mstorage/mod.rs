@@ -10,6 +10,7 @@ use crate::pages::{
 };
 
 #[derive(Debug, thiserror::Error)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("")]
     PageAccessManager(#[from] pam::Error),

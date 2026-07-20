@@ -35,6 +35,9 @@ impl<'page> OpaquePageReference<'page> {
         }
     }
 
+    /// # SAFETY
+    ///
+    /// You need a page guard for this kind.
     pub const unsafe fn cast<'a, P: Page>(self) -> &'a P {
         unsafe { self.pointer.as_ptr().cast::<P>().as_ref_unchecked() }
     }
