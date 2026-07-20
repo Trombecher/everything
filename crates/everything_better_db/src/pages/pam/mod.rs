@@ -42,28 +42,22 @@ pub struct OpenPageInfo {
 }
 
 impl OpenPageInfo {
-    #[inline(always)]
     pub fn real_use_count(&mut self) -> u64 {
-        self.uses_minus_one as u64 + 1
+        1_u64 + u64::from(self.uses_minus_one)
     }
 
-    #[inline(always)]
     fn increment_use_count(&mut self) -> Result<(), ()> {
-        match self.uses_minus_one.checked_add(1) {
-            Some(new_ref_count) => {
-                self.uses_minus_one = new_ref_count;
-                Ok(())
-            }
-            None => {
-                // Will probably not happen.
-                cold_path();
+        if let Some(new_ref_count) = self.uses_minus_one.checked_add(1) {
+            self.uses_minus_one = new_ref_count;
+            Ok(())
+        } else {
+            // Will probably not happen.
+            cold_path();
 
-                Err(())
-            }
+            Err(())
         }
     }
 
-    #[inline(always)]
     fn decrement_use_count(&mut self) -> Result<(), ()> {
         if let Some(new_page_use_count) = self.uses_minus_one.checked_sub(1) {
             self.uses_minus_one = new_page_use_count;
@@ -74,12 +68,12 @@ impl OpenPageInfo {
     }
 }
 
-pub struct PageAccessGuard<'a> {
-    pam: &'a PageAccessManager,
+pub struct PageAccessGuard<'pam> {
+    pam: &'pam PageAccessManager,
     page_id: RawPageId,
 }
 
-impl<'pam> PageAccessGuard<'pam> {
+impl PageAccessGuard<'_> {
     pub const fn pam(&self) -> &PageAccessManager {
         self.pam
     }
@@ -137,11 +131,11 @@ impl PageAccessManager {
             .find(|open_page| open_page.page_id == page_id)
     }
 
-    pub fn open_page_as<'pam>(
-        &'pam self,
+    pub fn open_page_as(
+        &self,
         page_id: RawPageId,
         requested_use: PageKind,
-    ) -> Result<PageAccessGuard<'pam>, Error> {
+    ) -> Result<PageAccessGuard<'_>, Error> {
         let mut open_pages = self.open_pages.lock().unwrap();
         let maybe_already_open_page = Self::try_to_find_already_open_page(&mut open_pages, page_id);
 

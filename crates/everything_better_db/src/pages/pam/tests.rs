@@ -68,21 +68,21 @@ pub fn open_multiple_of_same_kind_and_close() {
     let pam = PageAccessManager::new();
 
     let ref_1 = pam
-        .open_page_as(4534095832344, PageKind::BTreeRoot)
+        .open_page_as(4_534_095_832_344, PageKind::BTreeRoot)
         .unwrap();
 
     let ref_2 = pam
-        .open_page_as(4534095832344, PageKind::BTreeRoot)
+        .open_page_as(4_534_095_832_344, PageKind::BTreeRoot)
         .unwrap();
 
     let ref_3 = pam
-        .open_page_as(4534095832344, PageKind::BTreeRoot)
+        .open_page_as(4_534_095_832_344, PageKind::BTreeRoot)
         .unwrap();
 
     assert_eq!(
         pam.open_pages.lock().unwrap().as_slice(),
         &[OpenPage {
-            page_id: 4534095832344,
+            page_id: 4_534_095_832_344,
             info: OpenPageInfo {
                 used_as: PageKind::BTreeRoot,
                 uses_minus_one: 2
@@ -95,7 +95,7 @@ pub fn open_multiple_of_same_kind_and_close() {
     assert_eq!(
         pam.open_pages.lock().unwrap().as_slice(),
         &[OpenPage {
-            page_id: 4534095832344,
+            page_id: 4_534_095_832_344,
             info: OpenPageInfo {
                 used_as: PageKind::BTreeRoot,
                 uses_minus_one: 1
@@ -108,7 +108,7 @@ pub fn open_multiple_of_same_kind_and_close() {
     assert_eq!(
         pam.open_pages.lock().unwrap().as_slice(),
         &[OpenPage {
-            page_id: 4534095832344,
+            page_id: 4_534_095_832_344,
             info: OpenPageInfo {
                 used_as: PageKind::BTreeRoot,
                 uses_minus_one: 0

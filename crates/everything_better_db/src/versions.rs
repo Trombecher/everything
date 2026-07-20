@@ -6,6 +6,7 @@ impl MutableDatabaseFormatVersionLocation {
     const V0_NUMBER: u32 = 0;
 
     pub fn get(&self) -> DatabaseFormatVersion {
+        #[allow(clippy::match_same_arms)]
         match self.0.get() {
             Self::V0_NUMBER => DatabaseFormatVersion::Version0,
             _ => DatabaseFormatVersion::Version0,

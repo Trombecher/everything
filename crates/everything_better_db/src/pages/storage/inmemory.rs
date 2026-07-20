@@ -36,7 +36,14 @@ impl InMemoryStorage {
 
         // SAFETY: `bytes` is aligned to Page::Size
         // and Page is equivalent to [u8; Page::Size].
-        unsafe { slice::from_raw_parts(bytes.as_ptr() as _, bytes.len() / OpaquePage::SIZE) }
+
+        #[allow(clippy::cast_ptr_alignment)]
+        unsafe {
+            slice::from_raw_parts(
+                bytes.as_ptr().cast::<OpaquePage>(),
+                bytes.len() / OpaquePage::SIZE,
+            )
+        }
     }
 }
 
@@ -47,7 +54,7 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
-    fn page<'page>(&'page self, page_id: RawPageId) -> Option<OpaquePageReference<'page>> {
+    fn page(&self, page_id: RawPageId) -> Option<OpaquePageReference<'_>> {
         self.pages()
             .get(safe_u64_to_usize(page_id))
             .map(|page| unsafe { OpaquePageReference::new(NonNull::from(page)) })

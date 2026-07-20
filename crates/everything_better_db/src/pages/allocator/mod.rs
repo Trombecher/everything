@@ -73,7 +73,7 @@ impl CurrentMetaPage {
 
 impl From<CurrentMetaPage> for u64 {
     fn from(value: CurrentMetaPage) -> Self {
-        value as u8 as u64
+        u64::from(value as u8)
     }
 }
 
@@ -153,16 +153,17 @@ impl<S: Storage> PageAllocator<S> {
         })
     }
 
-    pub fn meta_page<'storage>(
-        &'storage self,
-    ) -> Result<PageReference<'storage, 'storage, MetaPage>, Error> {
+    pub fn meta_page(&self) -> Result<PageReference<'_, '_, MetaPage>, Error> {
         self.mstorage
             .page(PageId::<MetaPage>::new(self.current_meta_page.get().into()))
             .map_err(From::from)
     }
 
-    // TODO: make this function not generic
-    pub fn allocate<'page, P: Page>(&'page self) -> Result<PageReference<'page, 'page, P>, Error> {
+    /// # Panics
+    ///
+    /// Panics if the lock is
+    pub fn allocate<P: Page>(&self) -> Result<PageReference<'_, '_, P>, Error> {
+        // TODO: make this function not generic
         let _lock = self.lock.lock().unwrap();
         let meta_page = self.meta_page()?;
 
@@ -199,12 +200,11 @@ impl<S: Storage> PageAllocator<S> {
         }
     }
 
-    #[inline(always)]
     pub fn free<P: Page>(&self, page_id: PageId<P>) -> Result<(), Error> {
-        self._free(page_id.raw)
+        self.non_generic_free(page_id.raw)
     }
 
-    fn _free(&self, id: RawPageId) -> Result<(), Error> {
+    fn non_generic_free(&self, id: RawPageId) -> Result<(), Error> {
         let page_to_free = self.mstorage.page(PageId::<FreePage>::new(id))?;
 
         let _lock = self.lock.lock().unwrap();

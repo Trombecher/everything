@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::ops::Deref;
+use core::{ops::Deref, ptr};
 
 use crate::pages::{
     Page, PageId, RawPageId,
@@ -34,7 +34,7 @@ impl<'pam, 'page, Source: Page> PageReference<'pam, 'page, Source> {
             guard: self.guard,
             // SAFETY: TODO
             page: unsafe {
-                (self.page as *const Source)
+                ptr::from_ref::<Source>(self.page)
                     .cast::<ToPage>()
                     .as_ref_unchecked()
             },
@@ -66,10 +66,7 @@ impl<S: Storage> ManagedStorage<S> {
     }
 
     /// Retrieves a [`PageReference`] from a [`PageId`].
-    pub fn page<'storage, P: Page>(
-        &'storage self,
-        page_id: PageId<P>,
-    ) -> Result<PageReference<'storage, 'storage, P>, Error> {
+    pub fn page<P: Page>(&self, page_id: PageId<P>) -> Result<PageReference<'_, '_, P>, Error> {
         let guard = self.pam.open_page_as(page_id.raw, P::KIND)?;
 
         let Some(page_reference) = self.storage.page(page_id.raw) else {

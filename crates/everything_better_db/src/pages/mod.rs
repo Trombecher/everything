@@ -52,15 +52,11 @@ impl MutablePageKindLocation {
 
         // TODO: maybe SIMD
 
-        [
-            PageKind::BTreeRoot as u32,
-            PageKind::BTreeChild as u32,
-            PageKind::Free as u32,
-            PageKind::Meta as u32,
-        ]
-        .contains(&got)
-        .then(|| unsafe { transmute(got) })
-        .ok_or(InvalidPageKindError)
+        PageKind::VALUES
+            .map(|value| value as u32)
+            .contains(&got)
+            .then(|| unsafe { transmute(got) })
+            .ok_or(InvalidPageKindError)
     }
 
     pub fn set(&self, page_kind: PageKind) {
@@ -110,7 +106,6 @@ impl<P: Page> MutablePageIdLocation<P> {
         PageId::new(self.raw.get())
     }
 
-    #[inline(always)]
     pub fn set(&self, value: PageId<P>) {
         self.raw.set(value.raw);
     }
@@ -127,6 +122,7 @@ pub struct PageId<P: Page> {
 }
 
 impl<P: Page> PageId<P> {
+    #[must_use]
     pub const fn new(raw: RawPageId) -> Self {
         Self {
             raw,

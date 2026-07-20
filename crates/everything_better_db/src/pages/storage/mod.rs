@@ -11,7 +11,7 @@ pub trait Storage {
     type Error;
 
     /// Creates a reference to an opaque page.
-    fn page<'page>(&'page self, page_id: RawPageId) -> Option<OpaquePageReference<'page>>;
+    fn page(&self, page_id: RawPageId) -> Option<OpaquePageReference<'_>>;
 
     /// Flushes dirty pages back to the storage medium.
     fn flush(&self) -> Result<(), Self::Error>;
@@ -23,11 +23,12 @@ pub struct OpaquePageReference<'page> {
     _marker: PhantomData<&'page OpaquePage>,
 }
 
-impl<'page> OpaquePageReference<'page> {
+impl OpaquePageReference<'_> {
     /// # SAFETY
     ///
     /// The pointer must be correctly aligned and
     /// valid for the page.
+    #[must_use]
     pub const unsafe fn new(pointer: NonNull<OpaquePage>) -> Self {
         Self {
             pointer,
@@ -38,6 +39,7 @@ impl<'page> OpaquePageReference<'page> {
     /// # SAFETY
     ///
     /// You need a page guard for this kind.
+    #[must_use]
     pub const unsafe fn cast<'a, P: Page>(self) -> &'a P {
         unsafe { self.pointer.as_ptr().cast::<P>().as_ref_unchecked() }
     }
