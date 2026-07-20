@@ -8,30 +8,72 @@ pub use allocator::*;
 pub use meta::*;
 
 use derive_where::derive_where;
-use zerocopy::FromBytes;
 
 use core::marker::PhantomData;
+use std::mem::transmute;
 
-use crate::pages::storage::sync::MutableU64LeLocation;
+use crate::pages::storage::sync::{MutableU32LeLocation, MutableU64LeLocation};
 
+/// # SAFETY
+///
+/// For some type to be a page, it must satisfy the following constraints:
+///
+/// * it MUST have an exact size (no padding) of 4096,
+/// * it MUST have an alignment of 4096,
+/// * it MUST be castable from raw bytes (accept any bit pattern), and
+/// * it MUST have an atomic u32 at the start (CRC)
+///   and another mutable atomic u32 followed right after that (page kind).
 pub unsafe trait Page {
     const KIND: PageKind;
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[repr(u8)]
+#[repr(u32)]
 pub enum PageKind {
-    BTreeRoot,
-    BTreeChild,
-    Free,
-    Meta,
+    BTreeRoot = u32::from_le_bytes(*b"BTRR"),
+    BTreeChild = u32::from_le_bytes(*b"BTRC"),
+    Free = u32::from_le_bytes(*b"FREE"),
+    Meta = u32::from_le_bytes(*b"EVER"),
+}
+
+impl PageKind {
+    pub const VALUES: [Self; 4] = [Self::BTreeChild, Self::BTreeRoot, Self::Free, Self::Meta];
+}
+
+pub struct MutablePageKindLocation(MutableU32LeLocation);
+
+impl MutablePageKindLocation {
+    pub fn get(&self) -> Result<PageKind, ()> {
+        let got = self.0.get();
+
+        // TODO: maybe SIMD
+
+        [
+            PageKind::BTreeRoot as u32,
+            PageKind::BTreeChild as u32,
+            PageKind::Free as u32,
+            PageKind::Meta as u32,
+        ]
+        .contains(&got)
+        .then(|| unsafe { transmute(got) })
+        .ok_or(())
+    }
+
+    pub fn set(&self, page_kind: PageKind) {
+        self.0.set(page_kind as u32);
+    }
 }
 
 #[repr(C, align(4096))]
 pub struct FreePage {
+    pub crc32c: MutableU32LeLocation,
+    pub page_kind: MutablePageKindLocation,
+
+    /// A pointer to the next page in the free list.
     pub next_page: MutablePageIdLocation<FreePage>,
+
     // TODO: maybe duplicate or save free page otherwise...
-    _rest: [u8; 4088],
+    _rest: [u8; 4080],
 }
 
 #[macro_export]
@@ -49,9 +91,6 @@ macro_rules! unsafe_declare_page {
 }
 
 unsafe_declare_page!(FreePage, PageKind::Free);
-
-#[doc(hidden)]
-const fn is_from_bytes<T: FromBytes>() {}
 
 /// A little-endian u64 location that
 pub struct MutablePageIdLocation<P: Page> {

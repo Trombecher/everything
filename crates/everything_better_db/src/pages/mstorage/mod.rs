@@ -15,6 +15,8 @@ pub enum Error {
     PageAccessManager(#[from] pam::Error),
     #[error("page id {page_id} out of bounds")]
     PageIdOutOfBounds { page_id: RawPageId },
+    #[error("page validation failed for page {page_id}")]
+    PageValidationFailed { page_id: RawPageId },
 }
 
 /// A live and active reference to a page.
@@ -67,13 +69,13 @@ impl<S: Storage> ManagedStorage<S> {
         &'storage self,
         page_id: PageId<P>,
     ) -> Result<PageReference<'storage, 'storage, P>, Error> {
+        let guard = self.pam.open_page_as(page_id.raw, P::KIND)?;
+
         let Some(page_reference) = self.storage.page(page_id.raw) else {
             return Err(Error::PageIdOutOfBounds {
                 page_id: page_id.raw,
             });
         };
-
-        let guard = self.pam.open_page_as(page_id.raw, P::KIND)?;
 
         Ok(PageReference {
             guard,

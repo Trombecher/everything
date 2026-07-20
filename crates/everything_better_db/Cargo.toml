@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+crc32c = "0.6.8"
 derive-where = "1.6.1"
 memmap2 = "0.9.10"
 thiserror = "2.0.19"

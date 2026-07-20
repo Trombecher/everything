@@ -5,7 +5,7 @@ pub use inmemory::*;
 
 use core::{marker::PhantomData, ptr::NonNull};
 
-use crate::pages::{Page, RawPageId};
+use crate::pages::{MutablePageKindLocation, Page, RawPageId, storage::sync::MutableU32LeLocation};
 
 pub trait Storage {
     type Error;
@@ -46,7 +46,9 @@ impl<'page> OpaquePageReference<'page> {
 /// but via [`OpaquePageReference`].**
 #[repr(C, align(4096))]
 pub struct OpaquePage {
-    pub bytes: [u8; 4096],
+    pub crc32c: MutableU32LeLocation,
+    pub kind: MutablePageKindLocation,
+    pub bytes: [u8; 4088],
 }
 
 impl OpaquePage {
