@@ -6,20 +6,19 @@ use everything_objects::{Abstract, BytesComposite, Composite, Object, Property, 
 
 use crate::bytes::Bytes;
 
-pub type Error = Box<ErrorInfo>;
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct ErrorInfo {
+#[derive(PartialEq, Debug, Clone, thiserror::Error)]
+#[error("error while parsing: expected '{expected}' at byte index {found_at}")]
+pub struct Error {
     pub found_at: usize,
     pub expected: &'static str,
 }
 
 macro_rules! bail {
     ($found_at:expr, $expected:literal) => {
-        return Err(Box::new(ErrorInfo {
+        return Err(Error {
             found_at: $found_at,
             expected: $expected,
-        }))
+        })
     };
 }
 

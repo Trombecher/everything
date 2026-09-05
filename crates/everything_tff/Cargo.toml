@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 base64 = "0.22.1"
 everything_objects = { path = "../everything_objects" }
+thiserror = "2.0.20"

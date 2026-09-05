@@ -1,13 +1,12 @@
-use std::{io::ErrorKind, path::PathBuf};
+use std::{
+    fs::{self, File, OpenOptions},
+    io::{self, ErrorKind, Write},
+    path::PathBuf,
+};
 
 use everything_objects::{Composite, Object};
 use everything_tff::{encode::Encoder, parse::Parser};
 use memmap2::Mmap;
-use tokio::{
-    fs::{self, OpenOptions},
-    io::{self, AsyncWriteExt},
-    task::spawn_blocking,
-};
 
 use crate::Error;
 
@@ -28,78 +27,48 @@ impl Database {
     }
 
     #[inline]
-    async fn from_file_and_content(
-        std_file: std::fs::File,
-        content: Mmap,
-        path: PathBuf,
-    ) -> Result<Self, Error> {
-        // validate that content is UTF-8
+    fn from_file_and_content(file: File, content: Mmap, path: PathBuf) -> Result<Self, Error> {
+        // Validate that content is UTF-8
         let source = str::from_utf8(&content).map_err(|_| Error::DbFileIsInvalidUTF8)?;
 
         let root = Parser::new(source)
             .parse_root()
             .map_err(Error::ErrorWhileParsingDbFile)?;
 
-        spawn_blocking(move || {
-            std_file.unlock()?;
-
-            Ok(())
-        })
-        .await
-        .unwrap()
-        .map_err(Error::Io)?;
+        file.unlock().map_err(Error::from)?;
 
         Ok(Self { path, root })
     }
 
     /// Opens the given database file. Errors if the database file could not be opened.
-    pub async fn open(path: PathBuf) -> Result<Self, Error> {
-        let (std_file, content, path) = spawn_blocking(move || {
-            let std_file = std::fs::File::open(&path)?;
-            // Lock the file to prevent mutations. We need to rely on
-            // the content staying valid UTF-8 after validation
-            // (or else UB occurs).
-            std_file.lock()?;
+    pub fn open(path: PathBuf) -> Result<Self, Error> {
+        let file = File::open(&path).map_err(Error::from)?;
 
-            let content = unsafe { Mmap::map(&std_file) }?;
+        // Lock the file to prevent mutations. We need to rely on
+        // the content staying valid UTF-8 after validation
+        // (or else UB occurs).
+        file.lock().map_err(Error::from)?;
 
-            Ok((std_file, content, path))
-        })
-        .await
-        .unwrap()
-        .map_err(Error::Io)?;
+        // Because the file is locked, this is safe.
+        let content = unsafe { Mmap::map(&file) }?;
 
-        Self::from_file_and_content(std_file, content, path).await
+        Self::from_file_and_content(file, content, path)
     }
 
     /// Similar behaviour to [`Database::open`] but returns an empty database
     /// if the database file does not exist.
     pub async fn new(path: PathBuf) -> Result<Self, Error> {
-        let (returned, path) = spawn_blocking(move || {
-            let std_file = match std::fs::File::open(&path) {
-                Ok(file) => file,
-                Err(err) if err.kind() == ErrorKind::NotFound => return Ok((None, path)),
-                Err(err) => return Err(err),
-            };
-
-            // Lock the file to prevent mutations. We need to rely on
-            // the content staying valid UTF-8 after validation
-            // (or else UB occurs).
-            std_file.lock()?;
-
-            let content = unsafe { Mmap::map(&std_file) }?;
-
-            Ok((Some((std_file, content)), path))
-        })
-        .await
-        .unwrap()
-        .map_err(Error::Io)?;
-
-        let Some((std_file, content)) = returned else {
-            return Ok(Self::empty(path));
+        let file = match File::open(&path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Self::empty(path)),
+            Err(error) => return Err(Error::from(error)),
         };
 
-        Self::from_file_and_content(std_file, content, path).await
+        file.lock().map_err(Error::from)?;
+
+        let content = unsafe { Mmap::map(&file) }?;
+
+        Self::from_file_and_content(file, content, path)
     }
 
     pub async fn save(&self) -> Result<(), io::Error> {
@@ -108,8 +77,9 @@ impl Database {
         let mut snapshot_file = OpenOptions::new()
             .create_new(true)
             .write(true)
-            .open(&snapshot_file_path)
-            .await?;
+            .open(&snapshot_file_path)?;
+
+        snapshot_file.lock()?;
 
         // TODO: eventually replace this with a smaller buffer.
         let mut temp = String::new();
@@ -118,10 +88,12 @@ impl Database {
             .encode_root(self.root.clone())
             .unwrap();
 
-        snapshot_file.write_all(temp.as_bytes()).await?;
-        snapshot_file.flush().await?;
+        snapshot_file.write_all(temp.as_bytes())?;
+        snapshot_file.flush()?;
 
-        fs::rename(&snapshot_file_path, &self.path).await?;
+        snapshot_file.unlock()?;
+
+        fs::rename(&snapshot_file_path, &self.path)?;
 
         Ok(())
     }
