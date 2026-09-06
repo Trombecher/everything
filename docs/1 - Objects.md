@@ -1,4 +1,4 @@
-# Chapter 1 - Everything Object Structure
+# Chapter 1 - Objects
 
 ## Overview
 
@@ -15,8 +15,6 @@ Suppose a thing _A_ is unidentifiable; with the previous sentence we identified 
 **Everything partitions all things into two classes: things that have no inherent structure and are defined by themselves, and things that have inherent structure.**
 
 ## Objects
-
-First of all, some defintions.
 
 * An _object_ is either abstract or composite.
 * An _abstract object_ is an abstract identifier which is just a non-negative integer.
@@ -48,7 +46,7 @@ Composite objects represent all other things, those that are "composite". These 
 
 ## Equality
 
-Two object are equal if they have the same structure (structural equivalence). Under the assumption that the structure of object uniquely models the semantics of their corresponding thing, structural equivalence of objects maps to semantic equivalence of things.
+Two objects are equal if they have the same structure (structural equivalence). Under the assumption that the structure of object uniquely models the semantics of their corresponding thing, structural equivalence of objects maps to semantic equivalence of things.
 
 ## Notation / File Format
 
