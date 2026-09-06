@@ -26,7 +26,9 @@ Concluding, there should not be any intrinsic versioning going on. It should be 
 
 # Should we only allow to state things about abstract objects in the root set of statements of knowledge?
 
-Currently, it is allowed to state things about composite objects as the subject of the statement. Here as the pros and the cons for the current model:
+Currently, it is allowed to state things about composite objects as the subject of the statement. Let this be model A. Let disallowing composite objects as subjects in statements be model B.
+
+Here as the pros and the cons for model A.
 
 ## Pros
 
@@ -38,17 +40,21 @@ Currently, it is allowed to state things about composite objects as the subject 
 
 ## Cons
 
-* Meaning and properties of composite objects extend to beyond what they are identified as. A composite object may represent something under one knowledge and something different in another (with the same definitions of the tags).
+* In A, meaning and properties of composite objects extend to beyond what they are identified as. A composite object may represent something under one knowledge and something different in another (with the same definitions of the tags).
 
-* Footguns: one can state `({}, $CONTAINS, {})` and now there is no false anymore. This means that every function which returned `{}` now returns true.
+* Model B would have the advantage that expressions and computation using only composite objects would be **unambiguous**, i.e. the same in all knowledge bases because the properties of composite objects are unambiguous across all knowledge bases. And the database would not need to iterate over all knowledge to find the value(s) of some property on a composite object that is not there.
 
-* Disallowing composite objects as subjects in statements would also only disallow statements that have both a composite object as the subject and as the value, for every other statement (that has a composite object as subject and an abstract object as value), the direction of the statement can be reversed and now an abstract object is the subject. This would require a rewrite of the model to reverse the direction of tags.
+* In A there are more footguns: one can state `({}, $CONTAINS, {})` and now there is no false anymore. This means that every function which returned `{}` (and meant _false_) now returns _true_.
 
-* Definitions, such as the ones for integers, are unsound if they do not check for additional properties other than the ones required. Is `{$SUCCESSOR_OF: $ZERO, $CONTAINS: {}}` an integer (1)? If yes, then, because `{$SUCCESSOR_OF: $ZERO}` is also 1, two objects that represent the same integers would be structurally unequal but the things they represent would be equal, which violates a core principle of Everything.
+* Model B would also only disallow statements that have both a composite object as the subject and as the value, for every other statement (that has a composite object as subject and an abstract object as value), the direction of the statement can be reversed and now an abstract object is the subject. This would require a rewrite of the model to reverse the direction of tags.
+
+* In A, definitions — such as the ones for integers — are unsound if they do not check for additional properties other than the ones required. Is `{$SUCCESSOR_OF: $ZERO, $CONTAINS: {}}` an integer (1)? If yes, then, because `{$SUCCESSOR_OF: $ZERO}` is also 1, two objects that represent the same integers would be structurally unequal but the things they represent would be equal, which violates a core principle of Everything.
 
   The only object that represents 1 should be `{$SUCCESSOR_OF: $ZERO}`. This obeys the principle "object is integer iff object represents mathematical integer".
 
-* Disallowing composite objects as subjects in statements would collapse the entire knowledge down to a set of abstract objects having properties, something like this:
+* Consider `{$CONTAINS: 50}` and `{}` with `({}, $CONTAINS, 50)` in the knowledge. They are different objects because of structural equality but if you'd query them in A, they have the same properties.
+
+* Model B would collapse the entire knowledge down to a set of abstract objects having properties, something like this:
 
   ```
   $Alice = {$PERSON: {}}
@@ -56,4 +62,4 @@ Currently, it is allowed to state things about composite objects as the subject 
   $MySet = {$CONTAINS: 10}
   ```
 
-* Disallowing composite objects as subjects in statements would have the advantage that expressions and computation using only composite objects would be **unambiguous**, i.e. the same in all knowledge bases because the properties of composite objects are unambiguous across all knowledge bases. And the database would not need to iterate over all knowledge to find the value(s) of some property on a composite object that is not there.
+  This may be desireable
