@@ -22,7 +22,7 @@ mod TextSource {
 
     #[test]
     fn parse() {
-        assert_eq!(TextSource("\"\"").parse(), TextStructure::new(""));
-        assert_eq!(TextSource("\"abc\"").parse(), TextStructure::new("abc"));
+        assert_eq!(TextSource("\"\"").parse(), TextComposite::new(""));
+        assert_eq!(TextSource("\"abc\"").parse(), TextComposite::new("abc"));
     }
 }

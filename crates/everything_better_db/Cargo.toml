@@ -1,0 +1,13 @@
+[package]
+name = "everything_better_db"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+crc32c = "0.6.8"
+derive-where = "1.6.1"
+memmap2 = "0.9.10"
+thiserror = "2.0.19"
+tokio = { version = "1.52.3", features = ["sync"] }
+tracing = "0.1.44"
+zerocopy = { version = "0.8.54", features = ["derive"] }

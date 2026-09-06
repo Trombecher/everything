@@ -16,16 +16,16 @@ use parser_tools::Spanify;
 pub use tokenizer::*;
 pub use tokens::*;
 
-use everything_structures::{Object, Structure};
+use everything_objects::{Composite, Object};
 
 pub trait Parsable: Sized {
     fn parse<'source>(input: &'source str) -> Result<Self, Error<'source>>;
 }
 
-impl Parsable for Structure {
+impl Parsable for Composite {
     fn parse<'source>(input: &'source str) -> Result<Self, Error<'source>> {
         let mut parser = Parser::new(FilterTokens::new(Spanify::new(Tokenizer::new(input))));
-        parser.parse_structure()
+        parser.parse_composite()
     }
 }
 

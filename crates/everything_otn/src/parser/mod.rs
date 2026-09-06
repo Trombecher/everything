@@ -4,7 +4,7 @@ mod tests;
 use core::iter::Peekable;
 
 use alloc::{boxed::Box, vec::Vec};
-use everything_structures::{Object, Property, Structure};
+use everything_objects::{Composite, Object, Property};
 use parser_tools::Span;
 
 pub type Error<'source> = Box<ErrorInfo<'source>>;
@@ -39,21 +39,21 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
         }
     }
 
-    pub fn parse_structure(&mut self) -> Result<Structure, Error<'source>> {
+    pub fn parse_composite(&mut self) -> Result<Composite, Error<'source>> {
         match self.tokens.next() {
             Some(Span {
                 value: FilteredToken::OpeningBrace,
                 ..
             }) => self.parse_explicit_structure(),
             Some(Span {
-                value: FilteredToken::Object(Object::Structure(s)),
+                value: FilteredToken::Object(Object::Composite(s)),
                 ..
             }) => Ok(s),
             token => bail!(token, "expected structure"),
         }
     }
 
-    fn parse_explicit_structure(&mut self) -> Result<Structure, Error<'source>> {
+    fn parse_explicit_structure(&mut self) -> Result<Composite, Error<'source>> {
         let mut properties = Vec::new();
 
         loop {
@@ -103,7 +103,7 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
             }
         }
 
-        Ok(Structure::new(&mut properties))
+        Ok(Composite::new(&mut properties))
     }
 
     pub fn parse_object(&mut self) -> Result<Object, Error<'source>> {
@@ -111,7 +111,7 @@ impl<'source, I: Iterator<Item = Span<FilteredToken<'source>>>> Parser<'source, 
             Some(Span {
                 value: FilteredToken::OpeningBrace,
                 ..
-            }) => Ok(Object::Structure(self.parse_explicit_structure()?)),
+            }) => Ok(Object::Composite(self.parse_explicit_structure()?)),
             Some(Span {
                 value: FilteredToken::Object(o),
                 ..

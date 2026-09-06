@@ -254,7 +254,7 @@ mod eval {
 
         for object in objects.iter() {
             assert_eq!(
-                identity
+                &identity
                     .call(
                         &BASE,
                         &[ObjectOrSetValues::Object(object.clone())],
@@ -293,7 +293,7 @@ mod eval {
 
             for other in objects.iter() {
                 assert_eq!(
-                    constant
+                    &constant
                         .call(
                             &BASE,
                             &[ObjectOrSetValues::Object(other.clone())],

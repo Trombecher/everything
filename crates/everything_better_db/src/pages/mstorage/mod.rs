@@ -1,0 +1,86 @@
+#[cfg(test)]
+mod tests;
+
+use core::{ops::Deref, ptr};
+
+use crate::pages::{
+    Page, PageId, RawPageId,
+    pam::{self, PageAccessGuard, PageAccessManager},
+    storage::Storage,
+};
+
+#[derive(Debug, thiserror::Error)]
+#[allow(clippy::enum_variant_names)]
+pub enum Error {
+    #[error("")]
+    PageAccessManager(#[from] pam::Error),
+    #[error("page id {page_id} out of bounds")]
+    PageIdOutOfBounds { page_id: RawPageId },
+    #[error("page validation failed for page {page_id}")]
+    PageValidationFailed { page_id: RawPageId },
+}
+
+/// A live and active reference to a page.
+pub struct PageReference<'pam, 'page, P: Page> {
+    guard: PageAccessGuard<'pam>,
+    page: &'page P,
+}
+
+impl<'pam, 'page, Source: Page> PageReference<'pam, 'page, Source> {
+    pub fn cast<ToPage: Page>(self) -> Result<PageReference<'pam, 'page, ToPage>, pam::Error> {
+        self.guard.cast(ToPage::KIND)?;
+
+        Ok(PageReference {
+            guard: self.guard,
+            // SAFETY: TODO
+            page: unsafe {
+                ptr::from_ref::<Source>(self.page)
+                    .cast::<ToPage>()
+                    .as_ref_unchecked()
+            },
+        })
+    }
+}
+
+impl<'page, P: Page> Deref for PageReference<'_, 'page, P> {
+    type Target = P;
+
+    fn deref(&self) -> &'page Self::Target {
+        self.page
+    }
+}
+
+/// Manages a storage by guarding page access.
+pub struct ManagedStorage<S: Storage> {
+    storage: S,
+    pam: PageAccessManager,
+}
+
+impl<S: Storage> ManagedStorage<S> {
+    /// Creates a new [`ManagedStorage`].
+    pub const fn new(storage: S) -> Self {
+        Self {
+            storage,
+            pam: PageAccessManager::new(),
+        }
+    }
+
+    /// Retrieves a [`PageReference`] from a [`PageId`].
+    pub fn page<P: Page>(&self, page_id: PageId<P>) -> Result<PageReference<'_, '_, P>, Error> {
+        let guard = self.pam.open_page_as(page_id.raw, P::KIND)?;
+
+        let Some(page_reference) = self.storage.page(page_id.raw) else {
+            return Err(Error::PageIdOutOfBounds {
+                page_id: page_id.raw,
+            });
+        };
+
+        Ok(PageReference {
+            guard,
+            // SAFETY: because we successfully acquired
+            // a page guard for that page AND `P` implements `Page`,
+            // this cast is valid
+            page: unsafe { page_reference.cast() },
+        })
+    }
+}

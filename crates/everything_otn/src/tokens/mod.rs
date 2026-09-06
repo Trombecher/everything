@@ -9,7 +9,7 @@ use core::{
 };
 
 use alloc::sync::Arc;
-use everything_structures::{Byte, BytesStructure, TextStructure};
+use everything_objects::{Byte, BytesComposite, TextComposite};
 use parser_tools::TokenLength;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -305,7 +305,7 @@ impl<'source> TextSource<'source> {
         length
     }
 
-    pub fn parse(self) -> Option<TextStructure> {
+    pub fn parse(self) -> Option<TextComposite> {
         let len = NonZeroUsize::new(self.real_byte_length())?;
 
         let mut bytes = self.content().bytes();
@@ -320,9 +320,9 @@ impl<'source> TextSource<'source> {
             }
         });
 
-        let bytes_structure = BytesStructure::from_iter(processed_bytes, len);
+        let bytes_structure = BytesComposite::from_iter(processed_bytes, len);
 
-        Some(unsafe { TextStructure::new_unchecked(bytes_structure) })
+        Some(unsafe { TextComposite::new_unchecked(bytes_structure) })
     }
 
     #[must_use]
@@ -364,7 +364,7 @@ impl<'source> BytesSource<'source> {
     }
 
     #[must_use]
-    pub fn parse(self) -> BytesStructure {
+    pub fn parse(self) -> BytesComposite {
         let mut allocation = Arc::<[u8]>::new_uninit_slice(self.real_byte_length());
         let mut allocation_bytes =
             unsafe { Arc::get_mut(&mut allocation).unwrap_unchecked() }.iter_mut();
@@ -397,7 +397,7 @@ impl<'source> BytesSource<'source> {
 
         debug_assert!(allocation_bytes.next().is_none());
 
-        unsafe { BytesStructure::from_raw(allocation.assume_init()).unwrap_unchecked() }
+        unsafe { BytesComposite::from_raw(allocation.assume_init()).unwrap_unchecked() }
     }
 
     #[must_use]
