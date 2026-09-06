@@ -261,7 +261,7 @@ mod eval {
                         &mut Default::default()
                     )
                     .into_object(),
-                object.clone()
+                &object.clone()
             );
         }
 
@@ -300,7 +300,7 @@ mod eval {
                             &mut Default::default()
                         )
                         .into_object(),
-                    object.clone()
+                    &object.clone()
                 );
             }
         }
