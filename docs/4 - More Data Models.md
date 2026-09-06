@@ -39,3 +39,29 @@ where `<<bit n>>` is a bit. A bit is either the abstract object `@BIT_0` or the 
 ## Bytes
 
 Bytes / binary data can be modelled as a list of bytes. It is stored as actual bytes in memory.
+
+## Rational Numbers
+
+A rational number in math is represented by two integers $a$ and $b$: $a/b$. The goal is to model rational numbers in Everything such that **two objects representing rational numbers are equal (and that means _structurally_) iff the rational numbers the objects represent are equal**.
+
+However, $2/1 = 4/2$. So we have to define some kind of normalization. And another requirement is that integers (as in the previous model) must also be rational numbers ($5 = 5/1$). This leads to this definition:
+
+An object is a rational number iff
+
+* it is an integer or
+    * it has a single tag `$NUMERATOR`,
+    * a single tag `$DENOMINATOR`,
+    * the associated value of `$NUMERATOR` (the _numerator_) is an integer,
+    * the associated value of `$DENOMINATOR` (the _denominator_) is an integer,
+    * the numerator is not equal to zero,
+    * the denominator is greater than one, and
+    * numerator and denominator are coprime (i.e. the greatest common divisor of their absolute values is one).
+
+### Examples
+
+```
+# 1 / 2
+{
+    $NUMERATOR: {}
+}
+```
