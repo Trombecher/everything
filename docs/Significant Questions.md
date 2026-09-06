@@ -63,3 +63,5 @@ Here as the pros and the cons for model A.
   ```
 
   This may be desireable
+
+I even make the claim that any statements involving both composite subjects and values are redundant and computable/inferrable from the composite objects themselves.
