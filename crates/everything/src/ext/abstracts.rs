@@ -1,6 +1,6 @@
 use everything_objects::Abstract;
 
-/// An extension to [Abstract], providing useful constants.
+/// An extension to [`Abstract`], providing useful constants.
 pub trait AbstractExt {
     /// Denotes that the subject is a _set_ that contains the associated value.
     const CONTAINS: Abstract = Abstract(2148623885993955829985846061169569945);
@@ -12,8 +12,7 @@ pub trait AbstractExt {
     /// `(S, T, V)`.
     const AXIOMATIC: Abstract = Abstract(2148623894085078740305997247889559475);
 
-    /// Denotes that the subject is a function. The associated value is the function
-    /// body.
+    /// Denotes the function body of a function.
     const FUNCTION: Abstract = Abstract(2148623901005465698003044719488417081);
 
     /// The _subject_ slot of a statement.

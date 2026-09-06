@@ -427,7 +427,7 @@ impl ObjectExt for Object {
             .next_and_last()?;
 
         Some(FilterNode {
-            set: set,
+            set,
             filter_function: filter,
         })
     }
@@ -462,8 +462,8 @@ impl ObjectExt for Object {
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode> {
-        let left = QueryValues::new(knowledge, self.clone(), left_tag).next()?;
-        let right = QueryValues::new(knowledge, self.clone(), right_tag).next()?;
+        let left = QueryValues::new(knowledge, self.clone(), left_tag).next_and_last()?;
+        let right = QueryValues::new(knowledge, self.clone(), right_tag).next_and_last()?;
 
         Some(BinaryNode { left, right })
     }
@@ -808,7 +808,7 @@ impl ObjectExt for Object {
                         tasks.push(Task::Eval(set));
                     }
                     Some(Node::Function(_)) => {
-                        evaluated.push(object.capture(knowledge, 0, context).into());
+                        evaluated.push(object.capture(knowledge, 0, context));
                     }
                     Some(Node::Literal(object)) => {
                         evaluated.push(object.into());
@@ -818,7 +818,7 @@ impl ObjectExt for Object {
                         tasks.push(Task::Eval(left));
                     }
                     Some(Node::FunctionSelf(depth)) => evaluated.push(ObjectOrSetValues::Object(
-                        context.function_self(depth as usize).into(),
+                        context.function_self(depth as usize),
                     )),
                     Some(Node::Parameter(depth)) => {
                         evaluated.push(context.parameter_value(depth as usize));

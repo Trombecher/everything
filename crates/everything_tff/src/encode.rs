@@ -50,13 +50,13 @@ impl<Out: Write> Encoder<Out> {
             }
             Object::Composite(Composite::Text(text)) => {
                 let ds = DeduplicatedComposite::BytesOrText(text.into_bytes());
-                let index = *&self.encoded_composites.get(&ds).unwrap();
+                let index = self.encoded_composites.get(&ds).unwrap();
 
                 write!(self.out, "t{index}")
             }
             Object::Composite(Composite::Bytes(bytes)) => {
                 let ds = DeduplicatedComposite::BytesOrText(bytes);
-                let index = *&self.encoded_composites.get(&ds).unwrap();
+                let index = self.encoded_composites.get(&ds).unwrap();
 
                 write!(self.out, "b{index}")
             }

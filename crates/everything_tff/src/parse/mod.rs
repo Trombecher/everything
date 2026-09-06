@@ -219,7 +219,7 @@ impl<'source> Parser<'source> {
         match composite.clone() {
             Composite::Text(text) => Ok(text),
             Composite::Bytes(bytes) => {
-                if let Ok(_) = str::from_utf8(bytes.as_ref()) {
+                if str::from_utf8(bytes.as_ref()).is_ok() {
                     let ret = unsafe { TextComposite::new_unchecked(bytes) };
                     *composite = Composite::Text(ret.clone());
 

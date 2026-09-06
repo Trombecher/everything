@@ -6,6 +6,7 @@ use crate::query::QueryValues;
 pub struct QueryExists;
 
 impl QueryExists {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(knowledge: &Composite, subject: Object, tag: Object, value: Object) -> bool {
         QueryValues::new(knowledge, subject, tag)
             .find(|v| v == &value)

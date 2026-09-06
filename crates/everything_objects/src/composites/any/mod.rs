@@ -133,7 +133,7 @@ impl AnyCompositeValues {
     pub fn new(subject: AnyComposite, tag: Object) -> Self {
         Self {
             properties: AnyCompositeProperties::new_starting_from_tag(subject, tag.clone()),
-            tag: tag,
+            tag,
         }
     }
 }

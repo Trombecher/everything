@@ -86,33 +86,33 @@ pub enum Composite {
 }
 
 impl Composite {
-    /// Creates a Composite from the given properties.
+    /// Creates a [`Composite`] from the given properties.
     #[must_use]
     pub fn new(properties: &mut [Property]) -> Self {
         Self::Empty.add(properties)
     }
 
-    /// Adds the given properties to this Composite.
+    /// Adds the given properties to this [`Composite`].
     #[must_use]
     pub fn add(&self, properties: &mut [Property]) -> Self {
         self.change(&mut [], properties)
     }
 
-    /// Removes the given properties from this Composite.
+    /// Removes the given properties from this [`Composite`].
     #[must_use]
     pub fn remove(&self, properties: &mut [Property]) -> Self {
         self.change(properties, &mut [])
     }
 
-    /// Modifies this AnyComposite by adding and removing properties.
-    /// Returns the modified AnyComposite.
+    /// Modifies this composite by adding and removing properties.
+    /// Returns the modified composite.
     ///
     /// The properties need to be mutable because this method needs to
     /// reorder and dedup changes in-place to avoid unneccessary
     /// allocations.
     ///
     /// Note that first all indicated properties are removed from
-    /// the AnyComposite and then all indicated properties are added.
+    /// the composite and then all indicated properties are added.
     #[must_use]
     pub fn change(
         &self,
@@ -387,7 +387,7 @@ impl Iterator for CompositeProperties {
 
 impl std::fmt::Debug for CompositeProperties {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set().entries(&mut self.clone()).finish()
+        f.debug_set().entries(self.clone()).finish()
     }
 }
 

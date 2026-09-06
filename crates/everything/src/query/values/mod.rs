@@ -22,7 +22,7 @@ pub enum QueryValues {
     /// The variant that only yields [`Composite::Empty`] and then nothing else.
     EmptyComposite,
 
-    /// The variant that yields values from [AxiomaticBorrowedQueryValues].
+    /// The variant that yields values from [`AxiomaticBorrowedQueryValues`].
     Borrowed(BorrowedQueryValues),
 }
 
