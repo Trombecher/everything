@@ -49,8 +49,9 @@ However, $2/1 = 4/2$. So we have to define some kind of normalization. And anoth
 An object is a rational number iff
 
 * it is an integer or
-    * it has a single tag `$NUMERATOR`,
-    * a single tag `$DENOMINATOR`,
+    * it has a tag `$NUMERATOR` with a single associated value,
+    * a tag `$DENOMINATOR` with a single associated value,
+    * every tag on the object is `$NUMERATOR` or `$DENOMINATOR`,
     * the associated value of `$NUMERATOR` (the _numerator_) is an integer,
     * the associated value of `$DENOMINATOR` (the _denominator_) is an integer,
     * the numerator is not equal to zero,
@@ -62,6 +63,7 @@ An object is a rational number iff
 ```
 # 1 / 2
 {
-    $NUMERATOR: {}
+    $NUMERATOR: {$SUCCESSOR_OF: $ZERO},
+    $DENOMINATOR: {$SUCCESSOR_OF: {$SUCCESSOR_OF: $ZERO}}
 }
 ```

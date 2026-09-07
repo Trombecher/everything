@@ -1,8 +1,8 @@
-# Chapter 2 - Introduction To The _Everything Data Model_
+# 3 - Introduction To The _Everything Data Model_
 
-The _Everything Data Model_ is an interpretation of a family of objects. It assigns meaning and semantics to some abstract objects. **The real identifiers of the abstract objects are omitted because they bloat the text.** You can look up the integer values in [this file](../crates/everything_objects/src/abstracts.rs) and in [this file](../crates/everything/src/ext/abstracts.rs).
+The _Everything Data Model_ is an interpretation of a family of objects. It assigns meaning and semantics to some objects.
 
-In the following sections, aliases are used to talk about the abstract objects. They are written inline `$LIKE_THIS`.
+Object literals on this page may contain placeholders, prefixed by a dollar sign `$LIKE_THIS`. These represent abstract objects whose real integer values can be looked up in [this file](../../crates/everything_objects/src/abstracts.rs) and in [this file](../../crates/everything/src/ext/abstracts.rs).
 
 ## Goals
 
@@ -16,13 +16,15 @@ The model tries to be the basis for any data model. This is a bit like JSON sche
 
 * An object _has a tag_ iff there exists a value such that the object has a tag with this value.
 
-* An object is _axiomatic_ iff it has `$AXIOMATIC`.
-
-* An object _a_ is included in another object _b_ iff _b_ has `$CONTAINS` with the value _a_.
-
 ## Sets
 
-Everything models sets with the abstract object `$CONTAINS`. The set values of an object _set_ consist of every object that is included in _set_. Examples for sets include:
+Everything models set inclusion via the tag `$CONTAINS`.
+
+Every object is a set. An object is _item_ or _element_ of a set iff it is value of a property with `$CONTAINS` on the set.
+
+**To state that an object is a set may indicate that the items of the object are of contextual relevance, or that the object's purpose is to hold items.**
+
+### Examples
 
 ```
 {}                               <- empty set
@@ -33,9 +35,17 @@ Everything models sets with the abstract object `$CONTAINS`. The set values of a
 
 ## Statements
 
-A _statement_ is an object that has `$STATEMENT_SUBJECT` with a subject, `$STATEMENT_TAG` with a tag, and `$STATEMENT_VALUE` with a value. "subject", "tag", and "value" are still just objects but with different "roles".
+An object is a _statement_ iff
 
-For example this is a statement:
+* it is composite,
+* it has tags `$STATEMENT_SUBJECT`, `$STATEMENT_TAG`, and `$STATEMENT_VALUE`, each with a single value, and
+* **the associated value of `$STATEMENT_SUBJECT` is abstract**.
+
+* The associated value of `$STATEMENT_SUBJECT` is also called the _subject_ of the statement. It may be interpreted as the (abstract) object a thing is stated about.
+* The associated value of `$STATEMENT_TAG` is also called the _tag_ of the statement. It may be interpreted as the attribute of the subject which is stated about.
+* The associated value of `$STATEMENT_VALUE` is also called the _value_ of the statement. Is may be interpreted as an associated "value" which "answers" the question of the tag.
+
+### Example
 
 ```
 {
@@ -45,25 +55,20 @@ For example this is a statement:
 }
 ```
 
-Conceptually,
-
-* the subject is the **object in question** which the statment is about.
-* The tag is the **"attribute" (or "predicate") of the subject**.
-* The value is **associated data** specific to that subject and tag.
-
 ## Booleans
 
-A set with no items is "false". A set with one or more items is "true".
+A set with no items is considered _false_ or _falsy_. A set with one or more items is considered _true_ or _truthy_.
 
 ## Integers
 
-Everything constructs the integers recursively through object nesting. An object is an integer iff
+Everything constructs the integers recursively through object nesting. An object is an _integer_ iff
 
-* it is equal to the abstract object `$ZERO` or
-    * it either has a single tag `$SUCCESSOR_OF` with the associated value being an integer (recursive definition) or
-    * it has a single tag `$PREDECESSOR_OF` with the associated value being an integer.
+* it is equal to the abstract object `$ZERO`, or
+* it is composite and it only has a single property with
+    * the tag being `$SUCCESSOR_OF` or `$PREDECESSOR_OF` and
+    * the value being an integer.
 
-By repeatetly constructing composite objects as successors or predecessors, you can get any integer. An integer is _negative_ iff it has `$PREDECESSOR_OF`. An integer is positive iff it has `$SUCCESSOR_OF`.
+By repeatetly constructing composite objects as successors or predecessors, you can get any integer. An integer is _negative_ iff it has the tag `$PREDECESSOR_OF`. An integer is positive iff it has the tag `$SUCCESSOR_OF`.
 
 This approach of constructing integers is similar to the Peano-axioms definition of natural numbers.
 
@@ -96,9 +101,19 @@ _Knowledge_ is a set of statements which are _valid_. What is "valid" will defin
 
 ## Axiomatic
 
-**To use an object as a tag in a statement, it must be axiomatic.** The value you provide when stating that your object is axiomatic is called the _constraint_. Constraints are expressions/nodes that **validate each specific use of your object as a tag**.
+Everything imposes a restriction on how and when you can use objects as tags in statements. To use an object as a tag in a statement, it must be _axiomatic_, meaning, Everything requires a secondary property `$AXIOMATIC: constraint` **on the object** where `constraint` is an object which will validate each statement involving your object as a tag.
 
-Let's say your axiomatic object _T_ is used with a subject _S_ and a value _V_. Then, first, the constraint of _T_ is called with _S_ as the parameter. Then, the result of that first call is called with _V_ as the parameter. If the result of that second call is "true", then the statement is valid. Otherwise it is not, and the engine will report your knowledge as invalid.
+On each statement involving your object as a tag, the constraint will be (functionally) called two times,
+
+1. with the subject of the statement and
+2. with the value of the statement.
+
+Your logic then decides what object to return.
+
+* If the returned object is truthy, then Everything is happy;
+* If the returned object is falsy, then your database contains invalid knowledge.
+
+Not only does this validation apply to statements, but also to every property of every composite used.
 
 ### Example
 
@@ -292,7 +307,7 @@ This node first evaluates the left child node.
 
 ### Logical XOR
 
-An object is an _or_ node iff
+An object is an _xor_ node iff
 
 * it has a single tag `$NODE_XOR_LEFT` and
 * it has a single tag `$NODE_XOR_RIGHT`.
@@ -359,6 +374,17 @@ An object is a map node iff
 * it has a single `$NODE_MAP_MAPPER`.
 
 TODO: evaluation
+
+### Object Type Node
+
+An object is an _is-abstract_ node iff
+
+* it has a tag `$NODE_IS_ABSTRACT` with a single associated value.
+
+It evaluates the child node being the associated value and resolves
+
+* to `{$CONTAINS: {}}` if the resulting object of the evaluation of the child node is abstract and
+* to `{}` otherwise.
 
 ### Queries
 

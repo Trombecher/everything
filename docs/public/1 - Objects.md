@@ -19,7 +19,7 @@ Suppose a thing _A_ is unidentifiable; with the previous sentence we identified 
 * An _object_ is either abstract or composite.
 * An _abstract object_ is an abstract identifier which is just a non-negative integer.
 * A _composite object_ is a set of properties.
-* A _property_ is a pair of the form `(tag, value)`, both objects.
+* A _property_ is a pair of the form `tag: value`. Both `tag` and `value` are objects, just in different roles in the property.
 
 ### Abstract Objects
 

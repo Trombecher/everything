@@ -2,7 +2,7 @@
 
 ## Overview
 
-A database consists of a set of statements. Statements are triplets of the form `(subject, tag, value)`, all objects. Statements found in the database are assumed true by the database. They state something a property `tag` with a value `value` about the `subject` object.
+A database consists of a set of statements. Statements are triplets of the form `(subject, tag, value)`, all objects. The subject must be abstract. Statements found in the database are assumed true by the database. They state a property `tag` with a value `value` about the `subject` object.
 
 You can view the database as a graph with nodes being objects and the arrows connecting the subject via the tag to the value.
 
@@ -37,4 +37,4 @@ In this example, the value is just _true_. But in practise, this value is more p
 
 ## Implementation In The Everything Data Model
 
-In the next chapter, the Everything Data Model will be layed out. Statements map to composite objects and databases map to sets which are also implemented using composites.
+In the next chapter, the Everything Data Model will be layed out.
