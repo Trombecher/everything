@@ -14,7 +14,7 @@ pub use properties::*;
 use everything_objects::Object;
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Statement {
+pub struct SimpleStatement {
     pub subject: Object,
     pub tag: Object,
     pub value: Object,

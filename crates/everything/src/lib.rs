@@ -8,7 +8,7 @@ mod knowledge;
 pub mod nodes;
 pub mod query;
 mod set_values;
-mod statements;
+pub mod statements;
 
 pub use knowledge::*;
 pub use set_values::*;

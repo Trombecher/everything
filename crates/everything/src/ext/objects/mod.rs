@@ -9,7 +9,7 @@ use crate::{
     ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, CompositeExt, KnowledgeError, ObjectForm, PropertyExt, Statement,
+        AbstractExt, CompositeExt, KnowledgeError, ObjectForm, PropertyExt, SimpleStatement,
         StatementForm, iter::IteratorExtNextAndLast,
     },
     nodes::{BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, Task, UnwrapOrNode},
@@ -123,7 +123,7 @@ pub trait ObjectExt {
 
     fn intrinsic_statement_value(&self) -> Option<Object>;
 
-    fn intrinsic_statement(&self) -> Option<Statement>;
+    fn intrinsic_statement(&self) -> Option<SimpleStatement>;
 
     fn multiply(&self, knowledge: &Composite, other: &Object) -> Object;
 
@@ -629,12 +629,12 @@ impl ObjectExt for Object {
         }
     }
 
-    fn intrinsic_statement(&self) -> Option<Statement> {
+    fn intrinsic_statement(&self) -> Option<SimpleStatement> {
         let subject = self.intrinsic_statement_subject()?;
         let tag = self.intrinsic_statement_tag()?;
         let value = self.intrinsic_statement_value()?;
 
-        Some(Statement {
+        Some(SimpleStatement {
             subject,
             tag,
             value,
