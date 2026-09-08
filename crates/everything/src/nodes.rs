@@ -95,7 +95,7 @@ pub enum Node {
     QuerySubjectsAndTags(QuerySubjectsAndTagsNode),
     QuerySubjectsAndValues(QuerySubjectsAndValuesNode),
     QueryTagsAndValues(QueryTagsAndValuesNode),
-    QueryStatements,
+    Statements,
     Equal(BinaryNode),
     Or(BinaryNode),
     Xor(BinaryNode),

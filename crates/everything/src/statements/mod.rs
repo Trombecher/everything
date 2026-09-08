@@ -306,8 +306,8 @@ impl Statements {
     }
 
     #[must_use]
-    pub fn iter_owned(&self) -> QueryStatements {
-        QueryStatements {
+    pub fn iter_owned(&self) -> StatementsIter {
+        StatementsIter {
             current_subject_with_properties: None,
             indexed_statements: self.indexed_statements.clone().into_iter(),
         }

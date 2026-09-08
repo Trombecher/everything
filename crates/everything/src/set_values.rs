@@ -7,7 +7,7 @@ use crate::{
     ext::{ObjectExt, PropertyExt},
     statements::{
         QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags, QueryTagsAndValues,
-        QueryValues, Statements, SubjectAndTag, SubjectAndValue,
+        QueryValues, Statements, StatementsIter, SubjectAndTag, SubjectAndValue,
     },
 };
 
@@ -150,6 +150,9 @@ pub enum SetValues {
     /// Iterator over tags for a given subject and value.
     QueryTags(QueryTags),
 
+    /// Iterator over all statements.
+    Statements(StatementsIter),
+
     /// Maps every value of a given set with a mapper function.
     Map {
         statements: Statements,
@@ -234,6 +237,9 @@ impl Iterator for SetValues {
                     .into()
                 })
             }
+            Self::Statements(iter) => iter
+                .next()
+                .map(|statements| statements.to_composite().into()),
             Self::Map {
                 statements,
                 set,

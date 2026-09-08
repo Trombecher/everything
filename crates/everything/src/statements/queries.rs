@@ -230,12 +230,12 @@ impl Iterator for QuerySubjectsAndValues {
 }
 
 #[derive(Clone)]
-pub struct QueryStatements {
+pub struct StatementsIter {
     pub(super) indexed_statements: IndexedStatements,
     pub(super) current_subject_with_properties: Option<(Abstract, AbstractExtendedProperties)>,
 }
 
-impl Iterator for QueryStatements {
+impl Iterator for StatementsIter {
     type Item = Statement;
 
     fn next(&mut self) -> Option<Self::Item> {

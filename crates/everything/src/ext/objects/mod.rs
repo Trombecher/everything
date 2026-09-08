@@ -209,7 +209,7 @@ impl ObjectExt for Object {
                 value: query.tag,
             }])
             .into(),
-            Node::QueryStatements => Abstract::NODE_QUERY_STATEMENTS.into(),
+            Node::Statements => Abstract::NODE_STATEMENTS.into(),
             Node::Equal(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_EQUAL_LEFT.into(),
@@ -524,9 +524,7 @@ impl ObjectExt for Object {
             }
         }
 
-        xor_with!(
-            (self == &Abstract::NODE_QUERY_STATEMENTS.into()).then_some(Node::QueryStatements)
-        );
+        xor_with!((self == &Abstract::NODE_STATEMENTS.into()).then_some(Node::Statements));
 
         xor_with!(
             statements
@@ -865,8 +863,13 @@ impl ObjectExt for Object {
                         tasks.push(Task::QueryTagsAndValues);
                         tasks.push(Task::Eval(query.subject));
                     }
-                    Some(Node::QueryStatements) => {
-                        todo!()
+                    Some(Node::Statements) => {
+                        // Evaluate straight to an iterator over
+                        // all statements:
+
+                        evaluated.push(ObjectOrSetValues::SetValues(SetValues::Statements(
+                            statements.iter_owned(),
+                        )));
                     }
                     Some(Node::Equal(BinaryNode { left, right })) => {
                         tasks.push(Task::Equal);
