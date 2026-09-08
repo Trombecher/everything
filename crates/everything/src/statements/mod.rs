@@ -1,13 +1,15 @@
-mod tags;
-mod tags_and_values;
+mod abstract_iters;
+mod queries;
 
+pub use abstract_iters::*;
 use imbl::{HashMap, HashSet};
-pub use tags::*;
-pub use tags_and_values::*;
+pub use queries::*;
 
-use everything_objects::{Abstract, Composite, CompositeProperties, Object, Property};
+use everything_objects::{
+    Abstract, Composite, CompositeProperties, CompositeTags, CompositeValues, Object, Property,
+};
 
-use crate::ext::{PropertyExt, SimpleStatement};
+use crate::ext::{AbstractExt, PropertyExt, SimpleStatement};
 
 pub struct Statement {
     pub subject: Abstract,
@@ -31,8 +33,6 @@ pub struct StatementProperty {
     pub additional_properties: Composite,
 }
 
-pub type AbstractProperties = <HashSet<StatementProperty> as IntoIterator>::IntoIter;
-
 impl From<StatementProperty> for Property {
     fn from(statement_property: StatementProperty) -> Self {
         Self {
@@ -41,6 +41,9 @@ impl From<StatementProperty> for Property {
         }
     }
 }
+
+pub(crate) type IndexedStatements =
+    <HashMap<Abstract, HashSet<StatementProperty>> as IntoIterator>::IntoIter;
 
 #[derive(Clone, Default)]
 pub struct Statements {
@@ -84,8 +87,9 @@ impl Statements {
         match subject {
             Object::Abstract(subject) => {
                 if let Some(properties) = self.indexed_statements.get(&subject) {
-                    let iterator_over_all_properties = properties.clone().into_iter();
-                    QueryTagsAndValues2::Abstract(iterator_over_all_properties)
+                    QueryTagsAndValues2::Abstract(AbstractProperties {
+                        extended: properties.clone().into_iter(),
+                    })
                 } else {
                     QueryTagsAndValues2::Composite(CompositeProperties::Empty)
                 }
@@ -94,10 +98,52 @@ impl Statements {
         }
     }
 
+    pub fn query_subjects(&self, tag: Object, value: Object) -> QuerySubjects2 {
+        QuerySubjects2 {
+            indexed_statements: self.indexed_statements.clone().into_iter(),
+            tag,
+            value,
+        }
+    }
+
     pub fn query_tags(&self, subject: Object, value: Object) -> QueryTags2 {
         match subject {
-            Object::Abstract(subject) => todo!(),
+            Object::Abstract(subject) => {
+                if let Some(properties) = self.indexed_statements.get(&subject) {
+                    QueryTags2::Abstract(AbstractTags {
+                        properties: AbstractProperties {
+                            extended: properties.clone().into_iter(),
+                        },
+                        value,
+                    })
+                } else {
+                    // No properties to iterate.
+                    QueryTags2::Composite(CompositeTags::None)
+                }
+            }
             Object::Composite(composite) => QueryTags2::Composite(composite.tags(value)),
+        }
+    }
+
+    pub fn query_values(&self, subject: Object, tag: Object) -> QueryValues2 {
+        match (subject, tag) {
+            (Object::Abstract(Abstract::AXIOMATIC), Object::Abstract(Abstract::AXIOMATIC)) => {
+                QueryValues2::AxiomaticAxiomaticConstraint
+            }
+            (Object::Abstract(subject), tag) => {
+                if let Some(properties) = self.indexed_statements.get(&subject) {
+                    QueryValues2::Abstract(AbstractValues {
+                        properties: AbstractProperties {
+                            extended: properties.clone().into_iter(),
+                        },
+                        tag,
+                    })
+                } else {
+                    // No properties to iterate.
+                    QueryValues2::Composite(CompositeValues::None)
+                }
+            }
+            (Object::Composite(subject), tag) => QueryValues2::Composite(subject.values(tag)),
         }
     }
 
