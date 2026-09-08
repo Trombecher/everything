@@ -5,7 +5,7 @@ use crate::{
     ctx::EvaluationContext,
     ext::{AbstractExt, ObjectExt},
     nodes::{
-        BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, QueryExistsNode,
+        BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, PredicateNode, QueryExistsNode,
         QuerySubjectsAndTagsNode, QuerySubjectsAndValuesNode, QuerySubjectsNode,
         QueryTagsAndValuesNode, QueryTagsNode, QueryValuesNode, UnwrapOrNode,
     },
@@ -89,6 +89,14 @@ fn node_parsing() {
         Node::Union(BinaryNode { left: A, right: C }),
         Node::UnwrapOr(UnwrapOrNode { default: C, set: B }),
         Node::Xor(BinaryNode { left: A, right: C }),
+        Node::Every(PredicateNode {
+            predicate: A,
+            set: B,
+        }),
+        Node::Any(PredicateNode {
+            predicate: C,
+            set: A,
+        }),
     ];
 
     for node in node_cases {

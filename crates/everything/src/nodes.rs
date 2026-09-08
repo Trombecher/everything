@@ -83,6 +83,12 @@ pub struct QuerySubjectsAndTagsNode {
     pub value: Object,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct PredicateNode {
+    pub set: Object,
+    pub predicate: Object,
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub enum Node {
     Function(Object),
@@ -113,6 +119,8 @@ pub enum Node {
     Multiply(BinaryNode),
     Call(CallNode),
     IsAbstract(Object),
+    Every(PredicateNode),
+    Any(PredicateNode),
     // Please also add new nodes to the array of nodes
     // in the tests (function `node_parsing()`).
 }
@@ -139,6 +147,8 @@ pub enum Task {
     Union,
     Map,
     Filter,
+    Every,
+    Any,
     Less,
     PartialIf { then: Object, otherwise: Object },
     Call,

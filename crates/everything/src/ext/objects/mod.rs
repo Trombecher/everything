@@ -10,7 +10,7 @@ use crate::{
     ctx::{EvaluationContext, FunctionContext},
     ext::{AbstractExt, CompositeExt, KnowledgeError, iter::IteratorExtNextAndLast},
     nodes::{
-        BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, QueryExistsNode,
+        BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, PredicateNode, QueryExistsNode,
         QuerySubjectsAndTagsNode, QuerySubjectsAndValuesNode, QuerySubjectsNode,
         QueryTagsAndValuesNode, QueryTagsNode, QueryValuesNode, Task, UnwrapOrNode,
     },
@@ -293,6 +293,28 @@ impl ObjectExt for Object {
                 Property {
                     tag: Abstract::NODE_FILTER_FILTER.into(),
                     value: filter_function,
+                },
+            ])
+            .into(),
+            Node::Every(PredicateNode { set, predicate }) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_EVERY_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_EVERY_PREDICATE.into(),
+                    value: predicate,
+                },
+            ])
+            .into(),
+            Node::Any(PredicateNode { set, predicate }) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_ANY_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_ANY_PREDICATE.into(),
+                    value: predicate,
                 },
             ])
             .into(),
@@ -675,6 +697,32 @@ impl ObjectExt for Object {
                 .map(Node::IsAbstract)
         );
 
+        fn node_every(this: &Object, statements: &Statements) -> Option<PredicateNode> {
+            let set = statements
+                .query_values(this.clone(), Abstract::NODE_EVERY_SET.into())
+                .next_and_last()?;
+
+            let predicate = statements
+                .query_values(this.clone(), Abstract::NODE_EVERY_PREDICATE.into())
+                .next_and_last()?;
+
+            Some(PredicateNode { set, predicate })
+        }
+        xor_with!(node_every(self, statements).map(Node::Every));
+
+        fn node_any(this: &Object, statements: &Statements) -> Option<PredicateNode> {
+            let set = statements
+                .query_values(this.clone(), Abstract::NODE_ANY_SET.into())
+                .next_and_last()?;
+
+            let predicate = statements
+                .query_values(this.clone(), Abstract::NODE_ANY_PREDICATE.into())
+                .next_and_last()?;
+
+            Some(PredicateNode { set, predicate })
+        }
+        xor_with!(node_any(self, statements).map(Node::Any));
+
         node
     }
 
@@ -903,6 +951,16 @@ impl ObjectExt for Object {
                     })) => {
                         tasks.push(Task::Map);
                         tasks.push(Task::Eval(mapper_function));
+                        tasks.push(Task::Eval(set));
+                    }
+                    Some(Node::Every(PredicateNode { set, predicate })) => {
+                        tasks.push(Task::Every);
+                        tasks.push(Task::Eval(predicate));
+                        tasks.push(Task::Eval(set));
+                    }
+                    Some(Node::Any(PredicateNode { set, predicate })) => {
+                        tasks.push(Task::Any);
+                        tasks.push(Task::Eval(predicate));
                         tasks.push(Task::Eval(set));
                     }
                     Some(Node::Filter(FilterNode {
@@ -1155,6 +1213,34 @@ impl ObjectExt for Object {
                         set: Box::new(set),
                         filter_function: filter,
                     }));
+                }
+                Task::Every => {
+                    let predicate = evaluated.pop().unwrap().into_object();
+                    let mut set = evaluated.pop().unwrap().set_values(statements);
+
+                    let every_value_matches_predicate = set.all(|value| {
+                        predicate
+                            .call(statements, &[value.into()], context)
+                            .is_truthy(statements)
+                    });
+
+                    evaluated.push(ObjectOrSetValues::Object(
+                        Composite::new_bool(every_value_matches_predicate).into(),
+                    ));
+                }
+                Task::Any => {
+                    let predicate = evaluated.pop().unwrap().into_object();
+                    let mut set = evaluated.pop().unwrap().set_values(statements);
+
+                    let any_value_matches_predicate = set.any(|value| {
+                        predicate
+                            .call(statements, &[value.into()], context)
+                            .is_truthy(statements)
+                    });
+
+                    evaluated.push(ObjectOrSetValues::Object(
+                        Composite::new_bool(any_value_matches_predicate).into(),
+                    ));
                 }
                 Task::Less => {
                     let right = evaluated.pop().unwrap();
