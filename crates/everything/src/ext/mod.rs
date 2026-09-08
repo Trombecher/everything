@@ -8,6 +8,7 @@ mod properties;
 
 pub use abstracts::*;
 pub use composites::*;
+pub(crate) use iter::*;
 pub use objects::*;
 pub use properties::*;
 

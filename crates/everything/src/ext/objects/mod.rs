@@ -9,14 +9,11 @@ use crate::{
     ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, CompositeExt, ObjectForm, PropertyExt, SimpleStatement, StatementForm,
-        iter::IteratorExtNextAndLast, statementsError,
+        AbstractExt, CompositeExt, KnowledgeError, ObjectForm, PropertyExt, SimpleStatement,
+        StatementForm, iter::IteratorExtNextAndLast,
     },
     nodes::{BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, Task, UnwrapOrNode},
-    statements::{
-        self, QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags,
-        QueryTagsAndValues, QueryValues, Statements,
-    },
+    statements::{QueryValues, Statements},
 };
 
 /// An extension trait implemented for [`Object`], providing many useful functions.
@@ -92,7 +89,7 @@ pub trait ObjectExt {
 
     fn node_query(&self, statements: &Statements) -> Option<Object>;
 
-    fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), statementsError>;
+    fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn is_natural_number(&self, statements: &Statements) -> bool;
     fn node_map(&self, statements: &Statements) -> Option<MapNode>;
@@ -150,7 +147,7 @@ impl ObjectExt for Object {
 
     fn new_node(node: Node) -> Self {
         match node {
-            Node::statements => Abstract::NODE_statements.into(),
+            Node::Knowledge => Abstract::NODE_KNOWLEDGE.into(),
             Node::Call(CallNode { callee, with }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_CALL_CALLEE.into(),
@@ -517,12 +514,12 @@ impl ObjectExt for Object {
         xor_with!(self.node_unwrap_or(statements).map(Node::UnwrapOr));
         xor_with!(self.node_multiply(statements).map(Node::Multiply));
 
-        if self == &Self::Abstract(Abstract::NODE_statements) {
+        if self == &Self::Abstract(Abstract::NODE_KNOWLEDGE) {
             if node.is_some() {
                 return None;
             }
 
-            node = Some(Node::statements);
+            node = Some(Node::Knowledge);
         }
 
         node
@@ -1241,6 +1238,7 @@ impl ObjectExt for Object {
         parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
     ) -> ObjectOrSetValues {
+        /*
         if self == &Object::Abstract(Abstract::KNOWLEDGE)
             && let Some(parameter) = parameters.first()
         {
@@ -1252,6 +1250,7 @@ impl ObjectExt for Object {
             }
             .into();
         }
+         */
 
         if let Some((parameter, next_parameters)) = parameters.split_first()
             && let Some(Node::Function(body)) = self.node(statements)
@@ -1295,7 +1294,7 @@ impl ObjectExt for Object {
         }
     }
 
-    fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), statementsError> {
+    fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError> {
         match self {
             Self::Abstract(_) => Ok(()),
             Self::Composite(composite) => composite.is_valid(statements, recursive),

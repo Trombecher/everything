@@ -1,12 +1,11 @@
 #[cfg(test)]
 mod tests;
 
-use std::{
-    hint::cold_path,
-    sync::{
-        Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
+use core::hint::cold_path;
+
+use std::sync::{
+    Mutex,
+    atomic::{AtomicBool, Ordering},
 };
 
 use tracing::warn;

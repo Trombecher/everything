@@ -63,6 +63,7 @@ impl std::fmt::Debug for CompositeSetValues {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 pub enum ObjectOrSetValues {
     Object(Object),

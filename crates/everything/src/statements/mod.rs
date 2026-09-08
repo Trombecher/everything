@@ -1,8 +1,6 @@
 mod abstract_iters;
 mod queries;
 
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
-
 pub use abstract_iters::*;
 use imbl::{HashMap, HashSet};
 pub use queries::*;
@@ -11,7 +9,14 @@ use everything_objects::{
     Abstract, Composite, CompositeProperties, CompositeTags, CompositeValues, Object, Property,
 };
 
-use crate::ext::{AbstractExt, PropertyExt, SimpleStatement};
+use crate::{
+    ObjectOrSetValues,
+    base::BASE,
+    ext::{
+        AbstractExt, IteratorExtNextAndLast, KnowledgeError, ObjectExt, ObjectForm, PropertyExt,
+        SimpleStatement, StatementForm,
+    },
+};
 
 pub struct Statement {
     pub subject: Abstract,
@@ -19,12 +24,34 @@ pub struct Statement {
 }
 
 impl Statement {
+    /// Creates a new statement with no additional properties.
+    pub fn new(subject: Abstract, tag: Object, value: Object) -> Self {
+        Self {
+            subject,
+            property: StatementProperty {
+                tag,
+                value,
+                additional_properties: Composite::Empty,
+            },
+        }
+    }
+
     pub fn to_composite(&self) -> Composite {
         self.property.additional_properties.add(&mut [
             Property::new_statement_subject(Object::Abstract(self.subject)),
             Property::new_statement_tag(self.property.tag.clone()),
             Property::new_statement_value(self.property.value.clone()),
         ])
+    }
+}
+
+impl From<Statement> for SimpleStatement {
+    fn from(value: Statement) -> Self {
+        Self {
+            subject: value.subject.into(),
+            tag: value.property.tag,
+            value: value.property.value,
+        }
     }
 }
 
@@ -47,56 +74,10 @@ impl From<StatementProperty> for Property {
 pub(crate) type IndexedStatements =
     <HashMap<Abstract, HashSet<StatementProperty>> as IntoIterator>::IntoIter;
 
-struct AtomicTristate(AtomicU8);
-
-impl Default for AtomicTristate {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl AtomicTristate {
-    const STATE_UNKNOWN: u8 = 0;
-    const STATE_TRUE: u8 = 1;
-    const STATE_FALSE: u8 = 2;
-
-    pub fn new() -> Self {
-        Self(AtomicU8::new(0))
-    }
-
-    pub fn as_bool(&self) -> Option<bool> {
-        match self.0.load(Ordering::Relaxed) {
-            Self::STATE_TRUE => Some(true),
-            Self::STATE_FALSE => Some(false),
-            _ => None,
-        }
-    }
-
-    pub fn lock(&self, to: bool) {
-        self.0.store(
-            if to {
-                Self::STATE_TRUE
-            } else {
-                Self::STATE_FALSE
-            },
-            Ordering::Relaxed,
-        );
-    }
-}
-
-impl Clone for AtomicTristate {
-    fn clone(&self) -> Self {
-        Self(AtomicU8::new(self.0.load(Ordering::Relaxed)))
-    }
-}
-
 #[derive(Default, Clone)]
 pub struct Statements {
     /// Statements indexed by subject. Every set is non empty.
     indexed_statements: HashMap<Abstract, HashSet<StatementProperty>>,
-
-    /// Whether this is knowledge.
-    cached_is_knowledge: AtomicTristate,
 }
 
 impl Statements {
@@ -259,19 +240,55 @@ impl Statements {
         this
     }
 
-    fn real_is_knowledge(&self) -> bool {}
-
-    pub fn is_knowledge(&self) -> bool {
-        if let Some(result) = self.cached_is_knowledge.as_bool() {
-            return result;
+    pub fn is_knowledge(&self) -> Result<(), KnowledgeError> {
+        // BASE needs to be included
+        if !BASE
+            .iter_owned()
+            .all(|statement| self.exists(statement.into()))
+        {
+            return Err(KnowledgeError::IsNotSupersetOfBase);
         }
 
-        let is_knowledge = self.real_is_knowledge();
-        self.cached_is_knowledge.lock(is_knowledge);
-        is_knowledge
+        for statement in self.iter_owned() {
+            let Some(constraint_function) = self
+                .query_values(statement.property.tag.clone(), Abstract::AXIOMATIC.into())
+                .next_and_last()
+            else {
+                // Tag must be axiomatic (!)
+
+                return Err(KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
+                    subject: ObjectForm::Specific(statement.property.tag.clone()),
+                    tag: ObjectForm::Specific(Abstract::AXIOMATIC.into()),
+                    value: ObjectForm::Any,
+                }));
+            };
+
+            let mut result = constraint_function.call(
+                self,
+                &[
+                    Object::Abstract(statement.subject),
+                    statement.property.value.clone(),
+                ]
+                .map(ObjectOrSetValues::Object),
+                &mut Default::default(),
+            );
+
+            // Check that subject and value are matching the tag's constraint.
+            if !result.is_truthy(self) {
+                return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
+                    subject: statement.subject.into(),
+                    tag: statement.property.tag,
+                    value: statement.property.value,
+                });
+            }
+        }
+
+        // TODO: check all composites.
+
+        Ok(())
     }
 
-    pub fn iter(&self) -> QueryStatements {
+    pub fn iter_owned(&self) -> QueryStatements {
         QueryStatements {
             current_subject_with_properties: None,
             indexed_statements: self.indexed_statements.clone().into_iter(),

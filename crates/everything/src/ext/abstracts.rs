@@ -24,8 +24,8 @@ pub trait AbstractExt {
     /// The _value_ slot of a statement.
     const STATEMENT_VALUE: Abstract = Abstract(2148623924076051576854508924514462036);
 
-    /// A function that checks if the input object is knowledge.
-    const KNOWLEDGE: Abstract = Abstract(2148623940012028447614031237706438049);
+    // /// A function that checks if the input object is knowledge.
+    // const KNOWLEDGE: Abstract = Abstract(2148623940012028447614031237706438049);
 
     const NODE_LITERAL: Abstract = Abstract(2148623946948209931514052368378168923);
     const NODE_AND_LEFT: Abstract = Abstract(2148623952614130968570357528352754483);

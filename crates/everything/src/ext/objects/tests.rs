@@ -145,7 +145,7 @@ mod eval {
             Object::new_node(Node::Count(Object::new_node(Node::Literal(
                 Composite::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
-                    Property::new_contains(Abstract::KNOWLEDGE.into()),
+                    Property::new_contains(Abstract::BIT_0.into()),
                 ])
                 .into()
             ))))
