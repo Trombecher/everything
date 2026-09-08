@@ -15,15 +15,18 @@ use crate::{
 };
 
 fn common_unique_constraint_expression(tag: Object, parameter_depth: u32) -> Object {
-    Object::new_node(Node::Equal(BinaryNode {
+    Node::Equal(BinaryNode {
         left: Object::new_integer(1),
-        right: Object::new_node(Node::Count(Object::new_node(Node::QueryValues(
-            QueryValuesNode {
-                subject: Object::new_node(Node::Parameter(parameter_depth)),
+        right: Node::Count(
+            Node::QueryValues(QueryValuesNode {
+                subject: Node::Parameter(parameter_depth).into(),
                 tag,
-            },
-        )))),
-    }))
+            })
+            .into(),
+        )
+        .into(),
+    })
+    .into()
 }
 
 /// Creates a function object that validates that any
@@ -36,29 +39,11 @@ fn common_unique_constraint_expression(tag: Object, parameter_depth: u32) -> Obj
 /// ... |-> count query {(@4, $parameter_at_depth), (@5, tag)} == 1
 /// ```
 fn unique_constraint_for(tag: Object, parameter_depth: u32) -> Object {
-    Object::new_node(Node::Function(common_unique_constraint_expression(
-        tag,
-        parameter_depth,
-    )))
+    Node::Function(common_unique_constraint_expression(tag, parameter_depth)).into()
 }
 
 pub static AXIOMATIC_AXIOMATIC_CONSTRAINT: LazyLock<Object> =
     LazyLock::new(|| unique_constraint_for(Abstract::AXIOMATIC.into(), 0));
-
-/// A function that computes whether the object (passed in as the
-/// parameter) is a natural number.
-pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
-    Object::new_node(Node::Function(Object::new_node(Node::Or(BinaryNode {
-        left: Object::new_node(Node::Equal(BinaryNode {
-            left: Object::new_node(Node::Parameter(0)),
-            right: Abstract::ZERO.into(),
-        })),
-        right: Object::new_node(Node::QueryValues(QueryValuesNode {
-            subject: Object::new_node(Node::Parameter(0)),
-            tag: Abstract::SUCCESSOR_OF.into(),
-        })),
-    }))))
-});
 
 fn bit_slot_statement(slot: Abstract) -> Statement {
     Statement::new(
@@ -118,34 +103,34 @@ pub static BASE: LazyLock<Statements> = LazyLock::new(|| {
         Statement::new(
             Abstract::SUCCESSOR_OF,
             Abstract::AXIOMATIC.into(),
-            Object::new_node(Node::Function(Object::new_node(Node::Function(
-                Object::new_node(Node::And(BinaryNode {
-                    left: Object::new_node(Node::Call(CallNode {
-                        callee: IS_NATURAL_NUMBER.clone(),
-                        with: Object::new_node(Node::Parameter(0)),
-                    })),
-                    right: common_unique_constraint_expression(Abstract::SUCCESSOR_OF.into(), 1),
-                })),
-            )))),
+            Node::Function(
+                Node::Function(
+                    Node::Call(CallNode {
+                        callee: IS_INTEGER.clone(),
+                        // subject
+                        with: Node::Parameter(1).into(),
+                    })
+                    .into(),
+                )
+                .into(),
+            )
+            .into(),
         ),
         Statement::new(
             Abstract::PREDECESSOR_OF,
             Abstract::AXIOMATIC.into(),
-            Object::new_node(Node::Function(Object::new_node(Node::Function(
-                Object::new_node(Node::And(BinaryNode {
-                    left: Object::new_node(Node::Or(BinaryNode {
-                        left: Object::new_node(Node::Equal(BinaryNode {
-                            left: Object::new_node(Node::Parameter(0)),
-                            right: Abstract::ZERO.into(),
-                        })),
-                        right: Object::new_node(Node::QueryValues(QueryValuesNode {
-                            subject: Object::new_node(Node::Parameter(0)),
-                            tag: Abstract::PREDECESSOR_OF.into(),
-                        })),
-                    })),
-                    right: common_unique_constraint_expression(Abstract::PREDECESSOR_OF.into(), 1),
-                })),
-            )))),
+            Node::Function(
+                Node::Function(
+                    Node::Call(CallNode {
+                        callee: IS_INTEGER.clone(),
+                        // subject
+                        with: Node::Parameter(1).into(),
+                    })
+                    .into(),
+                )
+                .into(),
+            )
+            .into(),
         ),
         Statement::new(
             Abstract::CODE_POINT,
@@ -201,7 +186,7 @@ pub static BASE: LazyLock<Statements> = LazyLock::new(|| {
                     left: common_unique_constraint_expression(Abstract::NODE_PARAMETER.into(), 1),
                     // maybe hard code "parameter == zero or has succ"
                     right: Object::new_node(Node::Call(CallNode {
-                        callee: IS_NATURAL_NUMBER.clone(),
+                        callee: IS_NON_NEGATIVE_INTEGER.clone(),
                         with: Object::new_node(Node::Parameter(0)),
                     })),
                 })),
@@ -218,7 +203,7 @@ pub static BASE: LazyLock<Statements> = LazyLock::new(|| {
                     ),
                     // maybe hard code "parameter == zero or has succ"
                     right: Object::new_node(Node::Call(CallNode {
-                        callee: IS_NATURAL_NUMBER.clone(),
+                        callee: IS_NON_NEGATIVE_INTEGER.clone(),
                         with: Object::new_node(Node::Parameter(0)),
                     })),
                 })),
@@ -398,6 +383,11 @@ pub static BASE: LazyLock<Statements> = LazyLock::new(|| {
             Abstract::NODE_ANY_PREDICATE,
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_ANY_PREDICATE.into(), 0),
+        ),
+        Statement::new(
+            Abstract::NODE_IS_ABSTRACT,
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_IS_ABSTRACT.into(), 0),
         ),
     ])
 });

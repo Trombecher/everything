@@ -14,6 +14,7 @@ use crate::{
         QuerySubjectsAndTagsNode, QuerySubjectsAndValuesNode, QuerySubjectsNode,
         QueryTagsAndValuesNode, QueryTagsNode, QueryValuesNode, Task, UnwrapOrNode,
     },
+    optimization::OPTIMIZED_FUNCTIONS,
     statements::{QueryValues, SimpleStatement, Statements},
 };
 
@@ -809,31 +810,31 @@ impl ObjectExt for Object {
         statements: &Statements,
         context: &mut EvaluationContext,
     ) -> ObjectOrSetValues {
-        let mut tasks = vec![Task::Eval(self.clone())];
+        let mut tasks = vec![Task::Evaluate(self.clone())];
         let mut evaluated = Vec::<ObjectOrSetValues>::new();
 
         while let Some(task) = tasks.pop() {
             debug!("doing task {task:?}");
 
             match task {
-                Task::Eval(object) => match object.node(statements) {
+                Task::Evaluate(object) => match object.node(statements) {
                     Some(Node::IsAbstract(inner)) => {
                         tasks.push(Task::IsAbstract);
-                        tasks.push(Task::Eval(inner));
+                        tasks.push(Task::Evaluate(inner));
                     }
                     Some(Node::Call(CallNode { callee, with })) => {
                         tasks.push(Task::Call);
-                        tasks.push(Task::Eval(callee));
-                        tasks.push(Task::Eval(with));
+                        tasks.push(Task::Evaluate(callee));
+                        tasks.push(Task::Evaluate(with));
                     }
                     Some(Node::Multiply(BinaryNode { left, right })) => {
                         tasks.push(Task::Multiply);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::UnwrapOr(UnwrapOrNode { set, default })) => {
                         tasks.push(Task::PartialUnwrapOr { default });
-                        tasks.push(Task::Eval(set));
+                        tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Function(_)) => {
                         evaluated.push(object.capture(statements, 0, context));
@@ -843,7 +844,7 @@ impl ObjectExt for Object {
                     }
                     Some(Node::And(BinaryNode { left, right })) => {
                         tasks.push(Task::PartialAnd { right });
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::FunctionSelf(depth)) => evaluated.push(ObjectOrSetValues::Object(
                         context.function_self(depth as usize),
@@ -853,40 +854,40 @@ impl ObjectExt for Object {
                     }
                     Some(Node::Count(object)) => {
                         tasks.push(Task::Count);
-                        tasks.push(Task::Eval(object));
+                        tasks.push(Task::Evaluate(object));
                     }
                     Some(Node::QueryExists(query)) => {
                         tasks.push(Task::QueryExists);
-                        tasks.push(Task::Eval(query.value));
-                        tasks.push(Task::Eval(query.tag));
-                        tasks.push(Task::Eval(query.subject));
+                        tasks.push(Task::Evaluate(query.value));
+                        tasks.push(Task::Evaluate(query.tag));
+                        tasks.push(Task::Evaluate(query.subject));
                     }
                     Some(Node::QueryValues(query)) => {
                         tasks.push(Task::QueryValues);
-                        tasks.push(Task::Eval(query.tag));
-                        tasks.push(Task::Eval(query.subject));
+                        tasks.push(Task::Evaluate(query.tag));
+                        tasks.push(Task::Evaluate(query.subject));
                     }
                     Some(Node::QuerySubjects(query)) => {
                         tasks.push(Task::QuerySubjects);
-                        tasks.push(Task::Eval(query.value));
-                        tasks.push(Task::Eval(query.tag));
+                        tasks.push(Task::Evaluate(query.value));
+                        tasks.push(Task::Evaluate(query.tag));
                     }
                     Some(Node::QueryTags(query)) => {
                         tasks.push(Task::QueryTags);
-                        tasks.push(Task::Eval(query.value));
-                        tasks.push(Task::Eval(query.subject));
+                        tasks.push(Task::Evaluate(query.value));
+                        tasks.push(Task::Evaluate(query.subject));
                     }
                     Some(Node::QuerySubjectsAndTags(query)) => {
                         tasks.push(Task::QuerySubjectsAndTags);
-                        tasks.push(Task::Eval(query.value));
+                        tasks.push(Task::Evaluate(query.value));
                     }
                     Some(Node::QuerySubjectsAndValues(query)) => {
                         tasks.push(Task::QuerySubjectsAndValues);
-                        tasks.push(Task::Eval(query.tag));
+                        tasks.push(Task::Evaluate(query.tag));
                     }
                     Some(Node::QueryTagsAndValues(query)) => {
                         tasks.push(Task::QueryTagsAndValues);
-                        tasks.push(Task::Eval(query.subject));
+                        tasks.push(Task::Evaluate(query.subject));
                     }
                     Some(Node::Statements) => {
                         // Evaluate straight to an iterator over
@@ -898,62 +899,75 @@ impl ObjectExt for Object {
                     }
                     Some(Node::Equal(BinaryNode { left, right })) => {
                         tasks.push(Task::Equal);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Or(BinaryNode { left, right })) => {
                         tasks.push(Task::PartialOr { right });
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Xor(BinaryNode { left, right })) => {
                         tasks.push(Task::Xor);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Not(object)) => {
                         tasks.push(Task::Not);
-                        tasks.push(Task::Eval(object));
+                        tasks.push(Task::Evaluate(object));
                     }
                     Some(Node::Add(BinaryNode { left, right })) => {
                         tasks.push(Task::Add);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Union(BinaryNode { left, right })) => {
                         tasks.push(Task::Union);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Map(MapNode {
                         set,
                         mapper_function,
                     })) => {
                         tasks.push(Task::Map);
-                        tasks.push(Task::Eval(mapper_function));
-                        tasks.push(Task::Eval(set));
+                        tasks.push(Task::Evaluate(mapper_function));
+                        tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Every(PredicateNode { set, predicate })) => {
                         tasks.push(Task::Every);
-                        tasks.push(Task::Eval(predicate));
-                        tasks.push(Task::Eval(set));
+
+                        // Push the result of a previous, virtual predicate call.
+                        // This literal acts like the virtual call completed
+                        // last which aligns with the `Task::Every` case where
+                        // subsequent predicate calls for set items are scheduled
+                        // and pushed onto the evaluated objects when the evaluated
+                        // set and predicate already sit there (late).
+                        tasks.push(Task::PushLiteralTrue);
+
+                        tasks.push(Task::Evaluate(predicate));
+                        tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Any(PredicateNode { set, predicate })) => {
                         tasks.push(Task::Any);
-                        tasks.push(Task::Eval(predicate));
-                        tasks.push(Task::Eval(set));
+
+                        // Same as `Task::Every` but with false.
+                        tasks.push(Task::PushLiteralFalse);
+
+                        tasks.push(Task::Evaluate(predicate));
+                        tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Filter(FilterNode {
                         set,
                         filter_function,
                     })) => {
                         tasks.push(Task::Filter);
-                        tasks.push(Task::Eval(filter_function));
-                        tasks.push(Task::Eval(set));
+                        tasks.push(Task::Evaluate(filter_function));
+                        tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Less(BinaryNode { left, right })) => {
                         tasks.push(Task::Less);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::If(IfNode {
                         condition,
@@ -961,7 +975,7 @@ impl ObjectExt for Object {
                         otherwise,
                     })) => {
                         tasks.push(Task::PartialIf { then, otherwise });
-                        tasks.push(Task::Eval(condition));
+                        tasks.push(Task::Evaluate(condition));
                     }
                     None if let Object::Composite(Composite::Any(any_composite)) = object => {
                         let result = any_composite
@@ -1007,11 +1021,19 @@ impl ObjectExt for Object {
                 Task::PopContext => {
                     context.pop();
                 }
+                Task::PushLiteralTrue => {
+                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+                }
+                Task::PushLiteralFalse => {
+                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                }
                 Task::Call => {
                     let callee = evaluated.pop().unwrap().into_object();
                     let parameter_value = evaluated.pop().unwrap();
 
-                    tasks.push(Task::Eval(callee.node_function_body(statements).unwrap()));
+                    tasks.push(Task::Evaluate(
+                        callee.node_function_body(statements).unwrap(),
+                    ));
 
                     context.push(FunctionContext {
                         function: callee,
@@ -1023,7 +1045,7 @@ impl ObjectExt for Object {
 
                     if left.is_truthy(statements) {
                         tasks.push(Task::ToBoolean);
-                        tasks.push(Task::Eval(right));
+                        tasks.push(Task::Evaluate(right));
                     } else {
                         evaluated
                             .push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
@@ -1121,7 +1143,7 @@ impl ObjectExt for Object {
                         evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
                     } else {
                         tasks.push(Task::ToBoolean);
-                        tasks.push(Task::Eval(right));
+                        tasks.push(Task::Evaluate(right));
                     }
                 }
                 Task::Xor => {
@@ -1194,36 +1216,70 @@ impl ObjectExt for Object {
                     }));
                 }
                 Task::Every => {
+                    let mut previous_result = evaluated.pop().unwrap();
                     let predicate = evaluated.pop().unwrap().into_object();
                     let mut set = evaluated.pop().unwrap().set_values(statements);
 
-                    let every_value_matches_predicate = set.all(|value| {
-                        predicate
-                            .call(statements, &[value.into()], context)
-                            .is_truthy(statements)
-                    });
+                    if !previous_result.is_truthy(statements) {
+                        // Previous run did not succeed.
 
-                    evaluated.push(ObjectOrSetValues::Object(
-                        Composite::new_bool(every_value_matches_predicate).into(),
-                    ));
+                        evaluated
+                            .push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                    } else if let Some(value) = set.next() {
+                        // Previous run did succeed, but there is another value.
+                        // -> Validate predicate for this value.
+
+                        tasks.push(Task::Every);
+
+                        // Simulate the set and predicate being evaluated first.
+                        evaluated.push(set.into());
+                        evaluated.push(predicate.clone().into());
+
+                        // Prepare for call.
+                        tasks.push(Task::Call);
+                        evaluated.push(value.into());
+                        evaluated.push(predicate.into());
+                    } else {
+                        // Previous run succeeded and there are no more elements. Yay.
+
+                        evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+                    }
                 }
                 Task::Any => {
+                    let mut previous_result = evaluated.pop().unwrap();
                     let predicate = evaluated.pop().unwrap().into_object();
                     let mut set = evaluated.pop().unwrap().set_values(statements);
 
-                    let any_value_matches_predicate = set.any(|value| {
-                        predicate
-                            .call(statements, &[value.into()], context)
-                            .is_truthy(statements)
-                    });
+                    if previous_result.is_truthy(statements) {
+                        // Previous run succeeded. Yay.
 
-                    evaluated.push(ObjectOrSetValues::Object(
-                        Composite::new_bool(any_value_matches_predicate).into(),
-                    ));
+                        evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+                    } else if let Some(value) = set.next() {
+                        // Previous run did not succeed, but there is another value.
+                        // -> Validate predicate for this value.
+
+                        tasks.push(Task::Any);
+
+                        // Simulate the set and predicate being evaluated first.
+                        evaluated.push(set.into());
+                        evaluated.push(predicate.clone().into());
+
+                        // Prepare for call.
+                        tasks.push(Task::Call);
+                        evaluated.push(value.into());
+                        evaluated.push(predicate.into());
+                    } else {
+                        // Previous run did not succeed and there are no more elements.
+
+                        evaluated
+                            .push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                    }
                 }
                 Task::Less => {
                     let right = evaluated.pop().unwrap();
                     let left = evaluated.pop().unwrap();
+
+                    println!("is {left:?} < {right:?}?");
 
                     evaluated.push(
                         Object::Composite(Composite::new_bool(match (left, right) {
@@ -1244,9 +1300,9 @@ impl ObjectExt for Object {
                 }
                 Task::PartialIf { then, otherwise } => {
                     if evaluated.pop().unwrap().is_truthy(statements) {
-                        tasks.push(Task::Eval(then));
+                        tasks.push(Task::Evaluate(then));
                     } else {
-                        tasks.push(Task::Eval(otherwise));
+                        tasks.push(Task::Evaluate(otherwise));
                     }
                 }
                 Task::PartialUnwrapOr { default } => {
@@ -1255,7 +1311,7 @@ impl ObjectExt for Object {
                     if let Some(inner) = set_values.next_and_last() {
                         evaluated.push(ObjectOrSetValues::Object(inner));
                     } else {
-                        tasks.push(Task::Eval(default));
+                        tasks.push(Task::Evaluate(default));
                     }
                 }
             }
@@ -1276,36 +1332,42 @@ impl ObjectExt for Object {
         parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
     ) -> ObjectOrSetValues {
-        /*
-        if self == &Object::Abstract(Abstract::KNOWLEDGE)
-            && let Some(parameter) = parameters.first()
-        {
-            return match parameter.clone().into_object() {
-                Object::Composite(composite) => {
-                    Object::Composite(Composite::new_bool(composite.is_statements().is_ok()))
-                }
-                Object::Abstract(_) => Object::Composite(Composite::Empty),
+        if let Some((parameter, next_parameters)) = parameters.split_first() {
+            let optimized_function =
+                OPTIMIZED_FUNCTIONS
+                    .iter()
+                    .find_map(|(key, optimized_function)| {
+                        if key == self {
+                            Some(*optimized_function)
+                        } else {
+                            None
+                        }
+                    });
+
+            if let Some(optimized_function) = optimized_function {
+                // We can ignore context because optimized
+                // functions are self-enclosed.
+
+                let result = optimized_function(statements, parameter.clone());
+
+                return result.call(statements, next_parameters, ctx);
             }
-            .into();
+
+            if let Some(Node::Function(body)) = self.node(statements) {
+                ctx.push(FunctionContext {
+                    function: self.clone(),
+                    parameter: parameter.clone(),
+                });
+
+                let result = body.call(statements, next_parameters, ctx);
+
+                ctx.pop();
+
+                return result;
+            }
         }
-         */
 
-        if let Some((parameter, next_parameters)) = parameters.split_first()
-            && let Some(Node::Function(body)) = self.node(statements)
-        {
-            ctx.push(FunctionContext {
-                function: self.clone(),
-                parameter: parameter.clone(),
-            });
-
-            let result = body.call(statements, next_parameters, ctx);
-
-            ctx.pop();
-
-            result
-        } else {
-            self.evaluate(statements, ctx)
-        }
+        self.evaluate(statements, ctx)
     }
 
     fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError> {

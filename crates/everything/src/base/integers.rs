@@ -125,3 +125,23 @@ pub static IS_INTEGER: LazyLock<Object> = LazyLock::new(|| {
     )
     .into()
 });
+
+/// A function that computes whether the input object is a non-negative integer.
+pub static IS_NON_NEGATIVE_INTEGER: LazyLock<Object> = LazyLock::new(|| {
+    Node::Function(
+        Node::And(BinaryNode {
+            left: Node::Call(CallNode {
+                callee: IS_INTEGER.clone(),
+                with: Node::Parameter(0).into(),
+            })
+            .into(),
+            right: Node::Less(BinaryNode {
+                left: Object::new_integer(-1),
+                right: Node::Parameter(0).into(),
+            })
+            .into(),
+        })
+        .into(),
+    )
+    .into()
+});

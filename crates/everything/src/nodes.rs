@@ -135,7 +135,9 @@ impl From<Node> for Object {
 
 #[derive(Debug)]
 pub enum Task {
-    Eval(Object),
+    Evaluate(Object),
+    PushLiteralTrue,
+    PushLiteralFalse,
     PartialAnd { right: Object },
     ToBoolean,
     Count,
