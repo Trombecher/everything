@@ -7,17 +7,19 @@ use everything_objects::{Abstract, Composite, Object};
 
 use crate::{
     ext::{AbstractExt, CompositeExt, ObjectExt},
-    nodes::{BinaryNode, CallNode, Node},
+    nodes::{BinaryNode, CallNode, Node, QueryValuesNode},
     statements::{Statement, Statements},
 };
 
 fn common_unique_constraint_expression(tag: Object, parameter_depth: u64) -> Object {
     Object::new_node(Node::Equal(BinaryNode {
         left: Object::new_integer(1),
-        right: Object::new_node(Node::Count(Object::new_node_query_values(
-            Object::new_node(Node::Parameter(parameter_depth)),
-            tag,
-        ))),
+        right: Object::new_node(Node::Count(Object::new_node(Node::QueryValues(
+            QueryValuesNode {
+                subject: Object::new_node(Node::Parameter(parameter_depth)),
+                tag,
+            },
+        )))),
     }))
 }
 
@@ -48,12 +50,35 @@ pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
             left: Object::new_node(Node::Parameter(0)),
             right: Abstract::ZERO.into(),
         })),
-        right: Object::new_node_query_values(
-            Object::new_node(Node::Parameter(0)),
-            Abstract::SUCCESSOR_OF.into(),
-        ),
+        right: Object::new_node(Node::QueryValues(QueryValuesNode {
+            subject: Object::new_node(Node::Parameter(0)),
+            tag: Abstract::SUCCESSOR_OF.into(),
+        })),
     }))))
 });
+
+/*
+pub static IS_INTEGER: LazyLock<Object> = LazyLock::new(|| {
+    Object::new_node(Node::Function(Object::new_node(Node::Or(BinaryNode {
+        left: Object::new_node(Node::Equal(BinaryNode {
+            left: Object::new_node(Node::Parameter(0)),
+            right: Abstract::ZERO.into(),
+        })),
+        right: Object::new_node(Node::Add(BinaryNode {
+            left: Object::new_node(Node::Not(Object::new_node(Node::IsAbstract(
+                Object::new_node(Node::Parameter(0)),
+            )))),
+            right: Object::new_node(Node::And(BinaryNode {
+                left: Object::new_node(Node::Xor(BinaryNode {
+                    left: Object::new_node(Node::Query()),
+                    right: (),
+                })),
+                right: (),
+            })),
+        })),
+    }))))
+});
+ */
 
 fn bit_slot_statement(slot: Abstract) -> Statement {
     Statement::new(
@@ -133,10 +158,10 @@ pub static BASE: LazyLock<Statements> = LazyLock::new(|| {
                             left: Object::new_node(Node::Parameter(0)),
                             right: Abstract::ZERO.into(),
                         })),
-                        right: Object::new_node_query_values(
-                            Object::new_node(Node::Parameter(0)),
-                            Abstract::PREDECESSOR_OF.into(),
-                        ),
+                        right: Object::new_node(Node::QueryValues(QueryValuesNode {
+                            subject: Object::new_node(Node::Parameter(0)),
+                            tag: Abstract::PREDECESSOR_OF.into(),
+                        })),
                     })),
                     right: common_unique_constraint_expression(Abstract::PREDECESSOR_OF.into(), 1),
                 })),
@@ -260,9 +285,19 @@ pub static BASE: LazyLock<Statements> = LazyLock::new(|| {
             unique_constraint_for(Abstract::NODE_EQUAL_RIGHT.into(), 0),
         ),
         Statement::new(
-            Abstract::NODE_QUERY,
+            Abstract::NODE_QUERY_SUBJECT,
             Abstract::AXIOMATIC.into(),
-            unique_constraint_for(Abstract::NODE_QUERY.into(), 0),
+            unique_constraint_for(Abstract::NODE_QUERY_SUBJECT.into(), 0),
+        ),
+        Statement::new(
+            Abstract::NODE_QUERY_TAG,
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_QUERY_TAG.into(), 0),
+        ),
+        Statement::new(
+            Abstract::NODE_QUERY_VALUE,
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_QUERY_VALUE.into(), 0),
         ),
         Statement::new(
             Abstract::NODE_NOT,

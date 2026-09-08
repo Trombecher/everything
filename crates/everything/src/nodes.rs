@@ -35,8 +35,49 @@ pub struct UnwrapOrNode {
 pub struct CallNode {
     /// The function/node getting called
     pub callee: Object,
+
     /// A node for the parameter.
     pub with: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QueryExistsNode {
+    pub subject: Object,
+    pub tag: Object,
+    pub value: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QuerySubjectsNode {
+    pub tag: Object,
+    pub value: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QueryTagsNode {
+    pub subject: Object,
+    pub value: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QueryValuesNode {
+    pub subject: Object,
+    pub tag: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QueryTagsAndValuesNode {
+    pub subject: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QuerySubjectsAndValuesNode {
+    pub tag: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QuerySubjectsAndTagsNode {
+    pub value: Object,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -47,7 +88,14 @@ pub enum Node {
     FunctionSelf(u64),
     Parameter(u64),
     Count(Object),
-    Query(Object),
+    QueryExists(QueryExistsNode),
+    QuerySubjects(QuerySubjectsNode),
+    QueryTags(QueryTagsNode),
+    QueryValues(QueryValuesNode),
+    QuerySubjectsAndTags(QuerySubjectsAndTagsNode),
+    QuerySubjectsAndValues(QuerySubjectsAndValuesNode),
+    QueryTagsAndValues(QueryTagsAndValuesNode),
+    QueryStatements,
     Equal(BinaryNode),
     Or(BinaryNode),
     Xor(BinaryNode),
@@ -61,7 +109,7 @@ pub enum Node {
     UnwrapOr(UnwrapOrNode),
     Multiply(BinaryNode),
     Call(CallNode),
-    Knowledge,
+    IsAbstract(Object),
 }
 
 #[derive(Debug)]
@@ -91,4 +139,5 @@ pub enum Task {
     Call,
     PopContext,
     PartialUnwrapOr { default: Object },
+    IsAbstract,
 }

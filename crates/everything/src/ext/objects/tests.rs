@@ -2,8 +2,8 @@ use everything_objects::{Abstract, Composite, Object, Property};
 
 use crate::{
     base::BASE,
-    ext::ObjectExt,
-    nodes::{BinaryNode, CallNode, IfNode, Node},
+    ext::{AbstractExt, ObjectExt},
+    nodes::{BinaryNode, CallNode, IfNode, Node, QueryValuesNode},
 };
 
 #[test]
@@ -43,7 +43,17 @@ fn node_type() {
         Some(Node::Function(Abstract::ZERO.into()))
     );
 
-    // TODO: more
+    assert_eq!(
+        Object::new_node(Node::QueryValues(QueryValuesNode {
+            subject: Composite::Empty.into(),
+            tag: Object::new_integer(10)
+        }))
+        .node(knowledge),
+        Some(Node::QueryValues(QueryValuesNode {
+            subject: Composite::Empty.into(),
+            tag: Object::new_integer(10)
+        }))
+    );
 }
 
 #[test]
@@ -68,7 +78,7 @@ mod eval {
         ObjectOrSetValues,
         base::BASE,
         ext::{AbstractExt, CompositeExt, ObjectExt, PropertyExt},
-        nodes::{BinaryNode, Node},
+        nodes::{BinaryNode, Node, QueryValuesNode},
     };
 
     #[test]
@@ -158,15 +168,15 @@ mod eval {
     #[test]
     fn eval_query() {
         assert_eq!(
-            Object::new_node_query_values(
-                Composite::new(&mut [
+            Object::new_node(Node::QueryValues(QueryValuesNode {
+                subject: Composite::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
                     Property::new_contains(Abstract::BIT_0.into()),
                     Property::new_successor_of(Object::new_integer(0)),
                 ])
                 .into(),
-                Object::new_node(Node::Literal(Abstract::CONTAINS.into()))
-            )
+                tag: Object::new_node(Node::Literal(Abstract::CONTAINS.into()))
+            }))
             .evaluate(&BASE, &mut Default::default())
             .into_object(),
             Composite::new_set([Abstract::BIT_0.into(), Object::Abstract(Abstract::ZERO)]).into(),

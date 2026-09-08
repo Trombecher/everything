@@ -9,10 +9,14 @@ use crate::{
     ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, CompositeExt, KnowledgeError, ObjectForm, PropertyExt, SimpleStatement,
-        StatementForm, iter::IteratorExtNextAndLast,
+        AbstractExt, CompositeExt, KnowledgeError, ObjectForm, SimpleStatement, StatementForm,
+        iter::IteratorExtNextAndLast,
     },
-    nodes::{BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, Task, UnwrapOrNode},
+    nodes::{
+        BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, QueryExistsNode,
+        QuerySubjectsAndTagsNode, QuerySubjectsAndValuesNode, QuerySubjectsNode,
+        QueryTagsAndValuesNode, QueryTagsNode, QueryValuesNode, Task, UnwrapOrNode,
+    },
     statements::{QueryValues, Statements},
 };
 
@@ -81,13 +85,18 @@ pub trait ObjectExt {
 
     fn node_literal(&self, statements: &Statements) -> Option<Object>;
 
+    fn node_is_abstract(&self, statements: &Statements) -> Option<Object>;
+
     fn statement_subject(&self, statements: &Statements) -> Option<Object>;
     fn statement_tag(&self, statements: &Statements) -> Option<Object>;
     fn statement_value(&self, statements: &Statements) -> Option<Object>;
 
     fn statement_form(&self, statements: &Statements) -> StatementForm;
 
-    fn node_query(&self, statements: &Statements) -> Option<Object>;
+    fn node_query_statements(&self) -> Option<()>;
+    fn node_query_subject(&self, statements: &Statements) -> Option<Object>;
+    fn node_query_tag(&self, statements: &Statements) -> Option<Object>;
+    fn node_query_value(&self, statements: &Statements) -> Option<Object>;
 
     fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
 
@@ -129,25 +138,38 @@ pub trait ObjectExt {
     fn multiply(&self, statements: &Statements, other: &Object) -> Object;
 
     fn new_node(node: Node) -> Self;
-
-    /// Creates a new query node, set up for value querying.
-    fn new_node_query_values(subject: Object, tag: Object) -> Self;
 }
 
 impl ObjectExt for Object {
-    fn new_node_query_values(subject: Object, tag: Object) -> Self {
-        Self::new_node(Node::Query(
-            Composite::new(&mut [
-                Property::new_statement_subject(subject),
-                Property::new_statement_tag(tag),
-            ])
-            .into(),
-        ))
+    fn node_query_subject(&self, statements: &Statements) -> Option<Object> {
+        statements
+            .query_values(self.clone(), Abstract::NODE_QUERY_SUBJECT.into())
+            .next_and_last()
+    }
+
+    fn node_query_tag(&self, statements: &Statements) -> Option<Object> {
+        statements
+            .query_values(self.clone(), Abstract::NODE_QUERY_TAG.into())
+            .next_and_last()
+    }
+
+    fn node_query_value(&self, statements: &Statements) -> Option<Object> {
+        statements
+            .query_values(self.clone(), Abstract::NODE_QUERY_VALUE.into())
+            .next_and_last()
+    }
+
+    fn node_query_statements(&self) -> Option<()> {
+        (self == &Abstract::NODE_QUERY_STATEMENTS.into()).then_some(())
     }
 
     fn new_node(node: Node) -> Self {
         match node {
-            Node::Knowledge => Abstract::NODE_KNOWLEDGE.into(),
+            Node::IsAbstract(inner) => Composite::new(&mut [Property {
+                tag: Abstract::NODE_IS_ABSTRACT.into(),
+                value: inner,
+            }])
+            .into(),
             Node::Call(CallNode { callee, with }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_CALL_CALLEE.into(),
@@ -195,11 +217,70 @@ impl ObjectExt for Object {
                 value: object,
             }])
             .into(),
-            Node::Query(query) => Composite::new(&mut [Property {
-                tag: Abstract::NODE_QUERY.into(),
-                value: query,
+            Node::QueryExists(exists) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_QUERY_SUBJECT.into(),
+                    value: exists.subject,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_TAG.into(),
+                    value: exists.tag,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_VALUE.into(),
+                    value: exists.value,
+                },
+            ])
+            .into(),
+            Node::QuerySubjects(subjects) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_QUERY_TAG.into(),
+                    value: subjects.tag,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_VALUE.into(),
+                    value: subjects.value,
+                },
+            ])
+            .into(),
+            Node::QueryTags(query) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_QUERY_SUBJECT.into(),
+                    value: query.subject,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_VALUE.into(),
+                    value: query.value,
+                },
+            ])
+            .into(),
+            Node::QueryValues(query) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_QUERY_SUBJECT.into(),
+                    value: query.subject,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_TAG.into(),
+                    value: query.tag,
+                },
+            ])
+            .into(),
+            Node::QuerySubjectsAndTags(query) => Composite::new(&mut [Property {
+                tag: Abstract::NODE_QUERY_VALUE.into(),
+                value: query.value,
             }])
             .into(),
+            Node::QueryTagsAndValues(query) => Composite::new(&mut [Property {
+                tag: Abstract::NODE_QUERY_SUBJECT.into(),
+                value: query.subject,
+            }])
+            .into(),
+            Node::QuerySubjectsAndValues(query) => Composite::new(&mut [Property {
+                tag: Abstract::NODE_QUERY_TAG.into(),
+                value: query.tag,
+            }])
+            .into(),
+            Node::QueryStatements => Abstract::NODE_QUERY_STATEMENTS.into(),
             Node::Equal(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_EQUAL_LEFT.into(),
@@ -375,6 +456,12 @@ impl ObjectExt for Object {
         self.set_values(statements).next().is_some()
     }
 
+    fn node_is_abstract(&self, statements: &Statements) -> Option<Object> {
+        statements
+            .query_values(self.clone(), Abstract::NODE_IS_ABSTRACT.into())
+            .next_and_last()
+    }
+
     fn node_equal(&self, statements: &Statements) -> Option<BinaryNode> {
         self.binary_node(
             statements,
@@ -499,7 +586,57 @@ impl ObjectExt for Object {
         xor_with!(self.node_parameter_depth(statements).map(Node::Parameter));
         xor_with!(self.node_call(statements).map(Node::Call));
         xor_with!(self.node_count(statements).map(Node::Count));
-        xor_with!(self.node_query(statements).map(Node::Query));
+
+        {
+            let subject = self.node_query_subject(statements);
+            let tag = self.node_query_tag(statements);
+            let value = self.node_query_value(statements);
+
+            // This can be made lazy
+            if node.is_some() && (subject.is_some() || tag.is_some() || value.is_some()) {
+                // This will produce a node.
+
+                return None;
+            }
+
+            match (subject, tag, value) {
+                (Some(subject), Some(tag), Some(value)) => {
+                    node = Some(Node::QueryExists(QueryExistsNode {
+                        subject,
+                        tag,
+                        value,
+                    }));
+                }
+                (Some(subject), Some(tag), None) => {
+                    node = Some(Node::QueryValues(QueryValuesNode { subject, tag }))
+                }
+                (Some(subject), None, Some(value)) => {
+                    node = Some(Node::QueryTags(QueryTagsNode { subject, value }))
+                }
+                (None, Some(tag), Some(value)) => {
+                    node = Some(Node::QuerySubjects(QuerySubjectsNode { tag, value }))
+                }
+                (Some(subject), None, None) => {
+                    node = Some(Node::QueryTagsAndValues(QueryTagsAndValuesNode { subject }))
+                }
+                (None, Some(tag), None) => {
+                    node = Some(Node::QuerySubjectsAndValues(QuerySubjectsAndValuesNode {
+                        tag,
+                    }))
+                }
+                (None, None, Some(value)) => {
+                    node = Some(Node::QuerySubjectsAndTags(QuerySubjectsAndTagsNode {
+                        value,
+                    }))
+                }
+                (None, None, None) => {
+                    // This is not one of the seven nodes, so do nothing.
+                }
+            }
+        }
+
+        xor_with!(self.node_query_statements().map(|()| Node::QueryStatements));
+
         xor_with!(self.node_not(statements).map(Node::Not));
         xor_with!(self.node_and(statements).map(Node::And));
         xor_with!(self.node_or(statements).map(Node::Or));
@@ -513,14 +650,7 @@ impl ObjectExt for Object {
         xor_with!(self.node_if(statements).map(Node::If));
         xor_with!(self.node_unwrap_or(statements).map(Node::UnwrapOr));
         xor_with!(self.node_multiply(statements).map(Node::Multiply));
-
-        if self == &Self::Abstract(Abstract::NODE_KNOWLEDGE) {
-            if node.is_some() {
-                return None;
-            }
-
-            node = Some(Node::Knowledge);
-        }
+        xor_with!(self.node_is_abstract(statements).map(Node::IsAbstract));
 
         node
     }
@@ -691,12 +821,6 @@ impl ObjectExt for Object {
         }
     }
 
-    fn node_query(&self, statements: &Statements) -> Option<Self> {
-        statements
-            .query_values(self.clone(), Object::Abstract(Abstract::NODE_QUERY))
-            .next()
-    }
-
     #[instrument(skip(statements), ret)]
     fn capture(
         &self,
@@ -798,9 +922,9 @@ impl ObjectExt for Object {
 
             match task {
                 Task::Eval(object) => match object.node(statements) {
-                    Some(Node::Knowledge) => {
-                        todo!();
-                        // evaluated.push(ObjectOrSetValues::Object(statements.clone().into()));
+                    Some(Node::IsAbstract(inner)) => {
+                        tasks.push(Task::IsAbstract);
+                        tasks.push(Task::Eval(inner));
                     }
                     Some(Node::Call(CallNode { callee, with })) => {
                         tasks.push(Task::Call);
@@ -836,76 +960,42 @@ impl ObjectExt for Object {
                         tasks.push(Task::Count);
                         tasks.push(Task::Eval(object));
                     }
-                    Some(Node::Query(object)) => match object.statement_form(statements) {
-                        StatementForm {
-                            subject: ObjectForm::Any,
-                            tag: ObjectForm::Any,
-                            value: ObjectForm::Any,
-                        } => {
-                            todo!("hell nah")
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Specific(unevaluated_subject),
-                            tag: ObjectForm::Specific(unevaluated_tag),
-                            value: ObjectForm::Any,
-                        } => {
-                            tasks.push(Task::QueryValues);
-                            tasks.push(Task::Eval(unevaluated_tag));
-                            tasks.push(Task::Eval(unevaluated_subject));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Any,
-                            tag: ObjectForm::Specific(unevaluated_tag),
-                            value: ObjectForm::Specific(unevaluated_value),
-                        } => {
-                            tasks.push(Task::QuerySubjects);
-                            tasks.push(Task::Eval(unevaluated_value));
-                            tasks.push(Task::Eval(unevaluated_tag));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Any,
-                            tag: ObjectForm::Specific(unevaluated_tag),
-                            value: ObjectForm::Any,
-                        } => {
-                            tasks.push(Task::QuerySubjectsAndValues);
-                            tasks.push(Task::Eval(unevaluated_tag));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Specific(unevaluated_subject),
-                            tag: ObjectForm::Specific(unevaluated_tag),
-                            value: ObjectForm::Specific(unevaluated_value),
-                        } => {
-                            tasks.push(Task::QueryExists);
-                            tasks.push(Task::Eval(unevaluated_value));
-                            tasks.push(Task::Eval(unevaluated_tag));
-                            tasks.push(Task::Eval(unevaluated_subject));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Specific(unevaluated_subject),
-                            tag: ObjectForm::Any,
-                            value: ObjectForm::Any,
-                        } => {
-                            tasks.push(Task::QueryTagsAndValues);
-                            tasks.push(Task::Eval(unevaluated_subject));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Any,
-                            tag: ObjectForm::Any,
-                            value: ObjectForm::Specific(unevaluated_value),
-                        } => {
-                            tasks.push(Task::QuerySubjectsAndTags);
-                            tasks.push(Task::Eval(unevaluated_value));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Specific(unevaluated_subject),
-                            tag: ObjectForm::Any,
-                            value: ObjectForm::Specific(unevaluated_value),
-                        } => {
-                            tasks.push(Task::QueryTags);
-                            tasks.push(Task::Eval(unevaluated_value));
-                            tasks.push(Task::Eval(unevaluated_subject));
-                        }
-                    },
+                    Some(Node::QueryExists(query)) => {
+                        tasks.push(Task::QueryExists);
+                        tasks.push(Task::Eval(query.value));
+                        tasks.push(Task::Eval(query.tag));
+                        tasks.push(Task::Eval(query.subject));
+                    }
+                    Some(Node::QueryValues(query)) => {
+                        tasks.push(Task::QueryValues);
+                        tasks.push(Task::Eval(query.tag));
+                        tasks.push(Task::Eval(query.subject));
+                    }
+                    Some(Node::QuerySubjects(query)) => {
+                        tasks.push(Task::QuerySubjects);
+                        tasks.push(Task::Eval(query.value));
+                        tasks.push(Task::Eval(query.tag));
+                    }
+                    Some(Node::QueryTags(query)) => {
+                        tasks.push(Task::QueryTags);
+                        tasks.push(Task::Eval(query.value));
+                        tasks.push(Task::Eval(query.subject));
+                    }
+                    Some(Node::QuerySubjectsAndTags(query)) => {
+                        tasks.push(Task::QuerySubjectsAndTags);
+                        tasks.push(Task::Eval(query.value));
+                    }
+                    Some(Node::QuerySubjectsAndValues(query)) => {
+                        tasks.push(Task::QuerySubjectsAndValues);
+                        tasks.push(Task::Eval(query.tag));
+                    }
+                    Some(Node::QueryTagsAndValues(query)) => {
+                        tasks.push(Task::QueryTagsAndValues);
+                        tasks.push(Task::Eval(query.subject));
+                    }
+                    Some(Node::QueryStatements) => {
+                        todo!()
+                    }
                     Some(Node::Equal(BinaryNode { left, right })) => {
                         tasks.push(Task::Equal);
                         tasks.push(Task::Eval(right));
@@ -1132,6 +1222,17 @@ impl ObjectExt for Object {
                     evaluated.push(ObjectOrSetValues::Object(
                         Composite::new_bool((left || right) && !(left && right)).into(),
                     ));
+                }
+                Task::IsAbstract => {
+                    let object = evaluated.pop().unwrap();
+
+                    evaluated.push(
+                        Object::Composite(Composite::new_bool(matches!(
+                            object,
+                            ObjectOrSetValues::Object(Object::Abstract(_))
+                        )))
+                        .into(),
+                    );
                 }
                 Task::Not => {
                     let mut object = evaluated.pop().unwrap();
