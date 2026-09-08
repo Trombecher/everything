@@ -1,5 +1,7 @@
 use everything_objects::Object;
 
+use crate::ext::ObjectExt;
+
 /// A node that has a left and a right hand side.
 ///
 /// Used for multiple things, such as comparisons.
@@ -123,6 +125,12 @@ pub enum Node {
     Any(PredicateNode),
     // Please also add new nodes to the array of nodes
     // in the tests (function `node_parsing()`).
+}
+
+impl From<Node> for Object {
+    fn from(value: Node) -> Self {
+        ObjectExt::new_node(value)
+    }
 }
 
 #[derive(Debug)]

@@ -61,8 +61,6 @@ pub trait ObjectExt {
         ctx: &mut EvaluationContext,
     ) -> ObjectOrSetValues;
 
-    fn to_integer(&self, statements: &Statements) -> Option<i128>;
-
     /// Checks whether this object is valid.
     ///
     /// # Errors
@@ -70,9 +68,7 @@ pub trait ObjectExt {
     /// This function will return an error if it is not valid.
     fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
 
-    fn is_natural_number(&self, statements: &Statements) -> bool;
-
-    fn add(&self, statements: &Statements, other: &Object) -> Object;
+    fn add(&self, other: &Object) -> Object;
 
     /// Parses a binary node by querying (axiomatically)
     /// for `left_tag` and `right_tag`.
@@ -83,7 +79,7 @@ pub trait ObjectExt {
         right_tag: Object,
     ) -> Option<BinaryNode>;
 
-    fn multiply(&self, statements: &Statements, other: &Object) -> Object;
+    fn multiply(&self, other: &Object) -> Object;
 
     fn new_node(node: Node) -> Self;
 }
@@ -373,23 +369,6 @@ impl ObjectExt for Object {
         }
     }
 
-    fn is_natural_number(&self, statements: &Statements) -> bool {
-        if self.exact_integer().is_some() {
-            // Fast path of exact natural numbers.
-            return true;
-        }
-
-        let mut successor_of = statements.query_values(self.clone(), Abstract::SUCCESSOR_OF.into());
-
-        if let Some(first) = successor_of.next()
-            && successor_of.next().is_none()
-        {
-            first.is_natural_number(statements)
-        } else {
-            false
-        }
-    }
-
     fn set_values(&self, statements: &Statements) -> QueryValues {
         statements.query_values(self.clone(), Abstract::CONTAINS.into())
     }
@@ -452,7 +431,7 @@ impl ObjectExt for Object {
             let depth = statements
                 .query_values(this.clone(), Abstract::NODE_FUNCTION_SELF.into())
                 .next_and_last()?
-                .to_integer(statements)?;
+                .integer()?;
 
             u32::try_from(depth).ok()
         }
@@ -462,7 +441,7 @@ impl ObjectExt for Object {
             let depth = statements
                 .query_values(this.clone(), Abstract::NODE_PARAMETER.into())
                 .next_and_last()?
-                .to_integer(statements)?;
+                .integer()?;
 
             u32::try_from(depth).ok()
         }
@@ -809,9 +788,9 @@ impl ObjectExt for Object {
         }
     }
 
-    fn multiply(&self, statements: &Statements, other: &Object) -> Object {
-        if let Some(left) = self.to_integer(statements)
-            && let Some(right) = other.to_integer(statements)
+    fn multiply(&self, other: &Object) -> Object {
+        if let Some(left) = self.integer()
+            && let Some(right) = other.integer()
         {
             if let Some(product) = left.checked_mul(right) {
                 Object::new_integer(product)
@@ -1176,14 +1155,14 @@ impl ObjectExt for Object {
                     // TODO: (perf) maybe short circuit sets into UNDEFINED.
                     let left = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(left.add(statements, &right).into());
+                    evaluated.push(left.add(&right).into());
                 }
                 Task::Multiply => {
                     // TODO: (perf) maybe short circuit sets into UNDEFINED.
                     let right = evaluated.pop().unwrap().into_object();
                     let left = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(left.multiply(statements, &right).into());
+                    evaluated.push(left.multiply(&right).into());
                 }
                 Task::Union => {
                     let right = evaluated.pop().unwrap();
@@ -1249,8 +1228,8 @@ impl ObjectExt for Object {
                     evaluated.push(
                         Object::Composite(Composite::new_bool(match (left, right) {
                             (ObjectOrSetValues::Object(left), ObjectOrSetValues::Object(right))
-                                if let Some(left) = left.to_integer(statements)
-                                    && let Some(right) = right.to_integer(statements) =>
+                                if let Some(left) = left.integer()
+                                    && let Some(right) = right.integer() =>
                             {
                                 left < right
                             }
@@ -1329,30 +1308,6 @@ impl ObjectExt for Object {
         }
     }
 
-    #[instrument(skip(statements), ret)]
-    fn to_integer(&self, statements: &Statements) -> Option<i128> {
-        if let Some(n) = self.exact_integer() {
-            // Fast path for exact natural numbers.
-            Some(n)
-        } else if let Some(predecessor) = statements
-            .query_values(self.clone(), Abstract::SUCCESSOR_OF.into())
-            .next_and_last()
-        {
-            predecessor
-                .to_integer(statements)
-                .map(|n| n.checked_add(1).expect("yo shi too big"))
-        } else if let Some(successor) = statements
-            .query_values(self.clone(), Abstract::PREDECESSOR_OF.into())
-            .next_and_last()
-        {
-            successor
-                .to_integer(statements)
-                .map(|n| n.checked_sub(1).expect("yo shi too small"))
-        } else {
-            None
-        }
-    }
-
     fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError> {
         match self {
             Self::Abstract(_) => Ok(()),
@@ -1360,9 +1315,9 @@ impl ObjectExt for Object {
         }
     }
 
-    fn add(&self, statements: &Statements, other: &Object) -> Object {
-        if let Some(left) = self.to_integer(statements)
-            && let Some(right) = other.to_integer(statements)
+    fn add(&self, other: &Object) -> Object {
+        if let Some(left) = self.integer()
+            && let Some(right) = other.integer()
         {
             if let Some(sum) = left.checked_add(right) {
                 Object::new_integer(sum)

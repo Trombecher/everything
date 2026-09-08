@@ -51,14 +51,14 @@ impl CompositeMetaInfo {
     pub fn add_property(&mut self, property: &Property) {
         match property.tag {
             Object::Abstract(Abstract::SUCCESSOR_OF) => {
-                if let Some(predecessor) = property.value.exact_integer()
+                if let Some(predecessor) = property.value.integer()
                     && self.prop_count == 0
                 {
                     self.last_successor_of = Some(predecessor)
                 }
             }
             Object::Abstract(Abstract::PREDECESSOR_OF) => {
-                if let Some(successor) = property.value.exact_integer()
+                if let Some(successor) = property.value.integer()
                     && self.prop_count == 0
                 {
                     self.last_predecessor_of = Some(successor)
@@ -66,7 +66,7 @@ impl CompositeMetaInfo {
             }
             Object::Abstract(Abstract::CODE_POINT) => {
                 if self.prop_count == 0
-                    && let Some(maybe_char) = property.value.exact_integer()
+                    && let Some(maybe_char) = property.value.integer()
                     && (0..=u32::MAX as i128).contains(&maybe_char)
                     && let Ok(c) = char::try_from(maybe_char as u32)
                 {

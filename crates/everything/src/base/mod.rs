@@ -1,5 +1,8 @@
+mod integers;
 #[cfg(test)]
 mod tests;
+
+pub use integers::*;
 
 use std::sync::LazyLock;
 
@@ -56,29 +59,6 @@ pub static IS_NATURAL_NUMBER: LazyLock<Object> = LazyLock::new(|| {
         })),
     }))))
 });
-
-/*
-pub static IS_INTEGER: LazyLock<Object> = LazyLock::new(|| {
-    Object::new_node(Node::Function(Object::new_node(Node::Or(BinaryNode {
-        left: Object::new_node(Node::Equal(BinaryNode {
-            left: Object::new_node(Node::Parameter(0)),
-            right: Abstract::ZERO.into(),
-        })),
-        right: Object::new_node(Node::Add(BinaryNode {
-            left: Object::new_node(Node::Not(Object::new_node(Node::IsAbstract(
-                Object::new_node(Node::Parameter(0)),
-            )))),
-            right: Object::new_node(Node::And(BinaryNode {
-                left: Object::new_node(Node::Xor(BinaryNode {
-                    left: Object::new_node(Node::Query()),
-                    right: (),
-                })),
-                right: (),
-            })),
-        })),
-    }))))
-});
- */
 
 fn bit_slot_statement(slot: Abstract) -> Statement {
     Statement::new(

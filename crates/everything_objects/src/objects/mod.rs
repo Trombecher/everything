@@ -22,10 +22,9 @@ impl Object {
         }
     }
 
-    /// Tries to extract the integer value out of an object
-    /// iff the object is an exact integer value.
+    /// Tries to extract the integer out of this object.
     #[must_use]
-    pub const fn exact_integer(&self) -> Option<i128> {
+    pub const fn integer(&self) -> Option<i128> {
         if let Self::Abstract(Abstract::ZERO) = self {
             Some(0)
         } else if let Self::Composite(Composite::Integer(n)) = self {

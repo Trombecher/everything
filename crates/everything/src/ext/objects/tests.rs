@@ -294,7 +294,7 @@ mod eval {
             assert_eq!(
                 node.evaluate(&BASE, &mut EvaluationContext::default())
                     .into_object()
-                    .to_integer(&BASE),
+                    .integer(),
                 Some(count as i128)
             );
         }
@@ -315,7 +315,7 @@ mod eval {
         assert_eq!(
             node.evaluate(&BASE, &mut EvaluationContext::default())
                 .into_object()
-                .to_integer(&BASE),
+                .integer(),
             Some(a * b)
         );
     }
