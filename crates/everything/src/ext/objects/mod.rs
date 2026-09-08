@@ -22,7 +22,7 @@ use crate::{
 /// An extension trait implemented for [`Object`], providing many useful functions.
 pub trait ObjectExt {
     /// Extracts the first (and last) [`Abstract::FUNCTION`] from `self`.
-    fn function_body(&self, statements: &Statements) -> Option<Object>;
+    fn node_function_body(&self, statements: &Statements) -> Option<Object>;
 
     fn capture(
         &self,
@@ -65,11 +65,6 @@ pub trait ObjectExt {
 
     fn to_integer(&self, statements: &Statements) -> Option<i128>;
 
-    fn node_query_statements(&self) -> Option<()>;
-    fn node_query_subject(&self, statements: &Statements) -> Option<Object>;
-    fn node_query_tag(&self, statements: &Statements) -> Option<Object>;
-    fn node_query_value(&self, statements: &Statements) -> Option<Object>;
-
     /// Checks whether this object is valid.
     ///
     /// # Errors
@@ -90,42 +85,12 @@ pub trait ObjectExt {
         right_tag: Object,
     ) -> Option<BinaryNode>;
 
-    fn intrinsic_statement_subject(&self) -> Option<Object>;
-
-    fn intrinsic_statement_tag(&self) -> Option<Object>;
-
-    fn intrinsic_statement_value(&self) -> Option<Object>;
-
-    fn intrinsic_statement(&self) -> Option<SimpleStatement>;
-
     fn multiply(&self, statements: &Statements, other: &Object) -> Object;
 
     fn new_node(node: Node) -> Self;
 }
 
 impl ObjectExt for Object {
-    fn node_query_subject(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Abstract::NODE_QUERY_SUBJECT.into())
-            .next_and_last()
-    }
-
-    fn node_query_tag(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Abstract::NODE_QUERY_TAG.into())
-            .next_and_last()
-    }
-
-    fn node_query_value(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Abstract::NODE_QUERY_VALUE.into())
-            .next_and_last()
-    }
-
-    fn node_query_statements(&self) -> Option<()> {
-        (self == &Abstract::NODE_QUERY_STATEMENTS.into()).then_some(())
-    }
-
     #[allow(clippy::too_many_lines)]
     fn new_node(node: Node) -> Self {
         match node {
@@ -429,6 +394,7 @@ impl ObjectExt for Object {
         let left = statements
             .query_values(self.clone(), left_tag)
             .next_and_last()?;
+
         let right = statements
             .query_values(self.clone(), right_tag)
             .next_and_last()?;
@@ -439,7 +405,7 @@ impl ObjectExt for Object {
     #[instrument(skip(statements), ret)]
     #[allow(clippy::too_many_lines)]
     fn node(&self, statements: &Statements) -> Option<Node> {
-        let mut node = self.function_body(statements).map(Node::Function);
+        let mut node = self.node_function_body(statements).map(Node::Function);
 
         macro_rules! xor_with {
             ($e:expr) => {{
@@ -503,9 +469,17 @@ impl ObjectExt for Object {
         );
 
         {
-            let subject = self.node_query_subject(statements);
-            let tag = self.node_query_tag(statements);
-            let value = self.node_query_value(statements);
+            let subject = statements
+                .query_values(self.clone(), Abstract::NODE_QUERY_SUBJECT.into())
+                .next_and_last();
+
+            let tag = statements
+                .query_values(self.clone(), Abstract::NODE_QUERY_TAG.into())
+                .next_and_last();
+
+            let value = statements
+                .query_values(self.clone(), Abstract::NODE_QUERY_VALUE.into())
+                .next_and_last();
 
             // This can be made lazy
             if node.is_some() && (subject.is_some() || tag.is_some() || value.is_some()) {
@@ -550,7 +524,9 @@ impl ObjectExt for Object {
             }
         }
 
-        xor_with!(self.node_query_statements().map(|()| Node::QueryStatements));
+        xor_with!(
+            (self == &Abstract::NODE_QUERY_STATEMENTS.into()).then_some(Node::QueryStatements)
+        );
 
         xor_with!(
             statements
@@ -706,52 +682,10 @@ impl ObjectExt for Object {
         node
     }
 
-    fn function_body(&self, statements: &Statements) -> Option<Object> {
+    fn node_function_body(&self, statements: &Statements) -> Option<Object> {
         statements
             .query_values(self.clone(), Abstract::FUNCTION.into())
             .next_and_last()
-    }
-
-    #[inline]
-    fn intrinsic_statement_subject(&self) -> Option<Object> {
-        match self {
-            Object::Abstract(_) => None,
-            Object::Composite(composite) => composite
-                .values(Abstract::STATEMENT_SUBJECT.into())
-                .next_and_last(),
-        }
-    }
-
-    #[inline]
-    fn intrinsic_statement_tag(&self) -> Option<Object> {
-        match self {
-            Object::Abstract(_) => None,
-            Object::Composite(composite) => composite
-                .values(Abstract::STATEMENT_TAG.into())
-                .next_and_last(),
-        }
-    }
-
-    #[inline]
-    fn intrinsic_statement_value(&self) -> Option<Object> {
-        match self {
-            Object::Abstract(_) => None,
-            Object::Composite(composite) => composite
-                .values(Abstract::STATEMENT_VALUE.into())
-                .next_and_last(),
-        }
-    }
-
-    fn intrinsic_statement(&self) -> Option<SimpleStatement> {
-        let subject = self.intrinsic_statement_subject()?;
-        let tag = self.intrinsic_statement_tag()?;
-        let value = self.intrinsic_statement_value()?;
-
-        Some(SimpleStatement {
-            subject,
-            tag,
-            value,
-        })
     }
 
     #[instrument(skip(statements), ret)]
@@ -1039,7 +973,7 @@ impl ObjectExt for Object {
                     let callee = evaluated.pop().unwrap().into_object();
                     let parameter_value = evaluated.pop().unwrap();
 
-                    tasks.push(Task::Eval(callee.function_body(statements).unwrap()));
+                    tasks.push(Task::Eval(callee.node_function_body(statements).unwrap()));
 
                     context.push(FunctionContext {
                         function: callee,
