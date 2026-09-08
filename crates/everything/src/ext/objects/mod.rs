@@ -1325,7 +1325,6 @@ impl ObjectExt for Object {
         last
     }
 
-    #[instrument(skip(statements), ret)]
     fn call(
         &self,
         statements: &Statements,
@@ -1350,7 +1349,11 @@ impl ObjectExt for Object {
 
                 let result = optimized_function(statements, parameter.clone());
 
-                return result.call(statements, next_parameters, ctx);
+                return if next_parameters.is_empty() {
+                    result.into()
+                } else {
+                    result.call(statements, next_parameters, ctx)
+                };
             }
 
             if let Some(Node::Function(body)) = self.node(statements) {
