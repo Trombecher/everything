@@ -1,6 +1,7 @@
 use everything_objects::Abstract;
 
 /// An extension to [`Abstract`], providing useful constants.
+#[allow(clippy::unreadable_literal)]
 pub trait AbstractExt {
     /// Denotes that the subject is a _set_ that contains the associated value.
     const CONTAINS: Abstract = Abstract(2148623885993955829985846061169569945);

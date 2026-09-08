@@ -20,6 +20,7 @@ pub struct CompositeSetValues {
 }
 
 impl CompositeSetValues {
+    #[must_use]
     pub fn new(composite: &Composite) -> Self {
         Self {
             properties: match composite {
@@ -95,6 +96,7 @@ impl ObjectOrSetValues {
     /// Interprets the [`Self::AxiomaticQueryValues`] variant as an iterator
     /// over the set items and returns an iterator over set items.
     #[inline]
+    #[must_use]
     pub fn set_values(&self, statements: &Statements) -> SetValues {
         match self {
             Self::SetValues(values) => values.clone(),
@@ -107,6 +109,7 @@ impl ObjectOrSetValues {
     /// * If `self` was [`LazyObject::Eager`], it just returns that object.
     /// * If `self` was [`LazyObject::LazySetValues`], it collects all
     ///   values into a set and returns that.
+    #[must_use]
     pub fn into_object(self) -> Object {
         match self {
             Self::Object(object) => object,
@@ -180,6 +183,7 @@ impl SetValues {
 
     /// Counts the (remaining) set values of this iterator.
     /// It dedups
+    #[must_use]
     pub fn correct_count(self) -> usize {
         match self {
             SetValues::QueryValues(axiomatic_query_values) => axiomatic_query_values.count(),
@@ -256,7 +260,7 @@ impl Iterator for SetValues {
                     .call(
                         statements,
                         &[ObjectOrSetValues::Object(item.clone())],
-                        &mut Default::default(),
+                        &mut EvaluationContext::default(),
                     )
                     .is_truthy(statements)
                 {

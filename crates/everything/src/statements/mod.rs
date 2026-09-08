@@ -12,6 +12,7 @@ use everything_objects::{
 use crate::{
     ObjectOrSetValues,
     base::BASE,
+    ctx::EvaluationContext,
     ext::{
         AbstractExt, IteratorExtNextAndLast, KnowledgeError, ObjectExt, ObjectForm, PropertyExt,
         SimpleStatement, StatementForm,
@@ -25,6 +26,7 @@ pub struct Statement {
 
 impl Statement {
     /// Creates a new statement with no additional properties.
+    #[must_use]
     pub fn new(subject: Abstract, tag: Object, value: Object) -> Self {
         Self {
             subject,
@@ -36,6 +38,7 @@ impl Statement {
         }
     }
 
+    #[must_use]
     pub fn to_composite(&self) -> Composite {
         self.property.additional_properties.add(&mut [
             Property::new_statement_subject(Object::Abstract(self.subject)),
@@ -86,6 +89,7 @@ impl Statements {
         Self::default()
     }
 
+    #[must_use]
     pub fn exists(&self, simple_statement: SimpleStatement) -> bool {
         let SimpleStatement {
             subject,
@@ -112,6 +116,7 @@ impl Statements {
         }
     }
 
+    #[must_use]
     pub fn query_tags_and_values(&self, subject: Object) -> QueryTagsAndValues {
         match subject {
             Object::Abstract(subject) => {
@@ -127,6 +132,7 @@ impl Statements {
         }
     }
 
+    #[must_use]
     pub fn query_subjects(&self, tag: Object, value: Object) -> QuerySubjects {
         QuerySubjects {
             indexed_statements: self.indexed_statements.clone().into_iter(),
@@ -135,6 +141,7 @@ impl Statements {
         }
     }
 
+    #[must_use]
     pub fn query_tags(&self, subject: Object, value: Object) -> QueryTags {
         match subject {
             Object::Abstract(subject) => {
@@ -154,6 +161,7 @@ impl Statements {
         }
     }
 
+    #[must_use]
     pub fn query_values(&self, subject: Object, tag: Object) -> QueryValues {
         match (subject, tag) {
             (Object::Abstract(Abstract::AXIOMATIC), Object::Abstract(Abstract::AXIOMATIC)) => {
@@ -176,6 +184,7 @@ impl Statements {
         }
     }
 
+    #[must_use]
     pub fn query_subjects_and_values(&self, tag: Object) -> QuerySubjectsAndValues {
         QuerySubjectsAndValues {
             indexed_statements: self.indexed_statements.clone().into_iter(),
@@ -184,6 +193,7 @@ impl Statements {
         }
     }
 
+    #[must_use]
     pub fn query_subjects_and_tags(&self, value: Object) -> QuerySubjectsAndTags {
         QuerySubjectsAndTags {
             indexed_statements: self.indexed_statements.clone().into_iter(),
@@ -192,6 +202,7 @@ impl Statements {
         }
     }
 
+    #[allow(clippy::missing_panics_doc)]
     pub fn change_mut<
         'a,
         Remove: Iterator<Item = &'a Statement>,
@@ -221,7 +232,7 @@ impl Statements {
         for statement in add_statements {
             if !self.indexed_statements.contains_key(&statement.subject) {
                 self.indexed_statements
-                    .insert(statement.subject, Default::default());
+                    .insert(statement.subject, HashSet::default());
             }
 
             let properties_of_abstract =
@@ -230,6 +241,7 @@ impl Statements {
         }
     }
 
+    #[must_use]
     pub fn change<'a, Remove: Iterator<Item = &'a Statement>, Add: Iterator<Item = Statement>>(
         &self,
         remove_statements: Remove,
@@ -240,6 +252,11 @@ impl Statements {
         this
     }
 
+    /// Checks whether `self` is valid knowledge.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if `self` is not valid knowledge.
     pub fn is_knowledge(&self) -> Result<(), KnowledgeError> {
         // BASE needs to be included
         if !BASE
@@ -270,7 +287,7 @@ impl Statements {
                     statement.property.value.clone(),
                 ]
                 .map(ObjectOrSetValues::Object),
-                &mut Default::default(),
+                &mut EvaluationContext::default(),
             );
 
             // Check that subject and value are matching the tag's constraint.
@@ -288,6 +305,7 @@ impl Statements {
         Ok(())
     }
 
+    #[must_use]
     pub fn iter_owned(&self) -> QueryStatements {
         QueryStatements {
             current_subject_with_properties: None,

@@ -9,8 +9,7 @@ use crate::{
     ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{
-        AbstractExt, CompositeExt, KnowledgeError, ObjectForm, SimpleStatement, StatementForm,
-        iter::IteratorExtNextAndLast,
+        AbstractExt, CompositeExt, KnowledgeError, SimpleStatement, iter::IteratorExtNextAndLast,
     },
     nodes::{
         BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, QueryExistsNode,
@@ -22,23 +21,8 @@ use crate::{
 
 /// An extension trait implemented for [`Object`], providing many useful functions.
 pub trait ObjectExt {
-    /// Extracts the first (and last) [Abstract::NODE_COUNT] from `self`.
-    fn node_count(&self, statements: &Statements) -> Option<Object>;
-
-    /// Extracts the first (and last) [Abstract::FUNCTION] from `self`.
+    /// Extracts the first (and last) [`Abstract::FUNCTION`] from `self`.
     fn function_body(&self, statements: &Statements) -> Option<Object>;
-
-    fn node_equal(&self, statements: &Statements) -> Option<BinaryNode>;
-
-    fn node_and(&self, statements: &Statements) -> Option<BinaryNode>;
-
-    fn node_or(&self, statements: &Statements) -> Option<BinaryNode>;
-
-    fn node_add(&self, statements: &Statements) -> Option<BinaryNode>;
-
-    fn node_xor(&self, statements: &Statements) -> Option<BinaryNode>;
-
-    fn node_union(&self, statements: &Statements) -> Option<BinaryNode>;
 
     fn capture(
         &self,
@@ -81,35 +65,21 @@ pub trait ObjectExt {
 
     fn to_integer(&self, statements: &Statements) -> Option<i128>;
 
-    fn node_parameter_depth(&self, statements: &Statements) -> Option<u64>;
-
-    fn node_literal(&self, statements: &Statements) -> Option<Object>;
-
-    fn node_is_abstract(&self, statements: &Statements) -> Option<Object>;
-
-    fn statement_subject(&self, statements: &Statements) -> Option<Object>;
-    fn statement_tag(&self, statements: &Statements) -> Option<Object>;
-    fn statement_value(&self, statements: &Statements) -> Option<Object>;
-
-    fn statement_form(&self, statements: &Statements) -> StatementForm;
-
     fn node_query_statements(&self) -> Option<()>;
     fn node_query_subject(&self, statements: &Statements) -> Option<Object>;
     fn node_query_tag(&self, statements: &Statements) -> Option<Object>;
     fn node_query_value(&self, statements: &Statements) -> Option<Object>;
 
+    /// Checks whether this object is valid.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if it is not valid.
     fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn is_natural_number(&self, statements: &Statements) -> bool;
-    fn node_map(&self, statements: &Statements) -> Option<MapNode>;
-    fn node_filter(&self, statements: &Statements) -> Option<FilterNode>;
-    fn node_multiply(&self, statements: &Statements) -> Option<BinaryNode>;
 
     fn add(&self, statements: &Statements, other: &Object) -> Object;
-
-    fn node_function_self(&self, statements: &Statements) -> Option<u64>;
-
-    fn node_not(&self, statements: &Statements) -> Option<Object>;
 
     /// Parses a binary node by querying (axiomatically)
     /// for `left_tag` and `right_tag`.
@@ -119,13 +89,6 @@ pub trait ObjectExt {
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode>;
-
-    fn node_unwrap_or(&self, statements: &Statements) -> Option<UnwrapOrNode>;
-
-    fn node_if(&self, statements: &Statements) -> Option<IfNode>;
-
-    fn node_less(&self, statements: &Statements) -> Option<BinaryNode>;
-    fn node_call(&self, statements: &Statements) -> Option<CallNode>;
 
     fn intrinsic_statement_subject(&self) -> Option<Object>;
 
@@ -163,6 +126,7 @@ impl ObjectExt for Object {
         (self == &Abstract::NODE_QUERY_STATEMENTS.into()).then_some(())
     }
 
+    #[allow(clippy::too_many_lines)]
     fn new_node(node: Node) -> Self {
         match node {
             Node::IsAbstract(inner) => Composite::new(&mut [Property {
@@ -204,12 +168,12 @@ impl ObjectExt for Object {
             .into(),
             Node::FunctionSelf(depth) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_FUNCTION_SELF.into(),
-                value: Object::new_integer(depth as i128),
+                value: Object::new_integer(i128::from(depth)),
             }])
             .into(),
             Node::Parameter(depth) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_PARAMETER.into(),
-                value: Object::new_integer(depth as i128),
+                value: Object::new_integer(i128::from(depth)),
             }])
             .into(),
             Node::Count(object) => Composite::new(&mut [Property {
@@ -456,97 +420,6 @@ impl ObjectExt for Object {
         self.set_values(statements).next().is_some()
     }
 
-    fn node_is_abstract(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Abstract::NODE_IS_ABSTRACT.into())
-            .next_and_last()
-    }
-
-    fn node_equal(&self, statements: &Statements) -> Option<BinaryNode> {
-        self.binary_node(
-            statements,
-            Abstract::NODE_EQUAL_LEFT.into(),
-            Abstract::NODE_EQUAL_RIGHT.into(),
-        )
-    }
-
-    fn node_and(&self, statements: &Statements) -> Option<BinaryNode> {
-        self.binary_node(
-            statements,
-            Abstract::NODE_AND_LEFT.into(),
-            Abstract::NODE_AND_RIGHT.into(),
-        )
-    }
-
-    fn node_or(&self, statements: &Statements) -> Option<BinaryNode> {
-        self.binary_node(
-            statements,
-            Abstract::NODE_OR_LEFT.into(),
-            Abstract::NODE_OR_RIGHT.into(),
-        )
-    }
-
-    fn node_union(&self, statements: &Statements) -> Option<BinaryNode> {
-        self.binary_node(
-            statements,
-            Abstract::NODE_UNION_LEFT.into(),
-            Abstract::NODE_UNION_RIGHT.into(),
-        )
-    }
-
-    fn node_map(&self, statements: &Statements) -> Option<MapNode> {
-        let set_expression = statements
-            .query_values(self.clone(), Abstract::NODE_MAP_SET.into())
-            .next()?;
-        let mapper_function_expression = statements
-            .query_values(self.clone(), Abstract::NODE_MAP_MAPPER.into())
-            .next()?;
-
-        Some(MapNode {
-            set: set_expression,
-            mapper_function: mapper_function_expression,
-        })
-    }
-
-    fn node_filter(&self, statements: &Statements) -> Option<FilterNode> {
-        let set = statements
-            .query_values(self.clone(), Abstract::NODE_FILTER_SET.into())
-            .next_and_last()?;
-
-        let filter = statements
-            .query_values(self.clone(), Abstract::NODE_FILTER_FILTER.into())
-            .next_and_last()?;
-
-        Some(FilterNode {
-            set,
-            filter_function: filter,
-        })
-    }
-
-    fn node_add(&self, statements: &Statements) -> Option<BinaryNode> {
-        self.binary_node(
-            statements,
-            Abstract::NODE_ADD_LEFT.into(),
-            Abstract::NODE_ADD_RIGHT.into(),
-        )
-    }
-
-    fn node_xor(&self, statements: &Statements) -> Option<BinaryNode> {
-        self.binary_node(
-            statements,
-            Abstract::NODE_XOR_LEFT.into(),
-            Abstract::NODE_XOR_RIGHT.into(),
-        )
-    }
-
-    fn node_multiply(&self, statements: &Statements) -> Option<BinaryNode> {
-        self.binary_node(
-            statements,
-            Abstract::NODE_MULTIPLY_LEFT.into(),
-            Abstract::NODE_MULTIPLY_RIGHT.into(),
-        )
-    }
-
     fn binary_node(
         &self,
         statements: &Statements,
@@ -564,6 +437,7 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(statements), ret)]
+    #[allow(clippy::too_many_lines)]
     fn node(&self, statements: &Statements) -> Option<Node> {
         let mut node = self.function_body(statements).map(Node::Function);
 
@@ -581,11 +455,52 @@ impl ObjectExt for Object {
             }};
         }
 
-        xor_with!(self.node_literal(statements).map(Node::Literal));
-        xor_with!(self.node_function_self(statements).map(Node::FunctionSelf));
-        xor_with!(self.node_parameter_depth(statements).map(Node::Parameter));
-        xor_with!(self.node_call(statements).map(Node::Call));
-        xor_with!(self.node_count(statements).map(Node::Count));
+        xor_with!(
+            statements
+                .query_values(self.clone(), Abstract::NODE_LITERAL.into())
+                .next_and_last()
+                .map(Node::Literal)
+        );
+
+        fn node_function_self(this: &Object, statements: &Statements) -> Option<u32> {
+            let depth = statements
+                .query_values(this.clone(), Abstract::NODE_FUNCTION_SELF.into())
+                .next_and_last()?
+                .to_integer(statements)?;
+
+            u32::try_from(depth).ok()
+        }
+        xor_with!(node_function_self(self, statements).map(Node::FunctionSelf));
+
+        fn node_parameter_depth(this: &Object, statements: &Statements) -> Option<u32> {
+            let depth = statements
+                .query_values(this.clone(), Abstract::NODE_PARAMETER.into())
+                .next_and_last()?
+                .to_integer(statements)?;
+
+            u32::try_from(depth).ok()
+        }
+        xor_with!(node_parameter_depth(self, statements).map(Node::Parameter));
+
+        fn node_call(this: &Object, statements: &Statements) -> Option<CallNode> {
+            let callee = statements
+                .query_values(this.clone(), Abstract::NODE_CALL_CALLEE.into())
+                .next_and_last()?;
+
+            let with = statements
+                .query_values(this.clone(), Abstract::NODE_CALL_WITH.into())
+                .next_and_last()?;
+
+            Some(CallNode { callee, with })
+        }
+        xor_with!(node_call(self, statements).map(Node::Call));
+
+        xor_with!(
+            statements
+                .query_values(self.clone(), Abstract::NODE_COUNT.into())
+                .next_and_last()
+                .map(Node::Count)
+        );
 
         {
             let subject = self.node_query_subject(statements);
@@ -608,26 +523,26 @@ impl ObjectExt for Object {
                     }));
                 }
                 (Some(subject), Some(tag), None) => {
-                    node = Some(Node::QueryValues(QueryValuesNode { subject, tag }))
+                    node = Some(Node::QueryValues(QueryValuesNode { subject, tag }));
                 }
                 (Some(subject), None, Some(value)) => {
-                    node = Some(Node::QueryTags(QueryTagsNode { subject, value }))
+                    node = Some(Node::QueryTags(QueryTagsNode { subject, value }));
                 }
                 (None, Some(tag), Some(value)) => {
-                    node = Some(Node::QuerySubjects(QuerySubjectsNode { tag, value }))
+                    node = Some(Node::QuerySubjects(QuerySubjectsNode { tag, value }));
                 }
                 (Some(subject), None, None) => {
-                    node = Some(Node::QueryTagsAndValues(QueryTagsAndValuesNode { subject }))
+                    node = Some(Node::QueryTagsAndValues(QueryTagsAndValuesNode { subject }));
                 }
                 (None, Some(tag), None) => {
                     node = Some(Node::QuerySubjectsAndValues(QuerySubjectsAndValuesNode {
                         tag,
-                    }))
+                    }));
                 }
                 (None, None, Some(value)) => {
                     node = Some(Node::QuerySubjectsAndTags(QuerySubjectsAndTagsNode {
                         value,
-                    }))
+                    }));
                 }
                 (None, None, None) => {
                     // This is not one of the seven nodes, so do nothing.
@@ -637,116 +552,164 @@ impl ObjectExt for Object {
 
         xor_with!(self.node_query_statements().map(|()| Node::QueryStatements));
 
-        xor_with!(self.node_not(statements).map(Node::Not));
-        xor_with!(self.node_and(statements).map(Node::And));
-        xor_with!(self.node_or(statements).map(Node::Or));
-        xor_with!(self.node_equal(statements).map(Node::Equal));
-        xor_with!(self.node_xor(statements).map(Node::Xor));
-        xor_with!(self.node_add(statements).map(Node::Add));
-        xor_with!(self.node_union(statements).map(Node::Union));
-        xor_with!(self.node_map(statements).map(Node::Map));
-        xor_with!(self.node_filter(statements).map(Node::Filter));
-        xor_with!(self.node_less(statements).map(Node::Less));
-        xor_with!(self.node_if(statements).map(Node::If));
-        xor_with!(self.node_unwrap_or(statements).map(Node::UnwrapOr));
-        xor_with!(self.node_multiply(statements).map(Node::Multiply));
-        xor_with!(self.node_is_abstract(statements).map(Node::IsAbstract));
+        xor_with!(
+            statements
+                .query_values(self.clone(), Abstract::NODE_NOT.into())
+                .next_and_last()
+                .map(Node::Not)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_AND_LEFT.into(),
+                Abstract::NODE_AND_RIGHT.into(),
+            )
+            .map(Node::And)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_OR_LEFT.into(),
+                Abstract::NODE_OR_RIGHT.into(),
+            )
+            .map(Node::Or)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_EQUAL_LEFT.into(),
+                Abstract::NODE_EQUAL_RIGHT.into(),
+            )
+            .map(Node::Equal)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_XOR_LEFT.into(),
+                Abstract::NODE_XOR_RIGHT.into(),
+            )
+            .map(Node::Xor)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_ADD_LEFT.into(),
+                Abstract::NODE_ADD_RIGHT.into(),
+            )
+            .map(Node::Add)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_UNION_LEFT.into(),
+                Abstract::NODE_UNION_RIGHT.into(),
+            )
+            .map(Node::Union)
+        );
+
+        fn node_map(this: &Object, statements: &Statements) -> Option<MapNode> {
+            let set_expression = statements
+                .query_values(this.clone(), Abstract::NODE_MAP_SET.into())
+                .next()?;
+            let mapper_function_expression = statements
+                .query_values(this.clone(), Abstract::NODE_MAP_MAPPER.into())
+                .next()?;
+
+            Some(MapNode {
+                set: set_expression,
+                mapper_function: mapper_function_expression,
+            })
+        }
+        xor_with!(node_map(self, statements).map(Node::Map));
+
+        fn node_filter(this: &Object, statements: &Statements) -> Option<FilterNode> {
+            let set = statements
+                .query_values(this.clone(), Abstract::NODE_FILTER_SET.into())
+                .next_and_last()?;
+
+            let filter = statements
+                .query_values(this.clone(), Abstract::NODE_FILTER_FILTER.into())
+                .next_and_last()?;
+
+            Some(FilterNode {
+                set,
+                filter_function: filter,
+            })
+        }
+        xor_with!(node_filter(self, statements).map(Node::Filter));
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_LESS_LEFT.into(),
+                Abstract::NODE_LESS_RIGHT.into(),
+            )
+            .map(Node::Less)
+        );
+
+        fn node_if(object: &Object, statements: &Statements) -> Option<IfNode> {
+            let condition = statements
+                .query_values(object.clone(), Abstract::NODE_IF_CONDITION.into())
+                .next_and_last()?;
+
+            let then = statements
+                .query_values(object.clone(), Abstract::NODE_IF_THEN.into())
+                .next_and_last()?;
+
+            let otherwise = statements
+                .query_values(object.clone(), Abstract::NODE_IF_ELSE.into())
+                .next_and_last()?;
+
+            Some(IfNode {
+                condition,
+                then,
+                otherwise,
+            })
+        }
+        xor_with!(node_if(self, statements).map(Node::If));
+
+        fn node_unwrap_or(this: &Object, statements: &Statements) -> Option<UnwrapOrNode> {
+            let set = statements
+                .query_values(this.clone(), Abstract::NODE_UNWRAP_OR_SET.into())
+                .next_and_last()?;
+
+            let default = statements
+                .query_values(this.clone(), Abstract::NODE_UNWRAP_OR_DEFAULT.into())
+                .next_and_last()?;
+
+            Some(UnwrapOrNode { set, default })
+        }
+        xor_with!(node_unwrap_or(self, statements).map(Node::UnwrapOr));
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_MULTIPLY_LEFT.into(),
+                Abstract::NODE_MULTIPLY_RIGHT.into(),
+            )
+            .map(Node::Multiply)
+        );
+
+        xor_with!(
+            statements
+                .query_values(self.clone(), Abstract::NODE_IS_ABSTRACT.into())
+                .next_and_last()
+                .map(Node::IsAbstract)
+        );
 
         node
-    }
-
-    fn node_unwrap_or(&self, statements: &Statements) -> Option<UnwrapOrNode> {
-        let set = statements
-            .query_values(self.clone(), Abstract::NODE_UNWRAP_OR_SET.into())
-            .next_and_last()?;
-
-        let default = statements
-            .query_values(self.clone(), Abstract::NODE_UNWRAP_OR_DEFAULT.into())
-            .next_and_last()?;
-
-        Some(UnwrapOrNode { set, default })
-    }
-
-    fn node_if(&self, statements: &Statements) -> Option<IfNode> {
-        let condition = statements
-            .query_values(self.clone(), Abstract::NODE_IF_CONDITION.into())
-            .next_and_last()?;
-
-        let then = statements
-            .query_values(self.clone(), Abstract::NODE_IF_THEN.into())
-            .next_and_last()?;
-
-        let otherwise = statements
-            .query_values(self.clone(), Abstract::NODE_IF_ELSE.into())
-            .next_and_last()?;
-
-        Some(IfNode {
-            condition,
-            then,
-            otherwise,
-        })
-    }
-
-    fn node_less(&self, statements: &Statements) -> Option<BinaryNode> {
-        self.binary_node(
-            statements,
-            Abstract::NODE_LESS_LEFT.into(),
-            Abstract::NODE_LESS_RIGHT.into(),
-        )
-    }
-
-    fn node_call(&self, statements: &Statements) -> Option<CallNode> {
-        let callee = statements
-            .query_values(self.clone(), Abstract::NODE_CALL_CALLEE.into())
-            .next_and_last()?;
-
-        let with = statements
-            .query_values(self.clone(), Abstract::NODE_CALL_WITH.into())
-            .next_and_last()?;
-
-        Some(CallNode { callee, with })
-    }
-
-    fn node_not(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Abstract::NODE_NOT.into())
-            .next_and_last()
-    }
-
-    fn node_count(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Abstract::NODE_COUNT.into())
-            .next_and_last()
     }
 
     fn function_body(&self, statements: &Statements) -> Option<Object> {
         statements
             .query_values(self.clone(), Abstract::FUNCTION.into())
             .next_and_last()
-    }
-
-    fn node_parameter_depth(&self, statements: &Statements) -> Option<u64> {
-        let depth = statements
-            .query_values(self.clone(), Abstract::NODE_PARAMETER.into())
-            .next_and_last()?
-            .to_integer(statements)?;
-
-        u64::try_from(depth).ok()
-    }
-
-    fn node_literal(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Abstract::NODE_LITERAL.into())
-            .next_and_last()
-    }
-
-    fn node_function_self(&self, statements: &Statements) -> Option<u64> {
-        let depth = statements
-            .query_values(self.clone(), Abstract::NODE_FUNCTION_SELF.into())
-            .next_and_last()?
-            .to_integer(statements)?;
-
-        u64::try_from(depth).ok()
     }
 
     #[inline]
@@ -789,36 +752,6 @@ impl ObjectExt for Object {
             tag,
             value,
         })
-    }
-
-    fn statement_subject(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Object::Abstract(Abstract::STATEMENT_SUBJECT))
-            .next_and_last()
-    }
-
-    fn statement_tag(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Object::Abstract(Abstract::STATEMENT_TAG))
-            .next_and_last()
-    }
-
-    fn statement_value(&self, statements: &Statements) -> Option<Object> {
-        statements
-            .query_values(self.clone(), Object::Abstract(Abstract::STATEMENT_VALUE))
-            .next_and_last()
-    }
-
-    fn statement_form(&self, statements: &Statements) -> StatementForm {
-        let subject: ObjectForm = self.statement_subject(statements).into();
-        let tag: ObjectForm = self.statement_tag(statements).into();
-        let value: ObjectForm = self.statement_value(statements).into();
-
-        StatementForm {
-            subject,
-            tag,
-            value,
-        }
     }
 
     #[instrument(skip(statements), ret)]
@@ -881,14 +814,18 @@ impl ObjectExt for Object {
                     })
                     .transpose_into_fallible()
                     .collect::<Vec<_>>()
-                    .map(|mut properties| {
-                        ObjectOrSetValues::Object(Self::Composite(Composite::new(&mut properties)))
-                    })
-                    .unwrap_or_else(|(o, error)| {
-                        warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
+                    .map_or_else(
+                        |(o, error)| {
+                            warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                        ObjectOrSetValues::Object(Composite::Empty.into())
-                    }),
+                            ObjectOrSetValues::Object(Composite::Empty.into())
+                        },
+                        |mut properties| {
+                            ObjectOrSetValues::Object(Self::Composite(Composite::new(
+                                &mut properties,
+                            )))
+                        },
+                    ),
                 _ => ObjectOrSetValues::Object(self.clone()),
             },
         }
@@ -909,6 +846,7 @@ impl ObjectExt for Object {
     }
 
     #[instrument(skip(statements), ret)]
+    #[allow(clippy::too_many_lines)]
     fn evaluate(
         &self,
         statements: &Statements,
@@ -1080,15 +1018,14 @@ impl ObjectExt for Object {
                             })
                             .transpose_into_fallible()
                             .collect::<Vec<_>>()
-                            .map(|mut properties| {
-                                Object::Composite(Composite::new(&mut properties)).into()
-                            })
-                            .unwrap_or_else(|(o, error)| {
+                            .map_or_else(|(o, error)| {
                                 warn!(
                                     "invalid object {o:?} with error {error:?}; replacing with {{}}"
                                 );
 
                                 ObjectOrSetValues::Object(Object::Composite(Composite::Empty))
+                            }, |mut properties| {
+                                Object::Composite(Composite::new(&mut properties)).into()
                             });
 
                         evaluated.push(result);
@@ -1192,14 +1129,14 @@ impl ObjectExt for Object {
                             value,
                         }))
                         .into(),
-                    ))
+                    ));
                 }
                 Task::ToBoolean => {
                     let mut object = evaluated.pop().unwrap();
 
                     evaluated.push(ObjectOrSetValues::Object(
                         Composite::new_bool(object.is_truthy(statements)).into(),
-                    ))
+                    ));
                 }
                 Task::Equal => {
                     let right = evaluated.pop().unwrap().into_object();
@@ -1253,7 +1190,7 @@ impl ObjectExt for Object {
                     let right = evaluated.pop().unwrap().into_object();
                     let left = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(left.multiply(statements, &right).into())
+                    evaluated.push(left.multiply(statements, &right).into());
                 }
                 Task::Union => {
                     let right = evaluated.pop().unwrap();
@@ -1318,7 +1255,7 @@ impl ObjectExt for Object {
                     if let Some(inner) = set_values.next_and_last() {
                         evaluated.push(ObjectOrSetValues::Object(inner));
                     } else {
-                        tasks.push(Task::Eval(default))
+                        tasks.push(Task::Eval(default));
                     }
                 }
             }

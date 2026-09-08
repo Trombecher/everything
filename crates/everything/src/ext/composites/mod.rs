@@ -64,6 +64,11 @@ pub trait CompositeExt {
     /// ```
     fn new_set<const N: usize>(items: [Object; N]) -> Self;
 
+    /// Checks whether this composite is valid.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if it is not valid.
     fn is_valid(&self, statemets: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self;

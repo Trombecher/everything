@@ -2,7 +2,8 @@ use everything_objects::{Abstract, Composite, Object, Property};
 
 use crate::{
     base::BASE,
-    ext::{AbstractExt, ObjectExt},
+    ctx::EvaluationContext,
+    ext::ObjectExt,
     nodes::{BinaryNode, CallNode, IfNode, Node, QueryValuesNode},
 };
 
@@ -64,7 +65,7 @@ fn call() {
         f.call(
             &BASE,
             &[Object::Abstract(Abstract::ZERO).into()],
-            &mut Default::default()
+            &mut EvaluationContext::default()
         )
         .into_object(),
         Object::Abstract(Abstract::ZERO)
@@ -77,6 +78,7 @@ mod eval {
     use crate::{
         ObjectOrSetValues,
         base::BASE,
+        ctx::EvaluationContext,
         ext::{AbstractExt, CompositeExt, ObjectExt, PropertyExt},
         nodes::{BinaryNode, Node, QueryValuesNode},
     };
@@ -96,7 +98,7 @@ mod eval {
                     left: Composite::new_bool(left).into(),
                     right: Composite::new_bool(right).into()
                 }))
-                .evaluate(&BASE, &mut Default::default())
+                .evaluate(&BASE, &mut EvaluationContext::default())
                 .is_truthy(&BASE),
                 result
             );
@@ -118,7 +120,7 @@ mod eval {
                     left: Composite::new_bool(left).into(),
                     right: Composite::new_bool(right).into()
                 }))
-                .evaluate(&BASE, &mut Default::default())
+                .evaluate(&BASE, &mut EvaluationContext::default())
                 .is_truthy(&BASE),
                 result
             );
@@ -135,7 +137,7 @@ mod eval {
         for subject in subjects {
             assert_eq!(
                 Object::new_node(Node::Literal(subject.clone()))
-                    .evaluate(&BASE, &mut Default::default())
+                    .evaluate(&BASE, &mut EvaluationContext::default())
                     .into_object(),
                 subject
             );
@@ -146,7 +148,7 @@ mod eval {
     fn eval_count() {
         assert_eq!(
             Object::new_node(Node::Count(Composite::Empty.into()))
-                .evaluate(&BASE, &mut Default::default())
+                .evaluate(&BASE, &mut EvaluationContext::default())
                 .into_object(),
             Object::new_integer(0)
         );
@@ -159,7 +161,7 @@ mod eval {
                 ])
                 .into()
             ))))
-            .evaluate(&BASE, &mut Default::default())
+            .evaluate(&BASE, &mut EvaluationContext::default())
             .into_object(),
             Object::new_integer(2)
         );
@@ -177,7 +179,7 @@ mod eval {
                 .into(),
                 tag: Object::new_node(Node::Literal(Abstract::CONTAINS.into()))
             }))
-            .evaluate(&BASE, &mut Default::default())
+            .evaluate(&BASE, &mut EvaluationContext::default())
             .into_object(),
             Composite::new_set([Abstract::BIT_0.into(), Object::Abstract(Abstract::ZERO)]).into(),
         );
@@ -201,7 +203,7 @@ mod eval {
                     Object::Abstract(Abstract(1338))
                 ]
                 .map(ObjectOrSetValues::Object),
-                &mut Default::default(),
+                &mut EvaluationContext::default(),
             )
             .into_object(),
             Composite::new_set([
@@ -224,7 +226,7 @@ mod eval {
             ))));
 
             assert_eq!(
-                node.evaluate(&BASE, &mut Default::default())
+                node.evaluate(&BASE, &mut EvaluationContext::default())
                     .into_object()
                     .to_integer(&BASE),
                 Some(count as i128)
@@ -236,8 +238,8 @@ mod eval {
 
     #[test]
     fn multiply() {
-        let a = 543895;
-        let b = 9345125;
+        let a = 543_895;
+        let b = 9_345_125;
 
         let node = Object::new_node(Node::Multiply(BinaryNode {
             left: Object::new_node(Node::Literal(Object::new_integer(a))),
@@ -245,7 +247,7 @@ mod eval {
         }));
 
         assert_eq!(
-            node.evaluate(&BASE, &mut Default::default())
+            node.evaluate(&BASE, &mut EvaluationContext::default())
                 .into_object()
                 .to_integer(&BASE),
             Some(a * b)
@@ -255,20 +257,20 @@ mod eval {
     #[test]
     fn parameter_references() {
         let objects = [
-            Object::new_integer(3458349),
-            Abstract(58349580234958034).into(),
+            Object::new_integer(3_458_349),
+            Abstract(58_349_580_234_958_034).into(),
             Object::new_node(Node::Not(Composite::Empty.into())),
         ];
 
         let identity = Object::new_node(Node::Function(Object::new_node(Node::Parameter(0))));
 
-        for object in objects.iter() {
+        for object in &objects {
             assert_eq!(
                 &identity
                     .call(
                         &BASE,
                         &[ObjectOrSetValues::Object(object.clone())],
-                        &mut Default::default()
+                        &mut EvaluationContext::default()
                     )
                     .into_object(),
                 &object.clone()
@@ -281,8 +283,8 @@ mod eval {
             out_of_scope
                 .call(
                     &BASE,
-                    &[ObjectOrSetValues::Object(Abstract(348593485934).into())],
-                    &mut Default::default()
+                    &[ObjectOrSetValues::Object(Abstract(348_593_485_934).into())],
+                    &mut EvaluationContext::default()
                 )
                 .into_object(),
             Object::Composite(Composite::Empty)
@@ -292,22 +294,22 @@ mod eval {
             Node::Function(Object::new_node(Node::Parameter(1))),
         )));
 
-        for object in objects.iter() {
+        for object in &objects {
             let constant = capture_to_constant
                 .call(
                     &BASE,
                     &[ObjectOrSetValues::Object(object.clone())],
-                    &mut Default::default(),
+                    &mut EvaluationContext::default(),
                 )
                 .into_object();
 
-            for other in objects.iter() {
+            for other in &objects {
                 assert_eq!(
                     &constant
                         .call(
                             &BASE,
                             &[ObjectOrSetValues::Object(other.clone())],
-                            &mut Default::default()
+                            &mut EvaluationContext::default()
                         )
                         .into_object(),
                     &object.clone()
@@ -353,7 +355,7 @@ fn factorial() {
                 .call(
                     &BASE,
                     &[Object::new_integer(input).into()],
-                    &mut Default::default()
+                    &mut EvaluationContext::default()
                 )
                 .into_object(),
             Object::new_integer(output)

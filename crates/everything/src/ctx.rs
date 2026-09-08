@@ -16,6 +16,8 @@ pub struct EvaluationContext {
 }
 
 impl EvaluationContext {
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn function_context(&self, relative_depth: usize) -> Option<&FunctionContext> {
         self.stack
             .len()

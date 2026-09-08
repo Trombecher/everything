@@ -11,7 +11,7 @@ use crate::{
     statements::{Statement, Statements},
 };
 
-fn common_unique_constraint_expression(tag: Object, parameter_depth: u64) -> Object {
+fn common_unique_constraint_expression(tag: Object, parameter_depth: u32) -> Object {
     Object::new_node(Node::Equal(BinaryNode {
         left: Object::new_integer(1),
         right: Object::new_node(Node::Count(Object::new_node(Node::QueryValues(
@@ -32,7 +32,7 @@ fn common_unique_constraint_expression(tag: Object, parameter_depth: u64) -> Obj
 /// ```plain
 /// ... |-> count query {(@4, $parameter_at_depth), (@5, tag)} == 1
 /// ```
-fn unique_constraint_for(tag: Object, parameter_depth: u64) -> Object {
+fn unique_constraint_for(tag: Object, parameter_depth: u32) -> Object {
     Object::new_node(Node::Function(common_unique_constraint_expression(
         tag,
         parameter_depth,

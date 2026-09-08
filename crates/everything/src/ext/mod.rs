@@ -1,4 +1,4 @@
-//! Extension traits and implementations [AbstractExt], [ObjectExt], [PropertyExt], and [StructureExt].
+//! Extension traits and implementations [`AbstractExt`], [`ObjectExt`], [`PropertyExt`], and [`StructureExt`].
 
 mod abstracts;
 mod composites;

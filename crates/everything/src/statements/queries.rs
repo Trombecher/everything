@@ -76,6 +76,12 @@ pub enum QueryValues {
     Composite(CompositeValues),
 }
 
+impl core::fmt::Debug for QueryValues {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_set().entries(self.clone()).finish()
+    }
+}
+
 impl Iterator for QueryValues {
     type Item = Object;
 
