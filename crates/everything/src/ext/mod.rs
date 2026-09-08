@@ -11,12 +11,3 @@ pub use composites::*;
 pub(crate) use iter::*;
 pub use objects::*;
 pub use properties::*;
-
-use everything_objects::Object;
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct SimpleStatement {
-    pub subject: Object,
-    pub tag: Object,
-    pub value: Object,
-}

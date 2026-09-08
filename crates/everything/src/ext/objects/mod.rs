@@ -8,15 +8,13 @@ use tracing::{debug, instrument, warn};
 use crate::{
     ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
-    ext::{
-        AbstractExt, CompositeExt, KnowledgeError, SimpleStatement, iter::IteratorExtNextAndLast,
-    },
+    ext::{AbstractExt, CompositeExt, KnowledgeError, iter::IteratorExtNextAndLast},
     nodes::{
         BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, QueryExistsNode,
         QuerySubjectsAndTagsNode, QuerySubjectsAndValuesNode, QuerySubjectsNode,
         QueryTagsAndValuesNode, QueryTagsNode, QueryValuesNode, Task, UnwrapOrNode,
     },
-    statements::{QueryValues, Statements},
+    statements::{QueryValues, SimpleStatement, Statements},
 };
 
 /// An extension trait implemented for [`Object`], providing many useful functions.

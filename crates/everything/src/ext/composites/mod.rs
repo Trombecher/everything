@@ -69,7 +69,7 @@ pub trait CompositeExt {
     /// # Errors
     ///
     /// This function will return an error if it is not valid.
-    fn is_valid(&self, statemets: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
+    fn is_valid(&self, knowledge: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self;
 

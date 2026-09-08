@@ -1,7 +1,10 @@
 mod abstract_iters;
 mod queries;
 
+use std::hash::Hash;
+
 pub use abstract_iters::*;
+use equivalent::Equivalent;
 use imbl::{HashMap, HashSet};
 pub use queries::*;
 
@@ -14,14 +17,56 @@ use crate::{
     base::BASE,
     ctx::EvaluationContext,
     ext::{
-        AbstractExt, IteratorExtNextAndLast, KnowledgeError, ObjectExt, ObjectForm, PropertyExt,
-        SimpleStatement, StatementForm,
+        AbstractExt, CompositeExt, IteratorExtNextAndLast, KnowledgeError, ObjectExt, ObjectForm,
+        PropertyExt, StatementForm,
     },
 };
 
+/// A statement with additional data being omitted.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SimpleStatement {
+    pub subject: Object,
+    pub tag: Object,
+    pub value: Object,
+}
+
+impl From<Statement> for SimpleStatement {
+    fn from(value: Statement) -> Self {
+        Self {
+            subject: value.subject.into(),
+            tag: value.tag,
+            value: value.value,
+        }
+    }
+}
+
+/// Indicates that a statement is to be removed.
+pub struct RemoveStatement(pub Statement);
+
+impl Equivalent<IndexedStatementProperty> for RemoveStatement {
+    fn equivalent(&self, key: &IndexedStatementProperty) -> bool {
+        self.0.tag == key.tag
+            && self.0.value == key.value
+            && self.0.additional_properties == key.additional_properties
+    }
+}
+
+impl Hash for RemoveStatement {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Same hash as IndexedStatementProperty
+        self.0.tag.hash(state);
+        self.0.value.hash(state);
+        self.0.additional_properties.hash(state);
+    }
+}
+
+/// A statement.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Statement {
     pub subject: Abstract,
-    pub property: StatementProperty,
+    pub tag: Object,
+    pub value: Object,
+    pub additional_properties: Composite,
 }
 
 impl Statement {
@@ -30,57 +75,72 @@ impl Statement {
     pub fn new(subject: Abstract, tag: Object, value: Object) -> Self {
         Self {
             subject,
-            property: StatementProperty {
-                tag,
-                value,
-                additional_properties: Composite::Empty,
-            },
+            tag,
+            value,
+            additional_properties: Composite::Empty,
         }
     }
 
     #[must_use]
-    pub fn to_composite(&self) -> Composite {
-        self.property.additional_properties.add(&mut [
+    pub fn into_composite(self) -> Composite {
+        self.additional_properties.add(&mut [
             Property::new_statement_subject(Object::Abstract(self.subject)),
-            Property::new_statement_tag(self.property.tag.clone()),
-            Property::new_statement_value(self.property.value.clone()),
+            Property::new_statement_tag(self.tag),
+            Property::new_statement_value(self.value),
         ])
+    }
+
+    #[must_use]
+    pub fn to_composite(&self) -> Composite {
+        self.additional_properties.add(&mut [
+            Property::new_statement_subject(Object::Abstract(self.subject)),
+            Property::new_statement_tag(self.tag.clone()),
+            Property::new_statement_value(self.value.clone()),
+        ])
+    }
+
+    fn split(self) -> (Abstract, IndexedStatementProperty) {
+        (
+            self.subject,
+            IndexedStatementProperty {
+                additional_properties: self.additional_properties,
+                tag: self.tag,
+                value: self.value,
+            },
+        )
     }
 }
 
-impl From<Statement> for SimpleStatement {
+impl From<Statement> for Composite {
     fn from(value: Statement) -> Self {
-        Self {
-            subject: value.subject.into(),
-            tag: value.property.tag,
-            value: value.property.value,
-        }
+        value.to_composite()
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct StatementProperty {
-    pub tag: Object,
-    pub value: Object,
-    pub additional_properties: Composite,
+struct IndexedStatementProperty {
+    tag: Object,
+    value: Object,
+    additional_properties: Composite,
 }
 
-impl From<StatementProperty> for Property {
-    fn from(statement_property: StatementProperty) -> Self {
-        Self {
-            tag: statement_property.tag,
-            value: statement_property.value,
+impl From<IndexedStatementProperty> for Property {
+    fn from(property: IndexedStatementProperty) -> Self {
+        Property {
+            tag: property.tag,
+            value: property.value,
         }
     }
 }
 
-pub(crate) type IndexedStatements =
-    <HashMap<Abstract, HashSet<StatementProperty>> as IntoIterator>::IntoIter;
+type IndexedStatements =
+    <HashMap<Abstract, HashSet<IndexedStatementProperty>> as IntoIterator>::IntoIter;
 
+/// A set of statements. This may contain invalid knowledge. Use [`Self::is_knowledge`] to validate.
 #[derive(Default, Clone)]
 pub struct Statements {
     /// Statements indexed by subject. Every set is non empty.
-    indexed_statements: HashMap<Abstract, HashSet<StatementProperty>>,
+    indexed_statements: HashMap<Abstract, HashSet<IndexedStatementProperty>>,
 }
 
 impl Statements {
@@ -203,52 +263,51 @@ impl Statements {
     }
 
     #[allow(clippy::missing_panics_doc)]
-    pub fn change_mut<
-        'a,
-        Remove: Iterator<Item = &'a Statement>,
-        Add: Iterator<Item = Statement>,
-    >(
-        &mut self,
-        remove_statements: Remove,
-        add_statements: Add,
-    ) {
-        for statement in remove_statements {
-            let Some(properties_of_abstract) = self.indexed_statements.get_mut(&statement.subject)
+    pub fn add_mut(&mut self, statements: impl Iterator<Item = Statement>) {
+        for (subject, property) in statements.map(Statement::split) {
+            if !self.indexed_statements.contains_key(&subject) {
+                self.indexed_statements.insert(subject, HashSet::default());
+            }
+
+            // This will not panic.
+            let properties_of_abstract = self.indexed_statements.get_mut(&subject).unwrap();
+
+            properties_of_abstract.insert(property);
+        }
+    }
+
+    /// Create a new revision with these statements added.
+    #[must_use]
+    pub fn add(&self, statements: impl Iterator<Item = Statement>) -> Self {
+        let mut this = self.clone();
+        this.add_mut(statements);
+        this
+    }
+
+    pub fn remove_mut<'a>(&mut self, statements: impl Iterator<Item = &'a RemoveStatement>) {
+        for statement in statements {
+            let Some(properties_of_abstract) =
+                self.indexed_statements.get_mut(&statement.0.subject)
             else {
                 // Nothing to remove.
 
                 continue;
             };
 
-            properties_of_abstract.remove(&statement.property);
+            properties_of_abstract.remove(statement);
 
             if properties_of_abstract.is_empty() {
                 // Set is empty -> remove map entry.
 
-                self.indexed_statements.remove(&statement.subject);
+                self.indexed_statements.remove(&statement.0.subject);
             }
-        }
-
-        for statement in add_statements {
-            if !self.indexed_statements.contains_key(&statement.subject) {
-                self.indexed_statements
-                    .insert(statement.subject, HashSet::default());
-            }
-
-            let properties_of_abstract =
-                self.indexed_statements.get_mut(&statement.subject).unwrap();
-            properties_of_abstract.insert(statement.property);
         }
     }
 
     #[must_use]
-    pub fn change<'a, Remove: Iterator<Item = &'a Statement>, Add: Iterator<Item = Statement>>(
-        &self,
-        remove_statements: Remove,
-        add_statements: Add,
-    ) -> Self {
+    pub fn remove<'a>(&self, statements: impl Iterator<Item = &'a RemoveStatement>) -> Self {
         let mut this = self.clone();
-        this.change_mut(remove_statements, add_statements);
+        this.remove_mut(statements);
         this
     }
 
@@ -268,13 +327,13 @@ impl Statements {
 
         for statement in self.iter_owned() {
             let Some(constraint_function) = self
-                .query_values(statement.property.tag.clone(), Abstract::AXIOMATIC.into())
+                .query_values(statement.tag.clone(), Abstract::AXIOMATIC.into())
                 .next_and_last()
             else {
                 // Tag must be axiomatic (!)
 
                 return Err(KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
-                    subject: ObjectForm::Specific(statement.property.tag.clone()),
+                    subject: ObjectForm::Specific(statement.tag.clone()),
                     tag: ObjectForm::Specific(Abstract::AXIOMATIC.into()),
                     value: ObjectForm::Any,
                 }));
@@ -282,11 +341,8 @@ impl Statements {
 
             let mut result = constraint_function.call(
                 self,
-                &[
-                    Object::Abstract(statement.subject),
-                    statement.property.value.clone(),
-                ]
-                .map(ObjectOrSetValues::Object),
+                &[Object::Abstract(statement.subject), statement.value.clone()]
+                    .map(ObjectOrSetValues::Object),
                 &mut EvaluationContext::default(),
             );
 
@@ -294,13 +350,16 @@ impl Statements {
             if !result.is_truthy(self) {
                 return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
                     subject: statement.subject.into(),
-                    tag: statement.property.tag,
-                    value: statement.property.value,
+                    tag: statement.tag,
+                    value: statement.value,
                 });
             }
         }
 
-        // TODO: check all composites.
+        // Maybe this does not have to be owned.
+        for statement in self.iter_owned() {
+            statement.into_composite().is_valid(self, true)?;
+        }
 
         Ok(())
     }
@@ -316,6 +375,8 @@ impl Statements {
 
 impl<T: IntoIterator<Item = Statement>> From<T> for Statements {
     fn from(value: T) -> Self {
-        Self::new().change([].into_iter(), value.into_iter())
+        let mut this = Self::new();
+        this.add_mut(value.into_iter());
+        this
     }
 }

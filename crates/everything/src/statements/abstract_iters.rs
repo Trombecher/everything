@@ -1,9 +1,10 @@
 use everything_objects::{Object, Property};
 use imbl::HashSet;
 
-use crate::statements::StatementProperty;
+use crate::statements::IndexedStatementProperty;
 
-pub(crate) type AbstractExtendedProperties = <HashSet<StatementProperty> as IntoIterator>::IntoIter;
+pub(super) type AbstractExtendedProperties =
+    <HashSet<IndexedStatementProperty> as IntoIterator>::IntoIter;
 
 #[derive(Clone)]
 pub struct AbstractProperties {

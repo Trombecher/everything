@@ -243,7 +243,9 @@ impl Iterator for StatementsIter {
             if let Some(property) = properties.next() {
                 return Some(Statement {
                     subject: *subject,
-                    property,
+                    tag: property.tag,
+                    value: property.value,
+                    additional_properties: property.additional_properties,
                 });
             }
 
@@ -258,7 +260,12 @@ impl Iterator for StatementsIter {
                 // This should happen immediately, since the sets are non-empty.
                 self.current_subject_with_properties = Some((subject, properties_iter));
 
-                return Some(Statement { subject, property });
+                return Some(Statement {
+                    subject,
+                    additional_properties: property.additional_properties,
+                    tag: property.tag,
+                    value: property.value,
+                });
             }
         }
 

@@ -2,6 +2,7 @@
 mod tests;
 
 use base64::Engine;
+use everything::statements::Statements;
 use everything_objects::{Abstract, BytesComposite, Composite, Object, Property, TextComposite};
 
 use crate::bytes::Bytes;
@@ -36,7 +37,7 @@ impl<'source> Parser<'source> {
         }
     }
 
-    pub fn parse_root(&mut self) -> Result<Object, Error> {
+    pub fn parse_root(&mut self) -> Result<Statements, Error> {
         if Some(*b"EVERYTHINGTS001\n") != self.bytes.next_chunk::<16>().ok() {
             bail!(self.bytes.index(), "invalid header")
         }
