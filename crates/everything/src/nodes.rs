@@ -113,6 +113,8 @@ pub enum Node {
     Multiply(BinaryNode),
     Call(CallNode),
     IsAbstract(Object),
+    // Please also add new nodes to the array of nodes
+    // in the tests (function `node_parsing()`).
 }
 
 #[derive(Debug)]
