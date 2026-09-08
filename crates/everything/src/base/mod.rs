@@ -399,5 +399,25 @@ pub static BASE: LazyLock<Statements> = LazyLock::new(|| {
             Abstract::AXIOMATIC.into(),
             unique_constraint_for(Abstract::NODE_CALL_WITH.into(), 0),
         ),
+        Statement::new(
+            Abstract::NODE_EVERY_SET,
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_EVERY_SET.into(), 0),
+        ),
+        Statement::new(
+            Abstract::NODE_EVERY_PREDICATE,
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_EVERY_PREDICATE.into(), 0),
+        ),
+        Statement::new(
+            Abstract::NODE_ANY_SET,
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_ANY_SET.into(), 0),
+        ),
+        Statement::new(
+            Abstract::NODE_ANY_PREDICATE,
+            Abstract::AXIOMATIC.into(),
+            unique_constraint_for(Abstract::NODE_ANY_PREDICATE.into(), 0),
+        ),
     ])
 });
