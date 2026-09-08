@@ -5,10 +5,8 @@
 pub mod base;
 pub mod ctx;
 pub mod ext;
-// mod knowledge;
 pub mod nodes;
 mod set_values;
 pub mod statements;
 
-// pub use knowledge::*;
 pub use set_values::*;

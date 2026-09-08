@@ -1,5 +1,8 @@
 use everything_objects::Object;
 
+/// A node that has a left and a right hand side.
+///
+/// Used for multiple things, such as comparisons.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BinaryNode {
     pub left: Object,

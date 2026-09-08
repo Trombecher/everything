@@ -64,6 +64,7 @@ impl std::fmt::Debug for CompositeSetValues {
     }
 }
 
+/// Either an object or an iterator over set values.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 pub enum ObjectOrSetValues {
@@ -127,6 +128,12 @@ impl ObjectOrSetValues {
     }
 }
 
+/// An iterator over the set values of an object.
+///
+/// Certain variants are lazy meaning they will contain nested iterators
+/// to prevent unnecessary allocations.
+///
+/// This iterator is not required to yield unique values.
 #[derive(Clone)]
 pub enum SetValues {
     /// Iterator over values of an object.
