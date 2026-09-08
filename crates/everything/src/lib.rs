@@ -4,11 +4,10 @@
 pub mod base;
 pub mod ctx;
 pub mod ext;
-mod knowledge;
+// mod knowledge;
 pub mod nodes;
-pub mod query;
 mod set_values;
 pub mod statements;
 
-pub use knowledge::*;
+// pub use knowledge::*;
 pub use set_values::*;

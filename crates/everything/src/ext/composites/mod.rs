@@ -9,7 +9,7 @@ use crate::{
     base::BASE,
     ctx::EvaluationContext,
     ext::{AbstractExt, ObjectExt, PropertyExt},
-    query::QueryValues,
+    statements::{self, Statements},
 };
 
 #[derive(PartialEq, Clone, Debug)]
@@ -67,7 +67,7 @@ pub trait CompositeExt {
 
     fn is_knowledge(&self) -> Result<(), KnowledgeError>;
 
-    fn is_valid(&self, knowledge: &Composite, recursive: bool) -> Result<(), KnowledgeError>;
+    fn is_valid(&self, statemets: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self;
 
@@ -83,20 +83,18 @@ impl CompositeExt for Composite {
         }
     }
 
-    #[instrument(skip(knowledge), ret)]
-    fn is_valid(&self, knowledge: &Composite, recursive: bool) -> Result<(), KnowledgeError> {
+    #[instrument(skip(statements), ret)]
+    fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError> {
         if self.any().is_none() {
             // All specializations are valid
             return Ok(());
         }
 
         for property in self.properties() {
-            let Some(constraint_function) = QueryValues::new(
-                knowledge,
-                property.tag.clone(),
-                Object::Abstract(Abstract::AXIOMATIC),
-            )
-            .next() else {
+            let Some(constraint_function) = statements
+                .query_values(property.tag.clone(), Object::Abstract(Abstract::AXIOMATIC))
+                .next()
+            else {
                 return Err(KnowledgeError::NeedsToBeTrueButIsFalse(StatementForm {
                     subject: ObjectForm::Specific(property.tag.clone()),
                     tag: ObjectForm::Specific(Object::Abstract(Abstract::AXIOMATIC)),
@@ -105,12 +103,12 @@ impl CompositeExt for Composite {
             };
 
             let mut result = constraint_function.call(
-                knowledge,
+                statements,
                 &[self.clone().into(), property.value.clone()].map(ObjectOrSetValues::Object),
                 &mut EvaluationContext::default(),
             );
 
-            if !result.is_truthy(knowledge) {
+            if !result.is_truthy(statements) {
                 return Err(KnowledgeError::ValueOnSubjectDoesNotMatchTagsConstraint {
                     subject: self.clone().into(),
                     tag: property.tag.clone(),
@@ -119,8 +117,8 @@ impl CompositeExt for Composite {
             }
 
             if recursive {
-                property.tag.is_valid(knowledge, true)?;
-                property.value.is_valid(knowledge, true)?;
+                property.tag.is_valid(statements, true)?;
+                property.value.is_valid(statements, true)?;
             }
         }
 

@@ -5,9 +5,9 @@ use everything_objects::{
 use crate::{
     ctx::EvaluationContext,
     ext::{ObjectExt, PropertyExt},
-    query::{
+    statements::{
         QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags, QueryTagsAndValues,
-        QueryValues, SubjectAndTag, SubjectAndValue,
+        QueryValues, Statements, SubjectAndTag, SubjectAndValue,
     },
 };
 
@@ -94,10 +94,10 @@ impl ObjectOrSetValues {
     /// Interprets the [`Self::AxiomaticQueryValues`] variant as an iterator
     /// over the set items and returns an iterator over set items.
     #[inline]
-    pub fn set_values(&self, knowledge: &Composite) -> SetValues {
+    pub fn set_values(&self, statements: &Statements) -> SetValues {
         match self {
             Self::SetValues(values) => values.clone(),
-            Self::Object(eager) => SetValues::QueryValues(eager.set_values(knowledge)),
+            Self::Object(eager) => SetValues::QueryValues(eager.set_values(statements)),
         }
     }
 
@@ -115,9 +115,9 @@ impl ObjectOrSetValues {
 
     /// Determines if `self` is "truthy", i.e. iff it has at
     /// least one property.
-    pub fn is_truthy(&mut self, knowledge: &Composite) -> bool {
+    pub fn is_truthy(&mut self, statements: &Statements) -> bool {
         match self {
-            ObjectOrSetValues::Object(object) => object.is_truthy(knowledge),
+            ObjectOrSetValues::Object(object) => object.is_truthy(statements),
             ObjectOrSetValues::SetValues(iter) => iter.next().is_some(),
         }
     }
@@ -148,7 +148,7 @@ pub enum SetValues {
 
     /// Maps every value of a given set with a mapper function.
     Map {
-        knowledge: Composite,
+        statements: Statements,
         set: Box<Self>,
         /// This function is captured.
         mapper_function: Object,
@@ -156,7 +156,7 @@ pub enum SetValues {
 
     /// Retains all values for that the filter function returns a truthy value.
     Filter {
-        knowledge: Composite,
+        statements: Statements,
         set: Box<Self>,
         /// This function is captured.
         filter_function: Object,
@@ -198,14 +198,14 @@ impl Iterator for SetValues {
         match self {
             Self::QueryValues(values) => values.next(),
             Self::Union { left, right } => left.next().or_else(|| right.next()),
-            Self::QuerySubjects(subjects) => subjects.next(),
+            Self::QuerySubjects(subjects) => subjects.next().map(Into::into),
             Self::QueryTags(tags) => tags.next(),
             Self::QuerySubjectsAndTags(subjects_and_tags) => {
                 subjects_and_tags
                     .next()
                     .map(|SubjectAndTag { subject, tag }| {
                         Composite::new(&mut [
-                            Property::new_statement_subject(subject),
+                            Property::new_statement_subject(Object::Abstract(subject)),
                             Property::new_statement_tag(tag),
                         ])
                         .into()
@@ -223,27 +223,27 @@ impl Iterator for SetValues {
             Self::QuerySubjectsAndValues(iter) => {
                 iter.next().map(|SubjectAndValue { subject, value }| {
                     Composite::new(&mut [
-                        Property::new_statement_subject(subject),
+                        Property::new_statement_subject(Object::Abstract(subject)),
                         Property::new_statement_value(value),
                     ])
                     .into()
                 })
             }
             Self::Map {
-                knowledge,
+                statements,
                 set,
                 mapper_function,
             } => set.next().map(|item| {
                 mapper_function
                     .call(
-                        knowledge,
+                        statements,
                         &[ObjectOrSetValues::Object(item)],
                         &mut EvaluationContext::default(),
                     )
                     .into_object()
             }),
             Self::Filter {
-                knowledge,
+                statements,
                 set,
                 filter_function,
             } => loop {
@@ -253,11 +253,11 @@ impl Iterator for SetValues {
 
                 if filter_function
                     .call(
-                        knowledge,
+                        statements,
                         &[ObjectOrSetValues::Object(item.clone())],
                         &mut Default::default(),
                     )
-                    .is_truthy(knowledge)
+                    .is_truthy(statements)
                 {
                     break Some(item);
                 }

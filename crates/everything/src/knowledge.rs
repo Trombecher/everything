@@ -3,7 +3,7 @@ use everything_objects::{Composite, Object};
 use crate::{
     ObjectOrSetValues,
     ext::{CompositeExt, KnowledgeError, ObjectExt},
-    query::{
+    statements::{
         QueryExists, QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags,
         QueryTagsAndValues, QueryValues,
     },

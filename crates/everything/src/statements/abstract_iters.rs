@@ -3,7 +3,7 @@ use imbl::HashSet;
 
 use crate::statements::StatementProperty;
 
-type AbstractExtendedProperties = <HashSet<StatementProperty> as IntoIterator>::IntoIter;
+pub(crate) type AbstractExtendedProperties = <HashSet<StatementProperty> as IntoIterator>::IntoIter;
 
 #[derive(Clone)]
 pub struct AbstractProperties {
