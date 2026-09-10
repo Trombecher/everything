@@ -1,13 +1,13 @@
 #![forbid(unsafe_code)]
 #![feature(slice_partition_dedup)]
+#![warn(clippy::pedantic)]
 
 pub mod base;
 pub mod ctx;
 pub mod ext;
-mod knowledge;
 pub mod nodes;
-pub mod query;
+pub(crate) mod optimization;
 mod set_values;
+pub mod statements;
 
-pub use knowledge::*;
 pub use set_values::*;

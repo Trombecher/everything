@@ -1,5 +1,10 @@
 use everything_objects::Object;
 
+use crate::ext::ObjectExt;
+
+/// A node that has a left and a right hand side.
+///
+/// Used for multiple things, such as comparisons.
 #[derive(Debug, PartialEq, Clone)]
 pub struct BinaryNode {
     pub left: Object,
@@ -35,8 +40,55 @@ pub struct UnwrapOrNode {
 pub struct CallNode {
     /// The function/node getting called
     pub callee: Object,
+
     /// A node for the parameter.
     pub with: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QueryExistsNode {
+    pub subject: Object,
+    pub tag: Object,
+    pub value: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QuerySubjectsNode {
+    pub tag: Object,
+    pub value: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QueryTagsNode {
+    pub subject: Object,
+    pub value: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QueryValuesNode {
+    pub subject: Object,
+    pub tag: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QueryTagsAndValuesNode {
+    pub subject: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QuerySubjectsAndValuesNode {
+    pub tag: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct QuerySubjectsAndTagsNode {
+    pub value: Object,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct PredicateNode {
+    pub set: Object,
+    pub predicate: Object,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -44,10 +96,17 @@ pub enum Node {
     Function(Object),
     Literal(Object),
     And(BinaryNode),
-    FunctionSelf(u64),
-    Parameter(u64),
+    FunctionSelf(u32),
+    Parameter(u32),
     Count(Object),
-    Query(Object),
+    QueryExists(QueryExistsNode),
+    QuerySubjects(QuerySubjectsNode),
+    QueryTags(QueryTagsNode),
+    QueryValues(QueryValuesNode),
+    QuerySubjectsAndTags(QuerySubjectsAndTagsNode),
+    QuerySubjectsAndValues(QuerySubjectsAndValuesNode),
+    QueryTagsAndValues(QueryTagsAndValuesNode),
+    Statements,
     Equal(BinaryNode),
     Or(BinaryNode),
     Xor(BinaryNode),
@@ -61,12 +120,24 @@ pub enum Node {
     UnwrapOr(UnwrapOrNode),
     Multiply(BinaryNode),
     Call(CallNode),
-    Knowledge,
+    IsAbstract(Object),
+    Every(PredicateNode),
+    Any(PredicateNode),
+    // Please also add new nodes to the array of nodes
+    // in the tests (function `node_parsing()`).
+}
+
+impl From<Node> for Object {
+    fn from(value: Node) -> Self {
+        ObjectExt::new_node(value)
+    }
 }
 
 #[derive(Debug)]
 pub enum Task {
-    Eval(Object),
+    Evaluate(Object),
+    PushLiteralTrue,
+    PushLiteralFalse,
     PartialAnd { right: Object },
     ToBoolean,
     Count,
@@ -86,9 +157,12 @@ pub enum Task {
     Union,
     Map,
     Filter,
+    Every,
+    Any,
     Less,
     PartialIf { then: Object, otherwise: Object },
     Call,
     PopContext,
     PartialUnwrapOr { default: Object },
+    IsAbstract,
 }

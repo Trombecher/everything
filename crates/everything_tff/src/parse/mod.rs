@@ -2,24 +2,24 @@
 mod tests;
 
 use base64::Engine;
+use everything::statements::Statements;
 use everything_objects::{Abstract, BytesComposite, Composite, Object, Property, TextComposite};
 
 use crate::bytes::Bytes;
 
-pub type Error = Box<ErrorInfo>;
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct ErrorInfo {
+#[derive(PartialEq, Debug, Clone, thiserror::Error)]
+#[error("error while parsing: expected '{expected}' at byte index {found_at}")]
+pub struct Error {
     pub found_at: usize,
     pub expected: &'static str,
 }
 
 macro_rules! bail {
     ($found_at:expr, $expected:literal) => {
-        return Err(Box::new(ErrorInfo {
+        return Err(Error {
             found_at: $found_at,
             expected: $expected,
-        }))
+        })
     };
 }
 
@@ -37,7 +37,7 @@ impl<'source> Parser<'source> {
         }
     }
 
-    pub fn parse_root(&mut self) -> Result<Object, Error> {
+    pub fn parse_root(&mut self) -> Result<Statements, Error> {
         if Some(*b"EVERYTHINGTS001\n") != self.bytes.next_chunk::<16>().ok() {
             bail!(self.bytes.index(), "invalid header")
         }
@@ -220,7 +220,7 @@ impl<'source> Parser<'source> {
         match composite.clone() {
             Composite::Text(text) => Ok(text),
             Composite::Bytes(bytes) => {
-                if let Ok(_) = str::from_utf8(bytes.as_ref()) {
+                if str::from_utf8(bytes.as_ref()).is_ok() {
                     let ret = unsafe { TextComposite::new_unchecked(bytes) };
                     *composite = Composite::Text(ret.clone());
 

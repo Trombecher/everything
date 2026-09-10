@@ -18,22 +18,16 @@ mod Object {
     }
 
     #[test]
-    fn exact_integer() {
-        assert_eq!(Object::Abstract(Abstract::ZERO).exact_integer(), Some(0));
+    fn integer() {
+        assert_eq!(Object::Abstract(Abstract::ZERO).integer(), Some(0));
+
+        assert_eq!(Object::Abstract(Abstract(347539486456)).integer(), None);
 
         assert_eq!(
-            Object::Abstract(Abstract(347539486456)).exact_integer(),
-            None
-        );
-
-        assert_eq!(
-            Object::Composite(Composite::Integer(NonZeroI128::new(10).unwrap())).exact_integer(),
+            Object::Composite(Composite::Integer(NonZeroI128::new(10).unwrap())).integer(),
             Some(10)
         );
 
-        assert_eq!(
-            Object::Composite(Composite::Character('x')).exact_integer(),
-            None
-        );
+        assert_eq!(Object::Composite(Composite::Character('x')).integer(), None);
     }
 }

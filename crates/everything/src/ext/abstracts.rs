@@ -1,6 +1,7 @@
 use everything_objects::Abstract;
 
-/// An extension to [Abstract], providing useful constants.
+/// An extension to [`Abstract`], providing useful constants.
+#[allow(clippy::unreadable_literal)]
 pub trait AbstractExt {
     /// Denotes that the subject is a _set_ that contains the associated value.
     const CONTAINS: Abstract = Abstract(2148623885993955829985846061169569945);
@@ -12,8 +13,7 @@ pub trait AbstractExt {
     /// `(S, T, V)`.
     const AXIOMATIC: Abstract = Abstract(2148623894085078740305997247889559475);
 
-    /// Denotes that the subject is a function. The associated value is the function
-    /// body.
+    /// Denotes the function body of a function.
     const FUNCTION: Abstract = Abstract(2148623901005465698003044719488417081);
 
     /// The _subject_ slot of a statement.
@@ -25,15 +25,15 @@ pub trait AbstractExt {
     /// The _value_ slot of a statement.
     const STATEMENT_VALUE: Abstract = Abstract(2148623924076051576854508924514462036);
 
-    /// A function that checks if the input object is knowledge.
-    const KNOWLEDGE: Abstract = Abstract(2148623940012028447614031237706438049);
-
     const NODE_LITERAL: Abstract = Abstract(2148623946948209931514052368378168923);
     const NODE_AND_LEFT: Abstract = Abstract(2148623952614130968570357528352754483);
     const NODE_AND_RIGHT: Abstract = Abstract(2150546484857217536175129940420364334);
     const NODE_PARAMETER: Abstract = Abstract(2148623964016728126166347458070520202);
     const NODE_COUNT: Abstract = Abstract(2148623971839749022702961541901456532);
-    const NODE_QUERY: Abstract = Abstract(2148623977746529761395662089576479852);
+    const NODE_QUERY_SUBJECT: Abstract = Abstract(2148623977746529761395662089576479853); // TODO: regen
+    const NODE_QUERY_TAG: Abstract = Abstract(2148623977746529761395662089576479854); // TODO: regen
+    const NODE_QUERY_VALUE: Abstract = Abstract(2148623977746529761395662089576479855); // TODO: regen
+    const NODE_STATEMENTS: Abstract = Abstract(2148623977746529761395662089576479856); // TODO: regen
     const NODE_EQUAL_LEFT: Abstract = Abstract(2148623984105467336671475554302291443);
     const NODE_EQUAL_RIGHT: Abstract = Abstract(2150546540588687321716707989954282134);
     const NODE_OR_LEFT: Abstract = Abstract(2148623991617605004082324671379584752);
@@ -48,6 +48,10 @@ pub trait AbstractExt {
     const NODE_UNION_RIGHT: Abstract = Abstract(2150602676477464422271577313769115263);
     const NODE_MAP_SET: Abstract = Abstract(2150755705084816915741037497738372617);
     const NODE_MAP_MAPPER: Abstract = Abstract(2150755713297709286586583523030939076);
+    const NODE_EVERY_SET: Abstract = Abstract(2150755705084816915741037497738372618); // TODO: regen this
+    const NODE_EVERY_PREDICATE: Abstract = Abstract(2150755705084816915741037497738372619); // TODO: regen this
+    const NODE_ANY_SET: Abstract = Abstract(2150755705084816915741037497738372632); // TODO: regen this
+    const NODE_ANY_PREDICATE: Abstract = Abstract(2150755705084816915741037497738372633); // TODO: regen this
     const NODE_FILTER_SET: Abstract = Abstract(2150755714608308122129968313720999578);
     const NODE_FILTER_FILTER: Abstract = Abstract(2150755715328094057860222292607728283);
     const NODE_LESS_LEFT: Abstract = Abstract(2150755802916608365774567517427204904);
@@ -61,9 +65,7 @@ pub trait AbstractExt {
     const NODE_MULTIPLY_RIGHT: Abstract = Abstract(2150955291897679523990373018161137292);
     const NODE_CALL_CALLEE: Abstract = Abstract(2150967257692765401288058191156339282);
     const NODE_CALL_WITH: Abstract = Abstract(2150967257692538503396115970645049110);
-
-    /// A node that resolves to the knowledge structure.
-    const NODE_KNOWLEDGE: Abstract = Abstract(2151276264541937640181087051018499973);
+    const NODE_IS_ABSTRACT: Abstract = Abstract(2150967257692538503396115970645049111); // TODO: regen this
 
     /// Denotes that a computation arithmetically overflowed.
     const ARITHMETIC_OVERFLOW: Abstract = Abstract(2150546596946485525298114723305118383);

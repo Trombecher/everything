@@ -8,61 +8,48 @@ use tracing::{debug, instrument, warn};
 use crate::{
     ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
-    ext::{
-        AbstractExt, CompositeExt, KnowledgeError, ObjectForm, PropertyExt, Statement,
-        StatementForm, iter::IteratorExtNextAndLast,
+    ext::{AbstractExt, CompositeExt, KnowledgeError, iter::IteratorExtNextAndLast},
+    nodes::{
+        BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, PredicateNode, QueryExistsNode,
+        QuerySubjectsAndTagsNode, QuerySubjectsAndValuesNode, QuerySubjectsNode,
+        QueryTagsAndValuesNode, QueryTagsNode, QueryValuesNode, Task, UnwrapOrNode,
     },
-    nodes::{BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, Task, UnwrapOrNode},
-    query::{
-        QueryExists, QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags,
-        QueryTagsAndValues, QueryValues,
-    },
+    optimization::OPTIMIZED_FUNCTIONS,
+    statements::{QueryValues, SimpleStatement, Statements},
 };
 
 /// An extension trait implemented for [`Object`], providing many useful functions.
 pub trait ObjectExt {
-    /// Extracts the first (and last) [Abstract::NODE_COUNT] from `self`.
-    fn node_count(&self, knowledge: &Composite) -> Option<Object>;
-
-    /// Extracts the first (and last) [Abstract::FUNCTION] from `self`.
-    fn function_body(&self, knowledge: &Composite) -> Option<Object>;
-
-    fn node_equal(&self, knowledge: &Composite) -> Option<BinaryNode>;
-
-    fn node_and(&self, knowledge: &Composite) -> Option<BinaryNode>;
-
-    fn node_or(&self, knowledge: &Composite) -> Option<BinaryNode>;
-
-    fn node_add(&self, knowledge: &Composite) -> Option<BinaryNode>;
-
-    fn node_xor(&self, knowledge: &Composite) -> Option<BinaryNode>;
-
-    fn node_union(&self, knowledge: &Composite) -> Option<BinaryNode>;
+    /// Extracts the first (and last) [`Abstract::FUNCTION`] from `self`.
+    fn node_function_body(&self, statements: &Statements) -> Option<Object>;
 
     fn capture(
         &self,
-        knowledge: &Composite,
+        statements: &Statements,
         additional_depth: usize,
         ctx: &EvaluationContext,
     ) -> ObjectOrSetValues;
 
-    /// Evaluates `self` under the given knowledge and evaluation context
+    /// Evaluates `self` under the given statements and evaluation context
     /// by reducing expressions.
     ///
     /// If you don't know what to pass into the context, pass
     /// `&mut Default::default()`.
-    fn evaluate(&self, knowledge: &Composite, context: &mut EvaluationContext)
-    -> ObjectOrSetValues;
+    fn evaluate(
+        &self,
+        statements: &Statements,
+        context: &mut EvaluationContext,
+    ) -> ObjectOrSetValues;
 
     /// Parses a node from `self`.
-    fn node(&self, knowledge: &Composite) -> Option<Node>;
+    fn node(&self, statements: &Statements) -> Option<Node>;
 
     /// Returns an iterator over all set items.
-    fn set_values(&self, knowledge: &Composite) -> QueryValues;
+    fn set_values(&self, statements: &Statements) -> QueryValues;
 
     fn composite(&self) -> Option<&Composite>;
 
-    fn is_truthy(&self, knowledge: &Composite) -> bool;
+    fn is_truthy(&self, statements: &Statements) -> bool;
 
     /// Calls `self` with a list of parameters.
     /// If none are provided, `self` will just be evaluated.
@@ -70,83 +57,43 @@ pub trait ObjectExt {
     /// Note that it does not evaluate any parameters.
     fn call(
         &self,
-        knowledge: &Composite,
+        statements: &Statements,
         parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
     ) -> ObjectOrSetValues;
 
-    fn to_integer(&self, knowledge: &Composite) -> Option<i128>;
+    /// Checks whether this object is valid.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if it is not valid.
+    fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
 
-    fn node_parameter_depth(&self, knowledge: &Composite) -> Option<u64>;
-
-    fn node_literal(&self, knowledge: &Composite) -> Option<Object>;
-
-    fn statement_subject(&self, knowledge: &Composite) -> Option<Object>;
-    fn statement_tag(&self, knowledge: &Composite) -> Option<Object>;
-    fn statement_value(&self, knowledge: &Composite) -> Option<Object>;
-
-    fn statement_form(&self, knowledge: &Composite) -> StatementForm;
-
-    fn node_query(&self, knowledge: &Composite) -> Option<Object>;
-
-    fn is_valid(&self, knowledge: &Composite, recursive: bool) -> Result<(), KnowledgeError>;
-
-    fn is_natural_number(&self, knowledge: &Composite) -> bool;
-    fn node_map(&self, knowledge: &Composite) -> Option<MapNode>;
-    fn node_filter(&self, knowledge: &Composite) -> Option<FilterNode>;
-    fn node_multiply(&self, knowledge: &Composite) -> Option<BinaryNode>;
-
-    fn add(&self, knowledge: &Composite, other: &Object) -> Object;
-
-    fn node_function_self(&self, knowledge: &Composite) -> Option<u64>;
-
-    fn node_not(&self, knowledge: &Composite) -> Option<Object>;
+    fn add(&self, other: &Object) -> Object;
 
     /// Parses a binary node by querying (axiomatically)
     /// for `left_tag` and `right_tag`.
     fn binary_node(
         &self,
-        knowledge: &Composite,
+        statements: &Statements,
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode>;
-    fn node_unwrap_or(&self, knowledge: &Composite) -> Option<UnwrapOrNode>;
 
-    fn node_if(&self, knowledge: &Composite) -> Option<IfNode>;
-
-    fn node_less(&self, knowledge: &Composite) -> Option<BinaryNode>;
-    fn node_call(&self, knowledge: &Composite) -> Option<CallNode>;
-
-    fn intrinsic_statement_subject(&self) -> Option<Object>;
-
-    fn intrinsic_statement_tag(&self) -> Option<Object>;
-
-    fn intrinsic_statement_value(&self) -> Option<Object>;
-
-    fn intrinsic_statement(&self) -> Option<Statement>;
-
-    fn multiply(&self, knowledge: &Composite, other: &Object) -> Object;
+    fn multiply(&self, other: &Object) -> Object;
 
     fn new_node(node: Node) -> Self;
-
-    /// Creates a new query node, set up for value querying.
-    fn new_node_query_values(subject: Object, tag: Object) -> Self;
 }
 
 impl ObjectExt for Object {
-    fn new_node_query_values(subject: Object, tag: Object) -> Self {
-        Self::new_node(Node::Query(
-            Composite::new(&mut [
-                Property::new_statement_subject(subject),
-                Property::new_statement_tag(tag),
-            ])
-            .into(),
-        ))
-    }
-
+    #[allow(clippy::too_many_lines)]
     fn new_node(node: Node) -> Self {
         match node {
-            Node::Knowledge => Abstract::NODE_KNOWLEDGE.into(),
+            Node::IsAbstract(inner) => Composite::new(&mut [Property {
+                tag: Abstract::NODE_IS_ABSTRACT.into(),
+                value: inner,
+            }])
+            .into(),
             Node::Call(CallNode { callee, with }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_CALL_CALLEE.into(),
@@ -181,12 +128,12 @@ impl ObjectExt for Object {
             .into(),
             Node::FunctionSelf(depth) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_FUNCTION_SELF.into(),
-                value: Object::new_integer(depth as i128),
+                value: Object::new_integer(i128::from(depth)),
             }])
             .into(),
             Node::Parameter(depth) => Composite::new(&mut [Property {
                 tag: Abstract::NODE_PARAMETER.into(),
-                value: Object::new_integer(depth as i128),
+                value: Object::new_integer(i128::from(depth)),
             }])
             .into(),
             Node::Count(object) => Composite::new(&mut [Property {
@@ -194,11 +141,70 @@ impl ObjectExt for Object {
                 value: object,
             }])
             .into(),
-            Node::Query(query) => Composite::new(&mut [Property {
-                tag: Abstract::NODE_QUERY.into(),
-                value: query,
+            Node::QueryExists(exists) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_QUERY_SUBJECT.into(),
+                    value: exists.subject,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_TAG.into(),
+                    value: exists.tag,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_VALUE.into(),
+                    value: exists.value,
+                },
+            ])
+            .into(),
+            Node::QuerySubjects(subjects) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_QUERY_TAG.into(),
+                    value: subjects.tag,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_VALUE.into(),
+                    value: subjects.value,
+                },
+            ])
+            .into(),
+            Node::QueryTags(query) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_QUERY_SUBJECT.into(),
+                    value: query.subject,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_VALUE.into(),
+                    value: query.value,
+                },
+            ])
+            .into(),
+            Node::QueryValues(query) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_QUERY_SUBJECT.into(),
+                    value: query.subject,
+                },
+                Property {
+                    tag: Abstract::NODE_QUERY_TAG.into(),
+                    value: query.tag,
+                },
+            ])
+            .into(),
+            Node::QuerySubjectsAndTags(query) => Composite::new(&mut [Property {
+                tag: Abstract::NODE_QUERY_VALUE.into(),
+                value: query.value,
             }])
             .into(),
+            Node::QueryTagsAndValues(query) => Composite::new(&mut [Property {
+                tag: Abstract::NODE_QUERY_SUBJECT.into(),
+                value: query.subject,
+            }])
+            .into(),
+            Node::QuerySubjectsAndValues(query) => Composite::new(&mut [Property {
+                tag: Abstract::NODE_QUERY_TAG.into(),
+                value: query.tag,
+            }])
+            .into(),
+            Node::Statements => Abstract::NODE_STATEMENTS.into(),
             Node::Equal(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_EQUAL_LEFT.into(),
@@ -287,6 +293,28 @@ impl ObjectExt for Object {
                 },
             ])
             .into(),
+            Node::Every(PredicateNode { set, predicate }) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_EVERY_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_EVERY_PREDICATE.into(),
+                    value: predicate,
+                },
+            ])
+            .into(),
+            Node::Any(PredicateNode { set, predicate }) => Composite::new(&mut [
+                Property {
+                    tag: Abstract::NODE_ANY_SET.into(),
+                    value: set,
+                },
+                Property {
+                    tag: Abstract::NODE_ANY_PREDICATE.into(),
+                    value: predicate,
+                },
+            ])
+            .into(),
             Node::Less(BinaryNode { left, right }) => Composite::new(&mut [
                 Property {
                     tag: Abstract::NODE_LESS_LEFT.into(),
@@ -342,26 +370,8 @@ impl ObjectExt for Object {
         }
     }
 
-    fn is_natural_number(&self, knowledge: &Composite) -> bool {
-        if self.exact_integer().is_some() {
-            // Fast path of exact natural numbers.
-            return true;
-        }
-
-        let mut successor_of =
-            QueryValues::new(knowledge, self.clone(), Abstract::SUCCESSOR_OF.into());
-
-        if let Some(first) = successor_of.next()
-            && successor_of.next().is_none()
-        {
-            first.is_natural_number(knowledge)
-        } else {
-            false
-        }
-    }
-
-    fn set_values(&self, knowledge: &Composite) -> QueryValues {
-        QueryValues::new(knowledge, self.clone(), Abstract::CONTAINS.into())
+    fn set_values(&self, statements: &Statements) -> QueryValues {
+        statements.query_values(self.clone(), Abstract::CONTAINS.into())
     }
 
     fn composite(&self) -> Option<&Composite> {
@@ -371,106 +381,31 @@ impl ObjectExt for Object {
         }
     }
 
-    fn is_truthy(&self, knowledge: &Composite) -> bool {
-        self.set_values(knowledge).next().is_some()
-    }
-
-    fn node_equal(&self, knowledge: &Composite) -> Option<BinaryNode> {
-        self.binary_node(
-            knowledge,
-            Abstract::NODE_EQUAL_LEFT.into(),
-            Abstract::NODE_EQUAL_RIGHT.into(),
-        )
-    }
-
-    fn node_and(&self, knowledge: &Composite) -> Option<BinaryNode> {
-        self.binary_node(
-            knowledge,
-            Abstract::NODE_AND_LEFT.into(),
-            Abstract::NODE_AND_RIGHT.into(),
-        )
-    }
-
-    fn node_or(&self, knowledge: &Composite) -> Option<BinaryNode> {
-        self.binary_node(
-            knowledge,
-            Abstract::NODE_OR_LEFT.into(),
-            Abstract::NODE_OR_RIGHT.into(),
-        )
-    }
-
-    fn node_union(&self, knowledge: &Composite) -> Option<BinaryNode> {
-        self.binary_node(
-            knowledge,
-            Abstract::NODE_UNION_LEFT.into(),
-            Abstract::NODE_UNION_RIGHT.into(),
-        )
-    }
-
-    fn node_map(&self, knowledge: &Composite) -> Option<MapNode> {
-        let set_expression =
-            QueryValues::new(knowledge, self.clone(), Abstract::NODE_MAP_SET.into()).next()?;
-        let mapper_function_expression =
-            QueryValues::new(knowledge, self.clone(), Abstract::NODE_MAP_MAPPER.into()).next()?;
-
-        Some(MapNode {
-            set: set_expression,
-            mapper_function: mapper_function_expression,
-        })
-    }
-
-    fn node_filter(&self, knowledge: &Composite) -> Option<FilterNode> {
-        let set = QueryValues::new(knowledge, self.clone(), Abstract::NODE_FILTER_SET.into())
-            .next_and_last()?;
-
-        let filter = QueryValues::new(knowledge, self.clone(), Abstract::NODE_FILTER_FILTER.into())
-            .next_and_last()?;
-
-        Some(FilterNode {
-            set,
-            filter_function: filter,
-        })
-    }
-
-    fn node_add(&self, knowledge: &Composite) -> Option<BinaryNode> {
-        self.binary_node(
-            knowledge,
-            Abstract::NODE_ADD_LEFT.into(),
-            Abstract::NODE_ADD_RIGHT.into(),
-        )
-    }
-
-    fn node_xor(&self, knowledge: &Composite) -> Option<BinaryNode> {
-        self.binary_node(
-            knowledge,
-            Abstract::NODE_XOR_LEFT.into(),
-            Abstract::NODE_XOR_RIGHT.into(),
-        )
-    }
-
-    fn node_multiply(&self, knowledge: &Composite) -> Option<BinaryNode> {
-        self.binary_node(
-            knowledge,
-            Abstract::NODE_MULTIPLY_LEFT.into(),
-            Abstract::NODE_MULTIPLY_RIGHT.into(),
-        )
+    fn is_truthy(&self, statements: &Statements) -> bool {
+        self.set_values(statements).next().is_some()
     }
 
     fn binary_node(
         &self,
-        knowledge: &Composite,
+        statements: &Statements,
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode> {
-        let left = QueryValues::new(knowledge, self.clone(), left_tag).next()?;
-        let right = QueryValues::new(knowledge, self.clone(), right_tag).next()?;
+        let left = statements
+            .query_values(self.clone(), left_tag)
+            .next_and_last()?;
+
+        let right = statements
+            .query_values(self.clone(), right_tag)
+            .next_and_last()?;
 
         Some(BinaryNode { left, right })
     }
 
-    #[instrument(skip(knowledge), ret)]
-    fn node(&self, knowledge: &Composite) -> Option<Node> {
-        let mut node = self.function_body(knowledge).map(Node::Function);
+    #[instrument(skip(statements), ret)]
+    #[allow(clippy::too_many_lines)]
+    fn node(&self, statements: &Statements) -> Option<Node> {
+        let mut node = self.node_function_body(statements).map(Node::Function);
 
         macro_rules! xor_with {
             ($e:expr) => {{
@@ -486,219 +421,307 @@ impl ObjectExt for Object {
             }};
         }
 
-        xor_with!(self.node_literal(knowledge).map(Node::Literal));
-        xor_with!(self.node_function_self(knowledge).map(Node::FunctionSelf));
-        xor_with!(self.node_parameter_depth(knowledge).map(Node::Parameter));
-        xor_with!(self.node_call(knowledge).map(Node::Call));
-        xor_with!(self.node_count(knowledge).map(Node::Count));
-        xor_with!(self.node_query(knowledge).map(Node::Query));
-        xor_with!(self.node_not(knowledge).map(Node::Not));
-        xor_with!(self.node_and(knowledge).map(Node::And));
-        xor_with!(self.node_or(knowledge).map(Node::Or));
-        xor_with!(self.node_equal(knowledge).map(Node::Equal));
-        xor_with!(self.node_xor(knowledge).map(Node::Xor));
-        xor_with!(self.node_add(knowledge).map(Node::Add));
-        xor_with!(self.node_union(knowledge).map(Node::Union));
-        xor_with!(self.node_map(knowledge).map(Node::Map));
-        xor_with!(self.node_filter(knowledge).map(Node::Filter));
-        xor_with!(self.node_less(knowledge).map(Node::Less));
-        xor_with!(self.node_if(knowledge).map(Node::If));
-        xor_with!(self.node_unwrap_or(knowledge).map(Node::UnwrapOr));
-        xor_with!(self.node_multiply(knowledge).map(Node::Multiply));
+        xor_with!(
+            statements
+                .query_values(self.clone(), Abstract::NODE_LITERAL.into())
+                .next_and_last()
+                .map(Node::Literal)
+        );
 
-        if self == &Self::Abstract(Abstract::NODE_KNOWLEDGE) {
-            if node.is_some() {
+        fn node_function_self(this: &Object, statements: &Statements) -> Option<u32> {
+            let depth = statements
+                .query_values(this.clone(), Abstract::NODE_FUNCTION_SELF.into())
+                .next_and_last()?
+                .integer()?;
+
+            u32::try_from(depth).ok()
+        }
+        xor_with!(node_function_self(self, statements).map(Node::FunctionSelf));
+
+        fn node_parameter_depth(this: &Object, statements: &Statements) -> Option<u32> {
+            let depth = statements
+                .query_values(this.clone(), Abstract::NODE_PARAMETER.into())
+                .next_and_last()?
+                .integer()?;
+
+            u32::try_from(depth).ok()
+        }
+        xor_with!(node_parameter_depth(self, statements).map(Node::Parameter));
+
+        fn node_call(this: &Object, statements: &Statements) -> Option<CallNode> {
+            let callee = statements
+                .query_values(this.clone(), Abstract::NODE_CALL_CALLEE.into())
+                .next_and_last()?;
+
+            let with = statements
+                .query_values(this.clone(), Abstract::NODE_CALL_WITH.into())
+                .next_and_last()?;
+
+            Some(CallNode { callee, with })
+        }
+        xor_with!(node_call(self, statements).map(Node::Call));
+
+        xor_with!(
+            statements
+                .query_values(self.clone(), Abstract::NODE_COUNT.into())
+                .next_and_last()
+                .map(Node::Count)
+        );
+
+        {
+            let subject = statements
+                .query_values(self.clone(), Abstract::NODE_QUERY_SUBJECT.into())
+                .next_and_last();
+
+            let tag = statements
+                .query_values(self.clone(), Abstract::NODE_QUERY_TAG.into())
+                .next_and_last();
+
+            let value = statements
+                .query_values(self.clone(), Abstract::NODE_QUERY_VALUE.into())
+                .next_and_last();
+
+            // This can be made lazy
+            if node.is_some() && (subject.is_some() || tag.is_some() || value.is_some()) {
+                // This will produce a node.
+
                 return None;
             }
 
-            node = Some(Node::Knowledge);
+            match (subject, tag, value) {
+                (Some(subject), Some(tag), Some(value)) => {
+                    node = Some(Node::QueryExists(QueryExistsNode {
+                        subject,
+                        tag,
+                        value,
+                    }));
+                }
+                (Some(subject), Some(tag), None) => {
+                    node = Some(Node::QueryValues(QueryValuesNode { subject, tag }));
+                }
+                (Some(subject), None, Some(value)) => {
+                    node = Some(Node::QueryTags(QueryTagsNode { subject, value }));
+                }
+                (None, Some(tag), Some(value)) => {
+                    node = Some(Node::QuerySubjects(QuerySubjectsNode { tag, value }));
+                }
+                (Some(subject), None, None) => {
+                    node = Some(Node::QueryTagsAndValues(QueryTagsAndValuesNode { subject }));
+                }
+                (None, Some(tag), None) => {
+                    node = Some(Node::QuerySubjectsAndValues(QuerySubjectsAndValuesNode {
+                        tag,
+                    }));
+                }
+                (None, None, Some(value)) => {
+                    node = Some(Node::QuerySubjectsAndTags(QuerySubjectsAndTagsNode {
+                        value,
+                    }));
+                }
+                (None, None, None) => {
+                    // This is not one of the seven nodes, so do nothing.
+                }
+            }
         }
+
+        xor_with!((self == &Abstract::NODE_STATEMENTS.into()).then_some(Node::Statements));
+
+        xor_with!(
+            statements
+                .query_values(self.clone(), Abstract::NODE_NOT.into())
+                .next_and_last()
+                .map(Node::Not)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_AND_LEFT.into(),
+                Abstract::NODE_AND_RIGHT.into(),
+            )
+            .map(Node::And)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_OR_LEFT.into(),
+                Abstract::NODE_OR_RIGHT.into(),
+            )
+            .map(Node::Or)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_EQUAL_LEFT.into(),
+                Abstract::NODE_EQUAL_RIGHT.into(),
+            )
+            .map(Node::Equal)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_XOR_LEFT.into(),
+                Abstract::NODE_XOR_RIGHT.into(),
+            )
+            .map(Node::Xor)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_ADD_LEFT.into(),
+                Abstract::NODE_ADD_RIGHT.into(),
+            )
+            .map(Node::Add)
+        );
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_UNION_LEFT.into(),
+                Abstract::NODE_UNION_RIGHT.into(),
+            )
+            .map(Node::Union)
+        );
+
+        fn node_map(this: &Object, statements: &Statements) -> Option<MapNode> {
+            let set_expression = statements
+                .query_values(this.clone(), Abstract::NODE_MAP_SET.into())
+                .next()?;
+            let mapper_function_expression = statements
+                .query_values(this.clone(), Abstract::NODE_MAP_MAPPER.into())
+                .next()?;
+
+            Some(MapNode {
+                set: set_expression,
+                mapper_function: mapper_function_expression,
+            })
+        }
+        xor_with!(node_map(self, statements).map(Node::Map));
+
+        fn node_filter(this: &Object, statements: &Statements) -> Option<FilterNode> {
+            let set = statements
+                .query_values(this.clone(), Abstract::NODE_FILTER_SET.into())
+                .next_and_last()?;
+
+            let filter = statements
+                .query_values(this.clone(), Abstract::NODE_FILTER_FILTER.into())
+                .next_and_last()?;
+
+            Some(FilterNode {
+                set,
+                filter_function: filter,
+            })
+        }
+        xor_with!(node_filter(self, statements).map(Node::Filter));
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_LESS_LEFT.into(),
+                Abstract::NODE_LESS_RIGHT.into(),
+            )
+            .map(Node::Less)
+        );
+
+        fn node_if(object: &Object, statements: &Statements) -> Option<IfNode> {
+            let condition = statements
+                .query_values(object.clone(), Abstract::NODE_IF_CONDITION.into())
+                .next_and_last()?;
+
+            let then = statements
+                .query_values(object.clone(), Abstract::NODE_IF_THEN.into())
+                .next_and_last()?;
+
+            let otherwise = statements
+                .query_values(object.clone(), Abstract::NODE_IF_ELSE.into())
+                .next_and_last()?;
+
+            Some(IfNode {
+                condition,
+                then,
+                otherwise,
+            })
+        }
+        xor_with!(node_if(self, statements).map(Node::If));
+
+        fn node_unwrap_or(this: &Object, statements: &Statements) -> Option<UnwrapOrNode> {
+            let set = statements
+                .query_values(this.clone(), Abstract::NODE_UNWRAP_OR_SET.into())
+                .next_and_last()?;
+
+            let default = statements
+                .query_values(this.clone(), Abstract::NODE_UNWRAP_OR_DEFAULT.into())
+                .next_and_last()?;
+
+            Some(UnwrapOrNode { set, default })
+        }
+        xor_with!(node_unwrap_or(self, statements).map(Node::UnwrapOr));
+
+        xor_with!(
+            self.binary_node(
+                statements,
+                Abstract::NODE_MULTIPLY_LEFT.into(),
+                Abstract::NODE_MULTIPLY_RIGHT.into(),
+            )
+            .map(Node::Multiply)
+        );
+
+        xor_with!(
+            statements
+                .query_values(self.clone(), Abstract::NODE_IS_ABSTRACT.into())
+                .next_and_last()
+                .map(Node::IsAbstract)
+        );
+
+        fn node_every(this: &Object, statements: &Statements) -> Option<PredicateNode> {
+            let set = statements
+                .query_values(this.clone(), Abstract::NODE_EVERY_SET.into())
+                .next_and_last()?;
+
+            let predicate = statements
+                .query_values(this.clone(), Abstract::NODE_EVERY_PREDICATE.into())
+                .next_and_last()?;
+
+            Some(PredicateNode { set, predicate })
+        }
+        xor_with!(node_every(self, statements).map(Node::Every));
+
+        fn node_any(this: &Object, statements: &Statements) -> Option<PredicateNode> {
+            let set = statements
+                .query_values(this.clone(), Abstract::NODE_ANY_SET.into())
+                .next_and_last()?;
+
+            let predicate = statements
+                .query_values(this.clone(), Abstract::NODE_ANY_PREDICATE.into())
+                .next_and_last()?;
+
+            Some(PredicateNode { set, predicate })
+        }
+        xor_with!(node_any(self, statements).map(Node::Any));
 
         node
     }
 
-    fn node_unwrap_or(&self, knowledge: &Composite) -> Option<UnwrapOrNode> {
-        let set = QueryValues::new(knowledge, self.clone(), Abstract::NODE_UNWRAP_OR_SET.into())
-            .next_and_last()?;
-
-        let default = QueryValues::new(
-            knowledge,
-            self.clone(),
-            Abstract::NODE_UNWRAP_OR_DEFAULT.into(),
-        )
-        .next_and_last()?;
-
-        Some(UnwrapOrNode { set, default })
+    fn node_function_body(&self, statements: &Statements) -> Option<Object> {
+        statements
+            .query_values(self.clone(), Abstract::FUNCTION.into())
+            .next_and_last()
     }
 
-    fn node_if(&self, knowledge: &Composite) -> Option<IfNode> {
-        let condition =
-            QueryValues::new(knowledge, self.clone(), Abstract::NODE_IF_CONDITION.into())
-                .next_and_last()?;
-
-        let then = QueryValues::new(knowledge, self.clone(), Abstract::NODE_IF_THEN.into())
-            .next_and_last()?;
-
-        let otherwise = QueryValues::new(knowledge, self.clone(), Abstract::NODE_IF_ELSE.into())
-            .next_and_last()?;
-
-        Some(IfNode {
-            condition,
-            then,
-            otherwise,
-        })
-    }
-
-    fn node_less(&self, knowledge: &Composite) -> Option<BinaryNode> {
-        self.binary_node(
-            knowledge,
-            Abstract::NODE_LESS_LEFT.into(),
-            Abstract::NODE_LESS_RIGHT.into(),
-        )
-    }
-
-    fn node_call(&self, knowledge: &Composite) -> Option<CallNode> {
-        let callee = QueryValues::new(knowledge, self.clone(), Abstract::NODE_CALL_CALLEE.into())
-            .next_and_last()?;
-
-        let with = QueryValues::new(knowledge, self.clone(), Abstract::NODE_CALL_WITH.into())
-            .next_and_last()?;
-
-        Some(CallNode { callee, with })
-    }
-
-    fn node_not(&self, knowledge: &Composite) -> Option<Object> {
-        QueryValues::new(knowledge, self.clone(), Abstract::NODE_NOT.into()).next_and_last()
-    }
-
-    fn node_count(&self, knowledge: &Composite) -> Option<Object> {
-        QueryValues::new(knowledge, self.clone(), Abstract::NODE_COUNT.into()).next_and_last()
-    }
-
-    fn function_body(&self, knowledge: &Composite) -> Option<Object> {
-        QueryValues::new(knowledge, self.clone(), Abstract::FUNCTION.into()).next_and_last()
-    }
-
-    fn node_parameter_depth(&self, knowledge: &Composite) -> Option<u64> {
-        let depth = QueryValues::new(knowledge, self.clone(), Abstract::NODE_PARAMETER.into())
-            .next_and_last()?
-            .to_integer(knowledge)?;
-
-        u64::try_from(depth).ok()
-    }
-
-    fn node_literal(&self, knowledge: &Composite) -> Option<Object> {
-        QueryValues::new(knowledge, self.clone(), Abstract::NODE_LITERAL.into()).next_and_last()
-    }
-
-    fn node_function_self(&self, knowledge: &Composite) -> Option<u64> {
-        let depth = QueryValues::new(knowledge, self.clone(), Abstract::NODE_FUNCTION_SELF.into())
-            .next_and_last()?
-            .to_integer(knowledge)?;
-
-        u64::try_from(depth).ok()
-    }
-
-    #[inline]
-    fn intrinsic_statement_subject(&self) -> Option<Object> {
-        match self {
-            Object::Abstract(_) => None,
-            Object::Composite(composite) => composite
-                .values(Abstract::STATEMENT_SUBJECT.into())
-                .next_and_last(),
-        }
-    }
-
-    #[inline]
-    fn intrinsic_statement_tag(&self) -> Option<Object> {
-        match self {
-            Object::Abstract(_) => None,
-            Object::Composite(composite) => composite
-                .values(Abstract::STATEMENT_TAG.into())
-                .next_and_last(),
-        }
-    }
-
-    #[inline]
-    fn intrinsic_statement_value(&self) -> Option<Object> {
-        match self {
-            Object::Abstract(_) => None,
-            Object::Composite(composite) => composite
-                .values(Abstract::STATEMENT_VALUE.into())
-                .next_and_last(),
-        }
-    }
-
-    fn intrinsic_statement(&self) -> Option<Statement> {
-        let subject = self.intrinsic_statement_subject()?;
-        let tag = self.intrinsic_statement_tag()?;
-        let value = self.intrinsic_statement_value()?;
-
-        Some(Statement {
-            subject,
-            tag,
-            value,
-        })
-    }
-
-    fn statement_subject(&self, knowledge: &Composite) -> Option<Object> {
-        QueryValues::new(
-            knowledge,
-            self.clone(),
-            Object::Abstract(Abstract::STATEMENT_SUBJECT),
-        )
-        .next_and_last()
-    }
-
-    fn statement_tag(&self, knowledge: &Composite) -> Option<Object> {
-        QueryValues::new(
-            knowledge,
-            self.clone(),
-            Object::Abstract(Abstract::STATEMENT_TAG),
-        )
-        .next_and_last()
-    }
-
-    fn statement_value(&self, knowledge: &Composite) -> Option<Object> {
-        QueryValues::new(
-            knowledge,
-            self.clone(),
-            Object::Abstract(Abstract::STATEMENT_VALUE),
-        )
-        .next_and_last()
-    }
-
-    fn statement_form(&self, knowledge: &Composite) -> StatementForm {
-        let subject: ObjectForm = self.statement_subject(knowledge).into();
-        let tag: ObjectForm = self.statement_tag(knowledge).into();
-        let value: ObjectForm = self.statement_value(knowledge).into();
-
-        StatementForm {
-            subject,
-            tag,
-            value,
-        }
-    }
-
-    fn node_query(&self, knowledge: &Composite) -> Option<Self> {
-        QueryValues::new(
-            knowledge,
-            self.clone(),
-            Object::Abstract(Abstract::NODE_QUERY),
-        )
-        .next()
-    }
-
-    #[instrument(skip(knowledge), ret)]
+    #[instrument(skip(statements), ret)]
     fn capture(
         &self,
-        knowledge: &Composite,
+        statements: &Statements,
         additional_depth: usize,
         ctx: &EvaluationContext,
     ) -> ObjectOrSetValues {
-        match self.node(knowledge) {
+        match self.node(statements) {
             Some(Node::Function(body)) => Self::new_node(Node::Function(
-                body.capture(knowledge, additional_depth + 1, ctx)
+                body.capture(statements, additional_depth + 1, ctx)
                     .into_object(),
             ))
             .into(),
@@ -729,13 +752,13 @@ impl ObjectExt for Object {
                     .map(|property| {
                         let value = property
                             .value
-                            .capture(knowledge, additional_depth, ctx)
+                            .capture(statements, additional_depth, ctx)
                             .into_object();
 
                         let result = if property.value == value {
                             Ok(())
                         } else {
-                            value.is_valid(knowledge, false)
+                            value.is_valid(statements, false)
                         };
 
                         match result {
@@ -749,22 +772,26 @@ impl ObjectExt for Object {
                     })
                     .transpose_into_fallible()
                     .collect::<Vec<_>>()
-                    .map(|mut properties| {
-                        ObjectOrSetValues::Object(Self::Composite(Composite::new(&mut properties)))
-                    })
-                    .unwrap_or_else(|(o, error)| {
-                        warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
+                    .map_or_else(
+                        |(o, error)| {
+                            warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
 
-                        ObjectOrSetValues::Object(Composite::Empty.into())
-                    }),
+                            ObjectOrSetValues::Object(Composite::Empty.into())
+                        },
+                        |mut properties| {
+                            ObjectOrSetValues::Object(Self::Composite(Composite::new(
+                                &mut properties,
+                            )))
+                        },
+                    ),
                 _ => ObjectOrSetValues::Object(self.clone()),
             },
         }
     }
 
-    fn multiply(&self, knowledge: &Composite, other: &Object) -> Object {
-        if let Some(left) = self.to_integer(knowledge)
-            && let Some(right) = other.to_integer(knowledge)
+    fn multiply(&self, other: &Object) -> Object {
+        if let Some(left) = self.integer()
+            && let Some(right) = other.integer()
         {
             if let Some(product) = left.checked_mul(right) {
                 Object::new_integer(product)
@@ -776,46 +803,48 @@ impl ObjectExt for Object {
         }
     }
 
-    #[instrument(skip(knowledge), ret)]
+    #[instrument(skip(statements), ret)]
+    #[allow(clippy::too_many_lines)]
     fn evaluate(
         &self,
-        knowledge: &Composite,
+        statements: &Statements,
         context: &mut EvaluationContext,
     ) -> ObjectOrSetValues {
-        let mut tasks = vec![Task::Eval(self.clone())];
+        let mut tasks = vec![Task::Evaluate(self.clone())];
         let mut evaluated = Vec::<ObjectOrSetValues>::new();
 
         while let Some(task) = tasks.pop() {
             debug!("doing task {task:?}");
 
             match task {
-                Task::Eval(object) => match object.node(knowledge) {
-                    Some(Node::Knowledge) => {
-                        evaluated.push(ObjectOrSetValues::Object(knowledge.clone().into()));
+                Task::Evaluate(object) => match object.node(statements) {
+                    Some(Node::IsAbstract(inner)) => {
+                        tasks.push(Task::IsAbstract);
+                        tasks.push(Task::Evaluate(inner));
                     }
                     Some(Node::Call(CallNode { callee, with })) => {
                         tasks.push(Task::Call);
-                        tasks.push(Task::Eval(callee));
-                        tasks.push(Task::Eval(with));
+                        tasks.push(Task::Evaluate(callee));
+                        tasks.push(Task::Evaluate(with));
                     }
                     Some(Node::Multiply(BinaryNode { left, right })) => {
                         tasks.push(Task::Multiply);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::UnwrapOr(UnwrapOrNode { set, default })) => {
                         tasks.push(Task::PartialUnwrapOr { default });
-                        tasks.push(Task::Eval(set));
+                        tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Function(_)) => {
-                        evaluated.push(object.capture(knowledge, 0, context));
+                        evaluated.push(object.capture(statements, 0, context));
                     }
                     Some(Node::Literal(object)) => {
                         evaluated.push(object.into());
                     }
                     Some(Node::And(BinaryNode { left, right })) => {
                         tasks.push(Task::PartialAnd { right });
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::FunctionSelf(depth)) => evaluated.push(ObjectOrSetValues::Object(
                         context.function_self(depth as usize),
@@ -825,126 +854,120 @@ impl ObjectExt for Object {
                     }
                     Some(Node::Count(object)) => {
                         tasks.push(Task::Count);
-                        tasks.push(Task::Eval(object));
+                        tasks.push(Task::Evaluate(object));
                     }
-                    Some(Node::Query(object)) => match object.statement_form(knowledge) {
-                        StatementForm {
-                            subject: ObjectForm::Any,
-                            tag: ObjectForm::Any,
-                            value: ObjectForm::Any,
-                        } => {
-                            todo!("hell nah")
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Specific(unevaluated_subject),
-                            tag: ObjectForm::Specific(unevaluated_tag),
-                            value: ObjectForm::Any,
-                        } => {
-                            tasks.push(Task::QueryValues);
-                            tasks.push(Task::Eval(unevaluated_tag));
-                            tasks.push(Task::Eval(unevaluated_subject));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Any,
-                            tag: ObjectForm::Specific(unevaluated_tag),
-                            value: ObjectForm::Specific(unevaluated_value),
-                        } => {
-                            tasks.push(Task::QuerySubjects);
-                            tasks.push(Task::Eval(unevaluated_value));
-                            tasks.push(Task::Eval(unevaluated_tag));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Any,
-                            tag: ObjectForm::Specific(unevaluated_tag),
-                            value: ObjectForm::Any,
-                        } => {
-                            tasks.push(Task::QuerySubjectsAndValues);
-                            tasks.push(Task::Eval(unevaluated_tag));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Specific(unevaluated_subject),
-                            tag: ObjectForm::Specific(unevaluated_tag),
-                            value: ObjectForm::Specific(unevaluated_value),
-                        } => {
-                            tasks.push(Task::QueryExists);
-                            tasks.push(Task::Eval(unevaluated_value));
-                            tasks.push(Task::Eval(unevaluated_tag));
-                            tasks.push(Task::Eval(unevaluated_subject));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Specific(unevaluated_subject),
-                            tag: ObjectForm::Any,
-                            value: ObjectForm::Any,
-                        } => {
-                            tasks.push(Task::QueryTagsAndValues);
-                            tasks.push(Task::Eval(unevaluated_subject));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Any,
-                            tag: ObjectForm::Any,
-                            value: ObjectForm::Specific(unevaluated_value),
-                        } => {
-                            tasks.push(Task::QuerySubjectsAndTags);
-                            tasks.push(Task::Eval(unevaluated_value));
-                        }
-                        StatementForm {
-                            subject: ObjectForm::Specific(unevaluated_subject),
-                            tag: ObjectForm::Any,
-                            value: ObjectForm::Specific(unevaluated_value),
-                        } => {
-                            tasks.push(Task::QueryTags);
-                            tasks.push(Task::Eval(unevaluated_value));
-                            tasks.push(Task::Eval(unevaluated_subject));
-                        }
-                    },
+                    Some(Node::QueryExists(query)) => {
+                        tasks.push(Task::QueryExists);
+                        tasks.push(Task::Evaluate(query.value));
+                        tasks.push(Task::Evaluate(query.tag));
+                        tasks.push(Task::Evaluate(query.subject));
+                    }
+                    Some(Node::QueryValues(query)) => {
+                        tasks.push(Task::QueryValues);
+                        tasks.push(Task::Evaluate(query.tag));
+                        tasks.push(Task::Evaluate(query.subject));
+                    }
+                    Some(Node::QuerySubjects(query)) => {
+                        tasks.push(Task::QuerySubjects);
+                        tasks.push(Task::Evaluate(query.value));
+                        tasks.push(Task::Evaluate(query.tag));
+                    }
+                    Some(Node::QueryTags(query)) => {
+                        tasks.push(Task::QueryTags);
+                        tasks.push(Task::Evaluate(query.value));
+                        tasks.push(Task::Evaluate(query.subject));
+                    }
+                    Some(Node::QuerySubjectsAndTags(query)) => {
+                        tasks.push(Task::QuerySubjectsAndTags);
+                        tasks.push(Task::Evaluate(query.value));
+                    }
+                    Some(Node::QuerySubjectsAndValues(query)) => {
+                        tasks.push(Task::QuerySubjectsAndValues);
+                        tasks.push(Task::Evaluate(query.tag));
+                    }
+                    Some(Node::QueryTagsAndValues(query)) => {
+                        tasks.push(Task::QueryTagsAndValues);
+                        tasks.push(Task::Evaluate(query.subject));
+                    }
+                    Some(Node::Statements) => {
+                        // Evaluate straight to an iterator over
+                        // all statements:
+
+                        evaluated.push(ObjectOrSetValues::SetValues(SetValues::Statements(
+                            statements.iter_owned(),
+                        )));
+                    }
                     Some(Node::Equal(BinaryNode { left, right })) => {
                         tasks.push(Task::Equal);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Or(BinaryNode { left, right })) => {
                         tasks.push(Task::PartialOr { right });
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Xor(BinaryNode { left, right })) => {
                         tasks.push(Task::Xor);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Not(object)) => {
                         tasks.push(Task::Not);
-                        tasks.push(Task::Eval(object));
+                        tasks.push(Task::Evaluate(object));
                     }
                     Some(Node::Add(BinaryNode { left, right })) => {
                         tasks.push(Task::Add);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Union(BinaryNode { left, right })) => {
                         tasks.push(Task::Union);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::Map(MapNode {
                         set,
                         mapper_function,
                     })) => {
                         tasks.push(Task::Map);
-                        tasks.push(Task::Eval(mapper_function));
-                        tasks.push(Task::Eval(set));
+                        tasks.push(Task::Evaluate(mapper_function));
+                        tasks.push(Task::Evaluate(set));
+                    }
+                    Some(Node::Every(PredicateNode { set, predicate })) => {
+                        tasks.push(Task::Every);
+
+                        // Push the result of a previous, virtual predicate call.
+                        // This literal acts like the virtual call completed
+                        // last which aligns with the `Task::Every` case where
+                        // subsequent predicate calls for set items are scheduled
+                        // and pushed onto the evaluated objects when the evaluated
+                        // set and predicate already sit there (late).
+                        tasks.push(Task::PushLiteralTrue);
+
+                        tasks.push(Task::Evaluate(predicate));
+                        tasks.push(Task::Evaluate(set));
+                    }
+                    Some(Node::Any(PredicateNode { set, predicate })) => {
+                        tasks.push(Task::Any);
+
+                        // Same as `Task::Every` but with false.
+                        tasks.push(Task::PushLiteralFalse);
+
+                        tasks.push(Task::Evaluate(predicate));
+                        tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Filter(FilterNode {
                         set,
                         filter_function,
                     })) => {
                         tasks.push(Task::Filter);
-                        tasks.push(Task::Eval(filter_function));
-                        tasks.push(Task::Eval(set));
+                        tasks.push(Task::Evaluate(filter_function));
+                        tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Less(BinaryNode { left, right })) => {
                         tasks.push(Task::Less);
-                        tasks.push(Task::Eval(right));
-                        tasks.push(Task::Eval(left));
+                        tasks.push(Task::Evaluate(right));
+                        tasks.push(Task::Evaluate(left));
                     }
                     Some(Node::If(IfNode {
                         condition,
@@ -952,7 +975,7 @@ impl ObjectExt for Object {
                         otherwise,
                     })) => {
                         tasks.push(Task::PartialIf { then, otherwise });
-                        tasks.push(Task::Eval(condition));
+                        tasks.push(Task::Evaluate(condition));
                     }
                     None if let Object::Composite(Composite::Any(any_composite)) = object => {
                         let result = any_composite
@@ -962,12 +985,12 @@ impl ObjectExt for Object {
                                 debug!("eval on property {property:?}");
 
                                 let value =
-                                    property.value.evaluate(knowledge, context).into_object();
+                                    property.value.evaluate(statements, context).into_object();
 
                                 let result = if property.value == value {
                                     Ok(())
                                 } else {
-                                    value.is_valid(knowledge, false)
+                                    value.is_valid(statements, false)
                                 };
 
                                 match result {
@@ -981,15 +1004,14 @@ impl ObjectExt for Object {
                             })
                             .transpose_into_fallible()
                             .collect::<Vec<_>>()
-                            .map(|mut properties| {
-                                Object::Composite(Composite::new(&mut properties)).into()
-                            })
-                            .unwrap_or_else(|(o, error)| {
+                            .map_or_else(|(o, error)| {
                                 warn!(
                                     "invalid object {o:?} with error {error:?}; replacing with {{}}"
                                 );
 
                                 ObjectOrSetValues::Object(Object::Composite(Composite::Empty))
+                            }, |mut properties| {
+                                Object::Composite(Composite::new(&mut properties)).into()
                             });
 
                         evaluated.push(result);
@@ -999,11 +1021,19 @@ impl ObjectExt for Object {
                 Task::PopContext => {
                     context.pop();
                 }
+                Task::PushLiteralTrue => {
+                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+                }
+                Task::PushLiteralFalse => {
+                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                }
                 Task::Call => {
                     let callee = evaluated.pop().unwrap().into_object();
                     let parameter_value = evaluated.pop().unwrap();
 
-                    tasks.push(Task::Eval(callee.function_body(knowledge).unwrap()));
+                    tasks.push(Task::Evaluate(
+                        callee.node_function_body(statements).unwrap(),
+                    ));
 
                     context.push(FunctionContext {
                         function: callee,
@@ -1013,9 +1043,9 @@ impl ObjectExt for Object {
                 Task::PartialAnd { right } => {
                     let mut left = evaluated.pop().unwrap();
 
-                    if left.is_truthy(knowledge) {
+                    if left.is_truthy(statements) {
                         tasks.push(Task::ToBoolean);
-                        tasks.push(Task::Eval(right));
+                        tasks.push(Task::Evaluate(right));
                     } else {
                         evaluated
                             .push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
@@ -1025,7 +1055,7 @@ impl ObjectExt for Object {
                     let target = evaluated.pop().unwrap();
 
                     evaluated.push(
-                        Self::new_integer(target.set_values(knowledge).correct_count() as i128)
+                        Self::new_integer(target.set_values(statements).correct_count() as i128)
                             .into(),
                     );
                 }
@@ -1033,10 +1063,8 @@ impl ObjectExt for Object {
                     let value = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        SetValues::QuerySubjectsAndTags(QuerySubjectsAndTags::new(
-                            knowledge, value,
-                        ))
-                        .into(),
+                        SetValues::QuerySubjectsAndTags(statements.query_subjects_and_tags(value))
+                            .into(),
                     );
                 }
                 Task::QueryTagsAndValues => {
@@ -1044,7 +1072,7 @@ impl ObjectExt for Object {
                     let subject = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        SetValues::QueryTagsAndValues(QueryTagsAndValues::new(knowledge, subject))
+                        SetValues::QueryTagsAndValues(statements.query_tags_and_values(subject))
                             .into(),
                     );
                 }
@@ -1053,9 +1081,8 @@ impl ObjectExt for Object {
                     // TODO: make this lazy
                     let subject = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(
-                        SetValues::QueryTags(QueryTags::new(knowledge, subject, value)).into(),
-                    );
+                    evaluated
+                        .push(SetValues::QueryTags(statements.query_tags(subject, value)).into());
                 }
                 Task::QueryValues => {
                     let tag = evaluated.pop().unwrap().into_object();
@@ -1063,7 +1090,7 @@ impl ObjectExt for Object {
                     let subject = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(ObjectOrSetValues::SetValues(SetValues::QueryValues(
-                        QueryValues::new(knowledge, subject, tag.clone()),
+                        statements.query_values(subject, tag.clone()),
                     )));
                 }
                 Task::QuerySubjects => {
@@ -1071,16 +1098,16 @@ impl ObjectExt for Object {
                     let tag = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        SetValues::QuerySubjects(QuerySubjects::new(knowledge, tag, value)).into(),
+                        SetValues::QuerySubjects(statements.query_subjects(tag, value)).into(),
                     );
                 }
                 Task::QuerySubjectsAndValues => {
                     let tag = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(
-                        SetValues::QuerySubjectsAndValues(QuerySubjectsAndValues::new(
-                            knowledge, tag,
-                        ))
+                        SetValues::QuerySubjectsAndValues(
+                            statements.query_subjects_and_values(tag),
+                        )
                         .into(),
                     );
                 }
@@ -1090,21 +1117,20 @@ impl ObjectExt for Object {
                     let subject = evaluated.pop().unwrap().into_object();
 
                     evaluated.push(ObjectOrSetValues::Object(
-                        Composite::new_bool(QueryExists::new(
-                            knowledge,
+                        Composite::new_bool(statements.exists(SimpleStatement {
                             subject,
-                            tag.clone(),
+                            tag,
                             value,
-                        ))
+                        }))
                         .into(),
-                    ))
+                    ));
                 }
                 Task::ToBoolean => {
                     let mut object = evaluated.pop().unwrap();
 
                     evaluated.push(ObjectOrSetValues::Object(
-                        Composite::new_bool(object.is_truthy(knowledge)).into(),
-                    ))
+                        Composite::new_bool(object.is_truthy(statements)).into(),
+                    ));
                 }
                 Task::Equal => {
                     let right = evaluated.pop().unwrap().into_object();
@@ -1113,26 +1139,37 @@ impl ObjectExt for Object {
                     evaluated.push(Object::Composite(Composite::new_bool(left == right)).into());
                 }
                 Task::PartialOr { right } => {
-                    if evaluated.pop().unwrap().is_truthy(knowledge) {
+                    if evaluated.pop().unwrap().is_truthy(statements) {
                         evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
                     } else {
                         tasks.push(Task::ToBoolean);
-                        tasks.push(Task::Eval(right));
+                        tasks.push(Task::Evaluate(right));
                     }
                 }
                 Task::Xor => {
-                    let right = evaluated.pop().unwrap().is_truthy(knowledge);
-                    let left = evaluated.pop().unwrap().is_truthy(knowledge);
+                    let right = evaluated.pop().unwrap().is_truthy(statements);
+                    let left = evaluated.pop().unwrap().is_truthy(statements);
 
                     evaluated.push(ObjectOrSetValues::Object(
                         Composite::new_bool((left || right) && !(left && right)).into(),
                     ));
                 }
+                Task::IsAbstract => {
+                    let object = evaluated.pop().unwrap();
+
+                    evaluated.push(
+                        Object::Composite(Composite::new_bool(matches!(
+                            object,
+                            ObjectOrSetValues::Object(Object::Abstract(_))
+                        )))
+                        .into(),
+                    );
+                }
                 Task::Not => {
                     let mut object = evaluated.pop().unwrap();
 
                     evaluated.push(ObjectOrSetValues::Object(
-                        Composite::new_bool(!object.is_truthy(knowledge)).into(),
+                        Composite::new_bool(!object.is_truthy(statements)).into(),
                     ));
                 }
                 Task::Add => {
@@ -1140,79 +1177,141 @@ impl ObjectExt for Object {
                     // TODO: (perf) maybe short circuit sets into UNDEFINED.
                     let left = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(left.add(knowledge, &right).into());
+                    evaluated.push(left.add(&right).into());
                 }
                 Task::Multiply => {
                     // TODO: (perf) maybe short circuit sets into UNDEFINED.
                     let right = evaluated.pop().unwrap().into_object();
                     let left = evaluated.pop().unwrap().into_object();
 
-                    evaluated.push(left.multiply(knowledge, &right).into())
+                    evaluated.push(left.multiply(&right).into());
                 }
                 Task::Union => {
                     let right = evaluated.pop().unwrap();
                     let left = evaluated.pop().unwrap();
 
                     evaluated.push(ObjectOrSetValues::SetValues(SetValues::Union {
-                        left: Box::new(left.set_values(knowledge)),
-                        right: Box::new(right.set_values(knowledge)),
+                        left: Box::new(left.set_values(statements)),
+                        right: Box::new(right.set_values(statements)),
                     }));
                 }
                 Task::Map => {
                     let mapper = evaluated.pop().unwrap().into_object();
-                    let set = evaluated.pop().unwrap().set_values(knowledge);
+                    let set = evaluated.pop().unwrap().set_values(statements);
 
                     evaluated.push(ObjectOrSetValues::SetValues(SetValues::Map {
-                        knowledge: knowledge.clone(),
+                        statements: statements.clone(),
                         set: Box::new(set),
                         mapper_function: mapper,
                     }));
                 }
                 Task::Filter => {
                     let filter = evaluated.pop().unwrap().into_object();
-                    let set = evaluated.pop().unwrap().set_values(knowledge);
+                    let set = evaluated.pop().unwrap().set_values(statements);
 
                     evaluated.push(ObjectOrSetValues::SetValues(SetValues::Filter {
-                        knowledge: knowledge.clone(),
+                        statements: statements.clone(),
                         set: Box::new(set),
                         filter_function: filter,
                     }));
+                }
+                Task::Every => {
+                    let mut previous_result = evaluated.pop().unwrap();
+                    let predicate = evaluated.pop().unwrap().into_object();
+                    let mut set = evaluated.pop().unwrap().set_values(statements);
+
+                    if !previous_result.is_truthy(statements) {
+                        // Previous run did not succeed.
+
+                        evaluated
+                            .push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                    } else if let Some(value) = set.next() {
+                        // Previous run did succeed, but there is another value.
+                        // -> Validate predicate for this value.
+
+                        tasks.push(Task::Every);
+
+                        // Simulate the set and predicate being evaluated first.
+                        evaluated.push(set.into());
+                        evaluated.push(predicate.clone().into());
+
+                        // Prepare for call.
+                        tasks.push(Task::Call);
+                        evaluated.push(value.into());
+                        evaluated.push(predicate.into());
+                    } else {
+                        // Previous run succeeded and there are no more elements. Yay.
+
+                        evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+                    }
+                }
+                Task::Any => {
+                    let mut previous_result = evaluated.pop().unwrap();
+                    let predicate = evaluated.pop().unwrap().into_object();
+                    let mut set = evaluated.pop().unwrap().set_values(statements);
+
+                    if previous_result.is_truthy(statements) {
+                        // Previous run succeeded. Yay.
+
+                        evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+                    } else if let Some(value) = set.next() {
+                        // Previous run did not succeed, but there is another value.
+                        // -> Validate predicate for this value.
+
+                        tasks.push(Task::Any);
+
+                        // Simulate the set and predicate being evaluated first.
+                        evaluated.push(set.into());
+                        evaluated.push(predicate.clone().into());
+
+                        // Prepare for call.
+                        tasks.push(Task::Call);
+                        evaluated.push(value.into());
+                        evaluated.push(predicate.into());
+                    } else {
+                        // Previous run did not succeed and there are no more elements.
+
+                        evaluated
+                            .push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                    }
                 }
                 Task::Less => {
                     let right = evaluated.pop().unwrap();
                     let left = evaluated.pop().unwrap();
 
+                    println!("is {left:?} < {right:?}?");
+
                     evaluated.push(
                         Object::Composite(Composite::new_bool(match (left, right) {
                             (ObjectOrSetValues::Object(left), ObjectOrSetValues::Object(right))
-                                if let Some(left) = left.to_integer(knowledge)
-                                    && let Some(right) = right.to_integer(knowledge) =>
+                                if let Some(left) = left.integer()
+                                    && let Some(right) = right.integer() =>
                             {
                                 left < right
                             }
                             // TODO: more things here
                             (left, right) => {
-                                left.set_values(knowledge).correct_count()
-                                    < right.set_values(knowledge).correct_count()
+                                left.set_values(statements).correct_count()
+                                    < right.set_values(statements).correct_count()
                             }
                         }))
                         .into(),
                     );
                 }
                 Task::PartialIf { then, otherwise } => {
-                    if evaluated.pop().unwrap().is_truthy(knowledge) {
-                        tasks.push(Task::Eval(then));
+                    if evaluated.pop().unwrap().is_truthy(statements) {
+                        tasks.push(Task::Evaluate(then));
                     } else {
-                        tasks.push(Task::Eval(otherwise));
+                        tasks.push(Task::Evaluate(otherwise));
                     }
                 }
                 Task::PartialUnwrapOr { default } => {
-                    let mut set_values = evaluated.pop().unwrap().set_values(knowledge);
+                    let mut set_values = evaluated.pop().unwrap().set_values(statements);
 
                     if let Some(inner) = set_values.next_and_last() {
                         evaluated.push(ObjectOrSetValues::Object(inner));
                     } else {
-                        tasks.push(Task::Eval(default))
+                        tasks.push(Task::Evaluate(default));
                     }
                 }
             }
@@ -1226,76 +1325,64 @@ impl ObjectExt for Object {
         last
     }
 
-    #[instrument(skip(knowledge), ret)]
     fn call(
         &self,
-        knowledge: &Composite,
+        statements: &Statements,
         parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
     ) -> ObjectOrSetValues {
-        if self == &Object::Abstract(Abstract::KNOWLEDGE)
-            && let Some(parameter) = parameters.first()
-        {
-            return match parameter.clone().into_object() {
-                Object::Composite(composite) => {
-                    Object::Composite(Composite::new_bool(composite.is_knowledge().is_ok()))
-                }
-                Object::Abstract(_) => Object::Composite(Composite::Empty),
+        if let Some((parameter, next_parameters)) = parameters.split_first() {
+            let optimized_function =
+                OPTIMIZED_FUNCTIONS
+                    .iter()
+                    .find_map(|(key, optimized_function)| {
+                        if key == self {
+                            Some(*optimized_function)
+                        } else {
+                            None
+                        }
+                    });
+
+            if let Some(optimized_function) = optimized_function {
+                // We can ignore context because optimized
+                // functions are self-enclosed.
+
+                let result = optimized_function(statements, parameter.clone());
+
+                return if next_parameters.is_empty() {
+                    result.into()
+                } else {
+                    result.call(statements, next_parameters, ctx)
+                };
             }
-            .into();
+
+            if let Some(Node::Function(body)) = self.node(statements) {
+                ctx.push(FunctionContext {
+                    function: self.clone(),
+                    parameter: parameter.clone(),
+                });
+
+                let result = body.call(statements, next_parameters, ctx);
+
+                ctx.pop();
+
+                return result;
+            }
         }
 
-        if let Some((parameter, next_parameters)) = parameters.split_first()
-            && let Some(Node::Function(body)) = self.node(knowledge)
-        {
-            ctx.push(FunctionContext {
-                function: self.clone(),
-                parameter: parameter.clone(),
-            });
-
-            let result = body.call(knowledge, next_parameters, ctx);
-
-            ctx.pop();
-
-            result
-        } else {
-            self.evaluate(knowledge, ctx)
-        }
+        self.evaluate(statements, ctx)
     }
 
-    #[instrument(skip(knowledge), ret)]
-    fn to_integer(&self, knowledge: &Composite) -> Option<i128> {
-        if let Some(n) = self.exact_integer() {
-            // Fast path for exact natural numbers.
-            Some(n)
-        } else if let Some(predecessor) =
-            QueryValues::new(knowledge, self.clone(), Abstract::SUCCESSOR_OF.into()).next_and_last()
-        {
-            predecessor
-                .to_integer(knowledge)
-                .map(|n| n.checked_add(1).expect("yo shi too big"))
-        } else if let Some(successor) =
-            QueryValues::new(knowledge, self.clone(), Abstract::PREDECESSOR_OF.into())
-                .next_and_last()
-        {
-            successor
-                .to_integer(knowledge)
-                .map(|n| n.checked_sub(1).expect("yo shi too small"))
-        } else {
-            None
-        }
-    }
-
-    fn is_valid(&self, knowledge: &Composite, recursive: bool) -> Result<(), KnowledgeError> {
+    fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError> {
         match self {
             Self::Abstract(_) => Ok(()),
-            Self::Composite(composite) => composite.is_valid(knowledge, recursive),
+            Self::Composite(composite) => composite.is_valid(statements, recursive),
         }
     }
 
-    fn add(&self, knowledge: &Composite, other: &Object) -> Object {
-        if let Some(left) = self.to_integer(knowledge)
-            && let Some(right) = other.to_integer(knowledge)
+    fn add(&self, other: &Object) -> Object {
+        if let Some(left) = self.integer()
+            && let Some(right) = other.integer()
         {
             if let Some(sum) = left.checked_add(right) {
                 Object::new_integer(sum)

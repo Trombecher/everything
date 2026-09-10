@@ -2,8 +2,13 @@ use everything_objects::{Abstract, Composite, Object, Property};
 
 use crate::{
     base::BASE,
-    ext::ObjectExt,
-    nodes::{BinaryNode, CallNode, IfNode, Node},
+    ctx::EvaluationContext,
+    ext::{AbstractExt, ObjectExt},
+    nodes::{
+        BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, PredicateNode, QueryExistsNode,
+        QuerySubjectsAndTagsNode, QuerySubjectsAndValuesNode, QuerySubjectsNode,
+        QueryTagsAndValuesNode, QueryTagsNode, QueryValuesNode, UnwrapOrNode,
+    },
 };
 
 #[test]
@@ -31,19 +36,91 @@ fn new_integer() {
 }
 
 #[test]
-fn node_type() {
+fn node_parsing() {
+    const A: Object = Object::Abstract(Abstract(100));
+    const B: Object = Object::Composite(Composite::Character('B'));
+    const C: Object = Object::Composite(Composite::Empty);
+
     let knowledge = &BASE;
+
+    let node_cases = [
+        Node::Statements,
+        Node::Add(BinaryNode { left: A, right: B }),
+        Node::And(BinaryNode { left: A, right: B }),
+        Node::Call(CallNode { callee: A, with: B }),
+        Node::Count(A),
+        Node::Equal(BinaryNode { left: A, right: B }),
+        Node::Filter(FilterNode {
+            set: A,
+            filter_function: B,
+        }),
+        Node::Function(A),
+        Node::FunctionSelf(42),
+        Node::If(IfNode {
+            condition: A,
+            then: B,
+            otherwise: C,
+        }),
+        Node::IsAbstract(A),
+        Node::Less(BinaryNode { left: A, right: B }),
+        Node::Literal(A),
+        Node::Map(MapNode {
+            mapper_function: A,
+            set: B,
+        }),
+        Node::Multiply(BinaryNode { left: A, right: B }),
+        Node::Not(C),
+        Node::Or(BinaryNode { left: A, right: C }),
+        Node::Parameter(67),
+        Node::QueryExists(QueryExistsNode {
+            subject: A,
+            tag: B,
+            value: C,
+        }),
+        Node::QuerySubjects(QuerySubjectsNode { tag: A, value: B }),
+        Node::QuerySubjectsAndTags(QuerySubjectsAndTagsNode { value: A }),
+        Node::QuerySubjectsAndValues(QuerySubjectsAndValuesNode { tag: A }),
+        Node::QueryTags(QueryTagsNode {
+            subject: A,
+            value: B,
+        }),
+        Node::QueryTagsAndValues(QueryTagsAndValuesNode { subject: C }),
+        Node::QueryValues(QueryValuesNode { subject: B, tag: C }),
+        Node::Union(BinaryNode { left: A, right: C }),
+        Node::UnwrapOr(UnwrapOrNode { default: C, set: B }),
+        Node::Xor(BinaryNode { left: A, right: C }),
+        Node::Every(PredicateNode {
+            predicate: A,
+            set: B,
+        }),
+        Node::Any(PredicateNode {
+            predicate: C,
+            set: A,
+        }),
+    ];
+
+    for node in node_cases {
+        assert_eq!(Object::new_node(node.clone()).node(knowledge), Some(node));
+    }
 
     // None
     assert_eq!(Object::Composite(Composite::Empty).node(knowledge), None);
 
-    // Single
+    // Double -> None
     assert_eq!(
-        Object::new_node(Node::Function(Object::Abstract(Abstract::ZERO))).node(knowledge),
-        Some(Node::Function(Abstract::ZERO.into()))
+        Object::Composite(Composite::new(&mut [
+            Property {
+                tag: Abstract::NODE_NOT.into(),
+                value: C
+            },
+            Property {
+                tag: Abstract::FUNCTION.into(),
+                value: A,
+            }
+        ]))
+        .node(knowledge),
+        None
     );
-
-    // TODO: more
 }
 
 #[test]
@@ -54,7 +131,7 @@ fn call() {
         f.call(
             &BASE,
             &[Object::Abstract(Abstract::ZERO).into()],
-            &mut Default::default()
+            &mut EvaluationContext::default()
         )
         .into_object(),
         Object::Abstract(Abstract::ZERO)
@@ -67,8 +144,9 @@ mod eval {
     use crate::{
         ObjectOrSetValues,
         base::BASE,
+        ctx::EvaluationContext,
         ext::{AbstractExt, CompositeExt, ObjectExt, PropertyExt},
-        nodes::{BinaryNode, Node},
+        nodes::{BinaryNode, Node, QueryValuesNode},
     };
 
     #[test]
@@ -86,7 +164,7 @@ mod eval {
                     left: Composite::new_bool(left).into(),
                     right: Composite::new_bool(right).into()
                 }))
-                .evaluate(&BASE, &mut Default::default())
+                .evaluate(&BASE, &mut EvaluationContext::default())
                 .is_truthy(&BASE),
                 result
             );
@@ -108,7 +186,7 @@ mod eval {
                     left: Composite::new_bool(left).into(),
                     right: Composite::new_bool(right).into()
                 }))
-                .evaluate(&BASE, &mut Default::default())
+                .evaluate(&BASE, &mut EvaluationContext::default())
                 .is_truthy(&BASE),
                 result
             );
@@ -125,7 +203,7 @@ mod eval {
         for subject in subjects {
             assert_eq!(
                 Object::new_node(Node::Literal(subject.clone()))
-                    .evaluate(&BASE, &mut Default::default())
+                    .evaluate(&BASE, &mut EvaluationContext::default())
                     .into_object(),
                 subject
             );
@@ -136,7 +214,7 @@ mod eval {
     fn eval_count() {
         assert_eq!(
             Object::new_node(Node::Count(Composite::Empty.into()))
-                .evaluate(&BASE, &mut Default::default())
+                .evaluate(&BASE, &mut EvaluationContext::default())
                 .into_object(),
             Object::new_integer(0)
         );
@@ -145,11 +223,11 @@ mod eval {
             Object::new_node(Node::Count(Object::new_node(Node::Literal(
                 Composite::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
-                    Property::new_contains(Abstract::KNOWLEDGE.into()),
+                    Property::new_contains(Abstract::BIT_0.into()),
                 ])
                 .into()
             ))))
-            .evaluate(&BASE, &mut Default::default())
+            .evaluate(&BASE, &mut EvaluationContext::default())
             .into_object(),
             Object::new_integer(2)
         );
@@ -158,16 +236,16 @@ mod eval {
     #[test]
     fn eval_query() {
         assert_eq!(
-            Object::new_node_query_values(
-                Composite::new(&mut [
+            Object::new_node(Node::QueryValues(QueryValuesNode {
+                subject: Composite::new(&mut [
                     Property::new_contains(Abstract::ZERO.into()),
                     Property::new_contains(Abstract::BIT_0.into()),
                     Property::new_successor_of(Object::new_integer(0)),
                 ])
                 .into(),
-                Object::new_node(Node::Literal(Abstract::CONTAINS.into()))
-            )
-            .evaluate(&BASE, &mut Default::default())
+                tag: Object::new_node(Node::Literal(Abstract::CONTAINS.into()))
+            }))
+            .evaluate(&BASE, &mut EvaluationContext::default())
             .into_object(),
             Composite::new_set([Abstract::BIT_0.into(), Object::Abstract(Abstract::ZERO)]).into(),
         );
@@ -191,7 +269,7 @@ mod eval {
                     Object::Abstract(Abstract(1338))
                 ]
                 .map(ObjectOrSetValues::Object),
-                &mut Default::default(),
+                &mut EvaluationContext::default(),
             )
             .into_object(),
             Composite::new_set([
@@ -214,9 +292,9 @@ mod eval {
             ))));
 
             assert_eq!(
-                node.evaluate(&BASE, &mut Default::default())
+                node.evaluate(&BASE, &mut EvaluationContext::default())
                     .into_object()
-                    .to_integer(&BASE),
+                    .integer(),
                 Some(count as i128)
             );
         }
@@ -226,8 +304,8 @@ mod eval {
 
     #[test]
     fn multiply() {
-        let a = 543895;
-        let b = 9345125;
+        let a = 543_895;
+        let b = 9_345_125;
 
         let node = Object::new_node(Node::Multiply(BinaryNode {
             left: Object::new_node(Node::Literal(Object::new_integer(a))),
@@ -235,9 +313,9 @@ mod eval {
         }));
 
         assert_eq!(
-            node.evaluate(&BASE, &mut Default::default())
+            node.evaluate(&BASE, &mut EvaluationContext::default())
                 .into_object()
-                .to_integer(&BASE),
+                .integer(),
             Some(a * b)
         );
     }
@@ -245,23 +323,23 @@ mod eval {
     #[test]
     fn parameter_references() {
         let objects = [
-            Object::new_integer(3458349),
-            Abstract(58349580234958034).into(),
+            Object::new_integer(3_458_349),
+            Abstract(58_349_580_234_958_034).into(),
             Object::new_node(Node::Not(Composite::Empty.into())),
         ];
 
         let identity = Object::new_node(Node::Function(Object::new_node(Node::Parameter(0))));
 
-        for object in objects.iter() {
+        for object in &objects {
             assert_eq!(
                 &identity
                     .call(
                         &BASE,
                         &[ObjectOrSetValues::Object(object.clone())],
-                        &mut Default::default()
+                        &mut EvaluationContext::default()
                     )
                     .into_object(),
-                object
+                &object.clone()
             );
         }
 
@@ -271,8 +349,8 @@ mod eval {
             out_of_scope
                 .call(
                     &BASE,
-                    &[ObjectOrSetValues::Object(Abstract(348593485934).into())],
-                    &mut Default::default()
+                    &[ObjectOrSetValues::Object(Abstract(348_593_485_934).into())],
+                    &mut EvaluationContext::default()
                 )
                 .into_object(),
             Object::Composite(Composite::Empty)
@@ -282,25 +360,25 @@ mod eval {
             Node::Function(Object::new_node(Node::Parameter(1))),
         )));
 
-        for object in objects.iter() {
+        for object in &objects {
             let constant = capture_to_constant
                 .call(
                     &BASE,
                     &[ObjectOrSetValues::Object(object.clone())],
-                    &mut Default::default(),
+                    &mut EvaluationContext::default(),
                 )
                 .into_object();
 
-            for other in objects.iter() {
+            for other in &objects {
                 assert_eq!(
                     &constant
                         .call(
                             &BASE,
                             &[ObjectOrSetValues::Object(other.clone())],
-                            &mut Default::default()
+                            &mut EvaluationContext::default()
                         )
                         .into_object(),
-                    object
+                    &object.clone()
                 );
             }
         }
@@ -343,7 +421,7 @@ fn factorial() {
                 .call(
                     &BASE,
                     &[Object::new_integer(input).into()],
-                    &mut Default::default()
+                    &mut EvaluationContext::default()
                 )
                 .into_object(),
             Object::new_integer(output)

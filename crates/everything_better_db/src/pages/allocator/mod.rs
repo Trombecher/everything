@@ -1,9 +1,17 @@
 #[cfg(test)]
 mod tests;
 
+<<<<<<< HEAD
 use core::{
     hint::cold_path,
     sync::atomic::{AtomicBool, Ordering},
+=======
+use core::hint::cold_path;
+
+use std::sync::{
+    Mutex,
+    atomic::{AtomicBool, Ordering},
+>>>>>>> 00f47a517d3b4a3cbaf6483c3fe3a13fd5e7eeea
 };
 
 use std::sync::Mutex;

@@ -5,9 +5,9 @@ use everything_objects::{
 use crate::{
     ctx::EvaluationContext,
     ext::{ObjectExt, PropertyExt},
-    query::{
+    statements::{
         QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags, QueryTagsAndValues,
-        QueryValues, SubjectAndTag, SubjectAndValue,
+        QueryValues, Statements, StatementsIter, SubjectAndTag, SubjectAndValue,
     },
 };
 
@@ -20,6 +20,7 @@ pub struct CompositeSetValues {
 }
 
 impl CompositeSetValues {
+    #[must_use]
     pub fn new(composite: &Composite) -> Self {
         Self {
             properties: match composite {
@@ -63,6 +64,8 @@ impl std::fmt::Debug for CompositeSetValues {
     }
 }
 
+/// Either an object or an iterator over set values.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 pub enum ObjectOrSetValues {
     Object(Object),
@@ -94,10 +97,11 @@ impl ObjectOrSetValues {
     /// Interprets the [`Self::AxiomaticQueryValues`] variant as an iterator
     /// over the set items and returns an iterator over set items.
     #[inline]
-    pub fn set_values(&self, knowledge: &Composite) -> SetValues {
+    #[must_use]
+    pub fn set_values(&self, statements: &Statements) -> SetValues {
         match self {
             Self::SetValues(values) => values.clone(),
-            Self::Object(eager) => SetValues::QueryValues(eager.set_values(knowledge)),
+            Self::Object(eager) => SetValues::QueryValues(eager.set_values(statements)),
         }
     }
 
@@ -106,6 +110,7 @@ impl ObjectOrSetValues {
     /// * If `self` was [`LazyObject::Eager`], it just returns that object.
     /// * If `self` was [`LazyObject::LazySetValues`], it collects all
     ///   values into a set and returns that.
+    #[must_use]
     pub fn into_object(self) -> Object {
         match self {
             Self::Object(object) => object,
@@ -115,14 +120,20 @@ impl ObjectOrSetValues {
 
     /// Determines if `self` is "truthy", i.e. iff it has at
     /// least one property.
-    pub fn is_truthy(&mut self, knowledge: &Composite) -> bool {
+    pub fn is_truthy(&mut self, statements: &Statements) -> bool {
         match self {
-            ObjectOrSetValues::Object(object) => object.is_truthy(knowledge),
+            ObjectOrSetValues::Object(object) => object.is_truthy(statements),
             ObjectOrSetValues::SetValues(iter) => iter.next().is_some(),
         }
     }
 }
 
+/// An iterator over the set values of an object.
+///
+/// Certain variants are lazy meaning they will contain nested iterators
+/// to prevent unnecessary allocations.
+///
+/// This iterator is not required to yield unique values.
 #[derive(Clone)]
 pub enum SetValues {
     /// Iterator over values of an object.
@@ -146,9 +157,12 @@ pub enum SetValues {
     /// Iterator over tags for a given subject and value.
     QueryTags(QueryTags),
 
+    /// Iterator over all statements.
+    Statements(StatementsIter),
+
     /// Maps every value of a given set with a mapper function.
     Map {
-        knowledge: Composite,
+        statements: Statements,
         set: Box<Self>,
         /// This function is captured.
         mapper_function: Object,
@@ -156,7 +170,7 @@ pub enum SetValues {
 
     /// Retains all values for that the filter function returns a truthy value.
     Filter {
-        knowledge: Composite,
+        statements: Statements,
         set: Box<Self>,
         /// This function is captured.
         filter_function: Object,
@@ -179,6 +193,7 @@ impl SetValues {
 
     /// Counts the (remaining) set values of this iterator.
     /// It dedups
+    #[must_use]
     pub fn correct_count(self) -> usize {
         match self {
             SetValues::QueryValues(axiomatic_query_values) => axiomatic_query_values.count(),
@@ -198,14 +213,14 @@ impl Iterator for SetValues {
         match self {
             Self::QueryValues(values) => values.next(),
             Self::Union { left, right } => left.next().or_else(|| right.next()),
-            Self::QuerySubjects(subjects) => subjects.next(),
+            Self::QuerySubjects(subjects) => subjects.next().map(Into::into),
             Self::QueryTags(tags) => tags.next(),
             Self::QuerySubjectsAndTags(subjects_and_tags) => {
                 subjects_and_tags
                     .next()
                     .map(|SubjectAndTag { subject, tag }| {
                         Composite::new(&mut [
-                            Property::new_statement_subject(subject),
+                            Property::new_statement_subject(Object::Abstract(subject)),
                             Property::new_statement_tag(tag),
                         ])
                         .into()
@@ -223,27 +238,30 @@ impl Iterator for SetValues {
             Self::QuerySubjectsAndValues(iter) => {
                 iter.next().map(|SubjectAndValue { subject, value }| {
                     Composite::new(&mut [
-                        Property::new_statement_subject(subject),
+                        Property::new_statement_subject(Object::Abstract(subject)),
                         Property::new_statement_value(value),
                     ])
                     .into()
                 })
             }
+            Self::Statements(iter) => iter
+                .next()
+                .map(|statements| statements.to_composite().into()),
             Self::Map {
-                knowledge,
+                statements,
                 set,
                 mapper_function,
             } => set.next().map(|item| {
                 mapper_function
                     .call(
-                        knowledge,
+                        statements,
                         &[ObjectOrSetValues::Object(item)],
                         &mut EvaluationContext::default(),
                     )
                     .into_object()
             }),
             Self::Filter {
-                knowledge,
+                statements,
                 set,
                 filter_function,
             } => loop {
@@ -253,11 +271,11 @@ impl Iterator for SetValues {
 
                 if filter_function
                     .call(
-                        knowledge,
+                        statements,
                         &[ObjectOrSetValues::Object(item.clone())],
-                        &mut Default::default(),
+                        &mut EvaluationContext::default(),
                     )
-                    .is_truthy(knowledge)
+                    .is_truthy(statements)
                 {
                     break Some(item);
                 }
