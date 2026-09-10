@@ -1,13 +1,12 @@
 #[cfg(test)]
 mod tests;
 
-use std::{
+use core::{
     hint::cold_path,
-    sync::{
-        Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::atomic::{AtomicBool, Ordering},
 };
+
+use std::sync::Mutex;
 
 use tracing::warn;
 
@@ -92,13 +91,13 @@ impl<S: Storage> PageAllocator<S> {
     pub fn new(storage: S) -> Result<Self, Error> {
         let mstorage = ManagedStorage::new(storage);
 
-        let first_meta_page = match mstorage.page(PageId::<MetaPage>::new(0)) {
+        let first_meta_page = match mstorage.page(PageId::<MetaPage>::new(0), false) {
             Ok(page) => Some(page),
             Err(mstorage::Error::PageValidationFailed { .. }) => None,
             Err(err) => return Err(err.into()),
         };
 
-        let second_meta_page = match mstorage.page(PageId::<MetaPage>::new(1)) {
+        let second_meta_page = match mstorage.page(PageId::<MetaPage>::new(1), false) {
             Ok(page) => Some(page),
             Err(mstorage::Error::PageValidationFailed { .. }) => None,
             Err(err) => return Err(err.into()),
@@ -155,13 +154,16 @@ impl<S: Storage> PageAllocator<S> {
 
     pub fn meta_page(&self) -> Result<PageReference<'_, '_, MetaPage>, Error> {
         self.mstorage
-            .page(PageId::<MetaPage>::new(self.current_meta_page.get().into()))
+            .page(
+                PageId::<MetaPage>::new(self.current_meta_page.get().into()),
+                false,
+            )
             .map_err(From::from)
     }
 
     /// # Panics
     ///
-    /// Panics if the lock is
+    /// Panics if there is an error in the code (locks and stuff).
     pub fn allocate<P: Page>(&self) -> Result<PageReference<'_, '_, P>, Error> {
         // TODO: make this function not generic
         let _lock = self.lock.lock().unwrap();
@@ -169,7 +171,7 @@ impl<S: Storage> PageAllocator<S> {
 
         match meta_page.allocator_next_free_page.get() {
             free_page_id if free_page_id.raw != 0 => {
-                let free_page = self.mstorage.page(free_page_id)?;
+                let free_page = self.mstorage.page(free_page_id, false)?;
 
                 // Update next free page to be the next page in the first free page.
                 meta_page
@@ -188,7 +190,7 @@ impl<S: Storage> PageAllocator<S> {
                 // TODO: out of pages???
                 let next_page_id = PageId::<P>::new(meta_page.allocator_pages_initialized.get());
 
-                let next_page = self.mstorage.page(next_page_id)?;
+                let next_page = self.mstorage.page(next_page_id, false)?;
 
                 // Increment pages initialized.
                 meta_page
@@ -205,7 +207,7 @@ impl<S: Storage> PageAllocator<S> {
     }
 
     fn non_generic_free(&self, id: RawPageId) -> Result<(), Error> {
-        let page_to_free = self.mstorage.page(PageId::<FreePage>::new(id))?;
+        let page_to_free = self.mstorage.page(PageId::<FreePage>::new(id), false)?;
 
         let _lock = self.lock.lock().unwrap();
         let meta_page = self.meta_page()?;

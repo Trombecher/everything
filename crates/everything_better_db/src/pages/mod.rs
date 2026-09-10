@@ -3,6 +3,7 @@ mod meta;
 mod mstorage;
 mod pam;
 pub mod storage;
+mod storage2;
 
 pub use allocator::*;
 pub use meta::*;
@@ -12,6 +13,8 @@ use derive_where::derive_where;
 use core::{marker::PhantomData, mem::transmute};
 
 use crate::pages::storage::sync::{MutableU32LeLocation, MutableU64LeLocation};
+
+const PAGE_SIZE_IN_BYTES: usize = 4096;
 
 /// # Safety
 ///
@@ -29,8 +32,8 @@ pub unsafe trait Page {
 #[macro_export]
 macro_rules! unsafe_declare_page {
     ($Page:ty, $kind:expr) => {
-        $crate::const_assert!(size_of::<$Page>() == 4096);
-        $crate::const_assert!(align_of::<$Page>() == 4096);
+        $crate::const_assert!(size_of::<$Page>() == $crate::pages::PAGE_SIZE_IN_BYTES);
+        $crate::const_assert!(align_of::<$Page>() == $crate::pages::PAGE_SIZE_IN_BYTES);
 
         unsafe impl $crate::pages::Page for $Page {
             const KIND: PageKind = $kind;

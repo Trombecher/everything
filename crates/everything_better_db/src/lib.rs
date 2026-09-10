@@ -1,4 +1,5 @@
 #![feature(pointer_is_aligned_to)]
+#![feature(ptr_metadata)]
 #![warn(clippy::pedantic)]
 #![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::missing_errors_doc)]

@@ -387,7 +387,7 @@ impl Iterator for CompositeProperties {
 
 impl std::fmt::Debug for CompositeProperties {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set().entries(&mut self.clone()).finish()
+        f.debug_set().entries(self.clone()).finish()
     }
 }
 

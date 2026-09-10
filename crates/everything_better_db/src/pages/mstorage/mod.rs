@@ -66,10 +66,14 @@ impl<S: Storage> ManagedStorage<S> {
     }
 
     /// Retrieves a [`PageReference`] from a [`PageId`].
-    pub fn page<P: Page>(&self, page_id: PageId<P>) -> Result<PageReference<'_, '_, P>, Error> {
+    pub fn page<P: Page>(
+        &self,
+        page_id: PageId<P>,
+        skip_validation: bool,
+    ) -> Result<PageReference<'_, '_, P>, Error> {
         let guard = self.pam.open_page_as(page_id.raw, P::KIND)?;
 
-        let Some(page_reference) = self.storage.page(page_id.raw) else {
+        let Some(page_reference) = self.storage.page(page_id.raw, skip_validation) else {
             return Err(Error::PageIdOutOfBounds {
                 page_id: page_id.raw,
             });
