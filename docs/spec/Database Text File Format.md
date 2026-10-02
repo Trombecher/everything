@@ -1,26 +1,26 @@
 # Everything Text Database File Format Specification
 
-This format allows for storing **one** object on disk. The file should have the ending `.evtdb` but there are magic bytes at the start to identify it if that extension is ever lost.
+This document describes the file format for Everything text databases. Files should have the ending `.evtdb` but there are also magic bytes at the start of the file to identify it if that extension is ever lost.
 
-## Motivation
+## Prelude
 
-The previous format (`.struct` files) was not good. This new format is designed to be human
+In this format, string literals are enclosed by quotes `"..."` and contain text. These escape codes used in this specification:
 
-* -readable,
-* -editable (well, if you know what you're doing),
-* Git-friendly, but still
-* scalable.
+- `\"` -> `"`
+- `\\` -> `\\`
+- `\n` -> U+000A (LF)
+- `\r` -> U+000D (CR)
+- `\0` -> U+0000
 
-## Format
+A _line break_ is either `"\n"` or `"\r\n"`.
 
-In this specification, string literals are used with escape codes for non-printable characters, like `"\n"` for the ASCII line feed (LF) character.
+## Structure
 
-Every file is UTF-8 and must start with `"EVERYTHINGTEXTDB0000001\n"`.
-Then a list of statements follows. Each statement is delimitered by a LF.
+A EVTDB file is an UTF-8 encoded text file and must start with the string `"EVERYTHINGTEXTDB00000002"`. Then a set of statements follows. The file may contain a trailing line (break).
 
 ## Statements
 
-Statements may contain LF characters. Statements are indexed and other statements may refer to previous ones. There must be a last statement. This last statement is the root structure/knowledge stored. A statement may only refer to statements beforehand. A statement is one of those:
+Each statement is preceeded by a line break. Then an `S` follows.
 
 ### Any Structure
 

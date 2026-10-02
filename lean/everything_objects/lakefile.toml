@@ -1,0 +1,10 @@
+name = "everything_objects"
+version = "0.1.0"
+defaultTargets = ["everything_objects"]
+
+[[lean_lib]]
+name = "EverythingObjects"
+
+[[lean_exe]]
+name = "everything_objects"
+root = "Main"

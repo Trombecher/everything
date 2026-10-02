@@ -53,7 +53,7 @@ The second variant is uncommon because it moves the property of being a person (
 
 > Are there statements (about abstract objects) that cannot be broken down like this, i.e., reduced to _is_ or _has_?
 
-Even _has_ could be encoded into _is_ via a property object _having_ X. David is "having an age of 42". If question 1 turns out to be true, Everything's model could simplify even more, going from three objects per statement to two: subject and property.
+Even _has_ could be encoded into _is_ via a property object _having_ X. "David is having an age of 42". If question 1 turns out to be true, Everything's model could simplify even more, going from three objects per statement to two: subject and property.
 
 ## Problem 1
 
@@ -82,9 +82,25 @@ Yes, one could just not require a value on a statement but the constraint still 
 
 I should be able to state `(David, Person)`, `(Red, Color)`, and `(Shirt, Red)`. (With an implicit "is" as the comma.)
 
-## Bottom line
+## Things I'd like to avoid
+
+I want to avoid that the user has a model but changes it so they can implement their model. In the statement "This shirt is red", "this shirt" is the subject and "red" is an associated _property_ of the shirt. But to implement that in the current model, red is a color and not a "property".
+
+## Bottom Line / Potential Solution
 
 Maybe we could merge tag and value of a statement into one thing, a _property_. Then the knowledge reduces to abstract objects, having a set of properties.
 
 - Some properties may be unit properties, like `Person` or `Color` which do not require extra additional data.
 - And all other properties may be "constructed" via a tag and a value, such as `(Age, 42)`. But I don't know yet how to implement this in the model. Maybe we need secondary things.
+
+Therefore, an abstract object would contain a set of properties. Composite objects would be
+
+### Unresolved Questions
+
+I'd like to keep the current object model: abstract objects and composite objects (sets of (the "other") properties). Unless there is no way to keep this model, I'd like to keep it because it is simple.
+
+- How do we implement unit properties and constructed properties? Do we need separate tags for
+    - constructed properties and
+    - unit properties?
+- Are the "old" properties (composite object's set elements) the new? (we should merge them I think...)
+- Then, should composite objects be constructable

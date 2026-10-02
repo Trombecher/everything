@@ -37,7 +37,7 @@ impl<'source> Parser<'source> {
         }
     }
 
-    pub fn parse_root(&mut self) -> Result<Statements, Error> {
+    pub fn parse_statements(&mut self) -> Result<Statements, Error> {
         if Some(*b"EVERYTHINGTS001\n") != self.bytes.next_chunk::<16>().ok() {
             bail!(self.bytes.index(), "invalid header")
         }
