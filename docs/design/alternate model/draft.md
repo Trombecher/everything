@@ -37,8 +37,6 @@ The purpose of constructions is to give objects "roles" when used in larger stru
 
 Objects can be compared using structural equality. If your model encodes semantic meaning uniquely into object structure, then two objects are structurally equal if and only if they are semantically equal. This is a VERY useful property to have and one of the main goals of Everything: providing a framework to allow users to quantify semantic meaning.
 
-## Models
-
 ## Examples
 
 You can use those definitions to construct objects as representants of things.
@@ -70,7 +68,7 @@ You can model the Everything object model in itself.
     - `p` is an atom implies that `p is property f ∈ K` and `f p` is valid; and
     - `p` is a construction `c v` implies that `c is property_constructor f ∈ K` and `(f p) v` is truthy; and
     - `p` is a set implies that `property ∈ p`.
-- An object `o` is valid in knowledge `K` iff
+- An object `o` is _valid_ in knowledge `K` iff
     - `o` is a construction `c v` implies that `c` and `v` are valid objects, `c is property_constructor f ∈ K`, and `(f p) v` is truthy; and
     - `o` is a set implies that every element `e ∈ o` is valid.
 - Knowledge is _valid_ iff for every statement `a is p`, `p` is valid and a property in `K`.
