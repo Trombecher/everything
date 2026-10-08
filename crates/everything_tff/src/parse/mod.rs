@@ -1,24 +1,35 @@
 #[cfg(test)]
 mod tests;
 
-use base64::Engine;
-use everything::statements::Statements;
+use base64::{alphabet, engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use everything::knowledge::{Knowledge, Statement};
 use everything_objects::{Abstract, BytesComposite, Composite, Object, Property, TextComposite};
 
 use crate::bytes::Bytes;
 
+fn unescape(byte: u8) -> Option<u8> {
+    match byte {
+        b'"' | b'\\' => Some(byte),
+        b'n' => Some(b'\n'),
+        b'r' => Some(b'\r'),
+        b'0' => Some(b'\0'),
+        b't' => Some(b'\t'),
+        _ => None,
+    }
+}
+
 #[derive(PartialEq, Debug, Clone, thiserror::Error)]
-#[error("error while parsing: expected '{expected}' at byte index {found_at}")]
+#[error("error while parsing: '{message}' at byte index {found_at}")]
 pub struct Error {
     pub found_at: usize,
-    pub expected: &'static str,
+    pub message: &'static str,
 }
 
 macro_rules! bail {
     ($found_at:expr, $expected:literal) => {
         return Err(Error {
             found_at: $found_at,
-            expected: $expected,
+            message: $expected,
         })
     };
 }
@@ -26,115 +37,90 @@ macro_rules! bail {
 #[derive(Debug, Clone)]
 pub struct Parser<'source> {
     bytes: Bytes<'source>,
-    previous_aliases: Vec<Composite>,
+    cached_vec: Vec<u8>,
 }
 
 impl<'source> Parser<'source> {
+    const MAGIC_BYTES: [u8; 24] = *b"EVERYTHINGTEXTDATABASE01";
+
     pub const fn new(source: &'source str) -> Self {
         Self {
             bytes: Bytes::new(source),
-            previous_aliases: Vec::new(),
+            cached_vec: Vec::new(),
         }
     }
 
-    pub fn parse_root(&mut self) -> Result<Statements, Error> {
-        if Some(*b"EVERYTHINGTS001\n") != self.bytes.next_chunk::<16>().ok() {
-            bail!(self.bytes.index(), "invalid header")
+    fn try_parse_line_break(&mut self) -> Result<Option<()>, Error> {
+        match self.bytes.next() {
+            Some(b'\r') => {}
+            Some(b'\n') => return Ok(Some(())),
+            None => return Ok(None),
+            _ => bail!(self.bytes.index(), "expected '\\r', '\\n', or end of input"),
         }
 
-        while let Some(alias) = self.try_parse_composite_alias()? {
-            self.previous_aliases.push(alias);
-
-            // Every alias ends with a LF.
-            match self.bytes.peek() {
-                Some(b'\n') => {
-                    self.bytes.next();
-                }
-                _ => bail!(self.bytes.index(), "'\\n'"),
-            }
-        }
-
-        let object = self.parse_object()?;
-
-        // Skip trailing LF.
         if let Some(b'\n') = self.bytes.peek() {
             self.bytes.next();
         }
 
-        let None = self.bytes.peek() else {
-            bail!(self.bytes.index(), "end of input")
-        };
-
-        Ok(object)
+        Ok(Some(()))
     }
 
-    fn parse_property(&mut self) -> Result<Property, Error> {
-        let Some(b'\n') = self.bytes.peek() else {
-            bail!(self.bytes.index(), "'\\n'")
+    fn try_parse_statement(&mut self) -> Result<Option<Statement>, Error> {
+        if self.try_parse_line_break()?.is_none() {
+            return Ok(None);
+        }
+
+        match self.bytes.peek() {
+            Some(b'@') => {}
+            None => return Ok(None),
+            _ => bail!(self.bytes.index(), "expected '@' or end of input"),
+        }
+
+        let subject = match self.parse_object()? {
+            Object::Abstract(a) => a,
+            Object::Composite(_) => unreachable!("unreachable since we start with '@'"),
         };
 
-        self.bytes.next();
+        match self.bytes.next() {
+            Some(b' ') => {}
+            _ => bail!(self.bytes.index(), "expected ' '"),
+        }
 
         let tag = self.parse_object()?;
 
-        let Some(b':') = self.bytes.peek() else {
-            bail!(self.bytes.index(), "':'")
-        };
-
-        self.bytes.next();
+        match self.bytes.next() {
+            Some(b' ') => {}
+            _ => bail!(self.bytes.index(), "expected ' '"),
+        }
 
         let value = self.parse_object()?;
 
-        Ok(Property { tag, value })
+        // TODO: additional data
+
+        Ok(Some(Statement {
+            subject,
+            tag,
+            value,
+            additional_properties: Composite::Empty,
+        }))
+    }
+
+    pub fn parse_knowledge(&mut self) -> Result<Knowledge, Error> {
+        if Some(Self::MAGIC_BYTES) != self.bytes.next_chunk::<24>().ok() {
+            bail!(self.bytes.index(), "invalid magic bytes")
+        }
+
+        let mut knowledge = Knowledge::new();
+
+        while let Some(statement) = self.try_parse_statement()? {
+            knowledge.add_mut([statement].into_iter());
+        }
+
+        Ok(knowledge)
     }
 
     fn try_parse_composite_alias(&mut self) -> Result<Option<Composite>, Error> {
         match self.bytes.peek() {
-            Some(b'T') => {
-                self.bytes.next();
-
-                // Inline text
-
-                let byte_length = self.parse_u64()?;
-
-                match self.bytes.peek() {
-                    Some(b':') => {
-                        self.bytes.next();
-                    }
-                    _ => bail!(self.bytes.index(), "an ASCII digit or ':'"),
-                }
-
-                let start = self.bytes.index();
-
-                let Ok(()) = self.bytes.advance_by(byte_length as usize) else {
-                    bail!(
-                        self.bytes.index(),
-                        "invalid text byte length (expected some more bytes)"
-                    )
-                };
-
-                let end = self.bytes.index();
-
-                if !self.bytes.whole_str().is_char_boundary(end) {
-                    bail!(
-                        end,
-                        "invalid text byte length (not a UTF-8 char boundary at the end)"
-                    )
-                }
-
-                let text = &self.bytes.whole_str().as_bytes()[start..end];
-
-                Ok(Some(BytesComposite::new(text).map_or(
-                    Composite::Empty,
-                    |bytes| {
-                        Composite::Text(unsafe {
-                            // SAFETY: start is at a char boundary, and end is too.
-                            // Also, the whole source is a string, so this is safe.
-                            TextComposite::new_unchecked(bytes)
-                        })
-                    },
-                )))
-            }
             Some(b'A') => {
                 self.bytes.next();
                 // Any Composite
@@ -212,39 +198,6 @@ impl<'source> Parser<'source> {
         Ok(n)
     }
 
-    fn get_text_composite(&mut self, index: u64) -> Result<TextComposite, Error> {
-        let Some(composite) = self.previous_aliases.get_mut(index as usize) else {
-            bail!(self.bytes.index(), "invalid Composite reference")
-        };
-
-        match composite.clone() {
-            Composite::Text(text) => Ok(text),
-            Composite::Bytes(bytes) => {
-                if str::from_utf8(bytes.as_ref()).is_ok() {
-                    let ret = unsafe { TextComposite::new_unchecked(bytes) };
-                    *composite = Composite::Text(ret.clone());
-
-                    Ok(ret)
-                } else {
-                    bail!(self.bytes.index(), ":/")
-                }
-            }
-            _ => bail!(self.bytes.index(), "does not reference text-like Composite"),
-        }
-    }
-
-    fn get_bytes_composite(&mut self, index: u64) -> Result<BytesComposite, Error> {
-        let Some(composite) = self.previous_aliases.get_mut(index as usize) else {
-            bail!(self.bytes.index(), "invalid Composite reference")
-        };
-
-        match composite.clone() {
-            Composite::Bytes(bytes) => Ok(bytes),
-            Composite::Text(text) => Ok(text.into_bytes()),
-            _ => bail!(self.bytes.index(), "does not reference text-like Composite"),
-        }
-    }
-
     fn parse_u128(&mut self, start: u128) -> Result<u128, Error> {
         let mut n = start;
 
@@ -264,19 +217,99 @@ impl<'source> Parser<'source> {
         Ok(n)
     }
 
+    fn parse_property(&mut self) -> Result<Property, Error> {
+        let tag = self.parse_object()?;
+
+        let Some(b':') = self.bytes.peek() else {
+            bail!(self.bytes.index(), "expected ':'")
+        };
+
+        self.bytes.next();
+
+        let value = self.parse_object()?;
+
+        Ok(Property { tag, value })
+    }
+
     fn parse_object(&mut self) -> Result<Object, Error> {
         match self.bytes.peek() {
-            Some(b'>') => {
+            Some(b'"') => {
+                // TODO: maybe optimize this
+
+                self.bytes.next();
+                self.cached_vec.clear();
+
+                loop {
+                    match self.bytes.next() {
+                        Some(b'"') => break,
+                        Some(b'\\') => {
+                            if let Some(real) = self.bytes.next().and_then(unescape) {
+                                self.cached_vec.push(real);
+                            } else {
+                                bail!(self.bytes.index(), "expected 'n', '\"', 'r', '0', ...")
+                            }
+                        }
+                        Some(byte) => self.cached_vec.push(byte),
+                        None => bail!(self.bytes.index(), "expected '\"'"),
+                    }
+                }
+
+                // This could be unchecked (unsafe).
+                Ok(Composite::from(str::from_utf8(self.cached_vec.as_slice()).unwrap()).into())
+            }
+            Some(b'(') => {
                 self.bytes.next();
 
-                let remaining_str =
-                    unsafe { self.bytes.whole_str().get_unchecked(self.bytes.index()..) };
+                let mut properties = vec![];
 
-                let Some(c) = remaining_str.chars().next() else {
-                    bail!(self.bytes.index(), "char")
+                if Some(b')') != self.bytes.peek() {
+                    loop {
+                        properties.push(self.parse_property()?);
+
+                        match self.bytes.next() {
+                            Some(b')') => break,
+                            Some(b',') => {
+                                // Skip ','
+                                self.bytes.next();
+                            }
+                            _ => bail!(self.bytes.index(), "expected ',' or ')'"),
+                        }
+                    }
+                }
+
+                // Skip ')'
+                self.bytes.next();
+
+                Ok(Object::Composite(Composite::new(&mut properties)))
+            }
+            Some(b'U') => {
+                self.bytes.next();
+
+                let mut value = 0_u32;
+
+                loop {
+                    match self.bytes.peek() {
+                        Some(x @ b'0'..=b'9') => {
+                            self.bytes.next();
+
+                            value = value
+                                .checked_mul(10)
+                                .and_then(|value| value.checked_add((x - b'0') as u32))
+                                .ok_or_else(|| Error {
+                                    message: "",
+                                    found_at: self.bytes.index(),
+                                })?;
+                        }
+                        _ => break,
+                    }
+                }
+
+                let Some(c) = char::from_u32(value) else {
+                    return Err(Error {
+                        found_at: self.bytes.index(),
+                        message: "invalid char",
+                    });
                 };
-
-                let _ = self.bytes.advance_by(c.len_utf8());
 
                 Ok(Composite::Character(c).into())
             }
@@ -321,34 +354,16 @@ impl<'source> Parser<'source> {
 
                 Ok(Object::Abstract(Abstract(u128::from_be_bytes(out))))
             }
-            Some(b'r') => {
+            Some(b'<') => {
                 self.bytes.next();
 
-                let index = self.parse_u64()?;
-
-                let Some(composite) = self.previous_aliases.get(index as usize) else {
-                    bail!(self.bytes.index(), "invalid Composite reference")
-                };
-
-                Ok(Object::Composite(composite.clone()))
-            }
-            Some(b't') => {
-                self.bytes.next();
-
-                let index = self.parse_u64()?;
-
-                self.get_text_composite(index)
-                    .map(Composite::Text)
-                    .map(Object::Composite)
-            }
-            Some(b'b') => {
-                self.bytes.next();
-
-                let index = self.parse_u64()?;
-
-                self.get_bytes_composite(index)
-                    .map(Composite::Bytes)
-                    .map(Object::Composite)
+                loop {
+                    match self.bytes.next() {
+                        Some(b'>') => break,
+                        Some(a) if alphabet::URL_SAFE.as_str().contains(a as char) => {}
+                        _ => bail!(self.bytes.index(), ""),
+                    }
+                }
             }
             Some(b'E') => {
                 self.bytes.next();

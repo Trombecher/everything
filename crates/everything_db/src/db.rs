@@ -32,7 +32,7 @@ impl Database {
         let source = str::from_utf8(&content).map_err(|_| Error::DbFileIsInvalidUTF8)?;
 
         let root = Parser::new(source)
-            .parse_root()
+            .parse_knowledge()
             .map_err(Error::ErrorWhileParsingDbFile)?;
 
         file.unlock().map_err(Error::from)?;

@@ -4,10 +4,10 @@ This format allows for storing **one** object on disk. The file should have the 
 
 ## Motivation
 
-The previous format (`.struct` files) was not good. This new format is designed to be human
+This format is designed to be human
 
 * -readable,
-* -editable (well, if you know what you're doing),
+* -editable (well, if you know what you're doing), and
 * Git-friendly, but still
 * scalable.
 
@@ -15,12 +15,11 @@ The previous format (`.struct` files) was not good. This new format is designed 
 
 In this specification, string literals are used with escape codes for non-printable characters, like `"\n"` for the ASCII line feed (LF) character.
 
-Every file is UTF-8 and must start with `"EVERYTHINGTEXTDB0000001\n"`.
-Then a list of statements follows. Each statement is delimitered by a LF.
+Every file is UTF-8 and must start with `"EVERYTHINGTEXTDATABASE01"`. Then a list of statements follows.
 
 ## Statements
 
-Statements may contain LF characters. Statements are indexed and other statements may refer to previous ones. There must be a last statement. This last statement is the root structure/knowledge stored. A statement may only refer to statements beforehand. A statement is one of those:
+A statement is a triple
 
 ### Any Structure
 
@@ -53,3 +52,33 @@ They are encoded using `R` and then an index of a previous structure.
 ### Integers
 
 Just integers, also negative.
+
+## BNF
+
+```
+digit = "0" | ... | "9"
+lowercase = "a" | ... | "z"
+uppercase = "A" | ... | "Z"
+line_break = "\n" | "\r\n"
+
+base64_character = lowercase | uppercase | digit | "-" | "_"
+
+abstract_object = "@" digit*22
+empty_composite_object = "E"
+arbitrary_composite_object = "(" (object ":" object)*_ ")"
+text_composite_object = "\""  "\""
+binary_composite_object = "<" base64_character*_ ">"
+integer_composite_object = "-"? digit*1:32
+
+object = abstract_object
+    | empty_composite_object
+    | arbitrary_composite_object
+    | text_composite_object
+    | binary_composite_object
+
+statement = line_break abstract_object "," object "," object
+
+header = "EVERYTHINGTEXTDATABASE01"
+
+database = header statement*_ line_break?
+```

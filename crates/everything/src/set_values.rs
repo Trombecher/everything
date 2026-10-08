@@ -5,9 +5,9 @@ use everything_objects::{
 use crate::{
     ctx::EvaluationContext,
     ext::{ObjectExt, PropertyExt},
-    statements::{
-        QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags, QueryTagsAndValues,
-        QueryValues, Statements, StatementsIter, SubjectAndTag, SubjectAndValue,
+    knowledge::{
+        Knowledge, QuerySubjects, QuerySubjectsAndTags, QuerySubjectsAndValues, QueryTags,
+        QueryTagsAndValues, QueryValues, StatementsIter, SubjectAndTag, SubjectAndValue,
     },
 };
 
@@ -98,7 +98,7 @@ impl ObjectOrSetValues {
     /// over the set items and returns an iterator over set items.
     #[inline]
     #[must_use]
-    pub fn set_values(&self, statements: &Statements) -> SetValues {
+    pub fn set_values(&self, statements: &Knowledge) -> SetValues {
         match self {
             Self::SetValues(values) => values.clone(),
             Self::Object(eager) => SetValues::QueryValues(eager.set_values(statements)),
@@ -120,7 +120,7 @@ impl ObjectOrSetValues {
 
     /// Determines if `self` is "truthy", i.e. iff it has at
     /// least one property.
-    pub fn is_truthy(&mut self, statements: &Statements) -> bool {
+    pub fn is_truthy(&mut self, statements: &Knowledge) -> bool {
         match self {
             ObjectOrSetValues::Object(object) => object.is_truthy(statements),
             ObjectOrSetValues::SetValues(iter) => iter.next().is_some(),
@@ -162,7 +162,7 @@ pub enum SetValues {
 
     /// Maps every value of a given set with a mapper function.
     Map {
-        statements: Statements,
+        statements: Knowledge,
         set: Box<Self>,
         /// This function is captured.
         mapper_function: Object,
@@ -170,7 +170,7 @@ pub enum SetValues {
 
     /// Retains all values for that the filter function returns a truthy value.
     Filter {
-        statements: Statements,
+        statements: Knowledge,
         set: Box<Self>,
         /// This function is captured.
         filter_function: Object,

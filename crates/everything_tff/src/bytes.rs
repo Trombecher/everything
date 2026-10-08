@@ -32,6 +32,19 @@ impl<'a> Bytes<'a> {
     pub const fn whole_str(&self) -> &'a str {
         self.slice
     }
+
+    #[must_use]
+    pub const fn remaining_bytes(&self) -> usize {
+        self.slice.len() - self.index
+    }
+
+    pub fn try_next_chunk<const N: usize>(&mut self) -> Option<[u8; N]> {
+        if self.remaining_bytes() >= N {
+            Some(self.next_chunk::<N>().unwrap())
+        } else {
+            None
+        }
+    }
 }
 
 impl<'a> Iterator for Bytes<'a> {
@@ -41,5 +54,9 @@ impl<'a> Iterator for Bytes<'a> {
         self.peek().inspect(|_| {
             self.index += 1;
         })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining_bytes(), Some(self.remaining_bytes()))
     }
 }
