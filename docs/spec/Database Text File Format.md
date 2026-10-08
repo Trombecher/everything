@@ -1,8 +1,8 @@
 # Everything Text Database File Format Specification
 
-This format allows for storing **one** object on disk. The file should have the ending `.evtdb` but there are magic bytes at the start to identify it if that extension is ever lost.
+This document describes the file format for Everything text databases. Files should have the ending `.evtdb` but there are also magic bytes at the start of the file to identify it if that extension is ever lost.
 
-## Motivation
+## Prelude
 
 This format is designed to be human
 
@@ -11,9 +11,9 @@ This format is designed to be human
 * Git-friendly, but still
 * scalable.
 
-## Format
+A _line break_ is either `"\n"` or `"\r\n"`.
 
-In this specification, string literals are used with escape codes for non-printable characters, like `"\n"` for the ASCII line feed (LF) character.
+## Structure
 
 Every file is UTF-8 and must start with `"EVERYTHINGTEXTDATABASE01"`. Then a list of statements follows.
 

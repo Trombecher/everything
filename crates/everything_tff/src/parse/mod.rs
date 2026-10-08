@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use base64::{alphabet, engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use base64::{Engine, alphabet, engine::general_purpose::URL_SAFE_NO_PAD};
 use everything::knowledge::{Knowledge, Statement};
 use everything_objects::{Abstract, BytesComposite, Composite, Object, Property, TextComposite};
 
