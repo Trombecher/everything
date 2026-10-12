@@ -1,14 +1,15 @@
-#![forbid(unsafe_code)]
-#![deny(clippy::pedantic)]
-
 use std::{fmt::Debug, num::NonZeroI128};
 
-use crate::{atoms::Atom, constructions::Construction, sets::Set};
-
-pub mod atoms;
-pub mod constructions;
+mod atoms;
+mod byte;
+mod constructions;
 mod iter;
-pub mod sets;
+mod sets;
+
+pub use atoms::*;
+pub use byte::*;
+pub use constructions::*;
+pub use sets::*;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Object {

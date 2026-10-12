@@ -1,15 +1,30 @@
 use std::{cmp::Ordering, fmt::Debug, num::NonZeroI128, sync::Arc};
 
-use crate::{Object, atoms::Atom, constructions::Construction};
+use crate::model::{Atom, Byte, ByteValues, Construction, Object};
 
+/// A set of objects. Contains specializations for certain sets
+/// which are represented optimally in memory.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Set {
     /// Specialization for `{successor_of n}` and `{predecessor_of n}`.
     Integer(NonZeroI128),
+
+    /// Specialization for `{code_point i}`.
+    Character(char),
+
+    /// Specialization for bytes.
+    Byte(Byte),
+
+    /// No specialization.
     Any(AnySet),
 }
 
 impl Set {
+    #[must_use]
+    pub fn empty() -> Self {
+        Self::new(&[])
+    }
+
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn new(objects: &[Object]) -> Self {
@@ -32,6 +47,15 @@ impl Set {
                     NonZeroI128::new(integer.checked_sub(1).expect("numbers too small")).unwrap(),
                 )
             }
+            [Object::Construction(Construction { constructor, value })]
+                if matches!(constructor.as_ref(), Object::Atom(Atom::CODE_POINT))
+                    && let Some(integer) = value.integer()
+                    && let Some(character) = u32::try_from(integer)
+                        .ok()
+                        .and_then(|u| char::try_from(u).ok()) =>
+            {
+                Self::Character(character)
+            }
             _ => Self::Any(AnySet::new(objects)),
         }
     }
@@ -39,8 +63,10 @@ impl Set {
     #[must_use]
     pub fn values(self) -> SetValues {
         match self {
-            Set::Integer(non_zero) => SetValues::Integer(non_zero),
-            Set::Any(any_set) => SetValues::Any(any_set.values()),
+            Self::Integer(non_zero) => SetValues::Integer(non_zero),
+            Self::Any(any_set) => SetValues::Any(any_set.values()),
+            Self::Character(character) => SetValues::Character(character),
+            Self::Byte(byte) => SetValues::Byte(byte.values()),
         }
     }
 }
@@ -48,8 +74,10 @@ impl Set {
 impl Debug for Set {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Set::Integer(non_zero) => Debug::fmt(non_zero, f),
-            Set::Any(any_set) => Debug::fmt(any_set, f),
+            Self::Integer(non_zero) => Debug::fmt(non_zero, f),
+            Self::Any(any_set) => Debug::fmt(any_set, f),
+            Self::Character(character) => write!(f, "'{character}'"),
+            Self::Byte(byte) => Debug::fmt(byte, f),
         }
     }
 }
@@ -57,6 +85,8 @@ impl Debug for Set {
 #[derive(Clone)]
 pub enum SetValues {
     Integer(NonZeroI128),
+    Character(char),
+    Byte(ByteValues),
     Any(AnySetValues),
 }
 
@@ -65,11 +95,21 @@ impl Iterator for SetValues {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            SetValues::Integer(non_zero_integer) => {
+            Self::Character(character) => {
+                let character = *character;
+
+                *self = Set::empty().values();
+
+                Some(Object::Construction(Construction {
+                    constructor: Box::new(Object::Atom(Atom::CODE_POINT)),
+                    value: Box::new(Object::new_integer(i128::from(u32::from(character)))),
+                }))
+            }
+            Self::Integer(non_zero_integer) => {
                 let non_zero_integer = *non_zero_integer;
 
                 // None remaining.
-                *self = Set::new(&[]).values();
+                *self = Set::empty().values();
 
                 match non_zero_integer.get() {
                     positive_integer if positive_integer > 0 => {
@@ -91,7 +131,8 @@ impl Iterator for SetValues {
                     _ => unreachable!(),
                 }
             }
-            SetValues::Any(any_set_values) => any_set_values.next(),
+            Self::Any(any_set_values) => any_set_values.next(),
+            Self::Byte(byte_values) => byte_values.next().map(Object::Construction),
         }
     }
 }

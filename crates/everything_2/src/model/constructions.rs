@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::Object;
+use crate::model::Object;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Construction {

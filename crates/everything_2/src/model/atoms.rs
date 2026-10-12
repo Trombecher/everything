@@ -24,10 +24,10 @@ impl Atom {
     pub const CODE_POINT: Self = Self(2148623592788974381730175331142334217);
 
     /// Denotes the bit zero/off/no.
-    pub const BIT_0: Self = Self(2148623606609578531456976446246481504);
+    pub const BIT_OFF: Self = Self(2148623606609578531456976446246481504);
 
     /// Denotes the bit one/on/yes.
-    pub const BIT_1: Self = Self(2148623648901638714578593280489697845);
+    pub const BIT_ON: Self = Self(2148623648901638714578593280489697845);
 
     /// The bit slot with index 0. Also called the _least significant_ bit.
     pub const BIT_SLOT_0: Self = Self(2148623657764931307024391951942698252);

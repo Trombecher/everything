@@ -1,6 +1,8 @@
 [package]
-name = "everything_objects_2"
+name = "everything_2"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+imbl = "7.0.2"
+num_enum = "0.7.6"
