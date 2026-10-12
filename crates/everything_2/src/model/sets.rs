@@ -20,32 +20,53 @@ pub enum Set {
 }
 
 impl Set {
+    /// Returns the empty [`Set`].
     #[must_use]
     pub fn empty() -> Self {
-        Self::new(&[])
+        Self::new_move([])
     }
 
+    /// Creates a [`Set`] that is truthy.
+    #[must_use]
+    pub fn truthy() -> Self {
+        Self::new_move([Set::empty().into()])
+    }
+
+    /// Creates a new [`Set`] from the given slice of objects. The objects will be cloned.
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn new(objects: &[Object]) -> Self {
+        Self::try_new_specialization(objects).unwrap_or_else(|| Self::Any(AnySet::new(objects)))
+    }
+
+    /// Creates a new [`Set`] from the given array of objects.
+    #[must_use]
+    pub fn new_move<const N: usize>(objects: [Object; N]) -> Self {
+        Self::try_new_specialization(&objects)
+            .unwrap_or_else(|| Self::Any(AnySet::new_move(objects)))
+    }
+
+    /// Tries to create a new [`Set`] specialization variant from the given list of objects.
+    /// If no specialization matches, then this function returns [`None`].
+    fn try_new_specialization(objects: &[Object]) -> Option<Self> {
         match objects {
             [Object::Construction(Construction { constructor, value })]
                 if matches!(constructor.as_ref(), Object::Atom(Atom::SUCCESSOR_OF))
                     && let Some(integer) = value.integer()
                     && integer >= 0 =>
             {
-                Self::Integer(
+                Some(Self::Integer(
                     NonZeroI128::new(integer.checked_add(1).expect("numbers too large")).unwrap(),
-                )
+                ))
             }
             [Object::Construction(Construction { constructor, value })]
                 if matches!(constructor.as_ref(), Object::Atom(Atom::PREDECESSOR_OF))
                     && let Some(integer) = value.integer()
                     && integer <= 0 =>
             {
-                Self::Integer(
+                Some(Self::Integer(
                     NonZeroI128::new(integer.checked_sub(1).expect("numbers too small")).unwrap(),
-                )
+                ))
             }
             [Object::Construction(Construction { constructor, value })]
                 if matches!(constructor.as_ref(), Object::Atom(Atom::CODE_POINT))
@@ -54,12 +75,13 @@ impl Set {
                         .ok()
                         .and_then(|u| char::try_from(u).ok()) =>
             {
-                Self::Character(character)
+                Some(Self::Character(character))
             }
-            _ => Self::Any(AnySet::new(objects)),
+            _ => None,
         }
     }
 
+    /// Returns an iterator over all objects ("values") in this set.
     #[must_use]
     pub fn values(self) -> SetValues {
         match self {
@@ -82,6 +104,7 @@ impl Debug for Set {
     }
 }
 
+/// An iterator over objects ("values") of a set object.
 #[derive(Clone)]
 pub enum SetValues {
     Integer(NonZeroI128),
@@ -137,6 +160,7 @@ impl Iterator for SetValues {
     }
 }
 
+/// A set that is no specialization.
 #[derive(Clone)]
 pub struct AnySet {
     objects: Arc<[Object]>,
@@ -150,6 +174,14 @@ impl AnySet {
         Arc::get_mut(&mut objects).unwrap().sort();
 
         Self { objects }
+    }
+
+    fn new_move<const N: usize>(mut objects: [Object; N]) -> Self {
+        objects.sort();
+
+        Self {
+            objects: Arc::new(objects),
+        }
     }
 
     #[must_use]
