@@ -33,6 +33,8 @@ A _construction_ is a combination of two objects, written `a b`. Constructions c
 
 The purpose of constructions is to give objects "roles" when used in larger structures. The object model itself cannot impose constraints on what objects can be used as property constructors but later, when describing knowledge, constraints will be laid out. Semantically, a construction may then be interpreted as the construction of a "property" (which an object then may have).
 
+Constructions associate to the right: `a b c == a (b c)`.
+
 ### Equality
 
 Objects can be compared using structural equality. If your model encodes semantic meaning uniquely into object structure, then two objects are structurally equal if and only if they are semantically equal. This is a VERY useful property to have and one of the main goals of Everything: providing a framework to allow users to quantify semantic meaning.
@@ -60,15 +62,44 @@ You can model the Everything object model in itself.
 
 # Knowledge
 
-## Definitions
+We define _knowledge_ as a set of statements. A statement is a combination of an atom `a` with an object `o`, written `a is o`. Mathematically, it's a pair. Semantically, a statement states that an atom `a` has a property and therefore is element of the set of all objects that have this property.
 
-- We define _knowledge_ as a set of statements.
-- A statement is a combination of an atom `A` with an object `O`, written `A is O`. Mathematically, it's a pair.
-- An object `p` is a property in knowledge `K` iff
-    - `p` is an atom implies that `p is property f ∈ K` and `f p` is valid; and
-    - `p` is a construction `c v` implies that `c is property_constructor f ∈ K` and `(f p) v` is truthy; and
-    - `p` is a set implies that `property ∈ p`.
-- An object `o` is _valid_ in knowledge `K` iff
-    - `o` is a construction `c v` implies that `c` and `v` are valid objects, `c is property_constructor f ∈ K`, and `(f p) v` is truthy; and
-    - `o` is a set implies that every element `e ∈ o` is valid.
-- Knowledge is _valid_ iff for every statement `a is p`, `p` is valid and a property in `K`.
+## Validation
+
+To prevent knowledge from reaching arbitrariness, Everything validates knowledge. Knowledge `K` is _valid_ iff for every statement `a is p ∈ K`, `p` is valid and a property in `K`. This ensures that all objects are valid and that only _properties_ are being used as properties.
+
+Models can restrict themselves by imposing arbitrary constraints on values in property constructions and on sets where properties are used. These constraints are modeled directly in Everything with a functional "programming language".
+
+### Properties
+
+In Everything, every property is either non-constructed or constructed. You can construct properties via constructions with property constructors. Formally:
+
+An object `p` is a property in knowledge `K` iff
+
+- `p` is an atom implies that `p is property f ∈ K` and `f p` is truthy; and
+- `p` is a construction `c v` implies that `c is property_constructor f ∈ K` and `(f p) v` is truthy; and
+- `p` is a set implies that `property f ∈ p` and `f p` is truthy.
+
+### Valid Objects
+
+The motivation behind valid objects is to check that all property constructions in that object are valid. Formally:
+
+An object `o` is _valid_ in knowledge `K` iff
+
+- `o` is a construction `c v` implies that `c` and `v` are valid objects, `c is property_constructor f ∈ K`, and `(f p) v` is truthy; and
+- `o` is a set implies that every object `e ∈ o` is valid.
+
+## Examples
+
+```
+person is property {{}}
+date_time is property_constructor {{}}
+child_of is property_constructor _ |-> $person |-> $person is person
+
+David is person
+David is born {date_time 10234823948}
+David is child_of Anna
+
+Anna is person
+Anna is born {date_time 45385034985039}
+```
