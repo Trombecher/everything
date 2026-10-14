@@ -4,7 +4,7 @@ use everything_objects::{
 
 use crate::{
     base::AXIOMATIC_AXIOMATIC_CONSTRAINT,
-    statements::{
+    knowledge::{
         AbstractExtendedProperties, AbstractProperties, AbstractTags, AbstractValues,
         IndexedStatements, Statement,
     },

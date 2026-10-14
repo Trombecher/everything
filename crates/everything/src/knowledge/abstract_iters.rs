@@ -1,7 +1,7 @@
 use everything_objects::{Object, Property};
 use imbl::HashSet;
 
-use crate::statements::IndexedStatementProperty;
+use crate::knowledge::IndexedStatementProperty;
 
 pub(super) type AbstractExtendedProperties =
     <HashSet<IndexedStatementProperty> as IntoIterator>::IntoIter;

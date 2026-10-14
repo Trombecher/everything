@@ -9,23 +9,23 @@ use crate::{
     ObjectOrSetValues, SetValues,
     ctx::{EvaluationContext, FunctionContext},
     ext::{AbstractExt, CompositeExt, KnowledgeError, iter::IteratorExtNextAndLast},
+    knowledge::{Knowledge, QueryValues, SimpleStatement},
     nodes::{
         BinaryNode, CallNode, FilterNode, IfNode, MapNode, Node, PredicateNode, QueryExistsNode,
         QuerySubjectsAndTagsNode, QuerySubjectsAndValuesNode, QuerySubjectsNode,
         QueryTagsAndValuesNode, QueryTagsNode, QueryValuesNode, Task, UnwrapOrNode,
     },
     optimization::OPTIMIZED_FUNCTIONS,
-    statements::{QueryValues, SimpleStatement, Statements},
 };
 
 /// An extension trait implemented for [`Object`], providing many useful functions.
 pub trait ObjectExt {
     /// Extracts the first (and last) [`Abstract::FUNCTION`] from `self`.
-    fn node_function_body(&self, statements: &Statements) -> Option<Object>;
+    fn node_function_body(&self, statements: &Knowledge) -> Option<Object>;
 
     fn capture(
         &self,
-        statements: &Statements,
+        statements: &Knowledge,
         additional_depth: usize,
         ctx: &EvaluationContext,
     ) -> ObjectOrSetValues;
@@ -37,19 +37,19 @@ pub trait ObjectExt {
     /// `&mut Default::default()`.
     fn evaluate(
         &self,
-        statements: &Statements,
+        statements: &Knowledge,
         context: &mut EvaluationContext,
     ) -> ObjectOrSetValues;
 
     /// Parses a node from `self`.
-    fn node(&self, statements: &Statements) -> Option<Node>;
+    fn node(&self, statements: &Knowledge) -> Option<Node>;
 
     /// Returns an iterator over all set items.
-    fn set_values(&self, statements: &Statements) -> QueryValues;
+    fn set_values(&self, statements: &Knowledge) -> QueryValues;
 
     fn composite(&self) -> Option<&Composite>;
 
-    fn is_truthy(&self, statements: &Statements) -> bool;
+    fn is_truthy(&self, statements: &Knowledge) -> bool;
 
     /// Calls `self` with a list of parameters.
     /// If none are provided, `self` will just be evaluated.
@@ -57,7 +57,7 @@ pub trait ObjectExt {
     /// Note that it does not evaluate any parameters.
     fn call(
         &self,
-        statements: &Statements,
+        statements: &Knowledge,
         parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
     ) -> ObjectOrSetValues;
@@ -67,7 +67,7 @@ pub trait ObjectExt {
     /// # Errors
     ///
     /// This function will return an error if it is not valid.
-    fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
+    fn is_valid(&self, statements: &Knowledge, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn add(&self, other: &Object) -> Object;
 
@@ -75,7 +75,7 @@ pub trait ObjectExt {
     /// for `left_tag` and `right_tag`.
     fn binary_node(
         &self,
-        statements: &Statements,
+        statements: &Knowledge,
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode>;
@@ -370,7 +370,7 @@ impl ObjectExt for Object {
         }
     }
 
-    fn set_values(&self, statements: &Statements) -> QueryValues {
+    fn set_values(&self, statements: &Knowledge) -> QueryValues {
         statements.query_values(self.clone(), Abstract::CONTAINS.into())
     }
 
@@ -381,13 +381,13 @@ impl ObjectExt for Object {
         }
     }
 
-    fn is_truthy(&self, statements: &Statements) -> bool {
+    fn is_truthy(&self, statements: &Knowledge) -> bool {
         self.set_values(statements).next().is_some()
     }
 
     fn binary_node(
         &self,
-        statements: &Statements,
+        statements: &Knowledge,
         left_tag: Object,
         right_tag: Object,
     ) -> Option<BinaryNode> {
@@ -404,7 +404,7 @@ impl ObjectExt for Object {
 
     #[instrument(skip(statements), ret)]
     #[allow(clippy::too_many_lines)]
-    fn node(&self, statements: &Statements) -> Option<Node> {
+    fn node(&self, statements: &Knowledge) -> Option<Node> {
         let mut node = self.node_function_body(statements).map(Node::Function);
 
         macro_rules! xor_with {
@@ -428,7 +428,7 @@ impl ObjectExt for Object {
                 .map(Node::Literal)
         );
 
-        fn node_function_self(this: &Object, statements: &Statements) -> Option<u32> {
+        fn node_function_self(this: &Object, statements: &Knowledge) -> Option<u32> {
             let depth = statements
                 .query_values(this.clone(), Abstract::NODE_FUNCTION_SELF.into())
                 .next_and_last()?
@@ -438,7 +438,7 @@ impl ObjectExt for Object {
         }
         xor_with!(node_function_self(self, statements).map(Node::FunctionSelf));
 
-        fn node_parameter_depth(this: &Object, statements: &Statements) -> Option<u32> {
+        fn node_parameter_depth(this: &Object, statements: &Knowledge) -> Option<u32> {
             let depth = statements
                 .query_values(this.clone(), Abstract::NODE_PARAMETER.into())
                 .next_and_last()?
@@ -448,7 +448,7 @@ impl ObjectExt for Object {
         }
         xor_with!(node_parameter_depth(self, statements).map(Node::Parameter));
 
-        fn node_call(this: &Object, statements: &Statements) -> Option<CallNode> {
+        fn node_call(this: &Object, statements: &Knowledge) -> Option<CallNode> {
             let callee = statements
                 .query_values(this.clone(), Abstract::NODE_CALL_CALLEE.into())
                 .next_and_last()?;
@@ -587,7 +587,7 @@ impl ObjectExt for Object {
             .map(Node::Union)
         );
 
-        fn node_map(this: &Object, statements: &Statements) -> Option<MapNode> {
+        fn node_map(this: &Object, statements: &Knowledge) -> Option<MapNode> {
             let set_expression = statements
                 .query_values(this.clone(), Abstract::NODE_MAP_SET.into())
                 .next()?;
@@ -602,7 +602,7 @@ impl ObjectExt for Object {
         }
         xor_with!(node_map(self, statements).map(Node::Map));
 
-        fn node_filter(this: &Object, statements: &Statements) -> Option<FilterNode> {
+        fn node_filter(this: &Object, statements: &Knowledge) -> Option<FilterNode> {
             let set = statements
                 .query_values(this.clone(), Abstract::NODE_FILTER_SET.into())
                 .next_and_last()?;
@@ -627,7 +627,7 @@ impl ObjectExt for Object {
             .map(Node::Less)
         );
 
-        fn node_if(object: &Object, statements: &Statements) -> Option<IfNode> {
+        fn node_if(object: &Object, statements: &Knowledge) -> Option<IfNode> {
             let condition = statements
                 .query_values(object.clone(), Abstract::NODE_IF_CONDITION.into())
                 .next_and_last()?;
@@ -648,7 +648,7 @@ impl ObjectExt for Object {
         }
         xor_with!(node_if(self, statements).map(Node::If));
 
-        fn node_unwrap_or(this: &Object, statements: &Statements) -> Option<UnwrapOrNode> {
+        fn node_unwrap_or(this: &Object, statements: &Knowledge) -> Option<UnwrapOrNode> {
             let set = statements
                 .query_values(this.clone(), Abstract::NODE_UNWRAP_OR_SET.into())
                 .next_and_last()?;
@@ -677,7 +677,7 @@ impl ObjectExt for Object {
                 .map(Node::IsAbstract)
         );
 
-        fn node_every(this: &Object, statements: &Statements) -> Option<PredicateNode> {
+        fn node_every(this: &Object, statements: &Knowledge) -> Option<PredicateNode> {
             let set = statements
                 .query_values(this.clone(), Abstract::NODE_EVERY_SET.into())
                 .next_and_last()?;
@@ -690,7 +690,7 @@ impl ObjectExt for Object {
         }
         xor_with!(node_every(self, statements).map(Node::Every));
 
-        fn node_any(this: &Object, statements: &Statements) -> Option<PredicateNode> {
+        fn node_any(this: &Object, statements: &Knowledge) -> Option<PredicateNode> {
             let set = statements
                 .query_values(this.clone(), Abstract::NODE_ANY_SET.into())
                 .next_and_last()?;
@@ -706,7 +706,7 @@ impl ObjectExt for Object {
         node
     }
 
-    fn node_function_body(&self, statements: &Statements) -> Option<Object> {
+    fn node_function_body(&self, statements: &Knowledge) -> Option<Object> {
         statements
             .query_values(self.clone(), Abstract::FUNCTION.into())
             .next_and_last()
@@ -715,7 +715,7 @@ impl ObjectExt for Object {
     #[instrument(skip(statements), ret)]
     fn capture(
         &self,
-        statements: &Statements,
+        statements: &Knowledge,
         additional_depth: usize,
         ctx: &EvaluationContext,
     ) -> ObjectOrSetValues {
@@ -807,7 +807,7 @@ impl ObjectExt for Object {
     #[allow(clippy::too_many_lines)]
     fn evaluate(
         &self,
-        statements: &Statements,
+        statements: &Knowledge,
         context: &mut EvaluationContext,
     ) -> ObjectOrSetValues {
         let mut tasks = vec![Task::Evaluate(self.clone())];
@@ -1327,7 +1327,7 @@ impl ObjectExt for Object {
 
     fn call(
         &self,
-        statements: &Statements,
+        statements: &Knowledge,
         parameters: &[ObjectOrSetValues],
         ctx: &mut EvaluationContext,
     ) -> ObjectOrSetValues {
@@ -1373,7 +1373,7 @@ impl ObjectExt for Object {
         self.evaluate(statements, ctx)
     }
 
-    fn is_valid(&self, statements: &Statements, recursive: bool) -> Result<(), KnowledgeError> {
+    fn is_valid(&self, statements: &Knowledge, recursive: bool) -> Result<(), KnowledgeError> {
         match self {
             Self::Abstract(_) => Ok(()),
             Self::Composite(composite) => composite.is_valid(statements, recursive),

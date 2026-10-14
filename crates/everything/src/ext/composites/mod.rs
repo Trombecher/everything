@@ -8,7 +8,7 @@ use crate::{
     ObjectOrSetValues,
     ctx::EvaluationContext,
     ext::{AbstractExt, ObjectExt, PropertyExt},
-    statements::Statements,
+    knowledge::Knowledge,
 };
 
 #[derive(PartialEq, Clone, Debug)]
@@ -69,7 +69,7 @@ pub trait CompositeExt {
     /// # Errors
     ///
     /// This function will return an error if it is not valid.
-    fn is_valid(&self, knowledge: &Statements, recursive: bool) -> Result<(), KnowledgeError>;
+    fn is_valid(&self, knowledge: &Knowledge, recursive: bool) -> Result<(), KnowledgeError>;
 
     fn new_statement(subject: Object, tag: Object, value: Object) -> Self;
 
@@ -86,7 +86,7 @@ impl CompositeExt for Composite {
     }
 
     #[instrument(skip(knowledge), ret)]
-    fn is_valid(&self, knowledge: &Statements, recursive: bool) -> Result<(), KnowledgeError> {
+    fn is_valid(&self, knowledge: &Knowledge, recursive: bool) -> Result<(), KnowledgeError> {
         if self.any().is_none() {
             // All specializations are valid
             return Ok(());

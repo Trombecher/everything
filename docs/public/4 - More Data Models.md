@@ -4,10 +4,11 @@ Everything gives you the freedom to model anything. However some models are stor
 
 ## Lists
 
-A list can be modelled recursively like this:
+An object is a _list_ iff
 
-* The empty list is the empty object.
-* A list with an item has the form `{@LIST_ITEM: <<item>>, @LIST_TAIL: <<tail>>}` where the tail is a list.
+* it is equal to the empty composite or
+    * there exists a single value with the tag `@LIST_ITEM` on the object and
+    * there exists a single value with the tag `@LIST_TAIL` on the object and this value is a list.
 
 ## Characters
 

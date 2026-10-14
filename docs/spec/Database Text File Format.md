@@ -4,23 +4,22 @@ This document describes the file format for Everything text databases. Files sho
 
 ## Prelude
 
-In this format, string literals are enclosed by quotes `"..."` and contain text. These escape codes used in this specification:
+This format is designed to be human
 
-- `\"` -> `"`
-- `\\` -> `\\`
-- `\n` -> U+000A (LF)
-- `\r` -> U+000D (CR)
-- `\0` -> U+0000
+* -readable,
+* -editable (well, if you know what you're doing), and
+* Git-friendly, but still
+* scalable.
 
 A _line break_ is either `"\n"` or `"\r\n"`.
 
 ## Structure
 
-A EVTDB file is an UTF-8 encoded text file and must start with the string `"EVERYTHINGTEXTDB00000002"`. Then a set of statements follows. The file may contain a trailing line (break).
+Every file is UTF-8 and must start with `"EVERYTHINGTEXTDATABASE01"`. Then a list of statements follows.
 
 ## Statements
 
-Each statement is preceeded by a line break. Then an `S` follows.
+A statement is a triple
 
 ### Any Structure
 
@@ -53,3 +52,33 @@ They are encoded using `R` and then an index of a previous structure.
 ### Integers
 
 Just integers, also negative.
+
+## BNF
+
+```
+digit = "0" | ... | "9"
+lowercase = "a" | ... | "z"
+uppercase = "A" | ... | "Z"
+line_break = "\n" | "\r\n"
+
+base64_character = lowercase | uppercase | digit | "-" | "_"
+
+abstract_object = "@" digit*22
+empty_composite_object = "E"
+arbitrary_composite_object = "(" (object ":" object)*_ ")"
+text_composite_object = "\""  "\""
+binary_composite_object = "<" base64_character*_ ">"
+integer_composite_object = "-"? digit*1:32
+
+object = abstract_object
+    | empty_composite_object
+    | arbitrary_composite_object
+    | text_composite_object
+    | binary_composite_object
+
+statement = line_break abstract_object "," object "," object
+
+header = "EVERYTHINGTEXTDATABASE01"
+
+database = header statement*_ line_break?
+```

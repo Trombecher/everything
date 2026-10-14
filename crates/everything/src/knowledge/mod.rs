@@ -136,14 +136,15 @@ impl From<IndexedStatementProperty> for Property {
 type IndexedStatements =
     <HashMap<Abstract, HashSet<IndexedStatementProperty>> as IntoIterator>::IntoIter;
 
-/// A set of statements. This may contain invalid knowledge. Use [`Self::is_knowledge`] to validate.
+/// Knowledge is a set of statements. The contained knowledge is not
+/// required to be valid. Use [`Self::is_valid`] to validate.
 #[derive(Default, Clone)]
-pub struct Statements {
+pub struct Knowledge {
     /// Statements indexed by subject. Every set is non empty.
     indexed_statements: HashMap<Abstract, HashSet<IndexedStatementProperty>>,
 }
 
-impl Statements {
+impl Knowledge {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -316,7 +317,7 @@ impl Statements {
     /// # Errors
     ///
     /// This function will return an error if `self` is not valid knowledge.
-    pub fn is_knowledge(&self) -> Result<(), KnowledgeError> {
+    pub fn is_valid(&self) -> Result<(), KnowledgeError> {
         // BASE needs to be included
         if !BASE
             .iter_owned()
@@ -373,7 +374,7 @@ impl Statements {
     }
 }
 
-impl<T: IntoIterator<Item = Statement>> From<T> for Statements {
+impl<T: IntoIterator<Item = Statement>> From<T> for Knowledge {
     fn from(value: T) -> Self {
         let mut this = Self::new();
         this.add_mut(value.into_iter());

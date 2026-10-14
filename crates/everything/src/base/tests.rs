@@ -1,7 +1,7 @@
 use everything_objects::{Abstract, Composite, Object, Property};
 
 use crate::{
-    base::{BASE, IS_INTEGER},
+    base::{BASE, IS_INTEGER, IS_TEXT},
     ctx::EvaluationContext,
     ext::{AbstractExt, CompositeExt, ObjectExt},
 };
@@ -9,7 +9,7 @@ use std::assert_matches;
 
 #[test]
 fn base_is_knowledge() {
-    assert_matches!(BASE.is_knowledge(), Ok(()));
+    assert_matches!(BASE.is_valid(), Ok(()));
 }
 
 #[test]
@@ -104,6 +104,25 @@ fn integers() {
                 .call(
                     knowledge,
                     &[not_integer.into()],
+                    &mut EvaluationContext::default()
+                )
+                .is_truthy(knowledge)
+        );
+    }
+}
+
+#[test]
+fn is_text() {
+    let knowledge = &BASE;
+
+    let positive_cases = ["", "abc", "ä\0"];
+
+    for positive_case in positive_cases {
+        assert!(
+            IS_TEXT
+                .call(
+                    knowledge,
+                    &[Object::from(Composite::from(positive_case)).into()],
                     &mut EvaluationContext::default()
                 )
                 .is_truthy(knowledge)

@@ -1,8 +1,10 @@
 mod integers;
 #[cfg(test)]
 mod tests;
+mod text;
 
 pub use integers::*;
+pub use text::*;
 
 use std::sync::LazyLock;
 
@@ -10,8 +12,8 @@ use everything_objects::{Abstract, Composite, Object};
 
 use crate::{
     ext::{AbstractExt, CompositeExt, ObjectExt},
+    knowledge::{Knowledge, Statement},
     nodes::{BinaryNode, CallNode, Node, QueryValuesNode},
-    statements::{Statement, Statements},
 };
 
 fn common_unique_constraint_expression(tag: Object, parameter_depth: u32) -> Object {
@@ -67,8 +69,8 @@ fn bit_slot_statement(slot: Abstract) -> Statement {
     )
 }
 
-pub static BASE: LazyLock<Statements> = LazyLock::new(|| {
-    Statements::from([
+pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
+    Knowledge::from([
         Statement::new(
             Abstract::CONTAINS,
             Abstract::AXIOMATIC.into(),

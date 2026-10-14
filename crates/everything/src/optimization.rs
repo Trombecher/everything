@@ -2,11 +2,11 @@ use std::sync::LazyLock;
 
 use everything_objects::{Composite, Object};
 
-use crate::{ObjectOrSetValues, base::IS_INTEGER, ext::CompositeExt, statements::Statements};
+use crate::{ObjectOrSetValues, base::IS_INTEGER, ext::CompositeExt, knowledge::Knowledge};
 
 #[allow(clippy::type_complexity)]
 pub static OPTIMIZED_FUNCTIONS: LazyLock<
-    [(Object, fn(&Statements, ObjectOrSetValues) -> Object); 1],
+    [(Object, fn(&Knowledge, ObjectOrSetValues) -> Object); 1],
 > = LazyLock::new(|| {
     [
         // Without this optimization, a release build verifying 10,000
