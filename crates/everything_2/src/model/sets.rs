@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, fmt::Debug, num::NonZeroI128, sync::Arc};
+use std::{cmp::Ordering, fmt::Debug, mem, num::NonZeroI128, sync::Arc};
 
 use crate::model::{Atom, Byte, ByteValues, Construction, Object};
 
@@ -14,6 +14,9 @@ pub enum Set {
 
     /// Specialization for bytes.
     Byte(Byte),
+
+    /// Specialization for `{x y}`.
+    OneConstruction(Construction),
 
     /// No specialization.
     Any(AnySet),
@@ -36,19 +39,37 @@ impl Set {
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn new(objects: &[Object]) -> Self {
-        Self::try_new_specialization(objects).unwrap_or_else(|| Self::Any(AnySet::new(objects)))
+        Self::try_new_primitive_specialization(objects)
+            .unwrap_or_else(|| Self::Any(AnySet::new(objects)))
     }
 
     /// Creates a new [`Set`] from the given array of objects.
     #[must_use]
-    pub fn new_move<const N: usize>(objects: [Object; N]) -> Self {
-        Self::try_new_specialization(&objects)
-            .unwrap_or_else(|| Self::Any(AnySet::new_move(objects)))
+    #[allow(clippy::missing_panics_doc)] // this function does not panic!
+    pub fn new_move<const N: usize>(mut objects: [Object; N]) -> Self {
+        if let Some(set) = Self::try_new_primitive_specialization(&objects) {
+            set
+        } else {
+            match objects.as_slice() {
+                [Object::Construction(Construction { .. })] => {
+                    // We have to do this dance to move the construction
+                    // out of the object array because we cannot match
+                    // on a generic array. I hope this will get optimized.
+
+                    Self::OneConstruction(
+                        mem::take(objects.first_mut().unwrap())
+                            .destructure_construction()
+                            .unwrap(),
+                    )
+                }
+                _ => Self::Any(AnySet::new_move(objects)),
+            }
+        }
     }
 
-    /// Tries to create a new [`Set`] specialization variant from the given list of objects.
+    /// Tries to create a new [`Set`] primitive specialization variant from the given list of objects.
     /// If no specialization matches, then this function returns [`None`].
-    fn try_new_specialization(objects: &[Object]) -> Option<Self> {
+    fn try_new_primitive_specialization(objects: &[Object]) -> Option<Self> {
         match objects {
             [Object::Construction(Construction { constructor, value })]
                 if matches!(constructor.as_ref(), Object::Atom(Atom::SUCCESSOR_OF))
@@ -81,6 +102,16 @@ impl Set {
         }
     }
 
+    /// The number of objects in this set.
+    #[must_use]
+    pub fn size(&self) -> u64 {
+        match self {
+            Set::Byte(_) => 8,
+            Set::Any(any_set) => any_set.as_slice().len() as u64,
+            Set::Integer(_) | Set::Character(_) | Self::OneConstruction(_) => 1,
+        }
+    }
+
     /// Returns an iterator over all objects ("values") in this set.
     #[must_use]
     pub fn values(self) -> SetValues {
@@ -89,6 +120,7 @@ impl Set {
             Self::Any(any_set) => SetValues::Any(any_set.values()),
             Self::Character(character) => SetValues::Character(character),
             Self::Byte(byte) => SetValues::Byte(byte.values()),
+            Self::OneConstruction(construction) => SetValues::OneConstruction(construction),
         }
     }
 }
@@ -100,6 +132,7 @@ impl Debug for Set {
             Self::Any(any_set) => Debug::fmt(any_set, f),
             Self::Character(character) => write!(f, "'{character}'"),
             Self::Byte(byte) => Debug::fmt(byte, f),
+            Self::OneConstruction(construction) => f.debug_set().entry(construction).finish(),
         }
     }
 }
@@ -110,6 +143,7 @@ pub enum SetValues {
     Integer(NonZeroI128),
     Character(char),
     Byte(ByteValues),
+    OneConstruction(Construction),
     Any(AnySetValues),
 }
 
@@ -156,6 +190,10 @@ impl Iterator for SetValues {
             }
             Self::Any(any_set_values) => any_set_values.next(),
             Self::Byte(byte_values) => byte_values.next().map(Object::Construction),
+            Self::OneConstruction(_) => match mem::replace(self, Set::empty().values()) {
+                SetValues::OneConstruction(construction) => Some(construction.into()),
+                _ => unreachable!(),
+            },
         }
     }
 }
