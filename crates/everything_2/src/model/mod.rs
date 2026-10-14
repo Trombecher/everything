@@ -1,13 +1,11 @@
 use std::{fmt::Debug, num::NonZeroI128};
 
 mod atoms;
-mod byte;
 mod constructions;
 mod iter;
 mod sets;
 
 pub use atoms::*;
-pub use byte::*;
 pub use constructions::*;
 pub use sets::*;
 
@@ -39,7 +37,9 @@ impl Object {
     #[must_use]
     pub const fn new_integer(integer: i128) -> Self {
         if let Some(non_zero_integer) = NonZeroI128::new(integer) {
-            Self::Set(Set::Integer(non_zero_integer))
+            Self::Set(Set::Integer(IntegerSet {
+                representing: non_zero_integer,
+            }))
         } else {
             Self::Atom(Atom::ZERO)
         }
@@ -49,7 +49,7 @@ impl Object {
     pub fn integer(&self) -> Option<i128> {
         match self {
             Self::Atom(Atom::ZERO) => Some(0),
-            Self::Set(Set::Integer(integer)) => Some(integer.get()),
+            Self::Set(Set::Integer(integer)) => Some(integer.representing.get()),
             _ => None,
         }
     }

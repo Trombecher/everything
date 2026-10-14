@@ -1,5 +1,5 @@
 use crate::{
-    compute::ObjectOrExtendedSetValues,
+    compute::{Node, ObjectOrExtendedSetValues},
     knowledge::Knowledge,
     model::{Object, Set},
 };
