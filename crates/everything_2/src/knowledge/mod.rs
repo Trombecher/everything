@@ -17,6 +17,7 @@ pub struct Knowledge {
 }
 
 impl Knowledge {
+    #[must_use]
     pub fn query_atoms_with_property(&self, property: Object) -> QueryAtomsWithProperty {
         QueryAtomsWithProperty {
             atoms: self.map.clone().into_iter(),

@@ -8,6 +8,22 @@ pub struct CharacterSet {
     pub representing: char,
 }
 
+impl CharacterSet {
+    fn parse_char(object: &Object) -> Option<char> {
+        if let Object::Construction(Construction { constructor, value }) = object
+            && matches!(constructor.as_ref(), Object::Atom(Atom::CODE_POINT))
+            && let Some(integer) = value.integer()
+            && let Some(character) = u32::try_from(integer)
+                .ok()
+                .and_then(|u| char::try_from(u).ok())
+        {
+            Some(character)
+        } else {
+            None
+        }
+    }
+}
+
 impl Debug for CharacterSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "'{}'", self.representing)
@@ -17,17 +33,9 @@ impl Debug for CharacterSet {
 impl SetSpecialization for CharacterSet {
     fn specialize_from(objects: &[Object]) -> Option<Self> {
         match objects {
-            [Object::Construction(Construction { constructor, value })]
-                if matches!(constructor.as_ref(), Object::Atom(Atom::CODE_POINT))
-                    && let Some(integer) = value.integer()
-                    && let Some(character) = u32::try_from(integer)
-                        .ok()
-                        .and_then(|u| char::try_from(u).ok()) =>
-            {
-                Some(Self {
-                    representing: character,
-                })
-            }
+            [object] if let Some(character) = Self::parse_char(object) => Some(Self {
+                representing: character,
+            }),
             _ => None,
         }
     }
@@ -39,7 +47,7 @@ impl SetApi for CharacterSet {
     }
 
     fn has(&self, object: &Object) -> bool {
-        todo!()
+        matches!(Self::parse_char(object), Some(character) if self.representing == character)
     }
 }
 

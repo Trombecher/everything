@@ -25,31 +25,44 @@ impl IntoIterator for IntegerSet {
     }
 }
 
-impl SetSpecialization for IntegerSet {
-    fn specialize_from(objects: &[Object]) -> Option<Self> {
-        match objects {
-            [Object::Construction(Construction { constructor, value })]
-                if matches!(constructor.as_ref(), Object::Atom(Atom::SUCCESSOR_OF))
-                    && let Some(integer) = value.integer()
-                    && integer >= 0 =>
-            {
-                Some(Self {
-                    representing: NonZeroI128::new(
-                        integer.checked_add(1).expect("numbers too large"),
-                    )
-                    .unwrap(),
-                })
-            }
-            [Object::Construction(Construction { constructor, value })]
+impl IntegerSet {
+    fn parse_representation_successor(object: &Object) -> Option<NonZeroI128> {
+        if let Object::Construction(Construction { constructor, value }) = object
+            && matches!(constructor.as_ref(), Object::Atom(Atom::SUCCESSOR_OF))
+            && let Some(integer) = value.integer()
+            && integer >= 0
+        {
+            Some(NonZeroI128::new(integer.checked_add(1).expect("numbers too large")).unwrap())
+        } else {
+            None
+        }
+    }
+
+    fn parse_representation_predecessor(object: &Object) -> Option<NonZeroI128> {
+        match object {
+            Object::Construction(Construction { constructor, value })
                 if matches!(constructor.as_ref(), Object::Atom(Atom::PREDECESSOR_OF))
                     && let Some(integer) = value.integer()
                     && integer <= 0 =>
             {
+                Some(NonZeroI128::new(integer.checked_sub(1).expect("numbers too small")).unwrap())
+            }
+            _ => None,
+        }
+    }
+}
+
+impl SetSpecialization for IntegerSet {
+    fn specialize_from(objects: &[Object]) -> Option<Self> {
+        match objects {
+            [object] if let Some(value) = Self::parse_representation_successor(object) => {
                 Some(Self {
-                    representing: NonZeroI128::new(
-                        integer.checked_sub(1).expect("numbers too small"),
-                    )
-                    .unwrap(),
+                    representing: value,
+                })
+            }
+            [object] if let Some(value) = Self::parse_representation_predecessor(object) => {
+                Some(Self {
+                    representing: value,
                 })
             }
             _ => None,
@@ -63,7 +76,13 @@ impl SetApi for IntegerSet {
     }
 
     fn has(&self, object: &Object) -> bool {
-        todo!()
+        if let Some(parsed) = Self::parse_representation_successor(object) {
+            parsed == self.representing
+        } else if let Some(parsed) = Self::parse_representation_predecessor(object) {
+            parsed == self.representing
+        } else {
+            false
+        }
     }
 }
 

@@ -3,8 +3,9 @@ use std::sync::LazyLock;
 use imbl::OrdMap;
 
 use crate::{
+    compute::{BinaryNode, Node},
     knowledge::Knowledge,
-    model::{Atom, Construction, Set},
+    model::{Atom, Construction, Object, Set},
 };
 
 pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
@@ -28,6 +29,12 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
 
     base.insert(
         Atom::SUCCESSOR_OF,
+        Set::new_move([
+            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Set::truthy().into()).into(),
+        ]),
+    );
+    base.insert(
+        Atom::PREDECESSOR_OF,
         Set::new_move([
             Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Set::truthy().into()).into(),
         ]),
