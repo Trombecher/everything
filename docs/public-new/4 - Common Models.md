@@ -129,9 +129,9 @@ An object is a _rational number_ iff either
 
 - it is an integer, or
 - all of the following hold:
-    - it has a tag `numerator` with a single associated value,
-    - it has a tag `denominator` with a single associated value,
-    - every tag on the object is `numerator` or `denominator`,
+    - it has the property constructor `numerator` with a single associated value,
+    - it has the property constructor `denominator` with a single associated value,
+    - every property on the object is constructed using `numerator` or `denominator`,
     - the associated value of `numerator` (the _numerator_) is an integer,
     - the associated value of `denominator` (the _denominator_) is an integer,
     - the numerator is not equal to zero,

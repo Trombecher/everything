@@ -38,19 +38,28 @@ You can apply/call a function with a value using this node where `<callee>` is a
 
 ## Logical And
 
-Shape: `{node_and_left <left>, node_and_right <right>}`.
+An object is an _and node_ iff
+
+- it has the property `node_and_left <left>` and
+- it has the property `node_and_right <right>`.
 
 It first evaluates `<left>`. If the result is falsy, the and-node is falsy. Otherwise it evaluates `<right>` and is truthy iff `<right>` is truthy.
 
 ## Logical Or
 
-Shape: `{node_or_left <left>, node_or_right <right>}`.
+An object is an _or node_ iff
+
+- it has the property `node_or_left <left>` and
+- it has the property `node_or_right <right>`.
 
 It first evaluates `<left>`. If the result is truthy, the or-node is truthy. Otherwise it evaluates `<right>` and is truthy iff `<right>` is truthy.
 
 ## Logical XOr
 
-Shape: `{node_xor_left <left>, node_xor_right <right>}`.
+An object is an _xor node_ iff
+
+- it has the property `node_xor_left <left>` and
+- it has the property `node_xor_right <right>`.
 
 It evaluates both `<left>` and `<right>`. The xor-node is truthy iff exactly one of the two results is truthy.
 
@@ -60,25 +69,37 @@ An object is a _not-node_ iff it has the property `node_not <inner>`. It evaluat
 
 ## Equality
 
-Shape: `{node_equal_left <left>, node_equal_right <right>}`.
+An object is an _equal node_ iff
+
+- it has the property `node_equal_left <left>` and
+- it has the property `node_equal_right <right>`.
 
 It evaluates both children and is truthy iff their results are structurally equal.
 
 ## Less Than
 
-Shape: `{node_less_left <left>, node_less_right <right>}`.
+An object is a _less-than node_ iff
+
+- it has the property `node_less_left <left>` and
+- it has the property `node_less_right <right>`.
 
 It evaluates both children. If both results are integers, it is truthy iff `<left> < <right>`. Otherwise it compares the number of elements of the results.
 
 ## Addition
 
-Shape: `{node_add_left <left>, node_add_right <right>}`.
+An object is an _add node_ iff
+
+- it has the property `node_add_left <left>` and
+- it has the property `node_add_right <right>`.
 
 It evaluates both children. If both results are integers, it evaluates to their sum. If the sum overflows, it evaluates to `arithmetic_overflow`. If the results are not both integers, it evaluates to `undefined`.
 
 ## Multiplication
 
-Shape: `{node_multiply_left <left>, node_multiply_right <right>}`.
+An object is a _multiply node_ iff
+
+- it has the property `node_multiply_left <left>` and
+- it has the property `node_multiply_right <right>`.
 
 It evaluates both children. If both results are integers, it evaluates to their product. If the product overflows, it evaluates to `arithmetic_overflow`. If the results are not both integers, it evaluates to `undefined`.
 
@@ -88,7 +109,10 @@ An object is a _count node_ iff it has a single property `node_count <inner>`. I
 
 ## Set Union
 
-Shape: `{node_union_left <left>, node_union_right <right>}`.
+An object is a _union node_ iff
+
+- it has the property `node_union_left <left>` and
+- it has the property `node_union_right <right>`.
 
 It evaluates both children and evaluates to the set that contains all elements from the result of the left child and all elements from the result of the right child.
 
@@ -140,7 +164,10 @@ First, the if-node evaluates `<condition>`. If the result of that evaluation is 
 
 ## Unwrap Or
 
-Shape: `{node_unwrap_or_set <set>, node_unwrap_or_default <default>}`.
+An object is an _unwrap-or node_ iff
+
+- it has the property `node_unwrap_or_set <set>` and
+- it has the property `node_unwrap_or_default <default>`.
 
 It evaluates `<set>`. If the result contains exactly one object, that object is returned. Otherwise the default expression is evaluated and returned.
 
