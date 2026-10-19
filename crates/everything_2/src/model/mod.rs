@@ -70,7 +70,7 @@ impl Object {
 
     #[must_use]
     pub fn new_node(node: Node) -> Self {
-        compute::new_node(node)
+        compute::object_from_node(node)
     }
 }
 

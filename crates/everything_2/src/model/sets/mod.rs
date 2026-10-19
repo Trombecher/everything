@@ -111,6 +111,12 @@ impl Set {
     }
 }
 
+impl From<bool> for Set {
+    fn from(value: bool) -> Self {
+        if value { Set::truthy() } else { Set::empty() }
+    }
+}
+
 impl Debug for Set {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

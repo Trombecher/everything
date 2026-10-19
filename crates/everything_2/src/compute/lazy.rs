@@ -1,29 +1,34 @@
+use std::collections::BTreeSet;
+
 use crate::{
-    compute::{self, CallNode, EvaluationContext, Node},
+    compute::{self, EvaluationContext, Node, evaluate},
     knowledge::Knowledge,
-    model::Object,
+    model::{Object, Set, SetApi, SetValues},
 };
 
+#[derive(Clone, Debug)]
 pub enum LazyObject {
     Eager(Object),
 
-    /// A union of two [`LazyObject`]s.
+    /// Represents the set that is the union of two [`LazyObject`]s.
     Union {
         first: Box<Self>,
         second: Box<Self>,
     },
 
+    /// Represents the set that is the intersection of two [`LazyObject`]s.
     Intersection {
         first: Box<Self>,
         second: Box<Self>,
     },
 
+    /// Represents the set that is the difference of two [`LazyObject`]s.
     Difference {
         source: Box<Self>,
         without: Box<Self>,
     },
 
-    /// The set of atom with the given property.
+    /// The set of atoms with the given property.
     AtomsWithProperty {
         property: Object,
     },
@@ -43,7 +48,49 @@ pub enum LazyObject {
     },
 }
 
+impl From<Object> for LazyObject {
+    fn from(object: Object) -> Self {
+        Self::Eager(object)
+    }
+}
+
 impl LazyObject {
+    pub fn into_object(self) -> Object {
+        todo!()
+    }
+
+    fn has_at_least_one_element(&self, knowledge: &Knowledge) -> bool {
+        match self {
+            Self::Eager(object) => knowledge
+                .values_of_by_ref(object)
+                .is_some_and(|set| set.size() != 0),
+            Self::Union { first, second } => {
+                first.has_at_least_one_element(knowledge)
+                    || second.has_at_least_one_element(knowledge)
+            }
+            Self::Map { target, .. } => target.has_at_least_one_element(knowledge),
+            Self::Intersection { .. }
+            | Self::Difference { .. }
+            | Self::AtomsWithProperty { .. }
+            | Self::Filter { .. } => self.iter(knowledge).next().is_some(),
+        }
+    }
+
+    pub fn is_truthy(&self, knowledge: &Knowledge) -> bool {
+        match self {
+            LazyObject::Eager(object) => object.is_truthy(),
+            LazyObject::Union { first, second } => {
+                first.has_at_least_one_element(knowledge)
+                    || second.has_at_least_one_element(knowledge)
+            }
+            LazyObject::Map { target, .. } => target.has_at_least_one_element(knowledge),
+            LazyObject::Intersection { .. }
+            | LazyObject::Difference { .. }
+            | LazyObject::Filter { .. }
+            | LazyObject::AtomsWithProperty { .. } => self.iter(knowledge).next().is_some(),
+        }
+    }
+
     pub fn has(&self, element: &Object, knowledge: &Knowledge) -> bool {
         match self {
             Self::Eager(object) => knowledge.object_has(object, element),
@@ -63,10 +110,6 @@ impl LazyObject {
                     false
                 }
             }
-            Self::Map {
-                target,
-                mapper_function,
-            } => todo!(),
             Self::Filter {
                 target,
                 filter_function,
@@ -76,14 +119,99 @@ impl LazyObject {
 
                 target.has(element, knowledge)
                     && compute::evaluate(
-                        Object::new_node(Node::Call(CallNode {
+                        Object::new_node(Node::Call {
                             callee: filter_function.clone(),
                             with: element.clone(),
-                        })),
+                        }),
                         knowledge,
                         &mut EvaluationContext::default(),
                     )
+                    .is_truthy(knowledge)
             }
+            LazyObject::Map { .. } => self.iter(knowledge).any(|object| element == &object),
+        }
+    }
+
+    /// Iterate over the lazy object.
+    pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
+        match self {
+            LazyObject::Eager(object) => {
+                LazyObjectIter::ObjectValues(knowledge.values_of(object).into_iter())
+            }
+            LazyObject::Union { first, second } => LazyObjectIter::Union {
+                first: Box::new(first.iter(knowledge)),
+                second: Box::new(second.iter(knowledge)),
+            },
+            LazyObject::Intersection { first, second } => todo!(),
+            LazyObject::Difference { source, without } => todo!(),
+            LazyObject::AtomsWithProperty { property } => todo!(),
+            LazyObject::Map {
+                target,
+                mapper_function,
+            } => todo!(),
+            LazyObject::Filter {
+                target,
+                filter_function,
+            } => LazyObjectIter::Filter {
+                target: Box::new(target.iter(knowledge)),
+                filter_function: filter_function.clone(),
+                knowledge: knowledge.clone(),
+            },
+        }
+    }
+}
+
+pub enum LazyObjectIter {
+    ObjectValues(SetValues),
+    Union {
+        first: Box<Self>,
+        second: Box<Self>,
+    },
+    Filter {
+        target: Box<Self>,
+        filter_function: Object,
+        knowledge: Knowledge,
+    },
+}
+
+impl Iterator for LazyObjectIter {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::ObjectValues(set_values) => set_values.next(),
+            Self::Union { first, second } => first.next().or_else(|| second.next()),
+            Self::Filter {
+                target,
+                filter_function,
+                knowledge,
+            } => target.find(|object| {
+                evaluate(
+                    Object::new_node(Node::Call {
+                        callee: filter_function.clone(),
+                        with: object.clone(),
+                    }),
+                    knowledge,
+                    &mut EvaluationContext::default(),
+                )
+                .is_truthy(knowledge)
+            }),
+        }
+    }
+}
+
+/// A collected set.
+pub enum CollectedSet {
+    Set(Set),
+    HashSet(BTreeSet<Object>),
+}
+
+impl CollectedSet {
+    #[must_use]
+    pub fn has(&self, element: &Object) -> bool {
+        match self {
+            CollectedSet::Set(set) => set.has(element),
+            CollectedSet::HashSet(btree_set) => btree_set.contains(element),
         }
     }
 }

@@ -39,7 +39,8 @@ impl Knowledge {
             .unwrap_or(Set::empty())
     }
 
-    fn values_of_by_ref<'a>(&'a self, object: &'a Object) -> Option<&'a Set> {
+    #[must_use]
+    pub fn values_of_by_ref<'a>(&'a self, object: &'a Object) -> Option<&'a Set> {
         match object {
             Object::Atom(atom) => self.map.get(atom),
             Object::Construction(_) => None,
@@ -55,7 +56,7 @@ impl Knowledge {
         }
     }
 
-    fn query_construction_values(
+    pub fn query_construction_values(
         &self,
         target: &Object,
         property_constructor: Object,

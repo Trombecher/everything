@@ -1,5 +1,6 @@
 use crate::{
-    compute::{BinaryNode, CallNode, Node, ObjectOrExtendedSetValues},
+    compute::{LazyObject, Node, capture},
+    iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
     model::{Object, Set},
 };
@@ -9,7 +10,7 @@ pub enum Task {
     Evaluate(Object),
     PushLiteralTrue,
     PushLiteralFalse,
-    PartialAnd { right: Object },
+    PartialAnd { second: Object },
     ToBoolean,
     Count,
     QueryValues,
@@ -20,7 +21,7 @@ pub enum Task {
     QueryTags,
     QueryExists,
     Equal,
-    PartialOr { right: Object },
+    PartialOr { second: Object },
     Xor,
     Not,
     Add,
@@ -35,7 +36,7 @@ pub enum Task {
     Call,
     PopContext,
     PartialUnwrapOr { default: Object },
-    IsAbstract,
+    IsAtom,
 }
 
 /// An evaluation context is a stack of function contexts,
@@ -62,7 +63,7 @@ impl EvaluationContext {
 
     /// Gets the parameter value of the function context at the specified relative
     /// depth, or returns the empty set if the index is out of bounds.
-    pub fn parameter_value(&self, relative_depth: usize) -> ObjectOrExtendedSetValues {
+    pub fn parameter_value(&self, relative_depth: usize) -> LazyObject {
         self.function_context(relative_depth)
             .map_or(Object::Set(Set::empty()).into(), |context| {
                 context.parameter.clone()
@@ -92,129 +93,100 @@ impl EvaluationContext {
 #[derive(Debug, Clone)]
 pub struct FunctionContext {
     pub function: Object,
-    pub parameter: ObjectOrExtendedSetValues,
+    pub parameter: LazyObject,
 }
 
+/// Evaluates an object in the given knowledge and context.
 pub fn evaluate(
     object: Object,
     knowledge: &Knowledge,
     context: &mut EvaluationContext,
-) -> ObjectOrExtendedSetValues {
+) -> LazyObject {
     let mut tasks = vec![Task::Evaluate(object.clone())];
-    let mut evaluated = Vec::<ObjectOrExtendedSetValues>::new();
+    let mut evaluated = Vec::<LazyObject>::new();
 
     while let Some(task) = tasks.pop() {
         match task {
             Task::Evaluate(object) => {
-                match object.node(statements) {
-                    Some(Node::IsAbstract(inner)) => {
-                        tasks.push(Task::IsAbstract);
+                match Node::new(&object, knowledge) {
+                    Some(Node::IsAtom(inner)) => {
+                        tasks.push(Task::IsAtom);
                         tasks.push(Task::Evaluate(inner));
                     }
-                    Some(Node::Call(CallNode { callee, with })) => {
+                    Some(Node::Call { callee, with }) => {
                         tasks.push(Task::Call);
                         tasks.push(Task::Evaluate(callee));
                         tasks.push(Task::Evaluate(with));
                     }
-                    Some(Node::Multiply(BinaryNode { left, right })) => {
+                    Some(Node::Multiply {
+                        first: left,
+                        second: right,
+                    }) => {
                         tasks.push(Task::Multiply);
                         tasks.push(Task::Evaluate(right));
                         tasks.push(Task::Evaluate(left));
                     }
-                    Some(Node::UnwrapOr(UnwrapOrNode { set, default })) => {
+                    Some(Node::UnwrapOr { set, default }) => {
                         tasks.push(Task::PartialUnwrapOr { default });
                         tasks.push(Task::Evaluate(set));
                     }
-                    Some(Node::Function(_)) => {
-                        evaluated.push(object.capture(statements, 0, context));
+                    Some(Node::Function { .. }) => {
+                        evaluated.push(capture(&object, knowledge, 0, context));
                     }
                     Some(Node::Literal(object)) => {
                         evaluated.push(object.into());
                     }
-                    Some(Node::And(BinaryNode { left, right })) => {
-                        tasks.push(Task::PartialAnd { right });
-                        tasks.push(Task::Evaluate(left));
+                    Some(Node::And { first, second }) => {
+                        tasks.push(Task::PartialAnd { second });
+                        tasks.push(Task::Evaluate(first));
                     }
-                    Some(Node::FunctionSelf(depth)) => evaluated.push(ObjectOrSetValues::Object(
-                        context.function_self(depth as usize),
-                    )),
-                    Some(Node::Parameter(depth)) => {
+                    Some(Node::FunctionSelf { depth }) => {
+                        evaluated.push(LazyObject::Eager(context.function_self(depth as usize)))
+                    }
+                    Some(Node::Parameter { depth }) => {
                         evaluated.push(context.parameter_value(depth as usize));
                     }
                     Some(Node::Count(object)) => {
                         tasks.push(Task::Count);
                         tasks.push(Task::Evaluate(object));
                     }
-                    Some(Node::QueryExists(query)) => {
-                        tasks.push(Task::QueryExists);
-                        tasks.push(Task::Evaluate(query.value));
-                        tasks.push(Task::Evaluate(query.tag));
-                        tasks.push(Task::Evaluate(query.subject));
-                    }
-                    Some(Node::QueryValues(query)) => {
-                        tasks.push(Task::QueryValues);
-                        tasks.push(Task::Evaluate(query.tag));
-                        tasks.push(Task::Evaluate(query.subject));
-                    }
-                    Some(Node::QuerySubjects(query)) => {
-                        tasks.push(Task::QuerySubjects);
-                        tasks.push(Task::Evaluate(query.value));
-                        tasks.push(Task::Evaluate(query.tag));
-                    }
-                    Some(Node::QueryTags(query)) => {
-                        tasks.push(Task::QueryTags);
-                        tasks.push(Task::Evaluate(query.value));
-                        tasks.push(Task::Evaluate(query.subject));
-                    }
-                    Some(Node::QuerySubjectsAndTags(query)) => {
-                        tasks.push(Task::QuerySubjectsAndTags);
-                        tasks.push(Task::Evaluate(query.value));
-                    }
-                    Some(Node::QuerySubjectsAndValues(query)) => {
-                        tasks.push(Task::QuerySubjectsAndValues);
-                        tasks.push(Task::Evaluate(query.tag));
-                    }
-                    Some(Node::QueryTagsAndValues(query)) => {
-                        tasks.push(Task::QueryTagsAndValues);
-                        tasks.push(Task::Evaluate(query.subject));
-                    }
-                    Some(Node::Equal(BinaryNode { left, right })) => {
+                    Some(Node::Equal { first, second }) => {
                         tasks.push(Task::Equal);
-                        tasks.push(Task::Evaluate(right));
-                        tasks.push(Task::Evaluate(left));
+                        tasks.push(Task::Evaluate(second));
+                        tasks.push(Task::Evaluate(first));
                     }
-                    Some(Node::Or(BinaryNode { left, right })) => {
-                        tasks.push(Task::PartialOr { right });
-                        tasks.push(Task::Evaluate(left));
+                    Some(Node::Or { first, second }) => {
+                        tasks.push(Task::PartialOr { second });
+                        tasks.push(Task::Evaluate(first));
                     }
-                    Some(Node::Xor(BinaryNode { left, right })) => {
+                    Some(Node::Xor { first, second }) => {
                         tasks.push(Task::Xor);
-                        tasks.push(Task::Evaluate(right));
-                        tasks.push(Task::Evaluate(left));
+                        tasks.push(Task::Evaluate(second));
+                        tasks.push(Task::Evaluate(first));
                     }
                     Some(Node::Not(object)) => {
                         tasks.push(Task::Not);
                         tasks.push(Task::Evaluate(object));
                     }
-                    Some(Node::Add(BinaryNode { left, right })) => {
+                    Some(Node::Add { first, second }) => {
                         tasks.push(Task::Add);
-                        tasks.push(Task::Evaluate(right));
-                        tasks.push(Task::Evaluate(left));
+                        tasks.push(Task::Evaluate(second));
+                        tasks.push(Task::Evaluate(first));
                     }
-                    Some(Node::Union(BinaryNode { left, right })) => {
+                    Some(Node::Union { first, second }) => {
                         tasks.push(Task::Union);
-                        tasks.push(Task::Evaluate(right));
-                        tasks.push(Task::Evaluate(left));
+                        tasks.push(Task::Evaluate(second));
+                        tasks.push(Task::Evaluate(first));
                     }
-                    Some(Node::Map(MapNode {
+                    Some(Node::Map {
                         set,
                         mapper_function,
-                    })) => {
+                    }) => {
                         tasks.push(Task::Map);
                         tasks.push(Task::Evaluate(mapper_function));
                         tasks.push(Task::Evaluate(set));
                     }
-                    Some(Node::Every(PredicateNode { set, predicate })) => {
+                    Some(Node::Every { set, predicate }) => {
                         tasks.push(Task::Every);
 
                         // Push the result of a previous, virtual predicate call.
@@ -228,7 +200,7 @@ pub fn evaluate(
                         tasks.push(Task::Evaluate(predicate));
                         tasks.push(Task::Evaluate(set));
                     }
-                    Some(Node::Any(PredicateNode { set, predicate })) => {
+                    Some(Node::Any { set, predicate }) => {
                         tasks.push(Task::Any);
 
                         // Same as `Task::Every` but with false.
@@ -237,24 +209,24 @@ pub fn evaluate(
                         tasks.push(Task::Evaluate(predicate));
                         tasks.push(Task::Evaluate(set));
                     }
-                    Some(Node::Filter(FilterNode {
+                    Some(Node::Filter {
                         set,
                         filter_function,
-                    })) => {
+                    }) => {
                         tasks.push(Task::Filter);
                         tasks.push(Task::Evaluate(filter_function));
                         tasks.push(Task::Evaluate(set));
                     }
-                    Some(Node::Less(BinaryNode { left, right })) => {
+                    Some(Node::Less { first, second }) => {
                         tasks.push(Task::Less);
-                        tasks.push(Task::Evaluate(right));
-                        tasks.push(Task::Evaluate(left));
+                        tasks.push(Task::Evaluate(second));
+                        tasks.push(Task::Evaluate(first));
                     }
-                    Some(Node::If(IfNode {
+                    Some(Node::If {
                         condition,
                         then,
                         otherwise,
-                    })) => {
+                    }) => {
                         tasks.push(Task::PartialIf { then, otherwise });
                         tasks.push(Task::Evaluate(condition));
                     }
@@ -266,12 +238,12 @@ pub fn evaluate(
                             debug!("eval on property {property:?}");
 
                             let value =
-                                property.value.evaluate(statements, context).into_object();
+                                property.value.evaluate(knowledge, context).into_object();
 
                             let result = if property.value == value {
                                 Ok(())
                             } else {
-                                value.is_valid(statements, false)
+                                value.is_valid(knowledge, false)
                             };
 
                             match result {
@@ -290,7 +262,7 @@ pub fn evaluate(
                                 "invalid object {o:?} with error {error:?}; replacing with {{}}"
                             );
 
-                            ObjectOrSetValues::Object(Object::Composite(Composite::Empty))
+                            LazyObject::Object(Object::Composite(Composite::Empty))
                         }, |mut properties| {
                             Object::Composite(Composite::new(&mut properties)).into()
                         });
@@ -304,17 +276,17 @@ pub fn evaluate(
                 context.pop();
             }
             Task::PushLiteralTrue => {
-                evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+                evaluated.push(LazyObject::Eager(Set::truthy().into()));
             }
             Task::PushLiteralFalse => {
-                evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                evaluated.push(LazyObject::Eager(Set::empty().into()));
             }
             Task::Call => {
                 let callee = evaluated.pop().unwrap().into_object();
                 let parameter_value = evaluated.pop().unwrap();
 
                 tasks.push(Task::Evaluate(
-                    callee.node_function_body(statements).unwrap(),
+                    callee.node_function_body(knowledge).unwrap(),
                 ));
 
                 context.push(FunctionContext {
@@ -322,28 +294,28 @@ pub fn evaluate(
                     parameter: parameter_value,
                 });
             }
-            Task::PartialAnd { right } => {
+            Task::PartialAnd { second: right } => {
                 let mut left = evaluated.pop().unwrap();
 
-                if left.is_truthy(statements) {
+                if left.is_truthy(knowledge) {
                     tasks.push(Task::ToBoolean);
                     tasks.push(Task::Evaluate(right));
                 } else {
-                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                    evaluated.push(LazyObject::Object(Composite::new_bool(false).into()));
                 }
             }
             Task::Count => {
                 let target = evaluated.pop().unwrap();
 
                 evaluated.push(
-                    Self::new_integer(target.set_values(statements).correct_count() as i128).into(),
+                    Self::new_integer(target.set_values(knowledge).correct_count() as i128).into(),
                 );
             }
             Task::QuerySubjectsAndTags => {
                 let value = evaluated.pop().unwrap().into_object();
 
                 evaluated.push(
-                    SetValues::QuerySubjectsAndTags(statements.query_subjects_and_tags(value))
+                    SetValues::QuerySubjectsAndTags(knowledge.query_subjects_and_tags(value))
                         .into(),
                 );
             }
@@ -352,7 +324,7 @@ pub fn evaluate(
                 let subject = evaluated.pop().unwrap().into_object();
 
                 evaluated.push(
-                    SetValues::QueryTagsAndValues(statements.query_tags_and_values(subject)).into(),
+                    SetValues::QueryTagsAndValues(knowledge.query_tags_and_values(subject)).into(),
                 );
             }
             Task::QueryTags => {
@@ -360,15 +332,15 @@ pub fn evaluate(
                 // TODO: make this lazy
                 let subject = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(SetValues::QueryTags(statements.query_tags(subject, value)).into());
+                evaluated.push(SetValues::QueryTags(knowledge.query_tags(subject, value)).into());
             }
             Task::QueryValues => {
                 let tag = evaluated.pop().unwrap().into_object();
                 // TODO: make this lazy
                 let subject = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(ObjectOrSetValues::SetValues(SetValues::QueryValues(
-                    statements.query_values(subject, tag.clone()),
+                evaluated.push(LazyObject::SetValues(SetValues::QueryValues(
+                    knowledge.query_values(subject, tag.clone()),
                 )));
             }
             Task::QuerySubjects => {
@@ -376,13 +348,13 @@ pub fn evaluate(
                 let tag = evaluated.pop().unwrap().into_object();
 
                 evaluated
-                    .push(SetValues::QuerySubjects(statements.query_subjects(tag, value)).into());
+                    .push(SetValues::QuerySubjects(knowledge.query_subjects(tag, value)).into());
             }
             Task::QuerySubjectsAndValues => {
                 let tag = evaluated.pop().unwrap().into_object();
 
                 evaluated.push(
-                    SetValues::QuerySubjectsAndValues(statements.query_subjects_and_values(tag))
+                    SetValues::QuerySubjectsAndValues(knowledge.query_subjects_and_values(tag))
                         .into(),
                 );
             }
@@ -391,8 +363,8 @@ pub fn evaluate(
                 let tag = evaluated.pop().unwrap().into_object();
                 let subject = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(ObjectOrSetValues::Object(
-                    Composite::new_bool(statements.exists(SimpleStatement {
+                evaluated.push(LazyObject::Object(
+                    Composite::new_bool(knowledge.exists(SimpleStatement {
                         subject,
                         tag,
                         value,
@@ -403,8 +375,8 @@ pub fn evaluate(
             Task::ToBoolean => {
                 let mut object = evaluated.pop().unwrap();
 
-                evaluated.push(ObjectOrSetValues::Object(
-                    Composite::new_bool(object.is_truthy(statements)).into(),
+                evaluated.push(LazyObject::Eager(
+                    Set::from(object.is_truthy(knowledge)).into(),
                 ));
             }
             Task::Equal => {
@@ -413,29 +385,29 @@ pub fn evaluate(
 
                 evaluated.push(Object::Composite(Composite::new_bool(left == right)).into());
             }
-            Task::PartialOr { right } => {
-                if evaluated.pop().unwrap().is_truthy(statements) {
-                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+            Task::PartialOr { second: right } => {
+                if evaluated.pop().unwrap().is_truthy(knowledge) {
+                    evaluated.push(LazyObject::Object(Composite::new_bool(true).into()));
                 } else {
                     tasks.push(Task::ToBoolean);
                     tasks.push(Task::Evaluate(right));
                 }
             }
             Task::Xor => {
-                let right = evaluated.pop().unwrap().is_truthy(statements);
-                let left = evaluated.pop().unwrap().is_truthy(statements);
+                let right = evaluated.pop().unwrap().is_truthy(knowledge);
+                let left = evaluated.pop().unwrap().is_truthy(knowledge);
 
-                evaluated.push(ObjectOrSetValues::Object(
-                    Composite::new_bool((left || right) && !(left && right)).into(),
+                evaluated.push(LazyObject::Eager(
+                    Set::from((left || right) && !(left && right)).into(),
                 ));
             }
-            Task::IsAbstract => {
+            Task::IsAtom => {
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(
-                    Object::Composite(Composite::new_bool(matches!(
+                    Object::Set(Set::from(matches!(
                         object,
-                        ObjectOrSetValues::Object(Object::Abstract(_))
+                        LazyObject::Eager(Object::Atom(_))
                     )))
                     .into(),
                 );
@@ -443,8 +415,8 @@ pub fn evaluate(
             Task::Not => {
                 let mut object = evaluated.pop().unwrap();
 
-                evaluated.push(ObjectOrSetValues::Object(
-                    Composite::new_bool(!object.is_truthy(statements)).into(),
+                evaluated.push(LazyObject::Eager(
+                    Set::from(!object.is_truthy(knowledge)).into(),
                 ));
             }
             Task::Add => {
@@ -462,43 +434,41 @@ pub fn evaluate(
                 evaluated.push(left.multiply(&right).into());
             }
             Task::Union => {
-                let right = evaluated.pop().unwrap();
-                let left = evaluated.pop().unwrap();
+                let first = evaluated.pop().unwrap();
+                let second = evaluated.pop().unwrap();
 
-                evaluated.push(ObjectOrSetValues::SetValues(SetValues::Union {
-                    left: Box::new(left.set_values(statements)),
-                    right: Box::new(right.set_values(statements)),
-                }));
+                evaluated.push(LazyObject::Union {
+                    first: Box::new(second),
+                    second: Box::new(first),
+                });
             }
             Task::Map => {
                 let mapper = evaluated.pop().unwrap().into_object();
-                let set = evaluated.pop().unwrap().set_values(statements);
+                let set = evaluated.pop().unwrap();
 
-                evaluated.push(ObjectOrSetValues::SetValues(SetValues::Map {
-                    statements: statements.clone(),
-                    set: Box::new(set),
+                evaluated.push(LazyObject::Map {
+                    target: Box::new(set),
                     mapper_function: mapper,
-                }));
+                });
             }
             Task::Filter => {
                 let filter = evaluated.pop().unwrap().into_object();
-                let set = evaluated.pop().unwrap().set_values(statements);
+                let set = evaluated.pop().unwrap();
 
-                evaluated.push(ObjectOrSetValues::SetValues(SetValues::Filter {
-                    statements: statements.clone(),
-                    set: Box::new(set),
+                evaluated.push(LazyObject::Filter {
+                    target: Box::new(set),
                     filter_function: filter,
-                }));
+                });
             }
             Task::Every => {
                 let mut previous_result = evaluated.pop().unwrap();
                 let predicate = evaluated.pop().unwrap().into_object();
-                let mut set = evaluated.pop().unwrap().set_values(statements);
+                let mut set = evaluated.pop().unwrap();
 
-                if !previous_result.is_truthy(statements) {
+                if !previous_result.is_truthy(knowledge) {
                     // Previous run did not succeed.
 
-                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                    evaluated.push(LazyObject::Object(Composite::new_bool(false).into()));
                 } else if let Some(value) = set.next() {
                     // Previous run did succeed, but there is another value.
                     // -> Validate predicate for this value.
@@ -516,18 +486,18 @@ pub fn evaluate(
                 } else {
                     // Previous run succeeded and there are no more elements. Yay.
 
-                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+                    evaluated.push(LazyObject::Object(Composite::new_bool(true).into()));
                 }
             }
             Task::Any => {
                 let mut previous_result = evaluated.pop().unwrap();
                 let predicate = evaluated.pop().unwrap().into_object();
-                let mut set = evaluated.pop().unwrap().set_values(statements);
+                let mut set = evaluated.pop().unwrap();
 
-                if previous_result.is_truthy(statements) {
+                if previous_result.is_truthy(knowledge) {
                     // Previous run succeeded. Yay.
 
-                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(true).into()));
+                    evaluated.push(LazyObject::Object(Composite::new_bool(true).into()));
                 } else if let Some(value) = set.next() {
                     // Previous run did not succeed, but there is another value.
                     // -> Validate predicate for this value.
@@ -545,18 +515,16 @@ pub fn evaluate(
                 } else {
                     // Previous run did not succeed and there are no more elements.
 
-                    evaluated.push(ObjectOrSetValues::Object(Composite::new_bool(false).into()));
+                    evaluated.push(LazyObject::Object(Composite::new_bool(false).into()));
                 }
             }
             Task::Less => {
                 let right = evaluated.pop().unwrap();
                 let left = evaluated.pop().unwrap();
 
-                println!("is {left:?} < {right:?}?");
-
                 evaluated.push(
                     Object::Composite(Composite::new_bool(match (left, right) {
-                        (ObjectOrSetValues::Object(left), ObjectOrSetValues::Object(right))
+                        (LazyObject::Object(left), LazyObject::Object(right))
                             if let Some(left) = left.integer()
                                 && let Some(right) = right.integer() =>
                         {
@@ -564,25 +532,25 @@ pub fn evaluate(
                         }
                         // TODO: more things here
                         (left, right) => {
-                            left.set_values(statements).correct_count()
-                                < right.set_values(statements).correct_count()
+                            left.set_values(knowledge).correct_count()
+                                < right.set_values(knowledge).correct_count()
                         }
                     }))
                     .into(),
                 );
             }
             Task::PartialIf { then, otherwise } => {
-                if evaluated.pop().unwrap().is_truthy(statements) {
+                if evaluated.pop().unwrap().is_truthy(knowledge) {
                     tasks.push(Task::Evaluate(then));
                 } else {
                     tasks.push(Task::Evaluate(otherwise));
                 }
             }
             Task::PartialUnwrapOr { default } => {
-                let mut set_values = evaluated.pop().unwrap().set_values(statements);
+                let mut set_values = evaluated.pop().unwrap().iter(knowledge);
 
                 if let Some(inner) = set_values.next_and_last() {
-                    evaluated.push(ObjectOrSetValues::Object(inner));
+                    evaluated.push(LazyObject::Eager(inner));
                 } else {
                     tasks.push(Task::Evaluate(default));
                 }

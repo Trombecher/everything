@@ -3,9 +3,8 @@ use std::sync::LazyLock;
 use imbl::OrdMap;
 
 use crate::{
-    compute::{BinaryNode, Node},
     knowledge::Knowledge,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Construction, Set},
 };
 
 pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
