@@ -1,10 +1,11 @@
 mod properties;
-mod query_atoms;
+mod query;
+
+pub use query::*;
 
 use imbl::OrdMap;
-pub use query_atoms::*;
 
-use crate::model::{Atom, Object, Set};
+use crate::model::{Atom, Object, Set, SetApi};
 
 pub struct Statement {
     pub atom: Atom,
@@ -24,4 +25,76 @@ impl Knowledge {
             property,
         }
     }
+
+    /// Returns the set of values of the given object.
+    ///
+    /// * If the given object is an atom,
+    ///   then the set of all properties of that atom will be returned;
+    /// * if the given object is a set, then this set is returned;
+    /// * otherwise the empty set is returned.
+    #[must_use]
+    pub fn values_of(&self, object: &Object) -> Set {
+        self.values_of_by_ref(object)
+            .cloned()
+            .unwrap_or(Set::empty())
+    }
+
+    fn values_of_by_ref<'a>(&'a self, object: &'a Object) -> Option<&'a Set> {
+        match object {
+            Object::Atom(atom) => self.map.get(atom),
+            Object::Construction(_) => None,
+            Object::Set(set) => Some(set),
+        }
+    }
+
+    pub fn object_has(&self, object: &Object, element: &Object) -> bool {
+        if let Some(set) = self.values_of_by_ref(object) {
+            set.has(element)
+        } else {
+            false
+        }
+    }
+
+    fn query_construction_values(
+        &self,
+        target: &Object,
+        property_constructor: Object,
+    ) -> QueryConstructionValues {
+        QueryConstructionValues {
+            properties: self.values_of(target).into_iter(),
+            property_constructor,
+        }
+    }
+
+    /*
+    fn object_is_property_in(&self, object: &Object, containing_set: &Set) -> bool {
+        match object {
+            Object::Atom(_) | Object::Set(_) => {
+                let f = self
+                    .query_construction_values(object, Atom::PROPERTY.into())
+                    .next_and_last();
+
+                if let Some(constraint_function) = f {
+                } else {
+                    false
+                }
+            }
+            Object::Construction(construction) => todo!(),
+        }
+    }
+
+    #[must_use]
+    fn set_is_valid(&self, set: &Set) -> bool {
+        set.values().all(|value| self.object_is_valid())
+    }
+
+    #[must_use]
+    pub fn is_valid(&self) -> bool {
+        self.map.iter().all(|(_, set)| {
+            set.clone()
+                .values()
+                .all(|value| self.object_is_property(&value))
+        })
+    }
+     */
 }

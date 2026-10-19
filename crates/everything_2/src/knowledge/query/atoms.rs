@@ -4,8 +4,8 @@ use crate::model::{Atom, Object, Set, SetApi};
 
 #[derive(Clone)]
 pub struct QueryAtomsWithProperty {
-    pub(crate) atoms: <OrdMap<Atom, Set> as IntoIterator>::IntoIter,
-    pub(crate) property: Object,
+    pub atoms: <OrdMap<Atom, Set> as IntoIterator>::IntoIter,
+    pub property: Object,
 }
 
 impl Iterator for QueryAtomsWithProperty {

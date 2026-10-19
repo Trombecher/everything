@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use crate::{knowledge::Knowledge, model::Object};
+use crate::{
+    knowledge::{Knowledge, QueryAtomsWithProperty, QueryConstructionValues},
+    model::{Object, SetValues},
+};
 
 /// Either an object or an iterator over set values.
 #[allow(clippy::large_enum_variant)]
@@ -36,10 +39,12 @@ impl ObjectOrExtendedSetValues {
     /// over the set items and returns an iterator over set items.
     #[inline]
     #[must_use]
-    pub fn extended_set_values(&self, statements: &Knowledge) -> ExtendedSetValues {
+    pub fn extended_set_values(&self, knowledge: &Knowledge) -> ExtendedSetValues {
         match self {
             Self::ExtendedSetValues(values) => values.clone(),
-            Self::Object(eager) => ExtendedSetValues::QueryValues(eager.set_values(statements)),
+            Self::Object(object) => {
+                ExtendedSetValues::SetValues(knowledge.values_of(object).into_iter())
+            }
         }
     }
 
@@ -52,7 +57,9 @@ impl ObjectOrExtendedSetValues {
     pub fn into_object(self) -> Object {
         match self {
             Self::Object(object) => object,
-            Self::SetValues(iterator) => iterator.collect_to_set().into(),
+            Self::ExtendedSetValues(extended_set_values) => {
+                extended_set_values.collect_to_set().into()
+            }
         }
     }
 
@@ -60,8 +67,8 @@ impl ObjectOrExtendedSetValues {
     /// least one property.
     pub fn is_truthy(&mut self, statements: &Knowledge) -> bool {
         match self {
-            ObjectOrSetValues::Object(object) => object.is_truthy(statements),
-            ObjectOrSetValues::SetValues(iter) => iter.next().is_some(),
+            Self::Object(object) => object.is_truthy(),
+            Self::ExtendedSetValues(iter) => iter.next().is_some(),
         }
     }
 }
@@ -75,45 +82,11 @@ impl ObjectOrExtendedSetValues {
 /// however some variants only yield unique objects.
 #[derive(Clone)]
 pub enum ExtendedSetValues {
-    /// Iterator over values of an object.
-    QueryValues(QueryValues),
+    /// Just set values.
+    SetValues(SetValues),
 
     /// Chains two iterators.
     Union { left: Box<Self>, right: Box<Self> },
-
-    /// Iterator over subjects for a given tag and value.
-    QuerySubjects(QuerySubjects),
-
-    /// Iterator over subjects and values for a given tag.
-    QuerySubjectsAndValues(QuerySubjectsAndValues),
-
-    /// Iterator over tags and values for a given subject.
-    QueryTagsAndValues(QueryTagsAndValues),
-
-    /// Iterator over subjects and tags for a given value.
-    QuerySubjectsAndTags(QuerySubjectsAndTags),
-
-    /// Iterator over tags for a given subject and value.
-    QueryTags(QueryTags),
-
-    /// Iterator over all statements.
-    Statements(StatementsIter),
-
-    /// Maps every value of a given set with a mapper function.
-    Map {
-        knowledge: Knowledge,
-        set: Box<Self>,
-        /// This function is captured.
-        mapper_function: Object,
-    },
-
-    /// Retains all values for that the filter function returns a truthy value.
-    Filter {
-        knowledge: Knowledge,
-        set: Box<Self>,
-        /// This function is captured.
-        filter_function: Object,
-    },
 }
 
 impl Debug for ExtendedSetValues {
@@ -124,7 +97,7 @@ impl Debug for ExtendedSetValues {
     }
 }
 
-impl SetValues {
+impl ExtendedSetValues {
     pub fn collect_to_set(self) -> Composite {
         let mut properties: Vec<_> = self.map(Property::new_contains).collect();
         Composite::new(&mut properties)
@@ -145,7 +118,7 @@ impl SetValues {
     }
 }
 
-impl Iterator for SetValues {
+impl Iterator for ExtendedSetValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

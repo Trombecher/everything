@@ -2,7 +2,6 @@ use std::{fmt::Debug, num::NonZeroI128};
 
 mod atoms;
 mod constructions;
-mod iter;
 mod sets;
 
 pub use atoms::*;

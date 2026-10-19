@@ -1,5 +1,5 @@
 use crate::{
-    compute::{Node, ObjectOrExtendedSetValues},
+    compute::{BinaryNode, CallNode, Node, ObjectOrExtendedSetValues},
     knowledge::Knowledge,
     model::{Object, Set},
 };
@@ -177,14 +177,6 @@ pub fn evaluate(
                     Some(Node::QueryTagsAndValues(query)) => {
                         tasks.push(Task::QueryTagsAndValues);
                         tasks.push(Task::Evaluate(query.subject));
-                    }
-                    Some(Node::Statements) => {
-                        // Evaluate straight to an iterator over
-                        // all statements:
-
-                        evaluated.push(ObjectOrSetValues::SetValues(SetValues::Statements(
-                            statements.iter_owned(),
-                        )));
                     }
                     Some(Node::Equal(BinaryNode { left, right })) => {
                         tasks.push(Task::Equal);

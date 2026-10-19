@@ -3,5 +3,6 @@
 
 pub mod base;
 pub mod compute;
+mod iter;
 pub mod knowledge;
 pub mod model;
