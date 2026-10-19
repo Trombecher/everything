@@ -1,7 +1,3 @@
-# How do you prove that you can model anything in Everything?
-
-# Should child expressions of nodes required to be nodes?
-
 # Open vs. closed definitions.
 
 (This question needs to be considered although it is not that relevant for the database model.)
