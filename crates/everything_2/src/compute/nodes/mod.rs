@@ -391,7 +391,90 @@ impl Node {
             .map(|(set, predicate)| Self::Any { set, predicate })
         );
 
-        // TODO: more recognition
+        xor_with!(
+            knowledge
+                .query_construction_values(object, Atom::NODE_ATOMS_WITH_PROPERTY.into())
+                .next_and_last()
+                .map(|property| Self::QueryAtomsWithProperty { property })
+        );
+
+        xor_with!(
+            pair_values(
+                object,
+                knowledge,
+                Atom::NODE_CONSTRUCTION_VALUES_SET.into(),
+                Atom::NODE_CONSTRUCTION_VALUES_PROPERTY_CONSTRUCTOR.into(),
+            )
+            .map(
+                |(set, property_constructor)| Self::QueryConstructionValues {
+                    set,
+                    property_constructor,
+                }
+            )
+        );
+
+        xor_with!(
+            pair_values(
+                object,
+                knowledge,
+                Atom::NODE_CONTAINS_ELEMENT.into(),
+                Atom::NODE_CONTAINS_SET.into(),
+            )
+            .map(|(element, set)| Self::Contains { element, set })
+        );
+
+        xor_with!(
+            knowledge
+                .query_construction_values(object, Atom::NODE_IS_CONSTRUCTION.into())
+                .next_and_last()
+                .map(Self::IsConstruction)
+        );
+
+        xor_with!(
+            knowledge
+                .query_construction_values(object, Atom::NODE_IS_SET.into())
+                .next_and_last()
+                .map(Self::IsSet)
+        );
+
+        xor_with!(
+            triple_values(
+                object,
+                knowledge,
+                Atom::NODE_FOLD_SET.into(),
+                Atom::NODE_FOLD_FOLDER.into(),
+                Atom::NODE_FOLD_INITIAL.into(),
+            )
+            .map(|(set, folder, initial)| Self::Fold {
+                set,
+                folder,
+                initial,
+            })
+        );
+
+        xor_with!(
+            pair_values(
+                object,
+                knowledge,
+                Atom::NODE_NEW_CONSTRUCTION_CONSTRUCTOR.into(),
+                Atom::NODE_NEW_CONSTRUCTION_VALUE.into(),
+            )
+            .map(|(constructor, value)| Self::NewConstruction { constructor, value })
+        );
+
+        xor_with!(
+            knowledge
+                .query_construction_values(object, Atom::NODE_CONSTRUCTION_CONSTRUCTOR.into())
+                .next_and_last()
+                .map(|construction| Self::ConstructionConstructor { construction })
+        );
+
+        xor_with!(
+            knowledge
+                .query_construction_values(object, Atom::NODE_CONSTRUCTION_VALUE.into())
+                .next_and_last()
+                .map(|construction| Self::ConstructionValue { construction })
+        );
 
         node
     }
@@ -574,3 +657,6 @@ impl Node {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
