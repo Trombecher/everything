@@ -4,6 +4,8 @@ use crate::{
     model::Object,
 };
 
+#[must_use]
+#[allow(unused_variables)]
 pub fn capture(
     object: &Object,
     knowledge: &Knowledge,

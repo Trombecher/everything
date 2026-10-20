@@ -2,6 +2,7 @@
 
 use std::fmt::Debug;
 
+#[allow(dead_code)]
 pub struct DebugIterator<I: Iterator + Clone>(pub I)
 where
     I::Item: Debug;

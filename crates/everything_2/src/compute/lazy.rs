@@ -55,6 +55,7 @@ impl From<Object> for LazyObject {
 }
 
 impl LazyObject {
+    #[must_use]
     pub fn into_object(self) -> Object {
         todo!()
     }
@@ -76,6 +77,7 @@ impl LazyObject {
         }
     }
 
+    #[must_use]
     pub fn is_truthy(&self, knowledge: &Knowledge) -> bool {
         match self {
             LazyObject::Eager(object) => object.is_truthy(),
@@ -91,6 +93,7 @@ impl LazyObject {
         }
     }
 
+    #[must_use]
     pub fn has(&self, element: &Object, knowledge: &Knowledge) -> bool {
         match self {
             Self::Eager(object) => knowledge.object_has(object, element),
@@ -133,6 +136,7 @@ impl LazyObject {
     }
 
     /// Iterate over the lazy object.
+    #[must_use]
     pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
         match self {
             LazyObject::Eager(object) => {
@@ -142,12 +146,18 @@ impl LazyObject {
                 first: Box::new(first.iter(knowledge)),
                 second: Box::new(second.iter(knowledge)),
             },
-            LazyObject::Intersection { first, second } => todo!(),
-            LazyObject::Difference { source, without } => todo!(),
-            LazyObject::AtomsWithProperty { property } => todo!(),
+            LazyObject::Intersection {
+                first: _,
+                second: _,
+            } => todo!(),
+            LazyObject::Difference {
+                source: _,
+                without: _,
+            } => todo!(),
+            LazyObject::AtomsWithProperty { property: _ } => todo!(),
             LazyObject::Map {
-                target,
-                mapper_function,
+                target: _,
+                mapper_function: _,
             } => todo!(),
             LazyObject::Filter {
                 target,

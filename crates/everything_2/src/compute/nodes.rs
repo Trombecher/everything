@@ -116,7 +116,144 @@ pub(crate) fn node_function_body(object: &Object, knowledge: &Knowledge) -> Opti
         .next_and_last()
 }
 
+fn both_values(
+    object: &Object,
+    knowledge: &Knowledge,
+    first_property_constructor: Object,
+    second_property_constructor: Object,
+) -> Option<(Object, Object)> {
+    let first = knowledge
+        .query_construction_values(object, first_property_constructor)
+        .next_and_last()?;
+
+    let second = knowledge
+        .query_construction_values(object, second_property_constructor)
+        .next_and_last()?;
+
+    Some((first, second))
+}
+
+fn node_function_self(object: &Object, knowledge: &Knowledge) -> Option<Node> {
+    let depth_i128 = knowledge
+        .query_construction_values(object, Atom::NODE_FUNCTION_SELF.into())
+        .next_and_last()?
+        .integer()?;
+
+    u32::try_from(depth_i128)
+        .ok()
+        .map(|depth| Node::FunctionSelf { depth })
+}
+
+fn node_parameter_depth(object: &Object, knowledge: &Knowledge) -> Option<Node> {
+    let depth = knowledge
+        .query_construction_values(object, Atom::NODE_PARAMETER.into())
+        .next_and_last()?
+        .integer()?;
+
+    u32::try_from(depth)
+        .ok()
+        .map(|depth| Node::Parameter { depth })
+}
+
+fn node_call(object: &Object, knowledge: &Knowledge) -> Option<Node> {
+    let callee = knowledge
+        .query_construction_values(object, Atom::NODE_CALL_CALLEE.into())
+        .next_and_last()?;
+
+    let with = knowledge
+        .query_construction_values(object, Atom::NODE_CALL_WITH.into())
+        .next_and_last()?;
+
+    Some(Node::Call { callee, with })
+}
+
+fn node_map(object: &Object, knowledge: &Knowledge) -> Option<Node> {
+    let set_expression = knowledge
+        .query_construction_values(object, Atom::NODE_MAP_SET.into())
+        .next()?;
+    let mapper_function_expression = knowledge
+        .query_construction_values(object, Atom::NODE_MAP_MAPPER.into())
+        .next()?;
+
+    Some(Node::Map {
+        set: set_expression,
+        mapper_function: mapper_function_expression,
+    })
+}
+
+fn node_filter(object: &Object, knowledge: &Knowledge) -> Option<Node> {
+    let set = knowledge
+        .query_construction_values(object, Atom::NODE_FILTER_SET.into())
+        .next_and_last()?;
+
+    let filter = knowledge
+        .query_construction_values(object, Atom::NODE_FILTER_FILTER.into())
+        .next_and_last()?;
+
+    Some(Node::Filter {
+        set,
+        filter_function: filter,
+    })
+}
+
+fn node_if(object: &Object, knowledge: &Knowledge) -> Option<Node> {
+    let condition = knowledge
+        .query_construction_values(object, Atom::NODE_IF_CONDITION.into())
+        .next_and_last()?;
+
+    let then = knowledge
+        .query_construction_values(object, Atom::NODE_IF_THEN.into())
+        .next_and_last()?;
+
+    let otherwise = knowledge
+        .query_construction_values(object, Atom::NODE_IF_ELSE.into())
+        .next_and_last()?;
+
+    Some(Node::If {
+        condition,
+        then,
+        otherwise,
+    })
+}
+
+fn node_unwrap_or(object: &Object, knowledge: &Knowledge) -> Option<Node> {
+    let set = knowledge
+        .query_construction_values(object, Atom::NODE_UNWRAP_OR_SET.into())
+        .next_and_last()?;
+
+    let default = knowledge
+        .query_construction_values(object, Atom::NODE_UNWRAP_OR_DEFAULT.into())
+        .next_and_last()?;
+
+    Some(Node::UnwrapOr { set, default })
+}
+
+fn node_every(object: &Object, knowledge: &Knowledge) -> Option<Node> {
+    let set = knowledge
+        .query_construction_values(object, Atom::NODE_EVERY_SET.into())
+        .next_and_last()?;
+
+    let predicate = knowledge
+        .query_construction_values(object, Atom::NODE_EVERY_PREDICATE.into())
+        .next_and_last()?;
+
+    Some(Node::Every { set, predicate })
+}
+
+fn node_any(object: &Object, knowledge: &Knowledge) -> Option<Node> {
+    let set = knowledge
+        .query_construction_values(object, Atom::NODE_ANY_SET.into())
+        .next_and_last()?;
+
+    let predicate = knowledge
+        .query_construction_values(object, Atom::NODE_ANY_PREDICATE.into())
+        .next_and_last()?;
+
+    Some(Node::Any { set, predicate })
+}
+
 impl Node {
+    #[allow(clippy::too_many_lines)]
     pub fn new(object: &Object, knowledge: &Knowledge) -> Option<Self> {
         let mut node: Option<Node> = None;
 
@@ -134,23 +271,6 @@ impl Node {
             }};
         }
 
-        fn both_values(
-            object: &Object,
-            knowledge: &Knowledge,
-            first_property_constructor: Object,
-            second_property_constructor: Object,
-        ) -> Option<(Object, Object)> {
-            let first = knowledge
-                .query_construction_values(object, first_property_constructor)
-                .next_and_last()?;
-
-            let second = knowledge
-                .query_construction_values(object, second_property_constructor)
-                .next_and_last()?;
-
-            Some((first, second))
-        }
-
         xor_with!(node_function_body(object, knowledge).map(|body| Self::Function { body }));
 
         xor_with!(
@@ -160,41 +280,10 @@ impl Node {
                 .map(Self::Literal)
         );
 
-        fn node_function_self(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-            let depth_i128 = knowledge
-                .query_construction_values(object, Atom::NODE_FUNCTION_SELF.into())
-                .next_and_last()?
-                .integer()?;
-
-            u32::try_from(depth_i128)
-                .ok()
-                .map(|depth| Node::FunctionSelf { depth })
-        }
         xor_with!(node_function_self(object, knowledge));
 
-        fn node_parameter_depth(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-            let depth = knowledge
-                .query_construction_values(object, Atom::NODE_PARAMETER.into())
-                .next_and_last()?
-                .integer()?;
-
-            u32::try_from(depth)
-                .ok()
-                .map(|depth| Node::Parameter { depth })
-        }
         xor_with!(node_parameter_depth(object, knowledge));
 
-        fn node_call(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-            let callee = knowledge
-                .query_construction_values(object, Atom::NODE_CALL_CALLEE.into())
-                .next_and_last()?;
-
-            let with = knowledge
-                .query_construction_values(object, Atom::NODE_CALL_WITH.into())
-                .next_and_last()?;
-
-            Some(Node::Call { callee, with })
-        }
         xor_with!(node_call(object, knowledge));
 
         xor_with!(
@@ -271,35 +360,8 @@ impl Node {
             .map(|(first, second)| Self::Union { first, second })
         );
 
-        fn node_map(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-            let set_expression = knowledge
-                .query_construction_values(object, Atom::NODE_MAP_SET.into())
-                .next()?;
-            let mapper_function_expression = knowledge
-                .query_construction_values(object, Atom::NODE_MAP_MAPPER.into())
-                .next()?;
-
-            Some(Node::Map {
-                set: set_expression,
-                mapper_function: mapper_function_expression,
-            })
-        }
         xor_with!(node_map(object, knowledge));
 
-        fn node_filter(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-            let set = knowledge
-                .query_construction_values(object, Atom::NODE_FILTER_SET.into())
-                .next_and_last()?;
-
-            let filter = knowledge
-                .query_construction_values(object, Atom::NODE_FILTER_FILTER.into())
-                .next_and_last()?;
-
-            Some(Node::Filter {
-                set,
-                filter_function: filter,
-            })
-        }
         xor_with!(node_filter(object, knowledge));
 
         xor_with!(
@@ -312,38 +374,8 @@ impl Node {
             .map(|(first, second)| Self::Less { first, second })
         );
 
-        fn node_if(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-            let condition = knowledge
-                .query_construction_values(object, Atom::NODE_IF_CONDITION.into())
-                .next_and_last()?;
-
-            let then = knowledge
-                .query_construction_values(object, Atom::NODE_IF_THEN.into())
-                .next_and_last()?;
-
-            let otherwise = knowledge
-                .query_construction_values(object, Atom::NODE_IF_ELSE.into())
-                .next_and_last()?;
-
-            Some(Node::If {
-                condition,
-                then,
-                otherwise,
-            })
-        }
         xor_with!(node_if(object, knowledge));
 
-        fn node_unwrap_or(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-            let set = knowledge
-                .query_construction_values(object, Atom::NODE_UNWRAP_OR_SET.into())
-                .next_and_last()?;
-
-            let default = knowledge
-                .query_construction_values(object, Atom::NODE_UNWRAP_OR_DEFAULT.into())
-                .next_and_last()?;
-
-            Some(Node::UnwrapOr { set, default })
-        }
         xor_with!(node_unwrap_or(object, knowledge));
 
         xor_with!(
@@ -363,30 +395,8 @@ impl Node {
                 .map(Self::IsAtom)
         );
 
-        fn node_every(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-            let set = knowledge
-                .query_construction_values(object, Atom::NODE_EVERY_SET.into())
-                .next_and_last()?;
-
-            let predicate = knowledge
-                .query_construction_values(object, Atom::NODE_EVERY_PREDICATE.into())
-                .next_and_last()?;
-
-            Some(Node::Every { set, predicate })
-        }
         xor_with!(node_every(object, knowledge));
 
-        fn node_any(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-            let set = knowledge
-                .query_construction_values(object, Atom::NODE_ANY_SET.into())
-                .next_and_last()?;
-
-            let predicate = knowledge
-                .query_construction_values(object, Atom::NODE_ANY_PREDICATE.into())
-                .next_and_last()?;
-
-            Some(Node::Any { set, predicate })
-        }
         xor_with!(node_any(object, knowledge));
 
         // TODO: more recognition

@@ -1,5 +1,6 @@
 use crate::model::{Atom, Object};
 
+#[must_use]
 pub fn add(a: &Object, b: &Object) -> Object {
     if let Some(left) = a.integer()
         && let Some(right) = b.integer()
@@ -14,6 +15,7 @@ pub fn add(a: &Object, b: &Object) -> Object {
     }
 }
 
+#[must_use]
 pub fn multiply(a: &Object, b: &Object) -> Object {
     if let Some(left) = a.integer()
         && let Some(right) = b.integer()

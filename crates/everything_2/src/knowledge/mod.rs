@@ -48,6 +48,7 @@ impl Knowledge {
         }
     }
 
+    #[must_use]
     pub fn object_has(&self, object: &Object, element: &Object) -> bool {
         if let Some(set) = self.values_of_by_ref(object) {
             set.has(element)
@@ -56,6 +57,7 @@ impl Knowledge {
         }
     }
 
+    #[must_use]
     pub fn query_construction_values(
         &self,
         target: &Object,

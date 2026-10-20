@@ -56,6 +56,7 @@ impl EvaluationContext {
 
     /// Gets the parameter value of the function context at the specified relative
     /// depth, or returns the empty set if the index is out of bounds.
+    #[must_use]
     pub fn parameter_value(&self, relative_depth: usize) -> LazyObject {
         self.function_context(relative_depth)
             .map_or(Object::Set(Set::empty()).into(), |context| {
@@ -65,6 +66,7 @@ impl EvaluationContext {
 
     /// Gets the function itself of the function context at the specified relative
     /// depth, or returns the empty set if the index is out of bounds.
+    #[must_use]
     pub fn function_self(&self, relative_depth: usize) -> Object {
         self.function_context(relative_depth)
             .map_or(Object::Set(Set::empty()), |context| {
