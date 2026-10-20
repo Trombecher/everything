@@ -1,3 +1,4 @@
+#![feature(slice_partition_dedup)]
 #![forbid(unsafe_code)]
 #![deny(clippy::pedantic)]
 

@@ -19,22 +19,17 @@ impl SetApi for AnySet {
 }
 
 impl AnySet {
+    /// Creates an [`AnySet`] from objects that are already sorted and
+    /// deduplicated.
+    ///
     /// DO NOT EXPOSE THIS!
     #[must_use]
-    #[allow(clippy::missing_panics_doc)]
-    pub(super) fn new(objects: &[Object]) -> Self {
-        let mut objects: Arc<[Object]> = Arc::from(objects);
-        Arc::get_mut(&mut objects).unwrap().sort();
+    pub(super) fn from_sorted(objects: impl IntoIterator<Item = Object>) -> Self {
+        let objects = objects.into_iter().collect::<Arc<[Object]>>();
+
+        debug_assert!(objects.windows(2).all(|pair| pair[0] < pair[1]));
 
         Self { objects }
-    }
-
-    pub(super) fn new_move<const N: usize>(mut objects: [Object; N]) -> Self {
-        objects.sort();
-
-        Self {
-            objects: Arc::new(objects),
-        }
     }
 
     #[must_use]

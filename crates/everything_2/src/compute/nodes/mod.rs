@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::{
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
@@ -657,6 +660,3 @@ impl Node {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -4,6 +4,9 @@ mod character;
 mod integer;
 mod one_construction;
 
+#[cfg(test)]
+mod tests;
+
 pub use any_set::*;
 pub use byte::*;
 pub use character::*;
@@ -86,19 +89,44 @@ impl Set {
 
     /// Creates a new [`Set`] from the given slice of objects. The objects will be cloned.
     #[must_use]
-    #[allow(clippy::missing_panics_doc)]
     pub fn new(objects: &[Object]) -> Self {
-        Self::try_new_primitive_specialization(objects)
-            .unwrap_or_else(|| Self::Any(AnySet::new(objects)))
+        let mut objects = objects.to_vec();
+        objects.sort_unstable();
+
+        let (unique, _) = objects.partition_dedup();
+
+        if let Some(set) = Self::try_new_primitive_specialization(unique) {
+            return set;
+        }
+
+        if let Some(set) = OneConstructionSet::specialize_from(unique) {
+            return Self::OneConstruction(set);
+        }
+
+        Self::Any(AnySet::from_sorted(unique.iter().cloned()))
     }
 
     /// Creates a new [`Set`] from the given array of objects.
     #[must_use]
-    #[allow(clippy::missing_panics_doc)] // this function does not panic!
-    pub fn new_move<const N: usize>(objects: [Object; N]) -> Self {
-        Self::try_new_primitive_specialization(&objects)
-            .or_else(|| OneConstructionSet::specialize_from(&objects).map(Self::OneConstruction))
-            .unwrap_or_else(|| Self::Any(AnySet::new_move(objects)))
+    pub fn new_move<const N: usize>(mut objects: [Object; N]) -> Self {
+        let unique_len = {
+            objects.sort_unstable();
+
+            let (unique, _) = objects.partition_dedup();
+            let unique_len = unique.len();
+
+            if let Some(set) = Self::try_new_primitive_specialization(unique) {
+                return set;
+            }
+
+            if let Some(set) = OneConstructionSet::specialize_from_moving(unique) {
+                return Self::OneConstruction(set);
+            }
+
+            unique_len
+        };
+
+        Self::Any(AnySet::from_sorted(objects.into_iter().take(unique_len)))
     }
 
     /// Tries to create a new [`Set`] primitive specialization variant from the given list of objects.
