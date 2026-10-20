@@ -1,5 +1,5 @@
 use crate::{
-    compute::{LazyObject, Node, capture},
+    compute::{LazyObject, Node, add, capture, multiply, node_function_body},
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
     model::{Object, Set},
@@ -13,13 +13,6 @@ pub enum Task {
     PartialAnd { second: Object },
     ToBoolean,
     Count,
-    QueryValues,
-    QuerySubjects,
-    QuerySubjectsAndValues,
-    QueryTagsAndValues,
-    QuerySubjectsAndTags,
-    QueryTags,
-    QueryExists,
     Equal,
     PartialOr { second: Object },
     Xor,
@@ -97,8 +90,13 @@ pub struct FunctionContext {
 }
 
 /// Evaluates an object in the given knowledge and context.
+///
+/// # Panics
+///
+/// TODO
+#[allow(clippy::too_many_lines)]
 pub fn evaluate(
-    object: Object,
+    object: &Object,
     knowledge: &Knowledge,
     context: &mut EvaluationContext,
 ) -> LazyObject {
@@ -109,6 +107,17 @@ pub fn evaluate(
         match task {
             Task::Evaluate(object) => {
                 match Node::new(&object, knowledge) {
+                    Some(
+                        Node::QueryAtomsWithProperty { .. }
+                        | Node::QueryConstructionValues { .. }
+                        | Node::Contains { .. }
+                        | Node::IsConstruction(_)
+                        | Node::IsSet(_)
+                        | Node::Fold { .. }
+                        | Node::NewConstruction { .. }
+                        | Node::ConstructionConstructor { .. }
+                        | Node::ConstructionValue { .. },
+                    ) => todo!(),
                     Some(Node::IsAtom(inner)) => {
                         tasks.push(Task::IsAtom);
                         tasks.push(Task::Evaluate(inner));
@@ -141,7 +150,7 @@ pub fn evaluate(
                         tasks.push(Task::Evaluate(first));
                     }
                     Some(Node::FunctionSelf { depth }) => {
-                        evaluated.push(LazyObject::Eager(context.function_self(depth as usize)))
+                        evaluated.push(LazyObject::Eager(context.function_self(depth as usize)));
                     }
                     Some(Node::Parameter { depth }) => {
                         evaluated.push(context.parameter_value(depth as usize));
@@ -230,6 +239,8 @@ pub fn evaluate(
                         tasks.push(Task::PartialIf { then, otherwise });
                         tasks.push(Task::Evaluate(condition));
                     }
+                    /*
+                    TODO: validate dynamic object creation
                     None if let Object::Composite(Composite::Any(any_composite)) = object => {
                         let result = any_composite
                         .properties()
@@ -269,6 +280,7 @@ pub fn evaluate(
 
                         evaluated.push(result);
                     }
+                     */
                     None => evaluated.push(object.clone().into()),
                 }
             }
@@ -286,7 +298,7 @@ pub fn evaluate(
                 let parameter_value = evaluated.pop().unwrap();
 
                 tasks.push(Task::Evaluate(
-                    callee.node_function_body(knowledge).unwrap(),
+                    node_function_body(&callee, knowledge).unwrap(),
                 ));
 
                 context.push(FunctionContext {
@@ -295,85 +307,28 @@ pub fn evaluate(
                 });
             }
             Task::PartialAnd { second: right } => {
-                let mut left = evaluated.pop().unwrap();
+                let left = evaluated.pop().unwrap();
 
                 if left.is_truthy(knowledge) {
                     tasks.push(Task::ToBoolean);
                     tasks.push(Task::Evaluate(right));
                 } else {
-                    evaluated.push(LazyObject::Object(Composite::new_bool(false).into()));
+                    evaluated.push(LazyObject::Eager(Set::empty().into()));
                 }
             }
+            Task::Count => todo!("task count"),
+            /*
             Task::Count => {
                 let target = evaluated.pop().unwrap();
 
                 evaluated.push(
-                    Self::new_integer(target.set_values(knowledge).correct_count() as i128).into(),
-                );
-            }
-            Task::QuerySubjectsAndTags => {
-                let value = evaluated.pop().unwrap().into_object();
-
-                evaluated.push(
-                    SetValues::QuerySubjectsAndTags(knowledge.query_subjects_and_tags(value))
+                    Object::new_integer(target.set_values(knowledge).correct_count() as i128)
                         .into(),
                 );
             }
-            Task::QueryTagsAndValues => {
-                // TODO: make this lazy
-                let subject = evaluated.pop().unwrap().into_object();
-
-                evaluated.push(
-                    SetValues::QueryTagsAndValues(knowledge.query_tags_and_values(subject)).into(),
-                );
-            }
-            Task::QueryTags => {
-                let value = evaluated.pop().unwrap().into_object();
-                // TODO: make this lazy
-                let subject = evaluated.pop().unwrap().into_object();
-
-                evaluated.push(SetValues::QueryTags(knowledge.query_tags(subject, value)).into());
-            }
-            Task::QueryValues => {
-                let tag = evaluated.pop().unwrap().into_object();
-                // TODO: make this lazy
-                let subject = evaluated.pop().unwrap().into_object();
-
-                evaluated.push(LazyObject::SetValues(SetValues::QueryValues(
-                    knowledge.query_values(subject, tag.clone()),
-                )));
-            }
-            Task::QuerySubjects => {
-                let value = evaluated.pop().unwrap().into_object();
-                let tag = evaluated.pop().unwrap().into_object();
-
-                evaluated
-                    .push(SetValues::QuerySubjects(knowledge.query_subjects(tag, value)).into());
-            }
-            Task::QuerySubjectsAndValues => {
-                let tag = evaluated.pop().unwrap().into_object();
-
-                evaluated.push(
-                    SetValues::QuerySubjectsAndValues(knowledge.query_subjects_and_values(tag))
-                        .into(),
-                );
-            }
-            Task::QueryExists => {
-                let value = evaluated.pop().unwrap().into_object();
-                let tag = evaluated.pop().unwrap().into_object();
-                let subject = evaluated.pop().unwrap().into_object();
-
-                evaluated.push(LazyObject::Object(
-                    Composite::new_bool(knowledge.exists(SimpleStatement {
-                        subject,
-                        tag,
-                        value,
-                    }))
-                    .into(),
-                ));
-            }
+             */
             Task::ToBoolean => {
-                let mut object = evaluated.pop().unwrap();
+                let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(
                     Set::from(object.is_truthy(knowledge)).into(),
@@ -383,11 +338,11 @@ pub fn evaluate(
                 let right = evaluated.pop().unwrap().into_object();
                 let left = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(Object::Composite(Composite::new_bool(left == right)).into());
+                evaluated.push(Object::Set(Set::from(left == right)).into());
             }
             Task::PartialOr { second: right } => {
                 if evaluated.pop().unwrap().is_truthy(knowledge) {
-                    evaluated.push(LazyObject::Object(Composite::new_bool(true).into()));
+                    evaluated.push(LazyObject::Eager(Set::truthy().into()));
                 } else {
                     tasks.push(Task::ToBoolean);
                     tasks.push(Task::Evaluate(right));
@@ -413,7 +368,7 @@ pub fn evaluate(
                 );
             }
             Task::Not => {
-                let mut object = evaluated.pop().unwrap();
+                let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(
                     Set::from(!object.is_truthy(knowledge)).into(),
@@ -424,14 +379,14 @@ pub fn evaluate(
                 // TODO: (perf) maybe short circuit sets into UNDEFINED.
                 let left = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(left.add(&right).into());
+                evaluated.push(add(&left, &right).into());
             }
             Task::Multiply => {
                 // TODO: (perf) maybe short circuit sets into UNDEFINED.
                 let right = evaluated.pop().unwrap().into_object();
                 let left = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(left.multiply(&right).into());
+                evaluated.push(multiply(&left, &right).into());
             }
             Task::Union => {
                 let first = evaluated.pop().unwrap();
@@ -460,6 +415,8 @@ pub fn evaluate(
                     filter_function: filter,
                 });
             }
+            Task::Every => todo!("task every"),
+            /*
             Task::Every => {
                 let mut previous_result = evaluated.pop().unwrap();
                 let predicate = evaluated.pop().unwrap().into_object();
@@ -489,6 +446,9 @@ pub fn evaluate(
                     evaluated.push(LazyObject::Object(Composite::new_bool(true).into()));
                 }
             }
+             */
+            Task::Any => todo!("task any"),
+            /*
             Task::Any => {
                 let mut previous_result = evaluated.pop().unwrap();
                 let predicate = evaluated.pop().unwrap().into_object();
@@ -518,6 +478,9 @@ pub fn evaluate(
                     evaluated.push(LazyObject::Object(Composite::new_bool(false).into()));
                 }
             }
+             */
+            Task::Less => todo!("task less"),
+            /*
             Task::Less => {
                 let right = evaluated.pop().unwrap();
                 let left = evaluated.pop().unwrap();
@@ -539,6 +502,7 @@ pub fn evaluate(
                     .into(),
                 );
             }
+             */
             Task::PartialIf { then, otherwise } => {
                 if evaluated.pop().unwrap().is_truthy(knowledge) {
                     tasks.push(Task::Evaluate(then));

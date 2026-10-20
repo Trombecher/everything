@@ -119,7 +119,7 @@ impl LazyObject {
 
                 target.has(element, knowledge)
                     && compute::evaluate(
-                        Object::new_node(Node::Call {
+                        &Object::new_node(Node::Call {
                             callee: filter_function.clone(),
                             with: element.clone(),
                         }),
@@ -187,7 +187,7 @@ impl Iterator for LazyObjectIter {
                 knowledge,
             } => target.find(|object| {
                 evaluate(
-                    Object::new_node(Node::Call {
+                    &Object::new_node(Node::Call {
                         callee: filter_function.clone(),
                         with: object.clone(),
                     }),

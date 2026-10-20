@@ -8,7 +8,7 @@ pub use atoms::*;
 pub use constructions::*;
 pub use sets::*;
 
-use crate::compute::{self, Node};
+use crate::compute::Node;
 
 /// An object that represents a thing.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -70,7 +70,7 @@ impl Object {
 
     #[must_use]
     pub fn new_node(node: Node) -> Self {
-        compute::object_from_node(node)
+        node.into_object()
     }
 }
 

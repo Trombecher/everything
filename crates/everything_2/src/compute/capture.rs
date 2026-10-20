@@ -1,5 +1,5 @@
 use crate::{
-    compute::{EvaluationContext, LazyObject, Node},
+    compute::{EvaluationContext, LazyObject},
     knowledge::Knowledge,
     model::Object,
 };
@@ -10,6 +10,11 @@ pub fn capture(
     additional_depth: usize,
     ctx: &EvaluationContext,
 ) -> LazyObject {
+    todo!("capture")
+
+    // this code does not compile but I want to test stuff
+
+    /*
     match Node::new(object, knowledge) {
         Some(Node::Function { body }) => Object::new_node(Node::Function {
             body: capture(&body, knowledge, additional_depth + 1, ctx).into_object(),
@@ -75,4 +80,5 @@ pub fn capture(
             _ => LazyObject::Eager(object.clone()),
         },
     }
+     */
 }
