@@ -16,18 +16,20 @@ It is the user's responsibility to ensure that models are well-founded (i.e. are
 
 ### Atoms
 
-An _atom_ is an object whose semantic meaning is atomic: it is inherently uncomposed and has no internal structure. An atom is identified by a non-negative integer called its _id_. Ids of atoms:
+An _atom_ is an object whose semantic meaning is atomic: it is inherently uncomposed and has no internal structure. An atom is identified by a non-negative integer called _id_. Ids of atoms
 
-- must capture the semantic meaning of their atoms uniquely, and
-- must not carry any semantic meaning.
+- capture the semantic meaning of their atoms uniquely and
+- must not carry any semantic meaning related to the atom in the value.
 
-Thus, the id of an atom is the semantic hash of the atom's meaning. It is STRONGLY recommended to use some combination of time and randomness (like ULIDs) to generate atom ids, even though this technically contradicts the semantic condition.
+Atom ids are global identifiers and it is STRONGLY recommended to use some combination of time and randomness (like ULIDs) to generate them. This ensures globally unique ids.
 
-Throughout these docs (and when talking about atoms) it is beneficial to just use text in `snake_case` to denote atoms. This encodes the semantic meaning directly in the written form, making it easier to work with them. However, these are only (unique) text aliases. The real integer values of globally used atom aliases can be looked up in [`crates/everything_2/src/model/atoms.rs`](../../crates/everything_2/src/model/atoms.rs).
+Throughout these docs, aliases are used to represent the atoms instead of the raw values. These encode the semantic meaning into text, making it easier to work with them. However, these are only (unique) text aliases local to the context they are used within. The real integer values of globally used atom aliases can be looked up in [`crates/everything_2/src/model/atoms.rs`](../../crates/everything_2/src/model/atoms.rs).
+
+Under the model assumption, atoms with different ids (different atoms) represent different things (!).
 
 ### Sets
 
-A _set_ is a collection of objects. It is written as a comma-separated collection of objects enclosed in curly braces, for example `{a, b, c}`. The empty set is written `{}`. Sets are unordered: `{a, b}` and `{b, a}` denote the same object.
+A _set_ is a collection of objects. It is written as a comma-separated collection of objects enclosed in curly braces, for example `{a, b, c}`. The empty set is written `{}`. Sets are unordered: `{a, b}` and `{b, a}` denote the same object. Sets may only contain an object at most once, duplicates are removed: `{a, a} = {a}`.
 
 ### Constructions
 

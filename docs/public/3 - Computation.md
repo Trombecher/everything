@@ -6,6 +6,8 @@ Generally, you need a knowledge to evaluate nodes/expressions in, because some n
 
 This chapter describes the intended model. Some nodes are declared but not fully implemented yet; those are noted below.
 
+The following sections define node types and how they evaluated. Together, they define "evaluate" which is a function from an object to an object.
+
 ## Truthiness
 
 - An object is _falsy_ iff it is the empty set `{}`.
