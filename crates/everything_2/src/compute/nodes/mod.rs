@@ -240,8 +240,8 @@ impl Node {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_AND_LEFT.into(),
-                Atom::NODE_AND_RIGHT.into(),
+                Atom::NODE_AND_FIRST.into(),
+                Atom::NODE_AND_SECOND.into(),
             )
             .map(|(first, second)| Self::And { first, second })
         );
@@ -250,8 +250,8 @@ impl Node {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_OR_LEFT.into(),
-                Atom::NODE_OR_RIGHT.into(),
+                Atom::NODE_OR_FIRST.into(),
+                Atom::NODE_OR_SECOND.into(),
             )
             .map(|(first, second)| Self::Or { first, second })
         );
@@ -260,8 +260,8 @@ impl Node {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_EQUAL_LEFT.into(),
-                Atom::NODE_EQUAL_RIGHT.into(),
+                Atom::NODE_EQUAL_FIRST.into(),
+                Atom::NODE_EQUAL_SECOND.into(),
             )
             .map(|(first, second)| Self::Equal { first, second })
         );
@@ -270,8 +270,8 @@ impl Node {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_XOR_LEFT.into(),
-                Atom::NODE_XOR_RIGHT.into(),
+                Atom::NODE_XOR_FIRST.into(),
+                Atom::NODE_XOR_SECOND.into(),
             )
             .map(|(first, second)| Self::Xor { first, second })
         );
@@ -280,8 +280,8 @@ impl Node {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_ADD_LEFT.into(),
-                Atom::NODE_ADD_RIGHT.into(),
+                Atom::NODE_ADD_FIRST.into(),
+                Atom::NODE_ADD_SECOND.into(),
             )
             .map(|(first, second)| Self::Add { first, second })
         );
@@ -290,8 +290,8 @@ impl Node {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_UNION_LEFT.into(),
-                Atom::NODE_UNION_RIGHT.into(),
+                Atom::NODE_UNION_FIRST.into(),
+                Atom::NODE_UNION_SECOND.into(),
             )
             .map(|(first, second)| Self::Union { first, second })
         );
@@ -326,8 +326,8 @@ impl Node {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_LESS_LEFT.into(),
-                Atom::NODE_LESS_RIGHT.into(),
+                Atom::NODE_LESS_FIRST.into(),
+                Atom::NODE_LESS_SECOND.into(),
             )
             .map(|(first, second)| Self::Less { first, second })
         );
@@ -361,8 +361,8 @@ impl Node {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_MULTIPLY_LEFT.into(),
-                Atom::NODE_MULTIPLY_RIGHT.into(),
+                Atom::NODE_MULTIPLY_FIRST.into(),
+                Atom::NODE_MULTIPLY_SECOND.into(),
             )
             .map(|(first, second)| Self::Multiply { first, second })
         );
@@ -553,8 +553,8 @@ impl Node {
                 Set::new_move([Construction::new(Atom::NODE_LITERAL.into(), literal).into()]).into()
             }
             Self::And { first, second } => Set::new_move([
-                Construction::new(Atom::NODE_AND_LEFT.into(), first).into(),
-                Construction::new(Atom::NODE_AND_RIGHT.into(), second).into(),
+                Construction::new(Atom::NODE_AND_FIRST.into(), first).into(),
+                Construction::new(Atom::NODE_AND_SECOND.into(), second).into(),
             ])
             .into(),
             Self::FunctionSelf { depth } => Set::new_move([Construction::new(
@@ -579,31 +579,31 @@ impl Node {
                 .into()
             }
             Self::Equal { first, second } => Set::new_move([
-                Construction::new(Atom::NODE_EQUAL_LEFT.into(), first).into(),
-                Construction::new(Atom::NODE_EQUAL_RIGHT.into(), second).into(),
+                Construction::new(Atom::NODE_EQUAL_FIRST.into(), first).into(),
+                Construction::new(Atom::NODE_EQUAL_SECOND.into(), second).into(),
             ])
             .into(),
             Self::Or { first, second } => Set::new_move([
-                Construction::new(Atom::NODE_OR_LEFT.into(), first).into(),
-                Construction::new(Atom::NODE_OR_RIGHT.into(), second).into(),
+                Construction::new(Atom::NODE_OR_FIRST.into(), first).into(),
+                Construction::new(Atom::NODE_OR_SECOND.into(), second).into(),
             ])
             .into(),
             Self::Xor { first, second } => Set::new_move([
-                Construction::new(Atom::NODE_XOR_LEFT.into(), first).into(),
-                Construction::new(Atom::NODE_XOR_RIGHT.into(), second).into(),
+                Construction::new(Atom::NODE_XOR_FIRST.into(), first).into(),
+                Construction::new(Atom::NODE_XOR_SECOND.into(), second).into(),
             ])
             .into(),
             Self::Not(node) => {
                 Set::new_move([Construction::new(Atom::NODE_NOT.into(), node).into()]).into()
             }
             Self::Add { first, second } => Set::new_move([
-                Construction::new(Atom::NODE_ADD_LEFT.into(), first).into(),
-                Construction::new(Atom::NODE_ADD_RIGHT.into(), second).into(),
+                Construction::new(Atom::NODE_ADD_FIRST.into(), first).into(),
+                Construction::new(Atom::NODE_ADD_SECOND.into(), second).into(),
             ])
             .into(),
             Self::Union { first, second } => Set::new_move([
-                Construction::new(Atom::NODE_UNION_LEFT.into(), first).into(),
-                Construction::new(Atom::NODE_UNION_RIGHT.into(), second).into(),
+                Construction::new(Atom::NODE_UNION_FIRST.into(), first).into(),
+                Construction::new(Atom::NODE_UNION_SECOND.into(), second).into(),
             ])
             .into(),
             Self::Map {
@@ -633,8 +633,8 @@ impl Node {
             ])
             .into(),
             Self::Less { first, second } => Set::new_move([
-                Construction::new(Atom::NODE_LESS_LEFT.into(), first).into(),
-                Construction::new(Atom::NODE_LESS_RIGHT.into(), second).into(),
+                Construction::new(Atom::NODE_LESS_FIRST.into(), first).into(),
+                Construction::new(Atom::NODE_LESS_SECOND.into(), second).into(),
             ])
             .into(),
             Self::If {
@@ -653,8 +653,8 @@ impl Node {
             ])
             .into(),
             Self::Multiply { first, second } => Set::new_move([
-                Construction::new(Atom::NODE_MULTIPLY_LEFT.into(), first).into(),
-                Construction::new(Atom::NODE_MULTIPLY_RIGHT.into(), second).into(),
+                Construction::new(Atom::NODE_MULTIPLY_FIRST.into(), first).into(),
+                Construction::new(Atom::NODE_MULTIPLY_SECOND.into(), second).into(),
             ])
             .into(),
         }

@@ -40,8 +40,8 @@ You can apply/call a function with a value using this node where `<callee>` is a
 
 An object is an _and node_ iff
 
-- it has the property `node_and_left <left>` and
-- it has the property `node_and_right <right>`.
+- it has the property `node_and_first <left>` and
+- it has the property `node_and_second <right>`.
 
 It first evaluates `<left>`. If the result is falsy, the and-node is falsy. Otherwise it evaluates `<right>` and is truthy iff `<right>` is truthy.
 
@@ -49,8 +49,8 @@ It first evaluates `<left>`. If the result is falsy, the and-node is falsy. Othe
 
 An object is an _or node_ iff
 
-- it has the property `node_or_left <left>` and
-- it has the property `node_or_right <right>`.
+- it has the property `node_or_first <left>` and
+- it has the property `node_or_second <right>`.
 
 It first evaluates `<left>`. If the result is truthy, the or-node is truthy. Otherwise it evaluates `<right>` and is truthy iff `<right>` is truthy.
 
@@ -58,8 +58,8 @@ It first evaluates `<left>`. If the result is truthy, the or-node is truthy. Oth
 
 An object is an _xor node_ iff
 
-- it has the property `node_xor_left <left>` and
-- it has the property `node_xor_right <right>`.
+- it has the property `node_xor_first <left>` and
+- it has the property `node_xor_second <right>`.
 
 It evaluates both `<left>` and `<right>`. The xor-node is truthy iff exactly one of the two results is truthy.
 
@@ -71,8 +71,8 @@ An object is a _not-node_ iff it has the property `node_not <inner>`. It evaluat
 
 An object is an _equal node_ iff
 
-- it has the property `node_equal_left <left>` and
-- it has the property `node_equal_right <right>`.
+- it has the property `node_equal_first <left>` and
+- it has the property `node_equal_second <right>`.
 
 It evaluates both children and is truthy iff their results are structurally equal.
 
@@ -80,8 +80,8 @@ It evaluates both children and is truthy iff their results are structurally equa
 
 An object is a _less-than node_ iff
 
-- it has the property `node_less_left <left>` and
-- it has the property `node_less_right <right>`.
+- it has the property `node_less_first <left>` and
+- it has the property `node_less_second <right>`.
 
 It evaluates both children. If both results are integers, it is truthy iff `<left> < <right>`. Otherwise it compares the number of elements of the results.
 
@@ -89,8 +89,8 @@ It evaluates both children. If both results are integers, it is truthy iff `<lef
 
 An object is an _add node_ iff
 
-- it has the property `node_add_left <left>` and
-- it has the property `node_add_right <right>`.
+- it has the property `node_add_first <left>` and
+- it has the property `node_add_second <right>`.
 
 It evaluates both children. If both results are integers, it evaluates to their sum. If the sum overflows, it evaluates to `arithmetic_overflow`. If the results are not both integers, it evaluates to `undefined`.
 
@@ -98,8 +98,8 @@ It evaluates both children. If both results are integers, it evaluates to their 
 
 An object is a _multiply node_ iff
 
-- it has the property `node_multiply_left <left>` and
-- it has the property `node_multiply_right <right>`.
+- it has the property `node_multiply_first <left>` and
+- it has the property `node_multiply_second <right>`.
 
 It evaluates both children. If both results are integers, it evaluates to their product. If the product overflows, it evaluates to `arithmetic_overflow`. If the results are not both integers, it evaluates to `undefined`.
 
@@ -111,8 +111,8 @@ An object is a _count node_ iff it has a single property `node_count <inner>`. I
 
 An object is a _union node_ iff
 
-- it has the property `node_union_left <left>` and
-- it has the property `node_union_right <right>`.
+- it has the property `node_union_first <left>` and
+- it has the property `node_union_second <right>`.
 
 It evaluates both children and evaluates to the set that contains all elements from the result of the left child and all elements from the result of the right child.
 
