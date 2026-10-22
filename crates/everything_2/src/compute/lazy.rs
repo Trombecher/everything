@@ -137,27 +137,31 @@ impl LazyObject {
     #[must_use]
     pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
         match self {
-            LazyObject::Eager(object) => {
+            Self::Eager(object) => {
                 LazyObjectIter::ObjectValues(knowledge.values_of(object).into_iter())
             }
-            LazyObject::Union { first, second } => LazyObjectIter::Union {
+            Self::Union { first, second } => LazyObjectIter::Union {
                 first: Box::new(first.iter(knowledge)),
                 second: Box::new(second.iter(knowledge)),
             },
-            LazyObject::Intersection {
+            Self::Intersection {
                 first: _,
                 second: _,
             } => todo!(),
-            LazyObject::Difference {
+            Self::Difference {
                 source: _,
                 without: _,
             } => todo!(),
-            LazyObject::AtomsWithProperty { property: _ } => todo!(),
-            LazyObject::Map {
-                target: _,
-                mapper_function: _,
-            } => todo!(),
-            LazyObject::Filter {
+            Self::AtomsWithProperty { property: _ } => todo!(),
+            Self::Map {
+                target,
+                mapper_function,
+            } => LazyObjectIter::Map {
+                target: Box::new(target.iter(knowledge)),
+                mapper_function: mapper_function.clone(),
+                knowledge: knowledge.clone(),
+            },
+            Self::Filter {
                 target,
                 filter_function,
             } => LazyObjectIter::Filter {
@@ -178,6 +182,11 @@ pub enum LazyObjectIter {
     Filter {
         target: Box<Self>,
         filter_function: Object,
+        knowledge: Knowledge,
+    },
+    Map {
+        target: Box<Self>,
+        mapper_function: Object,
         knowledge: Knowledge,
     },
 }
@@ -204,6 +213,21 @@ impl Iterator for LazyObjectIter {
                 )
                 .truthy()
                     == MaybeUndefined::Defined(true)
+            }),
+            Self::Map {
+                target,
+                mapper_function,
+                knowledge,
+            } => target.next().map(|object| {
+                evaluate(
+                    &Object::new_node(Node::Call {
+                        callee: mapper_function.clone(),
+                        with: object.clone(),
+                    }),
+                    knowledge,
+                    &mut EvaluationContext::default(),
+                )
+                .into_object()
             }),
         }
     }

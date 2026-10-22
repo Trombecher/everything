@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::{
     compute::{
         LazyObject, MaybeUndefined, Node, add, arithmetic, capture, multiply, node_function_body,
