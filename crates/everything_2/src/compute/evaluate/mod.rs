@@ -3,7 +3,7 @@ mod tests;
 
 use crate::{
     compute::{
-        LazyObject, MaybeUndefined, Node, add, arithmetic, capture, multiply, node_function_body,
+        LazyObject, MaybeUndefined, Node, add, capture, multiply, node_function_body, operations,
     },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
@@ -344,7 +344,7 @@ pub fn evaluate(
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(
-                    arithmetic::to_boolean(&object, knowledge).into(),
+                    operations::to_boolean(&object, knowledge).into(),
                 ));
             }
             Task::Equal => {
@@ -505,7 +505,7 @@ pub fn evaluate(
                 let second = evaluated.pop().unwrap().into_object();
                 let first = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(LazyObject::Eager(arithmetic::less(&first, &second).into()));
+                evaluated.push(LazyObject::Eager(operations::less(&first, &second).into()));
             }
             Task::PartialIf { then, otherwise } => match evaluated.pop().unwrap().truthy() {
                 MaybeUndefined::Defined(true) => {

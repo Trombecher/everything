@@ -1,16 +1,16 @@
 //! Module containing code that implements the computation.
 
-mod arithmetic;
 mod capture;
 mod evaluate;
 mod lazy;
 mod nodes;
+mod operations;
 
-pub use arithmetic::*;
 pub use capture::*;
 pub use evaluate::*;
 pub use lazy::*;
 pub use nodes::*;
+pub use operations::*;
 
 use crate::model::{Atom, Object};
 
