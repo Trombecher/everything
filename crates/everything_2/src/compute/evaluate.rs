@@ -1,5 +1,7 @@
 use crate::{
-    compute::{LazyObject, Node, add, capture, multiply, node_function_body},
+    compute::{
+        LazyObject, MaybeUndefined, Node, add, arithmetic, capture, multiply, node_function_body,
+    },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
     model::{Object, Set},
@@ -290,10 +292,10 @@ pub fn evaluate(
                 context.pop();
             }
             Task::PushLiteralTrue => {
-                evaluated.push(LazyObject::Eager(Set::truthy().into()));
+                evaluated.push(LazyObject::Eager(true.into()));
             }
             Task::PushLiteralFalse => {
-                evaluated.push(LazyObject::Eager(Set::empty().into()));
+                evaluated.push(LazyObject::Eager(false.into()));
             }
             Task::Call => {
                 let callee = evaluated.pop().unwrap().into_object();
@@ -308,14 +310,20 @@ pub fn evaluate(
                     parameter: parameter_value,
                 });
             }
-            Task::PartialAnd { second: right } => {
-                let left = evaluated.pop().unwrap();
+            Task::PartialAnd { second } => {
+                let first = evaluated.pop().unwrap();
 
-                if left.is_truthy(knowledge) {
-                    tasks.push(Task::ToBoolean);
-                    tasks.push(Task::Evaluate(right));
-                } else {
-                    evaluated.push(LazyObject::Eager(Set::empty().into()));
+                match first.truthy() {
+                    MaybeUndefined::Defined(true) => {
+                        tasks.push(Task::ToBoolean);
+                        tasks.push(Task::Evaluate(second));
+                    }
+                    MaybeUndefined::Defined(false) => {
+                        evaluated.push(LazyObject::Eager(Set::empty().into()));
+                    }
+                    MaybeUndefined::Undefined => evaluated.push(LazyObject::Eager(
+                        MaybeUndefined::<Object>::Undefined.into(),
+                    )),
                 }
             }
             Task::Count => todo!("task count"),
@@ -333,62 +341,71 @@ pub fn evaluate(
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(
-                    Set::from(object.is_truthy(knowledge)).into(),
+                    arithmetic::to_boolean(&object, knowledge).into(),
                 ));
             }
             Task::Equal => {
                 let right = evaluated.pop().unwrap().into_object();
                 let left = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(Object::Set(Set::from(left == right)).into());
+                evaluated.push(LazyObject::Eager((left == right).into()));
             }
-            Task::PartialOr { second: right } => {
-                if evaluated.pop().unwrap().is_truthy(knowledge) {
-                    evaluated.push(LazyObject::Eager(Set::truthy().into()));
-                } else {
+            Task::PartialOr { second } => match evaluated.pop().unwrap().truthy() {
+                MaybeUndefined::Defined(true) => evaluated.push(LazyObject::Eager(true.into())),
+                MaybeUndefined::Defined(false) => {
                     tasks.push(Task::ToBoolean);
-                    tasks.push(Task::Evaluate(right));
+                    tasks.push(Task::Evaluate(second));
                 }
-            }
+                MaybeUndefined::Undefined => evaluated.push(LazyObject::Eager(
+                    MaybeUndefined::<Object>::Undefined.into(),
+                )),
+            },
             Task::Xor => {
-                let right = evaluated.pop().unwrap().is_truthy(knowledge);
-                let left = evaluated.pop().unwrap().is_truthy(knowledge);
+                let second = evaluated.pop().unwrap().truthy();
+                let first = evaluated.pop().unwrap().truthy();
 
-                evaluated.push(LazyObject::Eager(
-                    Set::from((left || right) && !(left && right)).into(),
-                ));
+                evaluated.push(LazyObject::Eager(match (first, second) {
+                    (MaybeUndefined::Defined(true), MaybeUndefined::Defined(false))
+                    | (MaybeUndefined::Defined(false), MaybeUndefined::Defined(true)) => {
+                        true.into()
+                    }
+                    (MaybeUndefined::Defined(false), MaybeUndefined::Defined(false))
+                    | (MaybeUndefined::Defined(true), MaybeUndefined::Defined(true)) => {
+                        false.into()
+                    }
+                    _ => MaybeUndefined::<Object>::Undefined.into(),
+                }));
             }
             Task::IsAtom => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(
-                    Object::Set(Set::from(matches!(
-                        object,
-                        LazyObject::Eager(Object::Atom(_))
-                    )))
-                    .into(),
-                );
-            }
-            Task::Not => {
-                let object = evaluated.pop().unwrap();
-
                 evaluated.push(LazyObject::Eager(
-                    Set::from(!object.is_truthy(knowledge)).into(),
+                    matches!(object, LazyObject::Eager(Object::Atom(_))).into(),
                 ));
             }
+            Task::Not => match evaluated.pop().unwrap().truthy() {
+                MaybeUndefined::Defined(truth) => {
+                    evaluated.push(LazyObject::Eager((!truth).into()));
+                }
+                MaybeUndefined::Undefined => {
+                    evaluated.push(LazyObject::Eager(
+                        MaybeUndefined::<Object>::Undefined.into(),
+                    ));
+                }
+            },
             Task::Add => {
                 let right = evaluated.pop().unwrap().into_object();
                 // TODO: (perf) maybe short circuit sets into UNDEFINED.
                 let left = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(add(&left, &right).into());
+                evaluated.push(LazyObject::Eager(add(&left, &right).into()));
             }
             Task::Multiply => {
                 // TODO: (perf) maybe short circuit sets into UNDEFINED.
                 let right = evaluated.pop().unwrap().into_object();
                 let left = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(multiply(&left, &right).into());
+                evaluated.push(LazyObject::Eager(multiply(&left, &right).into()));
             }
             Task::Union => {
                 let first = evaluated.pop().unwrap();
@@ -481,37 +498,23 @@ pub fn evaluate(
                 }
             }
              */
-            Task::Less => todo!("task less"),
-            /*
             Task::Less => {
-                let right = evaluated.pop().unwrap();
-                let left = evaluated.pop().unwrap();
+                let second = evaluated.pop().unwrap().into_object();
+                let first = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(
-                    Object::Composite(Composite::new_bool(match (left, right) {
-                        (LazyObject::Object(left), LazyObject::Object(right))
-                            if let Some(left) = left.integer()
-                                && let Some(right) = right.integer() =>
-                        {
-                            left < right
-                        }
-                        // TODO: more things here
-                        (left, right) => {
-                            left.set_values(knowledge).correct_count()
-                                < right.set_values(knowledge).correct_count()
-                        }
-                    }))
-                    .into(),
-                );
+                evaluated.push(LazyObject::Eager(arithmetic::less(&first, &second).into()));
             }
-             */
-            Task::PartialIf { then, otherwise } => {
-                if evaluated.pop().unwrap().is_truthy(knowledge) {
+            Task::PartialIf { then, otherwise } => match evaluated.pop().unwrap().truthy() {
+                MaybeUndefined::Defined(true) => {
                     tasks.push(Task::Evaluate(then));
-                } else {
-                    tasks.push(Task::Evaluate(otherwise));
                 }
-            }
+                MaybeUndefined::Defined(false) => tasks.push(Task::Evaluate(otherwise)),
+                MaybeUndefined::Undefined => {
+                    evaluated.push(LazyObject::Eager(
+                        MaybeUndefined::<Object>::Undefined.into(),
+                    ));
+                }
+            },
             Task::PartialUnwrapOr { default } => {
                 let mut set_values = evaluated.pop().unwrap().iter(knowledge);
 

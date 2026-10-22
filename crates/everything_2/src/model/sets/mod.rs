@@ -81,12 +81,6 @@ impl Set {
         Self::new_move([])
     }
 
-    /// Creates a [`Set`] that is truthy.
-    #[must_use]
-    pub fn truthy() -> Self {
-        Self::new_move([Set::empty().into()])
-    }
-
     /// Creates a new [`Set`] from the given slice of objects. The objects will be cloned.
     #[must_use]
     pub fn new(objects: &[Object]) -> Self {
@@ -136,12 +130,6 @@ impl Set {
             .map(Self::Integer)
             .or_else(|| CharacterSet::specialize_from(objects).map(Self::Character))
             .or_else(|| ByteSet::specialize_from(objects).map(Self::Byte))
-    }
-}
-
-impl From<bool> for Set {
-    fn from(value: bool) -> Self {
-        if value { Set::truthy() } else { Set::empty() }
     }
 }
 

@@ -54,8 +54,11 @@ impl Object {
     }
 
     #[must_use]
-    pub fn is_truthy(&self) -> bool {
-        !matches!(self, Self::Set(set) if set.size() == 0)
+    pub fn truthy(&self) -> Option<bool> {
+        match self {
+            Self::Atom(atom) => bool::try_from(*atom).ok(),
+            _ => None,
+        }
     }
 
     /// Destructures the [`Self::Construction`] variant
@@ -99,5 +102,17 @@ impl From<Construction> for Object {
 impl From<Set> for Object {
     fn from(value: Set) -> Self {
         Self::Set(value)
+    }
+}
+
+impl From<i128> for Object {
+    fn from(value: i128) -> Self {
+        Self::new_integer(value)
+    }
+}
+
+impl From<bool> for Object {
+    fn from(truth: bool) -> Self {
+        Atom::from(truth).into()
     }
 }

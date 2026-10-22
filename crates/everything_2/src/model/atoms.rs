@@ -156,8 +156,9 @@ impl Atom {
         /// Denotes that a computation arithmetically overflowed.
         ARITHMETIC_OVERFLOW = 2150546596946485525298114723305118383;
 
-        /// Denotes that the result of a computation is undefined
-        /// for the given inputs.
+        /// May be the result of a computation that received ill-formed
+        /// objects as input. It is desireable to proove that expressions
+        /// do not evaluate to this atom for every input.
         UNDEFINED = 2150546603789477801977750950892561896;
 
         NODE_CONSTRUCTION_VALUES_SET = 2166943953076489335344956167016992222;
@@ -181,11 +182,35 @@ impl Atom {
         NODE_FOLD_SET = 2166944102906103538111212580396221266;
         NODE_FOLD_FOLDER = 2166944102906948913400158817641233982;
         NODE_FOLD_INITIAL = 2166944102906490208705196484796567529;
+
+        /// Literal truth.
+        TRUE = 2166944102906490208705196484796567530;
+
+        /// Literal falsehood.
+        FALSE = 2166944102906490208705196484796567531;
     );
 }
 
 impl Debug for Atom {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "@{}", self.0)
+    }
+}
+
+impl From<bool> for Atom {
+    fn from(value: bool) -> Self {
+        if value { Self::TRUE } else { Self::FALSE }
+    }
+}
+
+impl TryFrom<Atom> for bool {
+    type Error = ();
+
+    fn try_from(atom: Atom) -> Result<Self, Self::Error> {
+        match atom {
+            Atom::TRUE => Ok(true),
+            Atom::FALSE => Ok(false),
+            _ => Err(()),
+        }
     }
 }

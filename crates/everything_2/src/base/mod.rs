@@ -13,14 +13,14 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
     base.insert(
         Atom::PROPERTY,
         Set::new_move([
-            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Set::truthy().into()).into(),
+            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );
 
     base.insert(
         Atom::PROPERTY_CONSTRUCTOR,
         Set::new_move([
-            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Set::truthy().into()).into(),
+            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );
 
@@ -29,13 +29,13 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
     base.insert(
         Atom::SUCCESSOR_OF,
         Set::new_move([
-            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Set::truthy().into()).into(),
+            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );
     base.insert(
         Atom::PREDECESSOR_OF,
         Set::new_move([
-            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Set::truthy().into()).into(),
+            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );
 

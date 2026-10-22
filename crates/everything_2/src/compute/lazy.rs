@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use crate::{
-    compute::{self, EvaluationContext, Node, evaluate},
+    compute::{self, EvaluationContext, MaybeUndefined, Node, evaluate},
     knowledge::Knowledge,
     model::{Object, Set, SetApi, SetValues},
 };
@@ -57,10 +57,15 @@ impl From<Object> for LazyObject {
 impl LazyObject {
     #[must_use]
     pub fn into_object(self) -> Object {
-        todo!()
+        match self {
+            Self::Eager(object) => object,
+            _ => todo!("object from lazy"),
+        }
     }
 
-    fn has_at_least_one_element(&self, knowledge: &Knowledge) -> bool {
+    /// Returns `true` iff `self` has at least one element; `false` otherwise.
+    #[must_use]
+    pub fn has_at_least_one_element(&self, knowledge: &Knowledge) -> bool {
         match self {
             Self::Eager(object) => knowledge
                 .values_of_by_ref(object)
@@ -78,18 +83,10 @@ impl LazyObject {
     }
 
     #[must_use]
-    pub fn is_truthy(&self, knowledge: &Knowledge) -> bool {
+    pub fn truthy(&self) -> MaybeUndefined<bool> {
         match self {
-            LazyObject::Eager(object) => object.is_truthy(),
-            LazyObject::Union { first, second } => {
-                first.has_at_least_one_element(knowledge)
-                    || second.has_at_least_one_element(knowledge)
-            }
-            LazyObject::Map { target, .. } => target.has_at_least_one_element(knowledge),
-            LazyObject::Intersection { .. }
-            | LazyObject::Difference { .. }
-            | LazyObject::Filter { .. }
-            | LazyObject::AtomsWithProperty { .. } => self.iter(knowledge).next().is_some(),
+            LazyObject::Eager(object) => object.truthy().into(),
+            _ => MaybeUndefined::Undefined,
         }
     }
 
@@ -121,7 +118,7 @@ impl LazyObject {
                 // iff it is in that set and matches the constraint.
 
                 target.has(element, knowledge)
-                    && compute::evaluate(
+                    && (compute::evaluate(
                         &Object::new_node(Node::Call {
                             callee: filter_function.clone(),
                             with: element.clone(),
@@ -129,7 +126,8 @@ impl LazyObject {
                         knowledge,
                         &mut EvaluationContext::default(),
                     )
-                    .is_truthy(knowledge)
+                    .truthy()
+                        == MaybeUndefined::Defined(true))
             }
             LazyObject::Map { .. } => self.iter(knowledge).any(|object| element == &object),
         }
@@ -204,7 +202,8 @@ impl Iterator for LazyObjectIter {
                     knowledge,
                     &mut EvaluationContext::default(),
                 )
-                .is_truthy(knowledge)
+                .truthy()
+                    == MaybeUndefined::Defined(true)
             }),
         }
     }
