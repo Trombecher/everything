@@ -1,3 +1,5 @@
+use num_bigint::BigInt;
+
 use crate::{
     compute::{LazyObject, MaybeUndefined},
     knowledge::Knowledge,
@@ -5,30 +7,22 @@ use crate::{
 };
 
 #[must_use]
-pub fn add(a: &Object, b: &Object) -> MaybeUndefined<i128> {
+pub fn add(a: &Object, b: &Object) -> MaybeUndefined<BigInt> {
     if let Some(left) = a.integer()
         && let Some(right) = b.integer()
     {
-        if let Some(sum) = left.checked_add(right) {
-            MaybeUndefined::Defined(sum)
-        } else {
-            todo!("overflow / replace this with bigint")
-        }
+        MaybeUndefined::Defined(left + right)
     } else {
         MaybeUndefined::Undefined
     }
 }
 
 #[must_use]
-pub fn multiply(a: &Object, b: &Object) -> MaybeUndefined<i128> {
+pub fn multiply(a: &Object, b: &Object) -> MaybeUndefined<BigInt> {
     if let Some(left) = a.integer()
         && let Some(right) = b.integer()
     {
-        if let Some(product) = left.checked_mul(right) {
-            MaybeUndefined::Defined(product)
-        } else {
-            todo!("overflow / replace this with bigint")
-        }
+        MaybeUndefined::Defined(left * right)
     } else {
         MaybeUndefined::Undefined
     }

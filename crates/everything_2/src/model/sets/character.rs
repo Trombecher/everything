@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use num_bigint::BigInt;
+
 use crate::model::{Atom, Construction, Object, SetApi, SetSpecialization};
 
 /// Specialization for `{code_point i}`.
@@ -75,7 +77,7 @@ impl Iterator for CharacterSetValues {
 
         Some(Object::Construction(Construction {
             constructor: Box::new(Object::Atom(Atom::CODE_POINT)),
-            value: Box::new(Object::new_integer(i128::from(u32::from(character)))),
+            value: Box::new(Object::new_integer(BigInt::from(u32::from(character)))),
         }))
     }
 }

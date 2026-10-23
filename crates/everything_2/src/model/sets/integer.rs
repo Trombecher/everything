@@ -1,11 +1,16 @@
-use std::{fmt::Debug, num::NonZeroI128};
+use std::{
+    fmt::Debug,
+    ops::{Add, Sub},
+};
 
-use crate::model::{Atom, Construction, Object, SetApi, SetSpecialization};
+use num_bigint::BigInt;
 
-/// Specialization for sets `{successor_of n}` and `{predecessor_of n}`.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+use crate::model::{Atom, Construction, NonZeroBigInt, Object, SetApi, SetSpecialization};
+
+/// Specialization for sets `{successor_of <n>}` and `{predecessor_of <n>}`.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IntegerSet {
-    pub representing: NonZeroI128,
+    pub representing: NonZeroBigInt,
 }
 
 impl Debug for IntegerSet {
@@ -26,26 +31,26 @@ impl IntoIterator for IntegerSet {
 }
 
 impl IntegerSet {
-    fn parse_representation_successor(object: &Object) -> Option<NonZeroI128> {
+    fn parse_representation_successor(object: &Object) -> Option<NonZeroBigInt> {
         if let Object::Construction(Construction { constructor, value }) = object
             && matches!(constructor.as_ref(), Object::Atom(Atom::SUCCESSOR_OF))
             && let Some(integer) = value.integer()
-            && integer >= 0
+            && integer >= BigInt::ZERO
         {
-            Some(NonZeroI128::new(integer.checked_add(1).expect("numbers too large")).unwrap())
+            Some(NonZeroBigInt::new(integer.add(1)).unwrap())
         } else {
             None
         }
     }
 
-    fn parse_representation_predecessor(object: &Object) -> Option<NonZeroI128> {
+    fn parse_representation_predecessor(object: &Object) -> Option<NonZeroBigInt> {
         match object {
             Object::Construction(Construction { constructor, value })
                 if matches!(constructor.as_ref(), Object::Atom(Atom::PREDECESSOR_OF))
                     && let Some(integer) = value.integer()
-                    && integer <= 0 =>
+                    && integer <= BigInt::ZERO =>
             {
-                Some(NonZeroI128::new(integer.checked_sub(1).expect("numbers too small")).unwrap())
+                Some(NonZeroBigInt::new(integer.sub(1)).unwrap())
             }
             _ => None,
         }
@@ -88,7 +93,7 @@ impl SetApi for IntegerSet {
 
 #[derive(Clone)]
 pub struct IntegerSetValues {
-    to_yield: Option<NonZeroI128>,
+    to_yield: Option<NonZeroBigInt>,
 }
 
 impl Iterator for IntegerSetValues {
@@ -98,18 +103,18 @@ impl Iterator for IntegerSetValues {
         let representing = self.to_yield.take()?;
 
         match representing.get() {
-            positive_integer if positive_integer > 0 => Some(Object::Construction(Construction {
-                constructor: Box::new(Object::Atom(Atom::SUCCESSOR_OF)),
-                value: Box::new(Object::new_integer(
-                    positive_integer.checked_sub(1).unwrap(),
-                )),
-            })),
-            negative_integer if negative_integer < 0 => Some(Object::Construction(Construction {
-                constructor: Box::new(Object::Atom(Atom::PREDECESSOR_OF)),
-                value: Box::new(Object::new_integer(
-                    negative_integer.checked_add(1).unwrap(),
-                )),
-            })),
+            positive_integer if positive_integer > BigInt::ZERO => {
+                Some(Object::Construction(Construction {
+                    constructor: Box::new(Object::Atom(Atom::SUCCESSOR_OF)),
+                    value: Box::new(Object::new_integer(positive_integer.sub(&BigInt::ONE))),
+                }))
+            }
+            negative_integer if negative_integer < BigInt::ZERO => {
+                Some(Object::Construction(Construction {
+                    constructor: Box::new(Object::Atom(Atom::PREDECESSOR_OF)),
+                    value: Box::new(Object::new_integer(negative_integer.add(&BigInt::ONE))),
+                }))
+            }
             _ => unreachable!(),
         }
     }

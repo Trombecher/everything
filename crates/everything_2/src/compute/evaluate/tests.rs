@@ -1,5 +1,7 @@
 use std::ops::RangeInclusive;
 
+use num_bigint::BigInt;
+
 use crate::base::BASE;
 
 use super::*;
@@ -12,8 +14,8 @@ fn less() {
         assert_eq!(
             evaluate(
                 &Object::new_node(Node::Less {
-                    first: a.into(),
-                    second: b.into(),
+                    first: BigInt::from(a).into(),
+                    second: BigInt::from(b).into(),
                 }),
                 &BASE,
                 &mut EvaluationContext::default(),

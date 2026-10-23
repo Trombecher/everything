@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests;
 
+use num_bigint::BigInt;
+
 use crate::{
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
@@ -559,13 +561,13 @@ impl Node {
             .into(),
             Self::FunctionSelf { depth } => Set::new_move([Construction::new(
                 Atom::NODE_FUNCTION_SELF.into(),
-                Object::new_integer(i128::from(depth)),
+                Object::new_integer(BigInt::from(depth)),
             )
             .into()])
             .into(),
             Self::Parameter { depth } => Set::new_move([Construction::new(
                 Atom::NODE_PARAMETER.into(),
-                Object::new_integer(i128::from(depth)),
+                Object::new_integer(BigInt::from(depth)),
             )
             .into()])
             .into(),

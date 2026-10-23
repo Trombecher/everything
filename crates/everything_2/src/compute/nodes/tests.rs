@@ -7,9 +7,9 @@ use super::*;
 fn node_round_trip() {
     let knowledge = Knowledge { map: OrdMap::new() };
 
-    let a = Object::new_integer(1);
-    let b = Object::new_integer(2);
-    let c = Object::new_integer(3);
+    let a = Object::new_integer(BigInt::from(1));
+    let b = Object::new_integer(BigInt::from(2));
+    let c = Object::new_integer(BigInt::from(3));
 
     let nodes = [
         Node::Function { body: a.clone() },

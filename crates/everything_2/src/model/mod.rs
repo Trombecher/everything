@@ -1,11 +1,14 @@
-use std::{fmt::Debug, num::NonZeroI128};
+use std::fmt::Debug;
 
 mod atoms;
 mod constructions;
+mod non_zero_bigint;
 mod sets;
 
 pub use atoms::*;
 pub use constructions::*;
+pub use non_zero_bigint::*;
+use num_bigint::BigInt;
 pub use sets::*;
 
 use crate::compute::Node;
@@ -34,8 +37,8 @@ impl Object {
     }
 
     #[must_use]
-    pub const fn new_integer(integer: i128) -> Self {
-        if let Some(non_zero_integer) = NonZeroI128::new(integer) {
+    pub fn new_integer(integer: BigInt) -> Self {
+        if let Some(non_zero_integer) = NonZeroBigInt::new(integer) {
             Self::Set(Set::Integer(IntegerSet {
                 representing: non_zero_integer,
             }))
@@ -45,10 +48,10 @@ impl Object {
     }
 
     #[must_use]
-    pub fn integer(&self) -> Option<i128> {
+    pub fn integer(&self) -> Option<BigInt> {
         match self {
-            Self::Atom(Atom::ZERO) => Some(0),
-            Self::Set(Set::Integer(integer)) => Some(integer.representing.get()),
+            Self::Atom(Atom::ZERO) => Some(BigInt::ZERO),
+            Self::Set(Set::Integer(integer)) => Some(integer.representing.get_as_ref().clone()),
             _ => None,
         }
     }
@@ -105,8 +108,8 @@ impl From<Set> for Object {
     }
 }
 
-impl From<i128> for Object {
-    fn from(value: i128) -> Self {
+impl From<BigInt> for Object {
+    fn from(value: BigInt) -> Self {
         Self::new_integer(value)
     }
 }
@@ -114,5 +117,15 @@ impl From<i128> for Object {
 impl From<bool> for Object {
     fn from(truth: bool) -> Self {
         Atom::from(truth).into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn size_of_object_is_good() {
+        assert!(size_of::<Object>() <= 32);
     }
 }

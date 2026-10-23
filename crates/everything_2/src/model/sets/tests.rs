@@ -1,6 +1,6 @@
-use std::num::NonZeroI128;
+use num_bigint::BigInt;
 
-use crate::model::{Atom, Construction};
+use crate::model::{Atom, Construction, NonZeroBigInt};
 
 use super::*;
 
@@ -74,17 +74,17 @@ fn specializes_integer_sets() {
     assert_eq!(
         set,
         Set::Integer(IntegerSet {
-            representing: NonZeroI128::new(1).unwrap(),
+            representing: NonZeroBigInt::new(BigInt::from(1)).unwrap(),
         })
     );
-    assert_eq!(Object::Set(set), Object::new_integer(1));
+    assert_eq!(Object::Set(set), Object::new_integer(BigInt::from(1)));
 }
 
 #[test]
 fn specializes_character_sets() {
     let set = Set::new_move([construction(
         Atom::CODE_POINT.into(),
-        Object::new_integer(i128::from(u32::from('A'))),
+        Object::new_integer(BigInt::from(u32::from('A'))),
     )]);
 
     assert_eq!(set.size(), 1);
