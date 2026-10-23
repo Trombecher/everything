@@ -7,19 +7,30 @@ use crate::{
     },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Object, Set},
+    model::{Atom, Object},
 };
+
+const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
 
 #[derive(Debug)]
 pub enum Task {
     Evaluate(Object),
     PushLiteralTrue,
     PushLiteralFalse,
-    PartialAnd { second: Object },
+    PartialAnd {
+        second: Object,
+    },
     ToBoolean,
+    /// `1 -> 1`
+    ///
+    /// Pops the top value from the evaluated stack and if that value is not a boolean,
+    /// it transforms it to undefined.
+    ForceToBoolean,
     Count,
     Equal,
-    PartialOr { second: Object },
+    PartialOr {
+        second: Object,
+    },
     Xor,
     Not,
     Add,
@@ -30,10 +41,15 @@ pub enum Task {
     Every,
     Any,
     Less,
-    PartialIf { then: Object, otherwise: Object },
+    PartialIf {
+        then: Object,
+        otherwise: Object,
+    },
     Call,
     PopContext,
-    PartialUnwrapOr { default: Object },
+    PartialUnwrapOr {
+        default: Object,
+    },
     IsAtom,
 }
 
@@ -64,9 +80,7 @@ impl EvaluationContext {
     #[must_use]
     pub fn parameter_value(&self, relative_depth: usize) -> LazyObject {
         self.function_context(relative_depth)
-            .map_or(Object::Set(Set::empty()).into(), |context| {
-                context.parameter.clone()
-            })
+            .map_or(UNDEFINED, |context| context.parameter.clone())
     }
 
     /// Gets the function itself of the function context at the specified relative
@@ -74,9 +88,7 @@ impl EvaluationContext {
     #[must_use]
     pub fn function_self(&self, relative_depth: usize) -> Object {
         self.function_context(relative_depth)
-            .map_or(Object::Set(Set::empty()), |context| {
-                context.function.clone()
-            })
+            .map_or(Atom::UNDEFINED.into(), |context| context.function.clone())
     }
 
     /// Pushes a new function context onto the stack.
@@ -318,15 +330,12 @@ pub fn evaluate(
 
                 match first.truthy() {
                     MaybeUndefined::Defined(true) => {
-                        tasks.push(Task::ToBoolean);
+                        tasks.push(Task::ForceToBoolean);
                         tasks.push(Task::Evaluate(second));
                     }
-                    MaybeUndefined::Defined(false) => {
-                        evaluated.push(LazyObject::Eager(Set::empty().into()));
+                    other @ (MaybeUndefined::Defined(false) | MaybeUndefined::Undefined) => {
+                        evaluated.push(LazyObject::Eager(other.into()));
                     }
-                    MaybeUndefined::Undefined => evaluated.push(LazyObject::Eager(
-                        MaybeUndefined::<Object>::Undefined.into(),
-                    )),
                 }
             }
             Task::Count => todo!("task count"),
@@ -347,6 +356,10 @@ pub fn evaluate(
                     operations::to_boolean(&object, knowledge).into(),
                 ));
             }
+            Task::ForceToBoolean => {
+                let object = evaluated.pop().unwrap();
+                evaluated.push(LazyObject::Eager(object.truthy().into()));
+            }
             Task::Equal => {
                 let right = evaluated.pop().unwrap().into_object();
                 let left = evaluated.pop().unwrap().into_object();
@@ -354,30 +367,29 @@ pub fn evaluate(
                 evaluated.push(LazyObject::Eager((left == right).into()));
             }
             Task::PartialOr { second } => match evaluated.pop().unwrap().truthy() {
-                MaybeUndefined::Defined(true) => evaluated.push(LazyObject::Eager(true.into())),
                 MaybeUndefined::Defined(false) => {
-                    tasks.push(Task::ToBoolean);
+                    tasks.push(Task::ForceToBoolean);
                     tasks.push(Task::Evaluate(second));
                 }
-                MaybeUndefined::Undefined => evaluated.push(LazyObject::Eager(
-                    MaybeUndefined::<Object>::Undefined.into(),
-                )),
+                other @ (MaybeUndefined::Defined(true) | MaybeUndefined::Undefined) => {
+                    evaluated.push(LazyObject::Eager(other.into()));
+                }
             },
             Task::Xor => {
                 let second = evaluated.pop().unwrap().truthy();
                 let first = evaluated.pop().unwrap().truthy();
 
-                evaluated.push(LazyObject::Eager(match (first, second) {
+                evaluated.push(match (first, second) {
                     (MaybeUndefined::Defined(true), MaybeUndefined::Defined(false))
                     | (MaybeUndefined::Defined(false), MaybeUndefined::Defined(true)) => {
-                        true.into()
+                        LazyObject::Eager(true.into())
                     }
                     (MaybeUndefined::Defined(false), MaybeUndefined::Defined(false))
                     | (MaybeUndefined::Defined(true), MaybeUndefined::Defined(true)) => {
-                        false.into()
+                        LazyObject::Eager(false.into())
                     }
-                    _ => MaybeUndefined::<Object>::Undefined.into(),
-                }));
+                    _ => UNDEFINED,
+                });
             }
             Task::IsAtom => {
                 let object = evaluated.pop().unwrap();
@@ -391,9 +403,7 @@ pub fn evaluate(
                     evaluated.push(LazyObject::Eager((!truth).into()));
                 }
                 MaybeUndefined::Undefined => {
-                    evaluated.push(LazyObject::Eager(
-                        MaybeUndefined::<Object>::Undefined.into(),
-                    ));
+                    evaluated.push(UNDEFINED);
                 }
             },
             Task::Add => {
@@ -513,9 +523,7 @@ pub fn evaluate(
                 }
                 MaybeUndefined::Defined(false) => tasks.push(Task::Evaluate(otherwise)),
                 MaybeUndefined::Undefined => {
-                    evaluated.push(LazyObject::Eager(
-                        MaybeUndefined::<Object>::Undefined.into(),
-                    ));
+                    evaluated.push(UNDEFINED);
                 }
             },
             Task::PartialUnwrapOr { default } => {

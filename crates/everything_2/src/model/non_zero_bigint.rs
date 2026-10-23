@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use num_bigint::BigInt;
 
+/// A [`BigInt`] that is non-zero.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NonZeroBigInt {
     inner: BigInt,

@@ -21,6 +21,7 @@ const fn first_duplicate(slice: &[u128]) -> Option<u128> {
     None
 }
 
+/// An atomic object. Indivisible. Uncomposed.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Atom(pub u128);
 

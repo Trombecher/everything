@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use crate::model::Object;
 
+/// A construction `<constructor> <value>`.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Construction {
     pub constructor: Box<Object>,
