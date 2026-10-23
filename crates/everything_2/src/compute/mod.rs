@@ -14,10 +14,20 @@ pub use operations::*;
 
 use crate::model::{Atom, Object};
 
+/// Represents a result of a computation that could be undefined.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MaybeUndefined<T> {
     Defined(T),
     Undefined,
+}
+
+impl<T> MaybeUndefined<T> {
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> MaybeUndefined<U> {
+        match self {
+            Self::Defined(t) => MaybeUndefined::Defined(f(t)),
+            Self::Undefined => MaybeUndefined::Undefined,
+        }
+    }
 }
 
 impl<T> From<MaybeUndefined<T>> for Object

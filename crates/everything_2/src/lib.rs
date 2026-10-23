@@ -7,3 +7,6 @@ pub mod compute;
 mod iter;
 pub mod knowledge;
 pub mod model;
+
+// Re-export bigints
+pub use num_bigint;
