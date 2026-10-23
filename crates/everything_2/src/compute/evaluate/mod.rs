@@ -7,7 +7,7 @@ use crate::{
     },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Atom, Object},
+    model::{Atom, Construction, Object},
 };
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
@@ -50,7 +50,11 @@ pub enum Task {
     PartialUnwrapOr {
         default: Object,
     },
+    ContructionConstructor,
+    ContructionValue,
     IsAtom,
+    IsConstruction,
+    IsSet,
 }
 
 /// An evaluation context is a stack of function contexts,
@@ -76,7 +80,7 @@ impl EvaluationContext {
     }
 
     /// Gets the parameter value of the function context at the specified relative
-    /// depth, or returns the empty set if the index is out of bounds.
+    /// depth, or returns undefined if the index is out of bounds.
     #[must_use]
     pub fn parameter_value(&self, relative_depth: usize) -> LazyObject {
         self.function_context(relative_depth)
@@ -84,7 +88,7 @@ impl EvaluationContext {
     }
 
     /// Gets the function itself of the function context at the specified relative
-    /// depth, or returns the empty set if the index is out of bounds.
+    /// depth, or returns undefined if the index is out of bounds.
     #[must_use]
     pub fn function_self(&self, relative_depth: usize) -> Object {
         self.function_context(relative_depth)
@@ -126,16 +130,28 @@ pub fn evaluate(
         match task {
             Task::Evaluate(object) => {
                 match Node::new(&object, knowledge) {
+                    Some(Node::IsSet(object)) => {
+                        evaluated.push(LazyObject::Eager(matches!(object, Object::Set(_)).into()));
+                    }
+                    Some(Node::IsConstruction(object)) => {
+                        evaluated.push(LazyObject::Eager(
+                            matches!(object, Object::Construction(_)).into(),
+                        ));
+                    }
+                    Some(Node::ConstructionConstructor { construction }) => {
+                        tasks.push(Task::ContructionConstructor);
+                        tasks.push(Task::Evaluate(construction));
+                    }
+                    Some(Node::ConstructionValue { construction }) => {
+                        tasks.push(Task::ContructionValue);
+                        tasks.push(Task::Evaluate(construction));
+                    }
                     Some(
                         Node::QueryAtomsWithProperty { .. }
                         | Node::QueryConstructionValues { .. }
                         | Node::Contains { .. }
-                        | Node::IsConstruction(_)
-                        | Node::IsSet(_)
                         | Node::Fold { .. }
-                        | Node::NewConstruction { .. }
-                        | Node::ConstructionConstructor { .. }
-                        | Node::ConstructionValue { .. },
+                        | Node::NewConstruction { .. },
                     ) => todo!(),
                     Some(Node::IsAtom(inner)) => {
                         tasks.push(Task::IsAtom);
@@ -312,6 +328,26 @@ pub fn evaluate(
             Task::PushLiteralFalse => {
                 evaluated.push(LazyObject::Eager(false.into()));
             }
+            Task::ContructionConstructor => {
+                let object = evaluated.pop().unwrap();
+
+                evaluated.push(match object {
+                    LazyObject::Eager(Object::Construction(Construction {
+                        constructor, ..
+                    })) => LazyObject::Eager(*constructor),
+                    _ => UNDEFINED,
+                });
+            }
+            Task::ContructionValue => {
+                let object = evaluated.pop().unwrap();
+
+                evaluated.push(match object {
+                    LazyObject::Eager(Object::Construction(Construction { value, .. })) => {
+                        LazyObject::Eager(*value)
+                    }
+                    _ => UNDEFINED,
+                });
+            }
             Task::Call => {
                 let callee = evaluated.pop().unwrap().into_object();
                 let parameter_value = evaluated.pop().unwrap();
@@ -396,6 +432,24 @@ pub fn evaluate(
 
                 evaluated.push(LazyObject::Eager(
                     matches!(object, LazyObject::Eager(Object::Atom(_))).into(),
+                ));
+            }
+            Task::IsConstruction => {
+                let object = evaluated.pop().unwrap();
+
+                evaluated.push(LazyObject::Eager(
+                    matches!(object, LazyObject::Eager(Object::Construction(_))).into(),
+                ));
+            }
+            Task::IsSet => {
+                let object = evaluated.pop().unwrap();
+
+                evaluated.push(LazyObject::Eager(
+                    (!matches!(
+                        object,
+                        LazyObject::Eager(Object::Atom(_) | Object::Construction(_))
+                    ))
+                    .into(),
                 ));
             }
             Task::Not => match evaluated.pop().unwrap().truthy() {
