@@ -223,6 +223,7 @@ dependencies = [
  "imbl",
  "num-bigint",
  "num_enum",
+ "tracing",
 ]
 
 [[package]]

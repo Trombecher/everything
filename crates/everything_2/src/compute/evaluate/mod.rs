@@ -1,13 +1,15 @@
 #[cfg(test)]
 mod tests;
 
+use tracing::debug;
+
 use crate::{
     compute::{
         LazyObject, MaybeUndefined, Node, add, capture, multiply, node_function_body, operations,
     },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Atom, Construction, Object},
+    model::{Atom, Object},
 };
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
@@ -50,8 +52,8 @@ pub enum Task {
     PartialUnwrapOr {
         default: Object,
     },
-    ContructionConstructor,
-    ContructionValue,
+    ConstructorOfConstruction,
+    ValueOfConstruction,
     IsAtom,
     IsConstruction,
     IsSet,
@@ -71,7 +73,12 @@ pub struct EvaluationContext {
 
 impl EvaluationContext {
     #[must_use]
-    #[allow(clippy::missing_panics_doc)]
+    pub fn is_empty(&self) -> bool {
+        self.stack.is_empty()
+    }
+
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)] // function should not panic (!)
     pub fn function_context(&self, relative_depth: usize) -> Option<&FunctionContext> {
         self.stack
             .len()
@@ -121,12 +128,14 @@ pub struct FunctionContext {
 pub fn evaluate(
     object: &Object,
     knowledge: &Knowledge,
-    context: &mut EvaluationContext,
+    evaluation_context: &mut EvaluationContext,
 ) -> LazyObject {
     let mut tasks = vec![Task::Evaluate(object.clone())];
     let mut evaluated = Vec::<LazyObject>::new();
 
     while let Some(task) = tasks.pop() {
+        debug!("doing {task:?}");
+
         match task {
             Task::Evaluate(object) => {
                 match Node::new(&object, knowledge) {
@@ -139,11 +148,11 @@ pub fn evaluate(
                         ));
                     }
                     Some(Node::ConstructionConstructor { construction }) => {
-                        tasks.push(Task::ContructionConstructor);
+                        tasks.push(Task::ConstructorOfConstruction);
                         tasks.push(Task::Evaluate(construction));
                     }
                     Some(Node::ConstructionValue { construction }) => {
-                        tasks.push(Task::ContructionValue);
+                        tasks.push(Task::ValueOfConstruction);
                         tasks.push(Task::Evaluate(construction));
                     }
                     Some(
@@ -175,7 +184,9 @@ pub fn evaluate(
                         tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Function { .. }) => {
-                        evaluated.push(capture(&object, knowledge, 0, context));
+                        debug!("capture function");
+
+                        evaluated.push(capture(&object, knowledge, 0, evaluation_context));
                     }
                     Some(Node::Literal(object)) => {
                         evaluated.push(object.into());
@@ -185,10 +196,12 @@ pub fn evaluate(
                         tasks.push(Task::Evaluate(first));
                     }
                     Some(Node::FunctionSelf { depth }) => {
-                        evaluated.push(LazyObject::Eager(context.function_self(depth as usize)));
+                        evaluated.push(LazyObject::Eager(
+                            evaluation_context.function_self(depth as usize),
+                        ));
                     }
                     Some(Node::Parameter { depth }) => {
-                        evaluated.push(context.parameter_value(depth as usize));
+                        evaluated.push(evaluation_context.parameter_value(depth as usize));
                     }
                     Some(Node::Count(object)) => {
                         tasks.push(Task::Count);
@@ -320,7 +333,7 @@ pub fn evaluate(
                 }
             }
             Task::PopContext => {
-                context.pop();
+                evaluation_context.pop();
             }
             Task::PushLiteralTrue => {
                 evaluated.push(LazyObject::Eager(true.into()));
@@ -328,25 +341,19 @@ pub fn evaluate(
             Task::PushLiteralFalse => {
                 evaluated.push(LazyObject::Eager(false.into()));
             }
-            Task::ContructionConstructor => {
+            Task::ConstructorOfConstruction => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(match object {
-                    LazyObject::Eager(Object::Construction(Construction {
-                        constructor, ..
-                    })) => LazyObject::Eager(*constructor),
-                    _ => UNDEFINED,
-                });
+                evaluated.push(LazyObject::Eager(
+                    operations::constructor_of_construction(object).into(),
+                ));
             }
-            Task::ContructionValue => {
+            Task::ValueOfConstruction => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(match object {
-                    LazyObject::Eager(Object::Construction(Construction { value, .. })) => {
-                        LazyObject::Eager(*value)
-                    }
-                    _ => UNDEFINED,
-                });
+                evaluated.push(LazyObject::Eager(
+                    operations::value_of_construction(object).into(),
+                ));
             }
             Task::Call => {
                 let callee = evaluated.pop().unwrap().into_object();
@@ -356,7 +363,7 @@ pub fn evaluate(
                     node_function_body(&callee, knowledge).unwrap(),
                 ));
 
-                context.push(FunctionContext {
+                evaluation_context.push(FunctionContext {
                     function: callee,
                     parameter: parameter_value,
                 });

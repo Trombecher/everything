@@ -1,5 +1,5 @@
 use crate::{
-    compute::{EvaluationContext, LazyObject},
+    compute::{EvaluationContext, LazyObject, Node},
     knowledge::Knowledge,
     model::Object,
 };
@@ -10,16 +10,16 @@ pub fn capture(
     object: &Object,
     knowledge: &Knowledge,
     additional_depth: usize,
-    ctx: &EvaluationContext,
+    evaluation_context: &EvaluationContext,
 ) -> LazyObject {
-    todo!("capture")
+    if evaluation_context.is_empty() {
+        // Nothing to capture.
+        return LazyObject::Eager(object.clone());
+    }
 
-    // this code does not compile but I want to test stuff
-
-    /*
     match Node::new(object, knowledge) {
         Some(Node::Function { body }) => Object::new_node(Node::Function {
-            body: capture(&body, knowledge, additional_depth + 1, ctx).into_object(),
+            body: capture(&body, knowledge, additional_depth + 1, evaluation_context).into_object(),
         })
         .into(),
         Some(Node::Parameter { depth }) => {
@@ -33,7 +33,9 @@ pub fn capture(
                 // are always evaluated before the function).
 
                 LazyObject::Eager(Object::new_node(Node::Literal(
-                    ctx.parameter_value(offset_depth).into_object(),
+                    evaluation_context
+                        .parameter_value(offset_depth)
+                        .into_object(),
                 )))
             } else {
                 // This parameter refers to some inner, bound function,
@@ -42,6 +44,8 @@ pub fn capture(
                 LazyObject::Eager(object.clone())
             }
         }
+        _ => todo!("capture anything"),
+        /*
         _ => match self {
             Self::Composite(Composite::Any(composite)) => composite
                 .as_ref()
@@ -81,6 +85,6 @@ pub fn capture(
                 ),
             _ => LazyObject::Eager(object.clone()),
         },
+         */
     }
-     */
 }

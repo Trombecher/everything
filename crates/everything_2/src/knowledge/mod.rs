@@ -69,6 +69,14 @@ impl Knowledge {
         }
     }
 
+    /// Determines the size of the object in this knowledge, i.e.
+    /// the number of values it has. Constructions
+    /// have no values.
+    #[must_use]
+    pub fn size_of_object(&self, object: &Object) -> u64 {
+        self.values_of_by_ref(object).map_or(0, SetApi::size)
+    }
+
     /*
     fn object_is_property_in(&self, object: &Object, containing_set: &Set) -> bool {
         match object {

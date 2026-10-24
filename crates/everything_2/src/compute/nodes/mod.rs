@@ -469,14 +469,14 @@ impl Node {
 
         xor_with!(
             knowledge
-                .query_construction_values(object, Atom::NODE_CONSTRUCTION_CONSTRUCTOR.into())
+                .query_construction_values(object, Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION.into())
                 .next_and_last()
                 .map(|construction| Self::ConstructionConstructor { construction })
         );
 
         xor_with!(
             knowledge
-                .query_construction_values(object, Atom::NODE_CONSTRUCTION_VALUE.into())
+                .query_construction_values(object, Atom::NODE_VALUE_OF_CONSTRUCTION.into())
                 .next_and_last()
                 .map(|construction| Self::ConstructionValue { construction })
         );
@@ -496,7 +496,7 @@ impl Node {
                 Set::new_move([Construction::new(Atom::NODE_IS_SET.into(), inner).into()]).into()
             }
             Self::ConstructionConstructor { construction } => Set::new_move([Construction::new(
-                Atom::NODE_CONSTRUCTION_CONSTRUCTOR.into(),
+                Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION.into(),
                 construction,
             )
             .into()])
@@ -523,7 +523,7 @@ impl Node {
             ])
             .into(),
             Self::ConstructionValue { construction } => Set::new_move([Construction::new(
-                Atom::NODE_CONSTRUCTION_VALUE.into(),
+                Atom::NODE_VALUE_OF_CONSTRUCTION.into(),
                 construction,
             )
             .into()])

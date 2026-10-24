@@ -63,6 +63,40 @@ impl LazyObject {
         }
     }
 
+    #[must_use]
+    pub fn size(&self, knowledge: &Knowledge) -> u64 {
+        match self {
+            Self::Eager(object) => knowledge.size_of_object(object),
+            Self::Union { .. } => {
+                // We have to deduplicate here,
+                // maybe best to just iterate (?)
+
+                todo!("size of union")
+            }
+            Self::Intersection { .. } => {
+                // Here too.
+
+                todo!("size of intersection")
+            }
+            Self::Difference { .. } => {
+                // Here too.
+
+                todo!("size of difference")
+            }
+            Self::AtomsWithProperty { property } => knowledge
+                .query_atoms_with_property(property.clone())
+                .count() as u64,
+            Self::Map { .. } => {
+                // Here too.
+
+                todo!("size of map")
+            }
+            Self::Filter { .. } => {
+                todo!("size of filter")
+            }
+        }
+    }
+
     /// Returns `true` iff `self` has at least one element; `false` otherwise.
     #[must_use]
     pub fn has_at_least_one_element(&self, knowledge: &Knowledge) -> bool {
@@ -243,8 +277,8 @@ impl CollectedSet {
     #[must_use]
     pub fn has(&self, element: &Object) -> bool {
         match self {
-            CollectedSet::Set(set) => set.has(element),
-            CollectedSet::HashSet(btree_set) => btree_set.contains(element),
+            Self::Set(set) => set.has(element),
+            Self::HashSet(btree_set) => btree_set.contains(element),
         }
     }
 }
