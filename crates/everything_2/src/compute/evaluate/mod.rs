@@ -134,8 +134,6 @@ pub fn evaluate(
     let mut evaluated = Vec::<LazyObject>::new();
 
     while let Some(task) = tasks.pop() {
-        debug!("doing {task:?}");
-
         match task {
             Task::Evaluate(object) => {
                 match Node::new(&object, knowledge) {
@@ -184,8 +182,6 @@ pub fn evaluate(
                         tasks.push(Task::Evaluate(set));
                     }
                     Some(Node::Function { .. }) => {
-                        debug!("capture function");
-
                         evaluated.push(capture(&object, knowledge, 0, evaluation_context));
                     }
                     Some(Node::Literal(object)) => {
