@@ -4,6 +4,8 @@ mod atoms;
 mod constructions;
 mod non_zero_bigint;
 mod sets;
+#[cfg(test)]
+mod tests;
 
 pub use atoms::*;
 pub use constructions::*;
@@ -32,7 +34,7 @@ impl Object {
     /// The output of this function should not be relied upon
     /// besides the fact that this function will not allocate.
     #[must_use]
-    pub fn dummy() -> Self {
+    pub const fn dummy() -> Self {
         Self::Atom(Atom(0))
     }
 
@@ -76,7 +78,7 @@ impl Object {
 
     #[must_use]
     pub fn new_node(node: Node) -> Self {
-        node.into_object()
+        node.into()
     }
 }
 
@@ -123,15 +125,5 @@ impl From<BigInt> for Object {
 impl From<bool> for Object {
     fn from(truth: bool) -> Self {
         Atom::from(truth).into()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    pub fn size_of_object_is_good() {
-        assert!(size_of::<Object>() <= 32);
     }
 }

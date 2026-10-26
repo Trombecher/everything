@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests;
 
-use tracing::debug;
-
 use crate::{
     compute::{
         LazyObject, MaybeUndefined, Node, add, capture, multiply, node_function_body, operations,
