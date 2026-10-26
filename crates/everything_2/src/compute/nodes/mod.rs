@@ -1,487 +1,200 @@
+mod raw;
 #[cfg(test)]
 mod tests;
 
 use num_bigint::BigInt;
 
 use crate::{
+    compute::nodes::raw::RawNode,
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
     model::{Atom, Construction, Object, Set},
 };
 
+/// A node / expression in the computation system.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Node {
+    /// A function node. Abstracts over the function body.
     Function {
-        body: Object,
+        body: Box<Node>,
     },
+
+    /// A literal node. Evaluates to the inner object.
     Literal(Object),
+
+    /// A boolean conjunction.
     And {
-        first: Object,
-        second: Object,
+        first: Box<Node>,
+        second: Box<Node>,
     },
+
+    /// A reference to an outer function.
     FunctionSelf {
         depth: u32,
     },
+
+    /// A reference to an outer function parameter. Evaluates to the
+    /// parameter value if the outer function is called with an object.
     Parameter {
         depth: u32,
     },
-    Count(Object),
+
+    /// Counts the number of values the inner has.
+    Count(Box<Node>),
     QueryAtomsWithProperty {
-        property: Object,
+        property: Box<Node>,
     },
     QueryConstructionValues {
-        set: Object,
-        property_constructor: Object,
+        set: Box<Node>,
+        property_constructor: Box<Node>,
     },
     Contains {
-        element: Object,
-        set: Object,
+        element: Box<Node>,
+        set: Box<Node>,
     },
     Equal {
-        first: Object,
-        second: Object,
+        first: Box<Node>,
+        second: Box<Node>,
     },
     Or {
-        first: Object,
-        second: Object,
+        first: Box<Node>,
+        second: Box<Node>,
     },
     Xor {
-        first: Object,
-        second: Object,
+        first: Box<Node>,
+        second: Box<Node>,
     },
-    Not(Object),
+    Not(Box<Node>),
     Add {
-        first: Object,
-        second: Object,
+        first: Box<Node>,
+        second: Box<Node>,
     },
     Union {
-        first: Object,
-        second: Object,
+        first: Box<Node>,
+        second: Box<Node>,
     },
     Map {
-        set: Object,
-        mapper_function: Object,
+        set: Box<Node>,
+        mapper_function: Box<Node>,
     },
     Filter {
-        set: Object,
-        filter_function: Object,
+        set: Box<Node>,
+        filter_function: Box<Node>,
     },
     Less {
-        first: Object,
-        second: Object,
+        first: Box<Node>,
+        second: Box<Node>,
     },
     If {
-        condition: Object,
-        then: Object,
-        otherwise: Object,
+        condition: Box<Node>,
+        then: Box<Node>,
+        otherwise: Box<Node>,
     },
     UnwrapOr {
-        set: Object,
-        default: Object,
+        set: Box<Node>,
+        default: Box<Node>,
     },
     Multiply {
-        first: Object,
-        second: Object,
+        first: Box<Node>,
+        second: Box<Node>,
     },
     Call {
-        callee: Object,
-        with: Object,
+        callee: Box<Node>,
+        with: Box<Node>,
     },
-    IsAtom(Object),
-    IsConstruction(Object),
-    IsSet(Object),
+    IsAtom(Box<Node>),
+    IsConstruction(Box<Node>),
+    IsSet(Box<Node>),
     Every {
-        set: Object,
-        predicate: Object,
+        set: Box<Node>,
+        predicate: Box<Node>,
     },
     Any {
-        set: Object,
-        predicate: Object,
+        set: Box<Node>,
+        predicate: Box<Node>,
     },
     Fold {
-        set: Object,
-        folder: Object,
-        initial: Object,
+        set: Box<Node>,
+        folder: Box<Node>,
+        initial: Box<Node>,
     },
     NewConstruction {
-        constructor: Object,
-        value: Object,
+        constructor: Box<Node>,
+        value: Box<Node>,
     },
     ConstructionConstructor {
-        construction: Object,
+        construction: Box<Node>,
     },
     ConstructionValue {
-        construction: Object,
+        construction: Box<Node>,
     },
 }
 
-pub(crate) fn node_function_body(object: &Object, knowledge: &Knowledge) -> Option<Object> {
-    knowledge
-        .query_construction_values(object, Atom::NODE_FUNCTION.into())
-        .next_and_last()
-}
-
-fn pair_values(
-    object: &Object,
-    knowledge: &Knowledge,
-    first_property_constructor: Object,
-    second_property_constructor: Object,
-) -> Option<(Object, Object)> {
-    let first = knowledge
-        .query_construction_values(object, first_property_constructor)
-        .next_and_last()?;
-
-    let second = knowledge
-        .query_construction_values(object, second_property_constructor)
-        .next_and_last()?;
-
-    Some((first, second))
-}
-
-fn triple_values(
-    object: &Object,
-    knowledge: &Knowledge,
-    first_property_constructor: Object,
-    second_property_constructor: Object,
-    third_property_constructor: Object,
-) -> Option<(Object, Object, Object)> {
-    let first = knowledge
-        .query_construction_values(object, first_property_constructor)
-        .next_and_last()?;
-
-    let second = knowledge
-        .query_construction_values(object, second_property_constructor)
-        .next_and_last()?;
-
-    let third = knowledge
-        .query_construction_values(object, third_property_constructor)
-        .next_and_last()?;
-
-    Some((first, second, third))
-}
-
-fn node_function_self(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-    let depth_i128 = knowledge
-        .query_construction_values(object, Atom::NODE_FUNCTION_SELF.into())
-        .next_and_last()?
-        .integer()?;
-
-    u32::try_from(depth_i128)
-        .ok()
-        .map(|depth| Node::FunctionSelf { depth })
-}
-
-fn node_parameter_depth(object: &Object, knowledge: &Knowledge) -> Option<Node> {
-    let depth = knowledge
-        .query_construction_values(object, Atom::NODE_PARAMETER.into())
-        .next_and_last()?
-        .integer()?;
-
-    u32::try_from(depth)
-        .ok()
-        .map(|depth| Node::Parameter { depth })
-}
+#[derive(Debug, thiserror::Error)]
+#[error("invalid node error")]
+pub struct InvalidNodeError;
 
 impl Node {
-    #[allow(clippy::too_many_lines)]
-    pub fn new(object: &Object, knowledge: &Knowledge) -> Option<Self> {
-        let mut node: Option<Node> = None;
+    pub fn new(object: &Object, knowledge: &Knowledge) -> Result<Self, InvalidNodeError> {
+        let raw = RawNode::new(object, knowledge).ok_or(InvalidNodeError)?;
 
-        macro_rules! xor_with {
-            ($e:expr) => {{
-                let variant = $e;
-
-                if variant.is_some() {
-                    if node.is_some() {
-                        return None;
-                    }
-
-                    node = variant;
-                }
-            }};
-        }
-
-        xor_with!(node_function_body(object, knowledge).map(|body| Self::Function { body }));
-
-        xor_with!(
-            knowledge
-                .query_construction_values(object, Atom::NODE_LITERAL.into())
-                .next_and_last()
-                .map(Self::Literal)
-        );
-
-        xor_with!(node_function_self(object, knowledge));
-
-        xor_with!(node_parameter_depth(object, knowledge));
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_CALL_CALLEE.into(),
-                Atom::NODE_CALL_WITH.into(),
-            )
-            .map(|(callee, with)| Self::Call { callee, with })
-        );
-
-        xor_with!(
-            knowledge
-                .query_construction_values(object, Atom::NODE_COUNT.into())
-                .next_and_last()
-                .map(Self::Count)
-        );
-
-        xor_with!(
-            knowledge
-                .query_construction_values(object, Atom::NODE_NOT.into())
-                .next_and_last()
-                .map(Self::Not)
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_AND_FIRST.into(),
-                Atom::NODE_AND_SECOND.into(),
-            )
-            .map(|(first, second)| Self::And { first, second })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_OR_FIRST.into(),
-                Atom::NODE_OR_SECOND.into(),
-            )
-            .map(|(first, second)| Self::Or { first, second })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_EQUAL_FIRST.into(),
-                Atom::NODE_EQUAL_SECOND.into(),
-            )
-            .map(|(first, second)| Self::Equal { first, second })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_XOR_FIRST.into(),
-                Atom::NODE_XOR_SECOND.into(),
-            )
-            .map(|(first, second)| Self::Xor { first, second })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_ADD_FIRST.into(),
-                Atom::NODE_ADD_SECOND.into(),
-            )
-            .map(|(first, second)| Self::Add { first, second })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_UNION_FIRST.into(),
-                Atom::NODE_UNION_SECOND.into(),
-            )
-            .map(|(first, second)| Self::Union { first, second })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_MAP_SET.into(),
-                Atom::NODE_MAP_MAPPER.into(),
-            )
-            .map(|(set, mapper_function)| Self::Map {
+        Ok(match raw {
+            RawNode::Function { body } => Self::Function {
+                body: Self::new(&body, knowledge)?.into(),
+            },
+            RawNode::Literal(object) => Self::Literal(object),
+            RawNode::And { first, second } => Self::And {
+                first: Self::new(&first, knowledge)?.into(),
+                second: Self::new(&second, knowledge)?.into(),
+            },
+            RawNode::FunctionSelf { depth } => Self::FunctionSelf { depth },
+            RawNode::Parameter { depth } => Self::Parameter { depth },
+            RawNode::Count(object) => Self::Count(Self::new(&object, knowledge)?.into()),
+            RawNode::QueryAtomsWithProperty { property } => Self::QueryAtomsWithProperty {
+                property: Self::new(&property, knowledge)?.into(),
+            },
+            RawNode::QueryConstructionValues {
+                set,
+                property_constructor,
+            } => todo!(),
+            RawNode::Contains { element, set } => todo!(),
+            RawNode::Equal { first, second } => todo!(),
+            RawNode::Or { first, second } => todo!(),
+            RawNode::Xor { first, second } => todo!(),
+            RawNode::Not(object) => todo!(),
+            RawNode::Add { first, second } => todo!(),
+            RawNode::Union { first, second } => todo!(),
+            RawNode::Map {
                 set,
                 mapper_function,
-            })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_FILTER_SET.into(),
-                Atom::NODE_FILTER_FILTER.into(),
-            )
-            .map(|(set, filter_function)| Self::Filter {
+            } => todo!(),
+            RawNode::Filter {
                 set,
                 filter_function,
-            })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_LESS_FIRST.into(),
-                Atom::NODE_LESS_SECOND.into(),
-            )
-            .map(|(first, second)| Self::Less { first, second })
-        );
-
-        xor_with!(
-            triple_values(
-                object,
-                knowledge,
-                Atom::NODE_IF_CONDITION.into(),
-                Atom::NODE_IF_THEN.into(),
-                Atom::NODE_IF_ELSE.into(),
-            )
-            .map(|(condition, then, otherwise)| Self::If {
+            } => todo!(),
+            RawNode::Less { first, second } => todo!(),
+            RawNode::If {
                 condition,
                 then,
                 otherwise,
-            })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_UNWRAP_OR_SET.into(),
-                Atom::NODE_UNWRAP_OR_DEFAULT.into(),
-            )
-            .map(|(set, default)| Self::UnwrapOr { set, default })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_MULTIPLY_FIRST.into(),
-                Atom::NODE_MULTIPLY_SECOND.into(),
-            )
-            .map(|(first, second)| Self::Multiply { first, second })
-        );
-
-        xor_with!(
-            knowledge
-                .query_construction_values(object, Atom::NODE_IS_ATOM.into())
-                .next_and_last()
-                .map(Self::IsAtom)
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_EVERY_SET.into(),
-                Atom::NODE_EVERY_PREDICATE.into(),
-            )
-            .map(|(set, predicate)| Self::Every { set, predicate })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_ANY_SET.into(),
-                Atom::NODE_ANY_PREDICATE.into(),
-            )
-            .map(|(set, predicate)| Self::Any { set, predicate })
-        );
-
-        xor_with!(
-            knowledge
-                .query_construction_values(object, Atom::NODE_ATOMS_WITH_PROPERTY.into())
-                .next_and_last()
-                .map(|property| Self::QueryAtomsWithProperty { property })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_CONSTRUCTION_VALUES_SET.into(),
-                Atom::NODE_CONSTRUCTION_VALUES_PROPERTY_CONSTRUCTOR.into(),
-            )
-            .map(
-                |(set, property_constructor)| Self::QueryConstructionValues {
-                    set,
-                    property_constructor,
-                }
-            )
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_CONTAINS_ELEMENT.into(),
-                Atom::NODE_CONTAINS_SET.into(),
-            )
-            .map(|(element, set)| Self::Contains { element, set })
-        );
-
-        xor_with!(
-            knowledge
-                .query_construction_values(object, Atom::NODE_IS_CONSTRUCTION.into())
-                .next_and_last()
-                .map(Self::IsConstruction)
-        );
-
-        xor_with!(
-            knowledge
-                .query_construction_values(object, Atom::NODE_IS_SET.into())
-                .next_and_last()
-                .map(Self::IsSet)
-        );
-
-        xor_with!(
-            triple_values(
-                object,
-                knowledge,
-                Atom::NODE_FOLD_SET.into(),
-                Atom::NODE_FOLD_FOLDER.into(),
-                Atom::NODE_FOLD_INITIAL.into(),
-            )
-            .map(|(set, folder, initial)| Self::Fold {
+            } => todo!(),
+            RawNode::UnwrapOr { set, default } => todo!(),
+            RawNode::Multiply { first, second } => todo!(),
+            RawNode::Call { callee, with } => todo!(),
+            RawNode::IsAtom(object) => todo!(),
+            RawNode::IsConstruction(object) => todo!(),
+            RawNode::IsSet(object) => todo!(),
+            RawNode::Every { set, predicate } => todo!(),
+            RawNode::Any { set, predicate } => todo!(),
+            RawNode::Fold {
                 set,
                 folder,
                 initial,
-            })
-        );
-
-        xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_NEW_CONSTRUCTION_CONSTRUCTOR.into(),
-                Atom::NODE_NEW_CONSTRUCTION_VALUE.into(),
-            )
-            .map(|(constructor, value)| Self::NewConstruction { constructor, value })
-        );
-
-        xor_with!(
-            knowledge
-                .query_construction_values(object, Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION.into())
-                .next_and_last()
-                .map(|construction| Self::ConstructionConstructor { construction })
-        );
-
-        xor_with!(
-            knowledge
-                .query_construction_values(object, Atom::NODE_VALUE_OF_CONSTRUCTION.into())
-                .next_and_last()
-                .map(|construction| Self::ConstructionValue { construction })
-        );
-
-        node
+            } => todo!(),
+            RawNode::NewConstruction { constructor, value } => todo!(),
+            RawNode::ConstructionConstructor { construction } => todo!(),
+            RawNode::ConstructionValue { construction } => todo!(),
+        })
     }
 
     #[must_use]
@@ -660,5 +373,11 @@ impl Node {
             ])
             .into(),
         }
+    }
+}
+
+impl From<Node> for Object {
+    fn from(value: Node) -> Self {
+        value.into_object()
     }
 }
