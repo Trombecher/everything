@@ -5,13 +5,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-clap = { version = "4.5.60", features = ["derive"] }
-colored = "3.1.1"
-everything_objects = { path = "../everything_objects" }
-everything_otn = { path = "../everything_otn" }
-everything = { path = "../everything" }
 ulid = "1.2.1"
-tracing = "0.1.44"
-tracing-tree = "0.4.1"
-tracing-subscriber = "0.3.23"
-regex = "1.12.3"
