@@ -1,26 +1,24 @@
-use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use crate::{
-    compute::{self, EvaluationContext, MaybeUndefined, Node, evaluate},
+    compute::{self, EvaluationContext, InvalidNodeError, MaybeUndefined, Node},
     knowledge::Knowledge,
-    model::{Object, Set, SetApi, SetValues},
+    model::{Object, SetApi, SetValues},
 };
 
 #[derive(Clone, Debug)]
 pub enum LazyObject {
+    /// Just an object.
     Eager(Object),
 
+    /// A node.
+    Node(Node),
+
     /// Represents the set that is the union of two [`LazyObject`]s.
-    Union {
-        first: Box<Self>,
-        second: Box<Self>,
-    },
+    Union { first: Box<Self>, second: Box<Self> },
 
     /// Represents the set that is the intersection of two [`LazyObject`]s.
-    Intersection {
-        first: Box<Self>,
-        second: Box<Self>,
-    },
+    Intersection { first: Box<Self>, second: Box<Self> },
 
     /// Represents the set that is the difference of two [`LazyObject`]s.
     Difference {
@@ -29,22 +27,20 @@ pub enum LazyObject {
     },
 
     /// The set of atoms with the given property.
-    AtomsWithProperty {
-        property: Object,
-    },
+    AtomsWithProperty { property: Object },
 
     /// Maps every value of a given set with a mapper function.
     Map {
         target: Box<Self>,
         /// This function is captured.
-        mapper_function: Object,
+        mapper_function: Node,
     },
 
     /// Retains all values for that the filter function returns a truthy value.
     Filter {
         target: Box<Self>,
         /// This function is captured.
-        filter_function: Object,
+        filter_function: Node,
     },
 }
 
@@ -54,7 +50,25 @@ impl From<Object> for LazyObject {
     }
 }
 
+impl From<Node> for LazyObject {
+    fn from(value: Node) -> Self {
+        Self::Node(value)
+    }
+}
+
 impl LazyObject {
+    /// Tries to convert `self` into a node.
+    ///
+    /// # Errors
+    ///
+    /// If `self` is an invalid node.
+    pub fn into_node(self, knowledge: &Knowledge) -> Result<Node, InvalidNodeError> {
+        match self {
+            Self::Node(node) => Ok(node),
+            object => Node::new(&object.into_object(), knowledge),
+        }
+    }
+
     #[must_use]
     pub fn into_object(self) -> Object {
         match self {
@@ -66,6 +80,7 @@ impl LazyObject {
     #[must_use]
     pub fn size(&self, knowledge: &Knowledge) -> u64 {
         match self {
+            Self::Node(node) => node.set_size(),
             Self::Eager(object) => knowledge.size_of_object(object),
             Self::Union { .. } => {
                 // We have to deduplicate here,
@@ -101,6 +116,7 @@ impl LazyObject {
     #[must_use]
     pub fn has_at_least_one_element(&self, knowledge: &Knowledge) -> bool {
         match self {
+            Self::Node(_) => todo!(),
             Self::Eager(object) => knowledge
                 .values_of_by_ref(object)
                 .is_some_and(|set| set.size() != 0),
@@ -127,6 +143,7 @@ impl LazyObject {
     #[must_use]
     pub fn has(&self, element: &Object, knowledge: &Knowledge) -> bool {
         match self {
+            Self::Node(_) => todo!(),
             Self::Eager(object) => knowledge.object_has(object, element),
             Self::Union { first, second } => {
                 first.has(element, knowledge) || second.has(element, knowledge)
@@ -151,17 +168,20 @@ impl LazyObject {
                 // `element` is member of the set which all elements satisfy the constraint
                 // iff it is in that set and matches the constraint.
 
-                target.has(element, knowledge)
-                    && (compute::evaluate(
-                        &Object::new_node(Node::Call {
-                            callee: filter_function.clone(),
-                            with: element.clone(),
-                        }),
-                        knowledge,
-                        &mut EvaluationContext::default(),
-                    )
-                    .truthy()
-                        == MaybeUndefined::Defined(true))
+                if !target.has(element, knowledge) {
+                    return false;
+                }
+
+                compute::evaluate(
+                    &Arc::new(Node::Call {
+                        callee: filter_function.clone().into(),
+                        with: Node::Literal(element.clone()).into(),
+                    }),
+                    knowledge,
+                    &mut EvaluationContext::default(),
+                )
+                .truthy()
+                    == MaybeUndefined::Defined(true)
             }
             LazyObject::Map { .. } => self.iter(knowledge).any(|object| element == &object),
         }
@@ -171,6 +191,7 @@ impl LazyObject {
     #[must_use]
     pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
         match self {
+            Self::Node(_) => todo!("iter node"),
             Self::Eager(object) => {
                 LazyObjectIter::ObjectValues(knowledge.values_of(object).into_iter())
             }
@@ -215,12 +236,12 @@ pub enum LazyObjectIter {
     },
     Filter {
         target: Box<Self>,
-        filter_function: Object,
+        filter_function: Node,
         knowledge: Knowledge,
     },
     Map {
         target: Box<Self>,
-        mapper_function: Object,
+        mapper_function: Node,
         knowledge: Knowledge,
     },
 }
@@ -237,10 +258,10 @@ impl Iterator for LazyObjectIter {
                 filter_function,
                 knowledge,
             } => target.find(|object| {
-                evaluate(
-                    &Object::new_node(Node::Call {
-                        callee: filter_function.clone(),
-                        with: object.clone(),
+                compute::evaluate(
+                    &Arc::new(Node::Call {
+                        callee: filter_function.clone().into(),
+                        with: Node::Literal(object.clone()).into(),
                     }),
                     knowledge,
                     &mut EvaluationContext::default(),
@@ -253,32 +274,16 @@ impl Iterator for LazyObjectIter {
                 mapper_function,
                 knowledge,
             } => target.next().map(|object| {
-                evaluate(
-                    &Object::new_node(Node::Call {
-                        callee: mapper_function.clone(),
-                        with: object.clone(),
+                compute::evaluate(
+                    &Arc::new(Node::Call {
+                        callee: mapper_function.clone().into(),
+                        with: Node::Literal(object).into(),
                     }),
                     knowledge,
                     &mut EvaluationContext::default(),
                 )
                 .into_object()
             }),
-        }
-    }
-}
-
-/// A collected set.
-pub enum CollectedSet {
-    Set(Set),
-    HashSet(BTreeSet<Object>),
-}
-
-impl CollectedSet {
-    #[must_use]
-    pub fn has(&self, element: &Object) -> bool {
-        match self {
-            Self::Set(set) => set.has(element),
-            Self::HashSet(btree_set) => btree_set.contains(element),
         }
     }
 }

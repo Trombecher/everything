@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests;
 
+use std::sync::Arc;
+
 use crate::{
-    compute::{
-        LazyObject, MaybeUndefined, Node, add, capture, multiply, node_function_body, operations,
-    },
+    compute::{LazyObject, MaybeUndefined, Node, capture, operations},
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
     model::{Atom, Object},
@@ -13,12 +13,12 @@ use crate::{
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
 
 #[derive(Debug)]
-pub enum Task {
-    Evaluate(Object),
+enum Task {
+    Evaluate(Arc<Node>),
     PushLiteralTrue,
     PushLiteralFalse,
     PartialAnd {
-        second: Object,
+        second: Arc<Node>,
     },
     ToBoolean,
     /// `1 -> 1`
@@ -29,7 +29,7 @@ pub enum Task {
     Count,
     Equal,
     PartialOr {
-        second: Object,
+        second: Arc<Node>,
     },
     Xor,
     Not,
@@ -42,13 +42,13 @@ pub enum Task {
     Any,
     Less,
     PartialIf {
-        then: Object,
-        otherwise: Object,
+        then: Arc<Node>,
+        otherwise: Arc<Node>,
     },
     Call,
     PopContext,
     PartialUnwrapOr {
-        default: Object,
+        default: Arc<Node>,
     },
     ConstructorOfConstruction,
     ValueOfConstruction,
@@ -87,17 +87,19 @@ impl EvaluationContext {
     /// Gets the parameter value of the function context at the specified relative
     /// depth, or returns undefined if the index is out of bounds.
     #[must_use]
-    pub fn parameter_value(&self, relative_depth: usize) -> LazyObject {
+    pub fn parameter_value(&self, relative_depth: usize) -> MaybeUndefined<LazyObject> {
         self.function_context(relative_depth)
-            .map_or(UNDEFINED, |context| context.parameter.clone())
+            .map(|context| context.parameter.clone())
+            .into()
     }
 
     /// Gets the function itself of the function context at the specified relative
     /// depth, or returns undefined if the index is out of bounds.
     #[must_use]
-    pub fn function_self(&self, relative_depth: usize) -> Object {
+    pub fn function_self(&self, relative_depth: usize) -> MaybeUndefined<Node> {
         self.function_context(relative_depth)
-            .map_or(Atom::UNDEFINED.into(), |context| context.function.clone())
+            .map(|context| context.function.clone())
+            .into()
     }
 
     /// Pushes a new function context onto the stack.
@@ -113,8 +115,217 @@ impl EvaluationContext {
 
 #[derive(Debug, Clone)]
 pub struct FunctionContext {
-    pub function: Object,
+    pub function: Node,
     pub parameter: LazyObject,
+}
+
+#[allow(clippy::too_many_lines)]
+fn resolve_evaluate_node(
+    node: &Node,
+    evaluation_context: &mut EvaluationContext,
+    tasks: &mut Vec<Task>,
+    evaluated: &mut Vec<LazyObject>,
+) {
+    match node {
+        Node::IsSet(inner) => {
+            tasks.push(Task::IsSet);
+            tasks.push(Task::Evaluate(Arc::clone(inner)));
+        }
+        Node::IsConstruction(inner) => {
+            tasks.push(Task::IsConstruction);
+            tasks.push(Task::Evaluate(Arc::clone(inner)));
+        }
+        Node::ConstructionConstructor { construction } => {
+            tasks.push(Task::ConstructorOfConstruction);
+            tasks.push(Task::Evaluate(Arc::clone(construction)));
+        }
+        Node::ConstructionValue { construction } => {
+            tasks.push(Task::ValueOfConstruction);
+            tasks.push(Task::Evaluate(Arc::clone(construction)));
+        }
+        Node::QueryAtomsWithProperty { .. }
+        | Node::QueryConstructionValues { .. }
+        | Node::Contains { .. }
+        | Node::Fold { .. }
+        | Node::NewConstruction { .. } => todo!(),
+        Node::IsAtom(inner) => {
+            tasks.push(Task::IsAtom);
+            tasks.push(Task::Evaluate(Arc::clone(inner)));
+        }
+        Node::Call { callee, with } => {
+            tasks.push(Task::Call);
+            tasks.push(Task::Evaluate(Arc::clone(callee)));
+            tasks.push(Task::Evaluate(Arc::clone(with)));
+        }
+        Node::Multiply {
+            first: left,
+            second: right,
+        } => {
+            tasks.push(Task::Multiply);
+            tasks.push(Task::Evaluate(Arc::clone(right)));
+            tasks.push(Task::Evaluate(Arc::clone(left)));
+        }
+        Node::UnwrapOr { set, default } => {
+            tasks.push(Task::PartialUnwrapOr {
+                default: Arc::clone(default),
+            });
+            tasks.push(Task::Evaluate(Arc::clone(set)));
+        }
+        Node::Function { .. } => {
+            evaluated.push(capture(node, 0, evaluation_context).into());
+        }
+        Node::Literal(object) => {
+            evaluated.push(object.clone().into());
+        }
+        Node::And { first, second } => {
+            tasks.push(Task::PartialAnd {
+                second: Arc::clone(second),
+            });
+            tasks.push(Task::Evaluate(Arc::clone(first)));
+        }
+        Node::FunctionSelf { depth } => {
+            evaluated.push(match evaluation_context.function_self(*depth as usize) {
+                MaybeUndefined::Defined(node) => LazyObject::Node(node),
+                MaybeUndefined::Undefined => UNDEFINED,
+            });
+        }
+        Node::Parameter { depth } => {
+            evaluated.push(match evaluation_context.parameter_value(*depth as usize) {
+                MaybeUndefined::Defined(object) => object,
+                MaybeUndefined::Undefined => UNDEFINED,
+            });
+        }
+        Node::Count(object) => {
+            tasks.push(Task::Count);
+            tasks.push(Task::Evaluate(Arc::clone(object)));
+        }
+        Node::Equal { first, second } => {
+            tasks.push(Task::Equal);
+            tasks.push(Task::Evaluate(Arc::clone(second)));
+            tasks.push(Task::Evaluate(Arc::clone(first)));
+        }
+        Node::Or { first, second } => {
+            tasks.push(Task::PartialOr {
+                second: Arc::clone(second),
+            });
+            tasks.push(Task::Evaluate(Arc::clone(first)));
+        }
+        Node::Xor { first, second } => {
+            tasks.push(Task::Xor);
+            tasks.push(Task::Evaluate(Arc::clone(second)));
+            tasks.push(Task::Evaluate(Arc::clone(first)));
+        }
+        Node::Not(object) => {
+            tasks.push(Task::Not);
+            tasks.push(Task::Evaluate(Arc::clone(object)));
+        }
+        Node::Add { first, second } => {
+            tasks.push(Task::Add);
+            tasks.push(Task::Evaluate(Arc::clone(second)));
+            tasks.push(Task::Evaluate(Arc::clone(first)));
+        }
+        Node::Union { first, second } => {
+            tasks.push(Task::Union);
+            tasks.push(Task::Evaluate(Arc::clone(second)));
+            tasks.push(Task::Evaluate(Arc::clone(first)));
+        }
+        Node::Map {
+            set,
+            mapper_function,
+        } => {
+            tasks.push(Task::Map);
+            tasks.push(Task::Evaluate(Arc::clone(mapper_function)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
+        }
+        Node::Every { set, predicate } => {
+            tasks.push(Task::Every);
+
+            // Push the result of a previous, virtual predicate call.
+            // This literal acts like the virtual call completed
+            // last which aligns with the `Task::Every` case where
+            // subsequent predicate calls for set items are scheduled
+            // and pushed onto the evaluated objects when the evaluated
+            // set and predicate already sit there (late).
+            tasks.push(Task::PushLiteralTrue);
+
+            tasks.push(Task::Evaluate(Arc::clone(predicate)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
+        }
+        Node::Any { set, predicate } => {
+            tasks.push(Task::Any);
+
+            // Same as `Task::Every` but with false.
+            tasks.push(Task::PushLiteralFalse);
+
+            tasks.push(Task::Evaluate(Arc::clone(predicate)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
+        }
+        Node::Filter {
+            set,
+            filter_function,
+        } => {
+            tasks.push(Task::Filter);
+            tasks.push(Task::Evaluate(Arc::clone(filter_function)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
+        }
+        Node::Less { first, second } => {
+            tasks.push(Task::Less);
+            tasks.push(Task::Evaluate(Arc::clone(second)));
+            tasks.push(Task::Evaluate(Arc::clone(first)));
+        }
+        Node::If {
+            condition,
+            then,
+            otherwise,
+        } => {
+            tasks.push(Task::PartialIf {
+                then: Arc::clone(then),
+                otherwise: Arc::clone(otherwise),
+            });
+            tasks.push(Task::Evaluate(Arc::clone(condition)));
+        } /*
+          TODO: validate dynamic object creation
+          None if let Object::Composite(Composite::Any(any_composite)) = object => {
+              let result = any_composite
+              .properties()
+              .map(|property| {
+                  // TODO: DEBATE THIS BS
+                  debug!("eval on property {property:?}");
+
+                  let value =
+                      property.value.evaluate(knowledge, context).into_object();
+
+                  let result = if property.value == value {
+                      Ok(())
+                  } else {
+                      value.is_valid(knowledge, false)
+                  };
+
+                  match result {
+                      Ok(()) => Ok(Property {
+                          tag: property.tag.clone(),
+                          value,
+                      }),
+                      // TODO: debate box
+                      Err(error) => Err((value, Box::new(error))),
+                  }
+              })
+              .transpose_into_fallible()
+              .collect::<Vec<_>>()
+              .map_or_else(|(o, error)| {
+                  warn!(
+                      "invalid object {o:?} with error {error:?}; replacing with {{}}"
+                  );
+
+                  LazyObject::Object(Object::Composite(Composite::Empty))
+              }, |mut properties| {
+                  Object::Composite(Composite::new(&mut properties)).into()
+              });
+
+              evaluated.push(result);
+          }
+           */
+    }
 }
 
 /// Evaluates an object in the given knowledge and context.
@@ -124,207 +335,17 @@ pub struct FunctionContext {
 /// TODO
 #[allow(clippy::too_many_lines)]
 pub fn evaluate(
-    object: &Object,
+    node: &Arc<Node>,
     knowledge: &Knowledge,
     evaluation_context: &mut EvaluationContext,
 ) -> LazyObject {
-    let mut tasks = vec![Task::Evaluate(object.clone())];
+    let mut tasks = vec![Task::Evaluate(Arc::clone(node))];
     let mut evaluated = Vec::<LazyObject>::new();
 
     while let Some(task) = tasks.pop() {
         match task {
-            Task::Evaluate(object) => {
-                match Node::new(&object, knowledge) {
-                    Some(Node::IsSet(object)) => {
-                        evaluated.push(LazyObject::Eager(matches!(object, Object::Set(_)).into()));
-                    }
-                    Some(Node::IsConstruction(object)) => {
-                        evaluated.push(LazyObject::Eager(
-                            matches!(object, Object::Construction(_)).into(),
-                        ));
-                    }
-                    Some(Node::ConstructionConstructor { construction }) => {
-                        tasks.push(Task::ConstructorOfConstruction);
-                        tasks.push(Task::Evaluate(construction));
-                    }
-                    Some(Node::ConstructionValue { construction }) => {
-                        tasks.push(Task::ValueOfConstruction);
-                        tasks.push(Task::Evaluate(construction));
-                    }
-                    Some(
-                        Node::QueryAtomsWithProperty { .. }
-                        | Node::QueryConstructionValues { .. }
-                        | Node::Contains { .. }
-                        | Node::Fold { .. }
-                        | Node::NewConstruction { .. },
-                    ) => todo!(),
-                    Some(Node::IsAtom(inner)) => {
-                        tasks.push(Task::IsAtom);
-                        tasks.push(Task::Evaluate(inner));
-                    }
-                    Some(Node::Call { callee, with }) => {
-                        tasks.push(Task::Call);
-                        tasks.push(Task::Evaluate(callee));
-                        tasks.push(Task::Evaluate(with));
-                    }
-                    Some(Node::Multiply {
-                        first: left,
-                        second: right,
-                    }) => {
-                        tasks.push(Task::Multiply);
-                        tasks.push(Task::Evaluate(right));
-                        tasks.push(Task::Evaluate(left));
-                    }
-                    Some(Node::UnwrapOr { set, default }) => {
-                        tasks.push(Task::PartialUnwrapOr { default });
-                        tasks.push(Task::Evaluate(set));
-                    }
-                    Some(Node::Function { .. }) => {
-                        evaluated.push(capture(&object, knowledge, 0, evaluation_context));
-                    }
-                    Some(Node::Literal(object)) => {
-                        evaluated.push(object.into());
-                    }
-                    Some(Node::And { first, second }) => {
-                        tasks.push(Task::PartialAnd { second });
-                        tasks.push(Task::Evaluate(first));
-                    }
-                    Some(Node::FunctionSelf { depth }) => {
-                        evaluated.push(LazyObject::Eager(
-                            evaluation_context.function_self(depth as usize),
-                        ));
-                    }
-                    Some(Node::Parameter { depth }) => {
-                        evaluated.push(evaluation_context.parameter_value(depth as usize));
-                    }
-                    Some(Node::Count(object)) => {
-                        tasks.push(Task::Count);
-                        tasks.push(Task::Evaluate(object));
-                    }
-                    Some(Node::Equal { first, second }) => {
-                        tasks.push(Task::Equal);
-                        tasks.push(Task::Evaluate(second));
-                        tasks.push(Task::Evaluate(first));
-                    }
-                    Some(Node::Or { first, second }) => {
-                        tasks.push(Task::PartialOr { second });
-                        tasks.push(Task::Evaluate(first));
-                    }
-                    Some(Node::Xor { first, second }) => {
-                        tasks.push(Task::Xor);
-                        tasks.push(Task::Evaluate(second));
-                        tasks.push(Task::Evaluate(first));
-                    }
-                    Some(Node::Not(object)) => {
-                        tasks.push(Task::Not);
-                        tasks.push(Task::Evaluate(object));
-                    }
-                    Some(Node::Add { first, second }) => {
-                        tasks.push(Task::Add);
-                        tasks.push(Task::Evaluate(second));
-                        tasks.push(Task::Evaluate(first));
-                    }
-                    Some(Node::Union { first, second }) => {
-                        tasks.push(Task::Union);
-                        tasks.push(Task::Evaluate(second));
-                        tasks.push(Task::Evaluate(first));
-                    }
-                    Some(Node::Map {
-                        set,
-                        mapper_function,
-                    }) => {
-                        tasks.push(Task::Map);
-                        tasks.push(Task::Evaluate(mapper_function));
-                        tasks.push(Task::Evaluate(set));
-                    }
-                    Some(Node::Every { set, predicate }) => {
-                        tasks.push(Task::Every);
-
-                        // Push the result of a previous, virtual predicate call.
-                        // This literal acts like the virtual call completed
-                        // last which aligns with the `Task::Every` case where
-                        // subsequent predicate calls for set items are scheduled
-                        // and pushed onto the evaluated objects when the evaluated
-                        // set and predicate already sit there (late).
-                        tasks.push(Task::PushLiteralTrue);
-
-                        tasks.push(Task::Evaluate(predicate));
-                        tasks.push(Task::Evaluate(set));
-                    }
-                    Some(Node::Any { set, predicate }) => {
-                        tasks.push(Task::Any);
-
-                        // Same as `Task::Every` but with false.
-                        tasks.push(Task::PushLiteralFalse);
-
-                        tasks.push(Task::Evaluate(predicate));
-                        tasks.push(Task::Evaluate(set));
-                    }
-                    Some(Node::Filter {
-                        set,
-                        filter_function,
-                    }) => {
-                        tasks.push(Task::Filter);
-                        tasks.push(Task::Evaluate(filter_function));
-                        tasks.push(Task::Evaluate(set));
-                    }
-                    Some(Node::Less { first, second }) => {
-                        tasks.push(Task::Less);
-                        tasks.push(Task::Evaluate(second));
-                        tasks.push(Task::Evaluate(first));
-                    }
-                    Some(Node::If {
-                        condition,
-                        then,
-                        otherwise,
-                    }) => {
-                        tasks.push(Task::PartialIf { then, otherwise });
-                        tasks.push(Task::Evaluate(condition));
-                    }
-                    /*
-                    TODO: validate dynamic object creation
-                    None if let Object::Composite(Composite::Any(any_composite)) = object => {
-                        let result = any_composite
-                        .properties()
-                        .map(|property| {
-                            // TODO: DEBATE THIS BS
-                            debug!("eval on property {property:?}");
-
-                            let value =
-                                property.value.evaluate(knowledge, context).into_object();
-
-                            let result = if property.value == value {
-                                Ok(())
-                            } else {
-                                value.is_valid(knowledge, false)
-                            };
-
-                            match result {
-                                Ok(()) => Ok(Property {
-                                    tag: property.tag.clone(),
-                                    value,
-                                }),
-                                // TODO: debate box
-                                Err(error) => Err((value, Box::new(error))),
-                            }
-                        })
-                        .transpose_into_fallible()
-                        .collect::<Vec<_>>()
-                        .map_or_else(|(o, error)| {
-                            warn!(
-                                "invalid object {o:?} with error {error:?}; replacing with {{}}"
-                            );
-
-                            LazyObject::Object(Object::Composite(Composite::Empty))
-                        }, |mut properties| {
-                            Object::Composite(Composite::new(&mut properties)).into()
-                        });
-
-                        evaluated.push(result);
-                    }
-                     */
-                    None => evaluated.push(object.clone().into()),
-                }
+            Task::Evaluate(node) => {
+                resolve_evaluate_node(&node, evaluation_context, &mut tasks, &mut evaluated);
             }
             Task::PopContext => {
                 evaluation_context.pop();
@@ -350,17 +371,20 @@ pub fn evaluate(
                 ));
             }
             Task::Call => {
-                let callee = evaluated.pop().unwrap().into_object();
-                let parameter_value = evaluated.pop().unwrap();
+                let callee_object = evaluated.pop().unwrap().into_object();
 
-                tasks.push(Task::Evaluate(
-                    node_function_body(&callee, knowledge).unwrap(),
-                ));
+                if let Ok(Node::Function { body }) = Node::new(&callee_object, knowledge) {
+                    let parameter_value = evaluated.pop().unwrap();
 
-                evaluation_context.push(FunctionContext {
-                    function: callee,
-                    parameter: parameter_value,
-                });
+                    tasks.push(Task::Evaluate(Arc::clone(&body)));
+
+                    evaluation_context.push(FunctionContext {
+                        function: Node::Function { body },
+                        parameter: parameter_value,
+                    });
+                } else {
+                    evaluated.push(UNDEFINED);
+                }
             }
             Task::PartialAnd { second } => {
                 let first = evaluated.pop().unwrap();
@@ -466,14 +490,16 @@ pub fn evaluate(
                 // TODO: (perf) maybe short circuit sets into UNDEFINED.
                 let left = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(LazyObject::Eager(add(&left, &right).into()));
+                evaluated.push(LazyObject::Eager(operations::add(&left, &right).into()));
             }
             Task::Multiply => {
                 // TODO: (perf) maybe short circuit sets into UNDEFINED.
                 let right = evaluated.pop().unwrap().into_object();
                 let left = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(LazyObject::Eager(multiply(&left, &right).into()));
+                evaluated.push(LazyObject::Eager(
+                    operations::multiply(&left, &right).into(),
+                ));
             }
             Task::Union => {
                 let first = evaluated.pop().unwrap();
@@ -485,22 +511,36 @@ pub fn evaluate(
                 });
             }
             Task::Map => {
-                let mapper = evaluated.pop().unwrap().into_object();
-                let set = evaluated.pop().unwrap();
+                let mapper_object = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(LazyObject::Map {
-                    target: Box::new(set),
-                    mapper_function: mapper,
-                });
+                if let Ok(mapper_function @ Node::Function { .. }) =
+                    Node::new(&mapper_object, knowledge)
+                {
+                    let set = evaluated.pop().unwrap();
+
+                    evaluated.push(LazyObject::Map {
+                        target: Box::new(set),
+                        mapper_function,
+                    });
+                } else {
+                    evaluated.push(UNDEFINED);
+                }
             }
             Task::Filter => {
-                let filter = evaluated.pop().unwrap().into_object();
-                let set = evaluated.pop().unwrap();
+                let filter_object = evaluated.pop().unwrap().into_object();
 
-                evaluated.push(LazyObject::Filter {
-                    target: Box::new(set),
-                    filter_function: filter,
-                });
+                if let Ok(filter_function @ Node::Function { .. }) =
+                    Node::new(&filter_object, knowledge)
+                {
+                    let set = evaluated.pop().unwrap();
+
+                    evaluated.push(LazyObject::Filter {
+                        target: Box::new(set),
+                        filter_function,
+                    });
+                } else {
+                    evaluated.push(UNDEFINED);
+                }
             }
             Task::Every => todo!("task every"),
             /*

@@ -1,29 +1,28 @@
+use std::sync::Arc;
+
 use crate::{
-    compute::{EvaluationContext, LazyObject, Node},
-    knowledge::Knowledge,
-    model::Object,
+    compute::{EvaluationContext, MaybeUndefined, Node},
+    model::Atom,
 };
 
 #[must_use]
 #[allow(unused_variables)]
 pub fn capture(
-    object: &Object,
-    knowledge: &Knowledge,
+    node: &Node,
     additional_depth: usize,
     evaluation_context: &EvaluationContext,
-) -> LazyObject {
+) -> Node {
     if evaluation_context.is_empty() {
         // Nothing to capture.
-        return LazyObject::Eager(object.clone());
+        return node.clone();
     }
 
-    match Node::new(object, knowledge) {
-        Some(Node::Function { body }) => Object::new_node(Node::Function {
-            body: capture(&body, knowledge, additional_depth + 1, evaluation_context).into_object(),
-        })
-        .into(),
-        Some(Node::Parameter { depth }) => {
-            if let Some(offset_depth) = (depth as usize).checked_sub(additional_depth) {
+    match node {
+        Node::Function { body } => Node::Function {
+            body: Arc::new(capture(body, additional_depth + 1, evaluation_context)),
+        },
+        Node::Parameter { depth } => {
+            if let Some(offset_depth) = (*depth as usize).checked_sub(additional_depth) {
                 // The min additional depth is 1.
                 // So when the parameter depth is 1 it will refer to
                 // captured parameters at an additional depth of 1.
@@ -32,59 +31,62 @@ pub fn capture(
                 // a node (which is already evaluated because parameters
                 // are always evaluated before the function).
 
-                LazyObject::Eager(Object::new_node(Node::Literal(
-                    evaluation_context
-                        .parameter_value(offset_depth)
-                        .into_object(),
-                )))
+                Node::Literal(match evaluation_context.parameter_value(offset_depth) {
+                    MaybeUndefined::Defined(value) => value.into_object(),
+                    MaybeUndefined::Undefined => Atom::UNDEFINED.into(),
+                })
             } else {
                 // This parameter refers to some inner, bound function,
                 // so keep it.
 
-                LazyObject::Eager(object.clone())
+                node.clone()
             }
         }
-        _ => todo!("capture anything"),
-        /*
-        _ => match self {
-            Self::Composite(Composite::Any(composite)) => composite
-                .as_ref()
-                .iter()
-                .map(|property| {
-                    let value = property
-                        .value
-                        .capture(statements, additional_depth, ctx)
-                        .into_object();
-
-                    let result = if property.value == value {
-                        Ok(())
-                    } else {
-                        value.is_valid(statements, false)
-                    };
-
-                    match result {
-                        Ok(()) => Ok(Property {
-                            tag: property.tag.clone(),
-                            value,
-                        }),
-                        // TODO: debate box
-                        Err(error) => Err((value, Box::new(error))),
-                    }
-                })
-                .transpose_into_fallible()
-                .collect::<Vec<_>>()
-                .map_or_else(
-                    |(o, error)| {
-                        warn!("invalid object {o:?} with error {error:?}; replacing with {{}}");
-
-                        LazyObject::Object(Composite::Empty.into())
-                    },
-                    |mut properties| {
-                        LazyObject::Object(Self::Composite(Composite::new(&mut properties)))
-                    },
-                ),
-            _ => LazyObject::Eager(object.clone()),
-        },
-         */
+        Node::Literal(object) => Node::Literal(object.clone()),
+        Node::And { first, second } => todo!(),
+        Node::FunctionSelf { depth } => todo!(),
+        Node::Count(node) => todo!(),
+        Node::QueryAtomsWithProperty { property } => todo!(),
+        Node::QueryConstructionValues {
+            set,
+            property_constructor,
+        } => todo!(),
+        Node::Contains { element, set } => todo!(),
+        Node::Equal { first, second } => todo!(),
+        Node::Or { first, second } => todo!(),
+        Node::Xor { first, second } => todo!(),
+        Node::Not(node) => todo!(),
+        Node::Add { first, second } => todo!(),
+        Node::Union { first, second } => todo!(),
+        Node::Map {
+            set,
+            mapper_function,
+        } => todo!(),
+        Node::Filter {
+            set,
+            filter_function,
+        } => todo!(),
+        Node::Less { first, second } => todo!(),
+        Node::If {
+            condition,
+            then,
+            otherwise,
+        } => todo!(),
+        Node::UnwrapOr { set, default } => todo!(),
+        Node::Multiply { first, second } => todo!(),
+        Node::Call { callee, with } => todo!(),
+        Node::IsAtom(node) => todo!(),
+        Node::IsConstruction(node) => todo!(),
+        Node::IsSet(node) => todo!(),
+        Node::Every { set, predicate } => todo!(),
+        Node::Any { set, predicate } => todo!(),
+        Node::Fold {
+            set,
+            folder,
+            initial,
+        } => todo!(),
+        Node::NewConstruction { constructor, value } => todo!(),
+        Node::ConstructionConstructor { construction } => todo!(),
+        Node::ConstructionValue { construction } => todo!(),
     }
 }

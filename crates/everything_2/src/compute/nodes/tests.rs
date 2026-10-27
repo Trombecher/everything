@@ -12,105 +12,109 @@ fn node_round_trip() {
     let c = Object::new_integer(BigInt::from(3));
 
     let nodes = [
-        Node::Function { body: a.clone() },
-        Node::Literal(a.clone()),
+        Node::Function {
+            body: Node::Literal(a.clone()).into(),
+        },
+        Node::Literal(Node::Literal(a.clone()).into()),
         Node::And {
-            first: a.clone(),
-            second: b.clone(),
+            first: Node::Literal(a.clone()).into(),
+            second: Node::Literal(b.clone()).into(),
         },
         Node::FunctionSelf { depth: 0 },
         Node::Parameter { depth: 0 },
-        Node::Count(a.clone()),
+        Node::Count(Node::Literal(a.clone()).into()),
         Node::QueryAtomsWithProperty {
-            property: a.clone(),
+            property: Node::Literal(a.clone()).into(),
         },
         Node::QueryConstructionValues {
-            set: a.clone(),
-            property_constructor: Atom::PROPERTY.into(),
+            set: Node::Literal(a.clone()).into(),
+            property_constructor: Node::Literal(Atom::PROPERTY.into()).into(),
         },
         Node::Contains {
-            element: a.clone(),
-            set: b.clone(),
+            element: Node::Literal(a.clone()).into(),
+            set: Node::Literal(b.clone()).into(),
         },
         Node::Equal {
-            first: a.clone(),
-            second: b.clone(),
+            first: Node::Literal(a.clone()).into(),
+            second: Node::Literal(b.clone()).into(),
         },
         Node::Or {
-            first: a.clone(),
-            second: b.clone(),
+            first: Node::Literal(a.clone()).into(),
+            second: Node::Literal(b.clone()).into(),
         },
         Node::Xor {
-            first: a.clone(),
-            second: b.clone(),
+            first: Node::Literal(a.clone()).into(),
+            second: Node::Literal(b.clone()).into(),
         },
-        Node::Not(a.clone()),
+        Node::Not(Node::Literal(a.clone()).into()),
         Node::Add {
-            first: a.clone(),
-            second: b.clone(),
+            first: Node::Literal(a.clone()).into(),
+            second: Node::Literal(b.clone()).into(),
         },
         Node::Union {
-            first: a.clone(),
-            second: b.clone(),
+            first: Node::Literal(a.clone()).into(),
+            second: Node::Literal(b.clone()).into(),
         },
         Node::Map {
-            set: a.clone(),
-            mapper_function: b.clone(),
+            set: Node::Literal(a.clone()).into(),
+            mapper_function: Node::Literal(b.clone()).into(),
         },
         Node::Filter {
-            set: a.clone(),
-            filter_function: b.clone(),
+            set: Node::Literal(a.clone()).into(),
+            filter_function: Node::Literal(b.clone()).into(),
         },
         Node::Less {
-            first: a.clone(),
-            second: b.clone(),
+            first: Node::Literal(a.clone()).into(),
+            second: Node::Literal(b.clone()).into(),
         },
         Node::If {
-            condition: a.clone(),
-            then: b.clone(),
-            otherwise: c.clone(),
+            condition: Node::Literal(a.clone()).into(),
+            then: Node::Literal(b.clone()).into(),
+            otherwise: Node::Literal(c.clone()).into(),
         },
         Node::UnwrapOr {
-            set: a.clone(),
-            default: b.clone(),
+            set: Node::Literal(a.clone()).into(),
+            default: Node::Literal(b.clone()).into(),
         },
         Node::Multiply {
-            first: a.clone(),
-            second: b.clone(),
+            first: Node::Literal(a.clone()).into(),
+            second: Node::Literal(b.clone()).into(),
         },
         Node::Call {
-            callee: a.clone(),
-            with: b.clone(),
+            callee: Node::Literal(a.clone()).into(),
+            with: Node::Literal(b.clone()).into(),
         },
-        Node::IsAtom(a.clone()),
-        Node::IsConstruction(a.clone()),
-        Node::IsSet(a.clone()),
+        Node::IsAtom(Node::Literal(a.clone()).into()),
+        Node::IsConstruction(Node::Literal(a.clone()).into()),
+        Node::IsSet(Node::Literal(a.clone()).into()),
         Node::Every {
-            set: a.clone(),
-            predicate: b.clone(),
+            set: Node::Literal(a.clone()).into(),
+            predicate: Node::Literal(b.clone()).into(),
         },
         Node::Any {
-            set: a.clone(),
-            predicate: b.clone(),
+            set: Node::Literal(a.clone()).into(),
+            predicate: Node::Literal(b.clone()).into(),
         },
         Node::Fold {
-            set: a.clone(),
-            folder: b.clone(),
-            initial: c.clone(),
+            set: Node::Literal(a.clone()).into(),
+            folder: Node::Literal(b.clone()).into(),
+            initial: Node::Literal(c.clone()).into(),
         },
         Node::NewConstruction {
-            constructor: a.clone(),
-            value: b.clone(),
+            constructor: Node::Literal(a.clone()).into(),
+            value: Node::Literal(b.clone()).into(),
         },
         Node::ConstructionConstructor {
-            construction: a.clone(),
+            construction: Node::Literal(a.clone()).into(),
         },
-        Node::ConstructionValue { construction: a },
+        Node::ConstructionValue {
+            construction: Node::Literal(a).into(),
+        },
     ];
 
     for node in nodes {
         let object = Object::new_node(node.clone());
 
-        assert_eq!(Node::new(&object, &knowledge), Some(node));
+        assert_eq!(Node::new(&object, &knowledge), Ok(node));
     }
 }

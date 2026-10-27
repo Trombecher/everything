@@ -20,9 +20,9 @@ fn less() {
     for (a, b) in product_iterator(RANGE, RANGE) {
         assert_eq!(
             evaluate(
-                &Object::new_node(Node::Less {
-                    first: BigInt::from(a).into(),
-                    second: BigInt::from(b).into(),
+                &Arc::new(Node::Less {
+                    first: Node::Literal(BigInt::from(a).into()).into(),
+                    second: Node::Literal(BigInt::from(b).into()).into(),
                 }),
                 &BASE,
                 &mut EvaluationContext::default(),
@@ -44,9 +44,9 @@ fn and() {
     for (first, second) in product_iterator(cases.iter().cloned(), cases.iter().cloned()) {
         assert_eq!(
             evaluate(
-                &Object::new_node(Node::And {
-                    first: Object::new_node(Node::Literal(first.clone())),
-                    second: Object::new_node(Node::Literal(second.clone()))
+                &Arc::new(Node::And {
+                    first: Node::Literal(first.clone()).into(),
+                    second: Node::Literal(second.clone()).into()
                 }),
                 &BASE,
                 &mut EvaluationContext::default()

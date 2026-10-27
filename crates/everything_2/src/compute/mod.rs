@@ -4,13 +4,12 @@ mod capture;
 mod evaluate;
 mod lazy;
 mod nodes;
-mod operations;
+pub mod operations;
 
 pub use capture::*;
 pub use evaluate::*;
 pub use lazy::*;
 pub use nodes::*;
-pub use operations::*;
 
 use crate::model::{Atom, Object};
 

@@ -2,6 +2,8 @@ mod raw;
 #[cfg(test)]
 mod tests;
 
+use std::sync::Arc;
+
 use num_bigint::BigInt;
 
 use crate::{
@@ -15,7 +17,7 @@ use crate::{
 pub enum Node {
     /// A function node. Abstracts over the function body.
     Function {
-        body: Box<Node>,
+        body: Arc<Node>,
     },
 
     /// A literal node. Evaluates to the inner object.
@@ -23,8 +25,8 @@ pub enum Node {
 
     /// A boolean conjunction.
     And {
-        first: Box<Node>,
-        second: Box<Node>,
+        first: Arc<Node>,
+        second: Arc<Node>,
     },
 
     /// A reference to an outer function.
@@ -39,101 +41,107 @@ pub enum Node {
     },
 
     /// Counts the number of values the inner has.
-    Count(Box<Node>),
+    Count(Arc<Node>),
     QueryAtomsWithProperty {
-        property: Box<Node>,
+        property: Arc<Node>,
     },
     QueryConstructionValues {
-        set: Box<Node>,
-        property_constructor: Box<Node>,
+        set: Arc<Node>,
+        property_constructor: Arc<Node>,
     },
     Contains {
-        element: Box<Node>,
-        set: Box<Node>,
+        element: Arc<Node>,
+        set: Arc<Node>,
     },
     Equal {
-        first: Box<Node>,
-        second: Box<Node>,
+        first: Arc<Node>,
+        second: Arc<Node>,
     },
     Or {
-        first: Box<Node>,
-        second: Box<Node>,
+        first: Arc<Node>,
+        second: Arc<Node>,
     },
     Xor {
-        first: Box<Node>,
-        second: Box<Node>,
+        first: Arc<Node>,
+        second: Arc<Node>,
     },
-    Not(Box<Node>),
+    Not(Arc<Node>),
     Add {
-        first: Box<Node>,
-        second: Box<Node>,
+        first: Arc<Node>,
+        second: Arc<Node>,
     },
     Union {
-        first: Box<Node>,
-        second: Box<Node>,
+        first: Arc<Node>,
+        second: Arc<Node>,
     },
     Map {
-        set: Box<Node>,
-        mapper_function: Box<Node>,
+        set: Arc<Node>,
+        mapper_function: Arc<Node>,
     },
     Filter {
-        set: Box<Node>,
-        filter_function: Box<Node>,
+        set: Arc<Node>,
+        filter_function: Arc<Node>,
     },
     Less {
-        first: Box<Node>,
-        second: Box<Node>,
+        first: Arc<Node>,
+        second: Arc<Node>,
     },
     If {
-        condition: Box<Node>,
-        then: Box<Node>,
-        otherwise: Box<Node>,
+        condition: Arc<Node>,
+        then: Arc<Node>,
+        otherwise: Arc<Node>,
     },
     UnwrapOr {
-        set: Box<Node>,
-        default: Box<Node>,
+        set: Arc<Node>,
+        default: Arc<Node>,
     },
     Multiply {
-        first: Box<Node>,
-        second: Box<Node>,
+        first: Arc<Node>,
+        second: Arc<Node>,
     },
     Call {
-        callee: Box<Node>,
-        with: Box<Node>,
+        callee: Arc<Node>,
+        with: Arc<Node>,
     },
-    IsAtom(Box<Node>),
-    IsConstruction(Box<Node>),
-    IsSet(Box<Node>),
+    IsAtom(Arc<Node>),
+    IsConstruction(Arc<Node>),
+    IsSet(Arc<Node>),
     Every {
-        set: Box<Node>,
-        predicate: Box<Node>,
+        set: Arc<Node>,
+        predicate: Arc<Node>,
     },
     Any {
-        set: Box<Node>,
-        predicate: Box<Node>,
+        set: Arc<Node>,
+        predicate: Arc<Node>,
     },
     Fold {
-        set: Box<Node>,
-        folder: Box<Node>,
-        initial: Box<Node>,
+        set: Arc<Node>,
+        folder: Arc<Node>,
+        initial: Arc<Node>,
     },
     NewConstruction {
-        constructor: Box<Node>,
-        value: Box<Node>,
+        constructor: Arc<Node>,
+        value: Arc<Node>,
     },
     ConstructionConstructor {
-        construction: Box<Node>,
+        construction: Arc<Node>,
     },
     ConstructionValue {
-        construction: Box<Node>,
+        construction: Arc<Node>,
     },
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 #[error("invalid node error")]
 pub struct InvalidNodeError;
 
 impl Node {
+    /// Tries to parse a node from an object (and a knowledge).
+    ///
+    /// # Errors
+    ///
+    /// If the object is invalid.
+    #[allow(clippy::too_many_lines)]
     pub fn new(object: &Object, knowledge: &Knowledge) -> Result<Self, InvalidNodeError> {
         let raw = RawNode::new(object, knowledge).ok_or(InvalidNodeError)?;
 
@@ -260,7 +268,7 @@ impl Node {
 
     #[must_use]
     #[allow(clippy::too_many_lines)]
-    pub fn into_object(self) -> Object {
+    pub fn into_object(&self) -> Object {
         match self {
             Self::IsConstruction(inner) => Set::new_move([Construction::new(
                 Atom::NODE_IS_CONSTRUCTION.into(),
@@ -345,7 +353,10 @@ impl Node {
                 .into()
             }
             Self::Literal(literal) => {
-                Set::new_move([Construction::new(Atom::NODE_LITERAL.into(), literal).into()]).into()
+                Set::new_move([
+                    Construction::new(Atom::NODE_LITERAL.into(), literal.clone()).into(),
+                ])
+                .into()
             }
             Self::And { first, second } => Set::new_move([
                 Construction::new(Atom::NODE_AND_FIRST.into(), first.into_object()).into(),
@@ -354,13 +365,13 @@ impl Node {
             .into(),
             Self::FunctionSelf { depth } => Set::new_move([Construction::new(
                 Atom::NODE_FUNCTION_SELF.into(),
-                Object::new_integer(BigInt::from(depth)),
+                Object::new_integer(BigInt::from(*depth)),
             )
             .into()])
             .into(),
             Self::Parameter { depth } => Set::new_move([Construction::new(
                 Atom::NODE_PARAMETER.into(),
-                Object::new_integer(BigInt::from(depth)),
+                Object::new_integer(BigInt::from(*depth)),
             )
             .into()])
             .into(),
@@ -463,6 +474,46 @@ impl Node {
                 Construction::new(Atom::NODE_MULTIPLY_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
+        }
+    }
+
+    #[must_use]
+    pub fn set_size(&self) -> u64 {
+        // Just count the properties.
+
+        match self {
+            Self::Function { .. }
+            | Self::Literal(_)
+            | Self::FunctionSelf { .. }
+            | Self::Count(_)
+            | Self::QueryAtomsWithProperty { .. }
+            | Self::IsAtom(_)
+            | Self::IsSet(_)
+            | Self::IsConstruction(_)
+            | Self::ConstructionConstructor { .. }
+            | Self::ConstructionValue { .. }
+            | Self::Not(_)
+            | Self::Parameter { .. } => 1,
+
+            Self::And { .. }
+            | Self::QueryConstructionValues { .. }
+            | Self::Contains { .. }
+            | Self::Equal { .. }
+            | Self::Or { .. }
+            | Self::Xor { .. }
+            | Self::Add { .. }
+            | Self::Union { .. }
+            | Self::Map { .. }
+            | Self::Filter { .. }
+            | Self::Less { .. }
+            | Self::Multiply { .. }
+            | Self::Call { .. }
+            | Self::Every { .. }
+            | Self::Any { .. }
+            | Self::NewConstruction { .. }
+            | Self::UnwrapOr { .. } => 2,
+
+            Self::If { .. } | Self::Fold { .. } => 3,
         }
     }
 }
