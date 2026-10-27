@@ -136,10 +136,7 @@ pub enum RawNode {
         then: Object,
         otherwise: Object,
     },
-    UnwrapOr {
-        set: Object,
-        default: Object,
-    },
+    Unwrap(Object),
     Multiply {
         first: Object,
         second: Object,
@@ -347,13 +344,10 @@ impl RawNode {
         );
 
         xor_with!(
-            pair_values(
-                object,
-                knowledge,
-                Atom::NODE_UNWRAP_OR_SET.into(),
-                Atom::NODE_UNWRAP_OR_DEFAULT.into(),
-            )
-            .map(|(set, default)| Self::UnwrapOr { set, default })
+            knowledge
+                .query_construction_values(object, Atom::NODE_UNWRAP_SET.into())
+                .next_and_last()
+                .map(Self::Unwrap)
         );
 
         xor_with!(

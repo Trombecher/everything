@@ -138,10 +138,9 @@ pub fn capture(
             then: capture(then, additional_depth, evaluation_context).into(),
             otherwise: capture(otherwise, additional_depth, evaluation_context).into(),
         },
-        Node::UnwrapOr { set, default } => Node::UnwrapOr {
-            set: capture(set, additional_depth, evaluation_context).into(),
-            default: capture(default, additional_depth, evaluation_context).into(),
-        },
+        Node::Unwrap(set) => {
+            Node::Unwrap(capture(set, additional_depth, evaluation_context).into())
+        }
         Node::Multiply { first, second } => Node::Multiply {
             first: capture(first, additional_depth, evaluation_context).into(),
             second: capture(second, additional_depth, evaluation_context).into(),

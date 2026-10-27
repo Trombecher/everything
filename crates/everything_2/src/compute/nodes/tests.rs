@@ -72,10 +72,7 @@ fn node_round_trip() {
             then: Node::Literal(b.clone()).into(),
             otherwise: Node::Literal(c.clone()).into(),
         },
-        Node::UnwrapOr {
-            set: Node::Literal(a.clone()).into(),
-            default: Node::Literal(b.clone()).into(),
-        },
+        Node::Unwrap(Node::Literal(a.clone()).into()),
         Node::Multiply {
             first: Node::Literal(a.clone()).into(),
             second: Node::Literal(b.clone()).into(),

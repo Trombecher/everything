@@ -50,9 +50,7 @@ enum Task {
     },
     Call,
     PopContext,
-    PartialUnwrapOr {
-        default: Arc<Node>,
-    },
+    Unwrap,
     ConstructorOfConstruction,
     ValueOfConstruction,
     IsAtom,
@@ -168,10 +166,8 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(right)));
             tasks.push(Task::Evaluate(Arc::clone(left)));
         }
-        Node::UnwrapOr { set, default } => {
-            tasks.push(Task::PartialUnwrapOr {
-                default: Arc::clone(default),
-            });
+        Node::Unwrap(set) => {
+            tasks.push(Task::Unwrap);
             tasks.push(Task::Evaluate(Arc::clone(set)));
         }
         Node::Function { .. } => {
@@ -609,15 +605,15 @@ pub fn evaluate(
                     evaluated.push(UNDEFINED);
                 }
             },
-            Task::PartialUnwrapOr { default } => {
+            Task::Unwrap => {
                 // TODO: make this undefined-aware
                 let mut set_values = evaluated.pop().unwrap().iter(knowledge);
 
-                if let Some(inner) = set_values.next_and_last() {
-                    evaluated.push(LazyObject::Eager(inner));
+                evaluated.push(if let Some(inner) = set_values.next_and_last() {
+                    LazyObject::Eager(inner)
                 } else {
-                    tasks.push(Task::Evaluate(default));
-                }
+                    UNDEFINED
+                });
             }
         }
     }

@@ -91,10 +91,12 @@ pub enum Node {
         then: Arc<Node>,
         otherwise: Arc<Node>,
     },
-    UnwrapOr {
-        set: Arc<Node>,
-        default: Arc<Node>,
-    },
+
+    /// Evaluates to the only set element of the result
+    /// of the evaluation of the inner node, if the result
+    /// has exactly one element; otherwise it evaluates to
+    /// undefined.
+    Unwrap(Arc<Node>),
     Multiply {
         first: Arc<Node>,
         second: Arc<Node>,
@@ -219,10 +221,7 @@ impl Node {
                 then: Self::new(&then, knowledge)?.into(),
                 otherwise: Self::new(&otherwise, knowledge)?.into(),
             },
-            RawNode::UnwrapOr { set, default } => Self::UnwrapOr {
-                set: Self::new(&set, knowledge)?.into(),
-                default: Self::new(&default, knowledge)?.into(),
-            },
+            RawNode::Unwrap(set) => Self::Unwrap(Self::new(&set, knowledge)?.into()),
             RawNode::Multiply { first, second } => Self::Multiply {
                 first: Self::new(&first, knowledge)?.into(),
                 second: Self::new(&second, knowledge)?.into(),
@@ -463,12 +462,12 @@ impl Node {
                 Construction::new(Atom::NODE_IF_ELSE.into(), otherwise.into_object()).into(),
             ])
             .into(),
-            Self::UnwrapOr { set, default } => Set::new_move([
-                Construction::new(Atom::NODE_UNWRAP_OR_SET.into(), set.into_object()).into(),
-                Construction::new(Atom::NODE_UNWRAP_OR_DEFAULT.into(), default.into_object())
-                    .into(),
-            ])
-            .into(),
+            Self::Unwrap(set) => {
+                Set::new_move([
+                    Construction::new(Atom::NODE_UNWRAP_SET.into(), set.into_object()).into(),
+                ])
+                .into()
+            }
             Self::Multiply { first, second } => Set::new_move([
                 Construction::new(Atom::NODE_MULTIPLY_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_MULTIPLY_SECOND.into(), second.into_object()).into(),
@@ -511,7 +510,7 @@ impl Node {
             | Self::Every { .. }
             | Self::Any { .. }
             | Self::NewConstruction { .. }
-            | Self::UnwrapOr { .. } => 2,
+            | Self::Unwrap { .. } => 2,
 
             Self::If { .. } | Self::Fold { .. } => 3,
         }
