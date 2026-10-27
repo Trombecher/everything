@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::{assert_matches, ops::RangeInclusive};
 
 use num_bigint::BigInt;
 
@@ -82,4 +82,32 @@ fn add() {
 }
 
 #[test]
-fn unwrap() {}
+fn unwrap() {
+    let cases = [
+        (
+            Object::Set(Set::new_move([])),
+            Object::Atom(Atom::UNDEFINED),
+        ),
+        (
+            Object::Set(Set::new_move([Object::Atom(Atom(42))])),
+            Object::Atom(Atom(42)),
+        ),
+        (
+            Object::Set(Set::new_move([
+                Object::Atom(Atom(42)),
+                Object::Atom(Atom(56)),
+            ])),
+            Object::Atom(Atom::UNDEFINED),
+        ),
+    ];
+
+    for (source, unwrapped) in cases {
+        assert_matches!(
+            evaluate(
+                &Node::Unwrap(Node::Literal(source).into()),
+                &BASE
+            ),
+            LazyObject::Eager(object) if object == unwrapped
+        );
+    }
+}
