@@ -6,6 +6,10 @@ Generally, you need a knowledge to evaluate nodes/expressions in, because some n
 
 This chapter describes the intended model. Some nodes are declared but not fully implemented yet; those are noted below.
 
+## DISCLAIMER
+
+THIS FILE CONTAINS OUT OF DATE DOCUMENTATION AND NEEDS TO BE SYNCHED WITH THE IMPLEMENTATION DETAILS.
+
 ## Evaluation Strategy
 
 The following sections define node types and how they evaluated. Together, they define "evaluate" which is a function from an object to an object. Only if the input object matches exactly one node type, the node type's evaluation strategy; otherwise, we evaluate and capture the object recursively.
@@ -16,8 +20,8 @@ TODO
 
 ## Truthiness
 
-- An object is _falsy_ iff it is the empty set `{}`.
-- An object is _truthy_ iff it is not falsy.
+- An object is _truthy_ iff it is equal to `true`.
+- An object is _falsy_ iff it is equal to `false`.
 
 ## Functions
 

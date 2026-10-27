@@ -1,7 +1,5 @@
 # Chapter 1 - Objects
 
-_This is version two of the Everything object model. It solves a lot of issues with the first one, at the expense of adding another object type._
-
 ## Things
 
 Living beings talk and think about things. These things are their domain of discourse.
@@ -23,7 +21,7 @@ An _atom_ is an object whose semantic meaning is atomic: it is inherently uncomp
 
 Atom ids are global identifiers and it is STRONGLY recommended to use some combination of time and randomness (like ULIDs) to generate them. This ensures globally unique ids.
 
-Throughout these docs, aliases are used to represent the atoms instead of the raw values. These encode the semantic meaning into text, making it easier to work with them. However, these are only (unique) text aliases local to the context they are used within. The real integer values of globally used atom aliases can be looked up in [`crates/everything_2/src/model/atoms.rs`](../../crates/everything_2/src/model/atoms.rs).
+Throughout these docs, aliases are used to represent the atoms instead of the raw values. These encode the semantic meaning into text, making it easier to work with them. However, these are only (unique) text aliases local to the context they are used within. The real integer values of globally used atom aliases can be looked up in [`crates/everything_2/src/model/atoms.rs`](../../crates/everything/src/model/atoms.rs).
 
 Under the model assumption, atoms with different ids (different atoms) represent different things (!).
 
