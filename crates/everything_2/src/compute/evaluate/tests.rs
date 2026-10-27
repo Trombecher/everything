@@ -63,3 +63,23 @@ fn and() {
         );
     }
 }
+
+#[test]
+fn add() {
+    const RANGE: RangeInclusive<i128> = -10..=20;
+
+    for (a, b) in product_iterator(RANGE, RANGE) {
+        assert_eq!(
+            evaluate(
+                &Arc::new(Node::Add {
+                    first: Node::Literal(BigInt::from(a).into()).into(),
+                    second: Node::Literal(BigInt::from(b).into()).into(),
+                }),
+                &BASE,
+                &mut EvaluationContext::default(),
+            )
+            .into_object(),
+            BigInt::from(a + b).into()
+        );
+    }
+}
