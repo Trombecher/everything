@@ -293,11 +293,11 @@ fn resolve_evaluate_node(
 /// TODO
 #[allow(clippy::too_many_lines)]
 pub fn evaluate(
-    node: &Arc<Node>,
+    node: &Node,
     knowledge: &Knowledge,
     evaluation_context: &mut EvaluationContext,
 ) -> LazyObject {
-    let mut tasks = vec![Task::Evaluate(Arc::clone(node))];
+    let mut tasks = vec![Task::Evaluate(Arc::new(node.clone()))];
     let mut evaluated = Vec::<LazyObject>::new();
 
     while let Some(task) = tasks.pop() {

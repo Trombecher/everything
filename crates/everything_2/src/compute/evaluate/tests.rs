@@ -20,10 +20,10 @@ fn less() {
     for (a, b) in product_iterator(RANGE, RANGE) {
         assert_eq!(
             evaluate(
-                &Arc::new(Node::Less {
+                &Node::Less {
                     first: Node::Literal(BigInt::from(a).into()).into(),
                     second: Node::Literal(BigInt::from(b).into()).into(),
-                }),
+                },
                 &BASE,
                 &mut EvaluationContext::default(),
             )
@@ -44,10 +44,10 @@ fn and() {
     for (first, second) in product_iterator(cases.iter().cloned(), cases.iter().cloned()) {
         assert_eq!(
             evaluate(
-                &Arc::new(Node::And {
+                &Node::And {
                     first: Node::Literal(first.clone()).into(),
                     second: Node::Literal(second.clone()).into()
-                }),
+                },
                 &BASE,
                 &mut EvaluationContext::default()
             )
@@ -71,10 +71,10 @@ fn add() {
     for (a, b) in product_iterator(RANGE, RANGE) {
         assert_eq!(
             evaluate(
-                &Arc::new(Node::Add {
+                &Node::Add {
                     first: Node::Literal(BigInt::from(a).into()).into(),
                     second: Node::Literal(BigInt::from(b).into()).into(),
-                }),
+                },
                 &BASE,
                 &mut EvaluationContext::default(),
             )
@@ -83,3 +83,6 @@ fn add() {
         );
     }
 }
+
+#[test]
+fn unwrap() {}

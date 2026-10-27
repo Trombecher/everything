@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     compute::{self, EvaluationContext, InvalidNodeError, MaybeUndefined, Node},
     knowledge::Knowledge,
@@ -178,10 +176,10 @@ impl LazyObject {
                 }
 
                 compute::evaluate(
-                    &Arc::new(Node::Call {
+                    &Node::Call {
                         callee: filter_function.clone().into(),
                         with: Node::Literal(element.clone()).into(),
-                    }),
+                    },
                     knowledge,
                     &mut EvaluationContext::default(),
                 )
@@ -264,10 +262,10 @@ impl Iterator for LazyObjectIter {
                 knowledge,
             } => target.find(|object| {
                 compute::evaluate(
-                    &Arc::new(Node::Call {
+                    &Node::Call {
                         callee: filter_function.clone().into(),
                         with: Node::Literal(object.clone()).into(),
-                    }),
+                    },
                     knowledge,
                     &mut EvaluationContext::default(),
                 )
@@ -280,10 +278,10 @@ impl Iterator for LazyObjectIter {
                 knowledge,
             } => target.next().map(|object| {
                 compute::evaluate(
-                    &Arc::new(Node::Call {
+                    &Node::Call {
                         callee: mapper_function.clone().into(),
                         with: Node::Literal(object).into(),
-                    }),
+                    },
                     knowledge,
                     &mut EvaluationContext::default(),
                 )
