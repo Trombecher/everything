@@ -335,8 +335,7 @@ pub fn evaluate(
                 let parameter_value = evaluated.pop().unwrap();
 
                 if !callee_lazy_object.is_undefined()
-                    && let Ok(Node::Function { body }) =
-                        Node::new(&callee_lazy_object.into_object(), knowledge)
+                    && let Ok(Node::Function { body }) = callee_lazy_object.into_node(knowledge)
                 {
                     tasks.push(Task::Evaluate(Arc::clone(&body)));
 
