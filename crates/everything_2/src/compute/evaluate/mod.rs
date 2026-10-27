@@ -607,13 +607,17 @@ pub fn evaluate(
             },
             Task::Unwrap => {
                 // TODO: make this undefined-aware
-                let mut set_values = evaluated.pop().unwrap().iter(knowledge);
+                let inner = evaluated.pop().unwrap();
 
-                evaluated.push(if let Some(inner) = set_values.next_and_last() {
-                    LazyObject::Eager(inner)
-                } else {
-                    UNDEFINED
-                });
+                evaluated.push(
+                    if !inner.is_undefined()
+                        && let Some(inner) = inner.iter(knowledge).next_and_last()
+                    {
+                        LazyObject::Eager(inner)
+                    } else {
+                        UNDEFINED
+                    },
+                );
             }
         }
     }
