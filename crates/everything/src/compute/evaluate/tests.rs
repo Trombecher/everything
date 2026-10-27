@@ -25,7 +25,6 @@ fn less() {
                     second: Node::Literal(BigInt::from(b).into()).into(),
                 },
                 &BASE,
-                &mut EvaluationContext::default(),
             )
             .into_object(),
             (a < b).into()
@@ -49,7 +48,6 @@ fn and() {
                     second: Node::Literal(second.clone()).into()
                 },
                 &BASE,
-                &mut EvaluationContext::default()
             )
             .into_object(),
             match first {
@@ -76,7 +74,6 @@ fn add() {
                     second: Node::Literal(BigInt::from(b).into()).into(),
                 },
                 &BASE,
-                &mut EvaluationContext::default(),
             )
             .into_object(),
             BigInt::from(a + b).into()

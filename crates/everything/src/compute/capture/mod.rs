@@ -1,13 +1,12 @@
 #[cfg(test)]
 mod tests;
 
-use std::sync::Arc;
-
 use crate::{
     compute::{EvaluationContext, MaybeUndefined, Node},
     model::Atom,
 };
 
+/// Captures the evaluation context in the node tree.
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn capture(
@@ -21,9 +20,6 @@ pub fn capture(
     }
 
     match node {
-        Node::Function { body } => Node::Function {
-            body: Arc::new(capture(body, additional_depth + 1, evaluation_context)),
-        },
         Node::Parameter { depth } => {
             if let Some(offset_depth) = (*depth as usize).checked_sub(additional_depth) {
                 // The min additional depth is 1.
@@ -45,11 +41,6 @@ pub fn capture(
                 node.clone()
             }
         }
-        Node::Literal(object) => Node::Literal(object.clone()),
-        Node::And { first, second } => Node::And {
-            first: Arc::new(capture(first, additional_depth, evaluation_context)),
-            second: Arc::new(capture(second, additional_depth, evaluation_context)),
-        },
         Node::FunctionSelf { depth } => {
             if let Some(offset_depth) = (*depth as usize).checked_sub(additional_depth) {
                 // Same as for parameters: the function referenced by this
@@ -71,6 +62,14 @@ pub fn capture(
                 node.clone()
             }
         }
+        Node::Function { body } => Node::Function {
+            body: capture(body, additional_depth + 1, evaluation_context).into(),
+        },
+        Node::Literal(object) => Node::Literal(object.clone()),
+        Node::And { first, second } => Node::And {
+            first: capture(first, additional_depth, evaluation_context).into(),
+            second: capture(second, additional_depth, evaluation_context).into(),
+        },
         Node::Count(inner) => {
             Node::Count(capture(inner, additional_depth, evaluation_context).into())
         }

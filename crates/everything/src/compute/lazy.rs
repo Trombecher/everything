@@ -1,5 +1,5 @@
 use crate::{
-    compute::{self, EvaluationContext, InvalidNodeError, MaybeUndefined, Node},
+    compute::{self, InvalidNodeError, MaybeUndefined, Node},
     knowledge::Knowledge,
     model::{Atom, Object, SetApi, SetValues},
 };
@@ -181,7 +181,6 @@ impl LazyObject {
                         with: Node::Literal(element.clone()).into(),
                     },
                     knowledge,
-                    &mut EvaluationContext::default(),
                 )
                 .truthy()
                     == MaybeUndefined::Defined(true)
@@ -267,7 +266,6 @@ impl Iterator for LazyObjectIter {
                         with: Node::Literal(object.clone()).into(),
                     },
                     knowledge,
-                    &mut EvaluationContext::default(),
                 )
                 .truthy()
                     == MaybeUndefined::Defined(true)
@@ -283,7 +281,6 @@ impl Iterator for LazyObjectIter {
                         with: Node::Literal(object).into(),
                     },
                     knowledge,
-                    &mut EvaluationContext::default(),
                 )
                 .into_object()
             }),

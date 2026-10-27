@@ -1,5 +1,8 @@
+mod context;
 #[cfg(test)]
 mod tests;
+
+pub use context::*;
 
 use std::sync::Arc;
 
@@ -56,68 +59,6 @@ enum Task {
     IsAtom,
     IsConstruction,
     IsSet,
-}
-
-/// An evaluation context is a stack of function contexts,
-/// each holding a function and the parameter value from
-/// call.
-///
-/// Instead of capturing every variable on each call,
-/// the evaluation engine can just lookup parameter values
-/// from this Composite.
-#[derive(Debug, Clone, Default)]
-pub struct EvaluationContext {
-    stack: Vec<FunctionContext>,
-}
-
-impl EvaluationContext {
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.stack.is_empty()
-    }
-
-    #[must_use]
-    #[allow(clippy::missing_panics_doc)] // function should not panic (!)
-    pub fn function_context(&self, relative_depth: usize) -> Option<&FunctionContext> {
-        self.stack
-            .len()
-            .checked_sub(1 + relative_depth)
-            .map(|index| self.stack.get(index).unwrap())
-    }
-
-    /// Gets the parameter value of the function context at the specified relative
-    /// depth, or returns undefined if the index is out of bounds.
-    #[must_use]
-    pub fn parameter_value(&self, relative_depth: usize) -> MaybeUndefined<LazyObject> {
-        self.function_context(relative_depth)
-            .map(|context| context.parameter.clone())
-            .into()
-    }
-
-    /// Gets the function itself of the function context at the specified relative
-    /// depth, or returns undefined if the index is out of bounds.
-    #[must_use]
-    pub fn function_self(&self, relative_depth: usize) -> MaybeUndefined<Node> {
-        self.function_context(relative_depth)
-            .map(|context| context.function.clone())
-            .into()
-    }
-
-    /// Pushes a new function context onto the stack.
-    pub fn push(&mut self, fc: FunctionContext) {
-        self.stack.push(fc);
-    }
-
-    /// Pops the top-most function context off the stack.
-    pub fn pop(&mut self) {
-        self.stack.pop();
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct FunctionContext {
-    pub function: Node,
-    pub parameter: LazyObject,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -290,20 +231,18 @@ fn resolve_evaluate_node(
 ///
 /// # Panics
 ///
-/// TODO
+/// On implementation bugs.
 #[allow(clippy::too_many_lines)]
-pub fn evaluate(
-    node: &Node,
-    knowledge: &Knowledge,
-    evaluation_context: &mut EvaluationContext,
-) -> LazyObject {
+#[must_use]
+pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
+    let mut evaluation_context = EvaluationContext::default();
     let mut tasks = vec![Task::Evaluate(Arc::new(node.clone()))];
     let mut evaluated = Vec::<LazyObject>::new();
 
     while let Some(task) = tasks.pop() {
         match task {
             Task::Evaluate(node) => {
-                resolve_evaluate_node(&node, evaluation_context, &mut tasks, &mut evaluated);
+                resolve_evaluate_node(&node, &mut evaluation_context, &mut tasks, &mut evaluated);
             }
             Task::PopContext => {
                 evaluation_context.pop();
@@ -337,6 +276,7 @@ pub fn evaluate(
                 if !callee_lazy_object.is_undefined()
                     && let Ok(Node::Function { body }) = callee_lazy_object.into_node(knowledge)
                 {
+                    tasks.push(Task::PopContext);
                     tasks.push(Task::Evaluate(Arc::clone(&body)));
 
                     evaluation_context.push(FunctionContext {
@@ -481,24 +421,27 @@ pub fn evaluate(
                 ));
             }
             Task::Union => {
-                // TODO: make this undefined-aware
                 let first = evaluated.pop().unwrap();
                 let second = evaluated.pop().unwrap();
 
-                evaluated.push(LazyObject::Union {
-                    first: Box::new(second),
-                    second: Box::new(first),
+                evaluated.push(if first.is_undefined() || second.is_undefined() {
+                    UNDEFINED
+                } else {
+                    LazyObject::Union {
+                        first: Box::new(second),
+                        second: Box::new(first),
+                    }
                 });
             }
             Task::Map => {
                 // TODO: make this undefined-aware
-                let mapper_object = evaluated.pop().unwrap().into_object();
+                let mapper_function_object = evaluated.pop().unwrap().into_object();
+                let set = evaluated.pop().unwrap();
 
-                if let Ok(mapper_function @ Node::Function { .. }) =
-                    Node::new(&mapper_object, knowledge)
+                if !set.is_undefined()
+                    && let Ok(mapper_function @ Node::Function { .. }) =
+                        Node::new(&mapper_function_object, knowledge)
                 {
-                    let set = evaluated.pop().unwrap();
-
                     evaluated.push(LazyObject::Map {
                         target: Box::new(set),
                         mapper_function,
@@ -508,14 +451,13 @@ pub fn evaluate(
                 }
             }
             Task::Filter => {
-                // TODO: make this undefined-aware
-                let filter_object = evaluated.pop().unwrap().into_object();
+                let filter_function_object = evaluated.pop().unwrap().into_object();
+                let set = evaluated.pop().unwrap();
 
-                if let Ok(filter_function @ Node::Function { .. }) =
-                    Node::new(&filter_object, knowledge)
+                if !set.is_undefined()
+                    && let Ok(filter_function @ Node::Function { .. }) =
+                        Node::new(&filter_function_object, knowledge)
                 {
-                    let set = evaluated.pop().unwrap();
-
                     evaluated.push(LazyObject::Filter {
                         target: Box::new(set),
                         filter_function,
@@ -622,8 +564,13 @@ pub fn evaluate(
     }
 
     let last = evaluated.pop().unwrap();
-    if evaluated.pop().is_some() {
-        unreachable!()
+
+    if let Some(top) = evaluated.last() {
+        unreachable!("internal bug: there is still {top:?} on the stack")
+    }
+
+    if let Some(top) = evaluation_context.last() {
+        unreachable!("internal bug: there is still {top:?} on the evaluation context stack")
     }
 
     last

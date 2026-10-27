@@ -1,3 +1,5 @@
+//! This module handles node kind detection and first-level parsing.
+
 use crate::{
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
