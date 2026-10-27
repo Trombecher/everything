@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     compute::{self, EvaluationContext, InvalidNodeError, MaybeUndefined, Node},
     knowledge::Knowledge,
-    model::{Object, SetApi, SetValues},
+    model::{Atom, Object, SetApi, SetValues},
 };
 
 #[derive(Clone, Debug)]
@@ -57,6 +57,11 @@ impl From<Node> for LazyObject {
 }
 
 impl LazyObject {
+    #[must_use]
+    pub fn is_undefined(&self) -> bool {
+        matches!(self, Self::Eager(Object::Atom(Atom::UNDEFINED)))
+    }
+
     /// Tries to convert `self` into a node.
     ///
     /// # Errors

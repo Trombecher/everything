@@ -3,6 +3,8 @@ mod tests;
 
 use std::sync::Arc;
 
+use num_bigint::BigInt;
+
 use crate::{
     compute::{LazyObject, MaybeUndefined, Node, capture, operations},
     iter::IteratorExtNextAndLast,
@@ -12,6 +14,7 @@ use crate::{
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum Task {
     Evaluate(Arc<Node>),
@@ -283,48 +286,7 @@ fn resolve_evaluate_node(
                 otherwise: Arc::clone(otherwise),
             });
             tasks.push(Task::Evaluate(Arc::clone(condition)));
-        } /*
-          TODO: validate dynamic object creation
-          None if let Object::Composite(Composite::Any(any_composite)) = object => {
-              let result = any_composite
-              .properties()
-              .map(|property| {
-                  // TODO: DEBATE THIS BS
-                  debug!("eval on property {property:?}");
-
-                  let value =
-                      property.value.evaluate(knowledge, context).into_object();
-
-                  let result = if property.value == value {
-                      Ok(())
-                  } else {
-                      value.is_valid(knowledge, false)
-                  };
-
-                  match result {
-                      Ok(()) => Ok(Property {
-                          tag: property.tag.clone(),
-                          value,
-                      }),
-                      // TODO: debate box
-                      Err(error) => Err((value, Box::new(error))),
-                  }
-              })
-              .transpose_into_fallible()
-              .collect::<Vec<_>>()
-              .map_or_else(|(o, error)| {
-                  warn!(
-                      "invalid object {o:?} with error {error:?}; replacing with {{}}"
-                  );
-
-                  LazyObject::Object(Object::Composite(Composite::Empty))
-              }, |mut properties| {
-                  Object::Composite(Composite::new(&mut properties)).into()
-              });
-
-              evaluated.push(result);
-          }
-           */
+        }
     }
 }
 
@@ -360,6 +322,7 @@ pub fn evaluate(
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(
+                    // This function is undefined-aware.
                     operations::constructor_of_construction(object).into(),
                 ));
             }
@@ -367,15 +330,18 @@ pub fn evaluate(
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(
+                    // This function is undefined-aware.
                     operations::value_of_construction(object).into(),
                 ));
             }
             Task::Call => {
-                let callee_object = evaluated.pop().unwrap().into_object();
+                let callee_lazy_object = evaluated.pop().unwrap();
+                let parameter_value = evaluated.pop().unwrap();
 
-                if let Ok(Node::Function { body }) = Node::new(&callee_object, knowledge) {
-                    let parameter_value = evaluated.pop().unwrap();
-
+                if !callee_lazy_object.is_undefined()
+                    && let Ok(Node::Function { body }) =
+                        Node::new(&callee_lazy_object.into_object(), knowledge)
+                {
                     tasks.push(Task::Evaluate(Arc::clone(&body)));
 
                     evaluation_context.push(FunctionContext {
@@ -399,18 +365,17 @@ pub fn evaluate(
                     }
                 }
             }
-            Task::Count => todo!("task count"),
-            /*
             Task::Count => {
                 let target = evaluated.pop().unwrap();
 
-                evaluated.push(
-                    Object::new_integer(target.set_values(knowledge).correct_count() as i128)
-                        .into(),
-                );
+                evaluated.push(if target.is_undefined() {
+                    UNDEFINED
+                } else {
+                    Object::new_integer(BigInt::from(target.size(knowledge))).into()
+                });
             }
-             */
             Task::ToBoolean => {
+                // TODO: make this undefined-aware.
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(
@@ -419,13 +384,22 @@ pub fn evaluate(
             }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();
+
                 evaluated.push(LazyObject::Eager(object.truthy().into()));
             }
             Task::Equal => {
-                let right = evaluated.pop().unwrap().into_object();
-                let left = evaluated.pop().unwrap().into_object();
+                let right_lazy = evaluated.pop().unwrap();
+                let left_lazy = evaluated.pop().unwrap();
 
-                evaluated.push(LazyObject::Eager((left == right).into()));
+                if !right_lazy.is_undefined() && !left_lazy.is_undefined() {
+                    let left = left_lazy.into_object();
+                    let right = right_lazy.into_object();
+
+                    // TODO: maybe optimize this comparison (?)
+                    evaluated.push(LazyObject::Eager((left == right).into()));
+                } else {
+                    evaluated.push(UNDEFINED);
+                }
             }
             Task::PartialOr { second } => match evaluated.pop().unwrap().truthy() {
                 MaybeUndefined::Defined(false) => {
@@ -455,27 +429,37 @@ pub fn evaluate(
             Task::IsAtom => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(LazyObject::Eager(
-                    matches!(object, LazyObject::Eager(Object::Atom(_))).into(),
-                ));
+                evaluated.push(if object.is_undefined() {
+                    UNDEFINED
+                } else {
+                    LazyObject::Eager(matches!(object, LazyObject::Eager(Object::Atom(_))).into())
+                });
             }
             Task::IsConstruction => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(LazyObject::Eager(
-                    matches!(object, LazyObject::Eager(Object::Construction(_))).into(),
-                ));
+                evaluated.push(if object.is_undefined() {
+                    UNDEFINED
+                } else {
+                    LazyObject::Eager(
+                        matches!(object, LazyObject::Eager(Object::Construction(_))).into(),
+                    )
+                });
             }
             Task::IsSet => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(LazyObject::Eager(
-                    (!matches!(
-                        object,
-                        LazyObject::Eager(Object::Atom(_) | Object::Construction(_))
-                    ))
-                    .into(),
-                ));
+                evaluated.push(if object.is_undefined() {
+                    UNDEFINED
+                } else {
+                    LazyObject::Eager(
+                        (!matches!(
+                            object,
+                            LazyObject::Eager(Object::Atom(_) | Object::Construction(_))
+                        ))
+                        .into(),
+                    )
+                });
             }
             Task::Not => match evaluated.pop().unwrap().truthy() {
                 MaybeUndefined::Defined(truth) => {
@@ -502,6 +486,7 @@ pub fn evaluate(
                 ));
             }
             Task::Union => {
+                // TODO: make this undefined-aware
                 let first = evaluated.pop().unwrap();
                 let second = evaluated.pop().unwrap();
 
@@ -511,6 +496,7 @@ pub fn evaluate(
                 });
             }
             Task::Map => {
+                // TODO: make this undefined-aware
                 let mapper_object = evaluated.pop().unwrap().into_object();
 
                 if let Ok(mapper_function @ Node::Function { .. }) =
@@ -527,6 +513,7 @@ pub fn evaluate(
                 }
             }
             Task::Filter => {
+                // TODO: make this undefined-aware
                 let filter_object = evaluated.pop().unwrap().into_object();
 
                 if let Ok(filter_function @ Node::Function { .. }) =
@@ -607,6 +594,7 @@ pub fn evaluate(
             }
              */
             Task::Less => {
+                // TODO: make this undefined-aware
                 let second = evaluated.pop().unwrap().into_object();
                 let first = evaluated.pop().unwrap().into_object();
 
@@ -622,6 +610,7 @@ pub fn evaluate(
                 }
             },
             Task::PartialUnwrapOr { default } => {
+                // TODO: make this undefined-aware
                 let mut set_values = evaluated.pop().unwrap().iter(knowledge);
 
                 if let Some(inner) = set_values.next_and_last() {
