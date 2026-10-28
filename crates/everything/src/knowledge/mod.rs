@@ -7,6 +7,7 @@ use imbl::OrdMap;
 
 use crate::model::{Atom, Object, Set, SetApi};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Statement {
     pub atom: Atom,
     pub is_object: Object,
@@ -17,7 +18,20 @@ pub struct Knowledge {
     pub map: OrdMap<Atom, Set>,
 }
 
+impl Default for Knowledge {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
 impl Knowledge {
+    #[must_use]
+    pub fn empty() -> Self {
+        Self {
+            map: OrdMap::default(),
+        }
+    }
+
     #[must_use]
     pub fn query_atoms_with_property(&self, property: Object) -> QueryAtomsWithProperty {
         QueryAtomsWithProperty {
