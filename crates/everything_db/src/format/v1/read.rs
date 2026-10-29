@@ -1,6 +1,7 @@
 use everything::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, CharacterSet, Construction, Object, Set, SetApi, TextSet},
+    model::{Atom, ByteSet, CharacterSet, Construction, Object, Set, SetApi, TextSet},
+    num_bigint::{BigInt, BigUint, Sign},
 };
 use scursor::ReadCursor;
 use zerocopy::TryFromBytes;
@@ -11,6 +12,9 @@ use crate::format::{
     u64_to_usize,
     v1::{MappedKnowledgeBaseContent, ObjectType, StatementChangeKind},
 };
+
+#[cfg(test)]
+mod tests;
 
 pub fn parse_knowledge(bytes: &[u8]) -> Result<Knowledge, ParseError> {
     let file: &MappedKnowledgeBaseContent = MappedKnowledgeBaseContent::try_ref_from_bytes(bytes)
@@ -51,7 +55,17 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
 
     match object_type {
         ObjectType::Atom => Ok(Object::Atom(parse_atom(cursor)?)),
-        ObjectType::Integer => todo!(),
+        ObjectType::Zero => Ok(Object::Atom(Atom::ZERO)),
+        ObjectType::PositiveInteger => {
+            let uint = parse_unsigned_non_zero_integer(cursor)?;
+
+            Ok(Object::new_integer(BigInt::from_biguint(Sign::Plus, uint)))
+        }
+        ObjectType::NegativeInteger => {
+            let uint = parse_unsigned_non_zero_integer(cursor)?;
+
+            Ok(Object::new_integer(BigInt::from_biguint(Sign::Minus, uint)))
+        }
         ObjectType::Construction => Ok(Object::Construction(parse_construction(cursor)?)),
         ObjectType::Character1 => {
             let byte = cursor
@@ -112,7 +126,25 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
         ObjectType::Text => Ok(Object::Set(Set::Text(parse_text(cursor)?))),
         ObjectType::Binary => todo!(),
         ObjectType::Set => Ok(Object::Set(parse_set(cursor)?)),
-        ObjectType::Byte => todo!(),
+        ObjectType::Byte => Ok(Object::Set(Set::Byte(parse_byte(cursor)?))),
+    }
+}
+
+fn parse_unsigned_non_zero_integer(cursor: &mut ReadCursor) -> Result<BigUint, ParseError> {
+    let length = cursor
+        .read_leb128_u64()
+        .map_err(|_| ParseError::InvalidIntegerLength)?;
+
+    let bytes = cursor
+        .read_bytes(u64_to_usize(length))
+        .map_err(|_| ParseError::ContentTooShortForInteger)?;
+
+    let uint = BigUint::from_bytes_le(bytes);
+
+    if uint == BigUint::ZERO {
+        Err(ParseError::InvalidIntegerEncodingFound0)
+    } else {
+        Ok(uint)
     }
 }
 
@@ -163,6 +195,15 @@ fn parse_text(cursor: &mut ReadCursor) -> Result<TextSet, ParseError> {
 
     // A text set is never empty (see `TextSet::new`).
     TextSet::new(string.into()).ok_or(ParseError::EmptyText)
+}
+
+/// Parses a byte set: a single byte holding the eight bits of the set.
+fn parse_byte(cursor: &mut ReadCursor) -> Result<ByteSet, ParseError> {
+    let byte = cursor
+        .read_u8()
+        .map_err(|_| ParseError::ContentIsTooShortForObject)?;
+
+    Ok(ByteSet(byte))
 }
 
 fn collect_base(base: &[u8], knowledge: &mut Knowledge) -> Result<(), ParseError> {

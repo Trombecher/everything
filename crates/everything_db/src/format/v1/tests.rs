@@ -1,6 +1,6 @@
 use everything::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, CharacterSet, Construction, Object, Set, TextSet},
+    model::{Atom, ByteSet, CharacterSet, Construction, Object, Set, TextSet},
 };
 
 use crate::{
@@ -8,7 +8,9 @@ use crate::{
     format::{FileFormatApi, FileFormatApiContract, ParseError},
 };
 
-use super::{FileFormatApiV1, OBJECT_TYPE_ATOM, OBJECT_TYPE_CONSTRUCTION, OBJECT_TYPE_TEXT};
+use super::{
+    FileFormatApiV1, OBJECT_TYPE_ATOM, OBJECT_TYPE_BYTE, OBJECT_TYPE_CONSTRUCTION, OBJECT_TYPE_TEXT,
+};
 
 fn write_and_read(knowledge: &Knowledge) -> Knowledge {
     let mut bytes = Vec::new();
@@ -84,12 +86,27 @@ fn round_trips_nested_text_sets() {
 
         knowledge.add_statement(statement(
             1,
-            Object::Set(Set::Text(TextSet::new(text.into()).expect("the text is not empty"))),
+            Object::Set(Set::Text(
+                TextSet::new(text.into()).expect("the text is not empty"),
+            )),
         ));
 
         let parsed = write_and_read(&knowledge);
 
         assert_eq!(parsed.map, knowledge.map, "text {text:?}");
+    }
+}
+
+#[test]
+fn round_trips_nested_byte_sets() {
+    for byte in [0x00, 0x2A, 0xFF] {
+        let mut knowledge = Knowledge::empty();
+
+        knowledge.add_statement(statement(1, Object::Set(Set::Byte(ByteSet(byte)))));
+
+        let parsed = write_and_read(&knowledge);
+
+        assert_eq!(parsed.map, knowledge.map, "byte {byte:#04X}");
     }
 }
 
@@ -191,6 +208,29 @@ fn parse_error(payload: &[u8]) -> ParseError {
 }
 
 #[test]
+fn parses_bytes() {
+    let payload = v1_payload_with_object(&[OBJECT_TYPE_BYTE, 0x2A]);
+
+    let knowledge =
+        FileFormatApiV1::read_knowledge(&payload).expect("the payload must be parseable");
+
+    assert_eq!(
+        knowledge.map.get(&Atom(1)),
+        Some(&Set::from([Object::Set(Set::Byte(ByteSet(0x2A)))]))
+    );
+}
+
+#[test]
+fn rejects_truncated_byte() {
+    let payload = v1_payload_with_object(&[OBJECT_TYPE_BYTE]);
+
+    assert_eq!(
+        parse_error(&payload),
+        ParseError::ContentIsTooShortForObject
+    );
+}
+
+#[test]
 fn rejects_empty_text() {
     let payload = v1_payload_with_object(&[OBJECT_TYPE_TEXT, 0]);
 
@@ -210,10 +250,7 @@ fn rejects_truncated_text() {
     // The length claims five bytes, but only one follows.
     let payload = v1_payload_with_object(&[OBJECT_TYPE_TEXT, 5, b'a']);
 
-    assert_eq!(
-        parse_error(&payload),
-        ParseError::ContentIsTooShortForText
-    );
+    assert_eq!(parse_error(&payload), ParseError::ContentIsTooShortForText);
 }
 
 #[test]

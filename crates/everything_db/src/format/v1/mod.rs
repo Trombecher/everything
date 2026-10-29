@@ -16,7 +16,7 @@ const STATEMENT_CHANGE_ADD: u8 = 1;
 const STATEMENT_CHANGE_REMOVE: u8 = 2;
 
 const OBJECT_TYPE_ATOM: u8 = 1;
-const OBJECT_TYPE_INTEGER: u8 = 2;
+const OBJECT_TYPE_ZERO: u8 = 2;
 const OBJECT_TYPE_CONSTRUCTION: u8 = 3;
 const OBJECT_TYPE_CHARACTER_1: u8 = 4;
 const OBJECT_TYPE_CHARACTER_2: u8 = 5;
@@ -26,6 +26,8 @@ const OBJECT_TYPE_TEXT: u8 = 8;
 const OBJECT_TYPE_BINARY: u8 = 9;
 const OBJECT_TYPE_SET: u8 = 10;
 const OBJECT_TYPE_BYTE: u8 = 11;
+const OBJECT_TYPE_POSITIVE_INTEGER: u8 = 12;
+const OBJECT_TYPE_NEGATIVE_INTEGER: u8 = 13;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TryFromPrimitive)]
 #[repr(u8)]
@@ -38,7 +40,9 @@ enum StatementChangeKind {
 #[repr(u8)]
 enum ObjectType {
     Atom = OBJECT_TYPE_ATOM,
-    Integer = OBJECT_TYPE_INTEGER,
+    Zero = OBJECT_TYPE_ZERO,
+    PositiveInteger = OBJECT_TYPE_POSITIVE_INTEGER,
+    NegativeInteger = OBJECT_TYPE_NEGATIVE_INTEGER,
     Construction = OBJECT_TYPE_CONSTRUCTION,
     Character1 = OBJECT_TYPE_CHARACTER_1,
     Character2 = OBJECT_TYPE_CHARACTER_2,

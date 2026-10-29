@@ -42,6 +42,12 @@ pub enum ParseError {
     ContentIsTooShortForStatementChange,
     #[error("expected statement change byte, found {found_byte:02X}")]
     InvalidStatementChange { found_byte: u8 },
+    #[error("invalid integer length")]
+    InvalidIntegerLength,
+    #[error("content too short for integer")]
+    ContentTooShortForInteger,
+    #[error("invalid integer encoding, found 0")]
+    InvalidIntegerEncodingFound0,
 }
 
 pub const MAGIC_BYTES: [u8; 28] = [
