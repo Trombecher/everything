@@ -36,7 +36,11 @@ pub enum ParseError {
     InvalidStatementChange { found_byte: u8 },
 }
 
-pub const MAGIC_BYTES: [u8; 28] = *b"EVERYTHING KNOWLEDGE BASE   ";
+pub const MAGIC_BYTES: [u8; 28] = [
+    // U128 LE everything file format atom
+    189, 225, 166, 125, 187, 246, 207, 98, 45, 183, 146, 233, 93, 133, 161, 1, b'E', b'V', b'E',
+    b'R', b'Y', b'T', b'H', b'I', b'N', b'G', b'K', b'B',
+];
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TryFromPrimitive)]
 #[repr(u32)]
