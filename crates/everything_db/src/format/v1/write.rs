@@ -1,6 +1,7 @@
 use everything::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, Object, Set, SetApi, TextSet},
+    model::{Atom, NonZeroBigInt, Object, Set, SetApi, TextSet},
+    num_bigint::Sign,
 };
 
 use crate::{
@@ -10,7 +11,8 @@ use crate::{
         v1::{
             OBJECT_TYPE_ATOM, OBJECT_TYPE_BYTE, OBJECT_TYPE_CHARACTER_1, OBJECT_TYPE_CHARACTER_2,
             OBJECT_TYPE_CHARACTER_3, OBJECT_TYPE_CHARACTER_4, OBJECT_TYPE_CONSTRUCTION,
-            OBJECT_TYPE_SET, OBJECT_TYPE_TEXT, STATEMENT_CHANGE_ADD, STATEMENT_CHANGE_REMOVE,
+            OBJECT_TYPE_NEGATIVE_INTEGER, OBJECT_TYPE_POSITIVE_INTEGER, OBJECT_TYPE_SET,
+            OBJECT_TYPE_TEXT, OBJECT_TYPE_ZERO, STATEMENT_CHANGE_ADD, STATEMENT_CHANGE_REMOVE,
         },
     },
 };
@@ -71,6 +73,7 @@ fn write_statement(statement: &Statement, out: &mut Vec<u8>) {
 
 fn write_object(object: &Object, out: &mut Vec<u8>) {
     match object {
+        Object::Atom(Atom::ZERO) => out.push(OBJECT_TYPE_ZERO),
         Object::Atom(atom) => {
             out.push(OBJECT_TYPE_ATOM);
             write_atom(*atom, out);
@@ -87,10 +90,7 @@ fn write_object(object: &Object, out: &mut Vec<u8>) {
 /// Writes a set that occurs as an object (a nested set).
 fn write_set_object(set: &Set, out: &mut Vec<u8>) {
     match set {
-        // The payload of an integer object is not defined by the version
-        // 1 reader yet (it is a `todo!` there), so it cannot be inferred
-        // from it either.
-        Set::Integer(_) => todo!("write the payload of an integer object"),
+        Set::Integer(integer) => write_integer(&integer.representing, out),
         Set::Character(character) => write_character(character.representing, out),
         Set::Byte(byte) => {
             out.push(OBJECT_TYPE_BYTE);
@@ -105,6 +105,30 @@ fn write_set_object(set: &Set, out: &mut Vec<u8>) {
             write_set_values(set, out);
         }
     }
+}
+
+/// Writes an integer set: its sign and the magnitude of the represented
+/// integer as an unsigned non-zero integer.
+fn write_integer(integer: &NonZeroBigInt, out: &mut Vec<u8>) {
+    let (sign, magnitude) = integer.get_as_ref().to_bytes_le();
+
+    match sign {
+        Sign::Plus => out.push(OBJECT_TYPE_POSITIVE_INTEGER),
+        Sign::Minus => out.push(OBJECT_TYPE_NEGATIVE_INTEGER),
+        Sign::NoSign => unreachable!("an integer set never represents zero"),
+    }
+
+    write_unsigned_non_zero_integer(&magnitude, out);
+}
+
+/// Writes an unsigned non-zero integer: its length in bytes (LEB128) followed
+/// by its little-endian content.
+fn write_unsigned_non_zero_integer(magnitude: &[u8], out: &mut Vec<u8>) {
+    leb128::write_leb128_u64(
+        u64::try_from(magnitude.len()).expect("the integer fits in a u64"),
+        out,
+    );
+    out.extend_from_slice(magnitude);
 }
 
 /// Writes a text set: its length in bytes (LEB128) followed by its UTF-8

@@ -1,6 +1,9 @@
 mod read;
 mod write;
 
+#[cfg(test)]
+mod tests;
+
 use everything::knowledge::Knowledge;
 use num_enum::TryFromPrimitive;
 use zerocopy::{FromBytes, Immutable, KnownLayout, little_endian::U64};
