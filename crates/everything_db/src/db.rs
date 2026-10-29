@@ -52,8 +52,11 @@ impl PersistantKnowledge {
     /// if it cannot be memory-mapped, and [`Error::Parse`] if its contents are not
     /// a valid knowledge base file.
     pub fn load(path: impl AsRef<Path>, create_if_missing: bool) -> Result<Self, Error> {
-        let path = path.as_ref();
+        Self::_load(path.as_ref(), create_if_missing)
+    }
 
+    #[allow(clippy::used_underscore_items)] // `_load` is the non-generic variant on purpose.
+    fn _load(path: &Path, create_if_missing: bool) -> Result<Self, Error> {
         let file = match Self::open_file(path) {
             Ok(file) => file,
             Err(Error::Open(source))
