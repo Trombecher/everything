@@ -124,24 +124,45 @@ impl PersistantKnowledge {
         Ok(())
     }
 
-    /// Appends `changes` to the end of the database file.
+    /// Appends `changes` to the end of the database file and applies them to
+    /// [`Self::knowledge`].
     ///
     /// The changes are encoded into a vector first and then appended through the
     /// file handle held by this database, so a single call never leaves a
-    /// partially encoded change behind. This only records the changes on disk;
-    /// it does not apply them to [`Self::knowledge`].
+    /// partially encoded change behind. The in-memory knowledge is only updated
+    /// once the changes have been written successfully, so it never contains
+    /// changes that are not on disk.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Write`] if the encoded changes cannot be appended.
+    /// Returns [`Error::Write`] if the encoded changes cannot be appended. In
+    /// that case [`Self::knowledge`] is left unchanged.
     pub fn store<'a>(
         &mut self,
         changes: impl Iterator<Item = StatementChange<'a>>,
     ) -> Result<(), Error> {
-        let mut encoded = Vec::new();
-        FileFormatApi::change_knowledge_incremental(changes, &mut encoded);
+        // The changes are needed twice: once for encoding and once for updating
+        // the in-memory knowledge after a successful write. They only hold
+        // references, so collecting them is cheap.
+        let changes = changes.collect::<Vec<_>>();
 
-        self.file.write_all(&encoded).map_err(Error::Write)
+        let mut encoded = Vec::new();
+        FileFormatApi::change_knowledge_incremental(changes.iter().cloned(), &mut encoded);
+
+        self.file.write_all(&encoded).map_err(Error::Write)?;
+
+        for change in changes {
+            match change {
+                StatementChange::Add(statement) => {
+                    self.knowledge.add_statement(statement.clone());
+                }
+                StatementChange::Remove(statement) => {
+                    self.knowledge.remove_statement(statement);
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn open_file(path: &Path) -> Result<File, Error> {
