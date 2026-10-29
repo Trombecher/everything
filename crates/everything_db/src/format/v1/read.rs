@@ -9,7 +9,7 @@ use crate::format::{
     ParseError,
     ext::ReadCursorExt,
     u64_to_usize,
-    v1::{MappedKnowledgeBaseContent, ObjectType, StatementChange},
+    v1::{MappedKnowledgeBaseContent, ObjectType, StatementChangeKind},
 };
 
 pub fn parse_knowledge(bytes: &[u8]) -> Result<Knowledge, ParseError> {
@@ -163,7 +163,7 @@ fn apply_changes(change_log: &[u8], knowledge: &mut Knowledge) -> Result<(), Par
             .read_u8()
             .map_err(|_| ParseError::ContentIsTooShortForStatementChange)
             .and_then(|raw_statement_change| {
-                StatementChange::try_from(raw_statement_change).map_err(|_| {
+                StatementChangeKind::try_from(raw_statement_change).map_err(|_| {
                     ParseError::InvalidStatementChange {
                         found_byte: raw_statement_change,
                     }
@@ -173,8 +173,8 @@ fn apply_changes(change_log: &[u8], knowledge: &mut Knowledge) -> Result<(), Par
         let statement = parse_statement(&mut cursor)?;
 
         match statement_change {
-            StatementChange::Add => knowledge.add_statement(statement),
-            StatementChange::Remove => knowledge.remove_statement(&statement),
+            StatementChangeKind::Add => knowledge.add_statement(statement),
+            StatementChangeKind::Remove => knowledge.remove_statement(&statement),
         }
     }
 

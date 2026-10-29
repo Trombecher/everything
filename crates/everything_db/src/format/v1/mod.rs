@@ -1,18 +1,21 @@
 mod read;
 
+use everything::knowledge::Knowledge;
 use num_enum::TryFromPrimitive;
 use zerocopy::{FromBytes, Immutable, KnownLayout, little_endian::U64};
 
+use crate::format::{FileFormatApiContract, ParseError};
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TryFromPrimitive)]
 #[repr(u8)]
-pub enum StatementChange {
+enum StatementChangeKind {
     Add = 1,
     Remove = 2,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TryFromPrimitive)]
 #[repr(u8)]
-pub enum ObjectType {
+enum ObjectType {
     Atom = 1,
     Integer = 2,
     Construction = 3,
@@ -34,4 +37,23 @@ struct MappedKnowledgeBaseContent {
     data: [u8],
 }
 
-pub(super) use read::parse_knowledge;
+pub struct FileFormatApiV1;
+
+impl FileFormatApiContract for FileFormatApiV1 {
+    fn read_knowledge(bytes: &[u8]) -> Result<Knowledge, ParseError> {
+        read::parse_knowledge(bytes)
+    }
+
+    fn write_knowledge(knowledge: &Knowledge, out: &mut Vec<u8>) {
+        // Write knowledge here, all into base, no changes.
+        todo!()
+    }
+
+    fn change_knowledge_incremental<'a>(
+        changes: impl Iterator<Item = crate::StatementChange<'a>>,
+        out: &mut Vec<u8>,
+    ) {
+        // Write changes into out.
+        todo!()
+    }
+}

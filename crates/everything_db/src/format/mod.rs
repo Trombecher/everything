@@ -4,9 +4,11 @@ use everything::knowledge::Knowledge;
 use num_enum::TryFromPrimitive;
 use zerocopy::{FromBytes, Immutable, KnownLayout, little_endian::U32};
 
+use crate::{StatementChange, format::v1::FileFormatApiV1};
+
 mod ext;
 mod leb128;
-pub mod v1;
+mod v1;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ParseError {
@@ -74,23 +76,51 @@ struct Header {
     pub version: Version,
 }
 
-/// # Errors
-///
-/// on parse error
-pub fn parse_knowledge(bytes: &[u8]) -> Result<Knowledge, ParseError> {
-    let file = MappedKnowledgeBaseFile::ref_from_bytes(bytes)
-        .map_err(|_| ParseError::ContentIsTooShortForHeader)?;
-
-    let header = file.header.parse()?;
-
-    match header.version {
-        Version::V1 => v1::parse_knowledge(&file.rest),
-    }
-}
-
 #[cfg(target_pointer_width = "64")]
 #[must_use]
 pub fn u64_to_usize(u: u64) -> usize {
     #[allow(clippy::cast_possible_truncation)]
     return u as usize;
+}
+
+pub struct FileFormatApi;
+
+impl FileFormatApiContract for FileFormatApi {
+    fn read_knowledge(bytes: &[u8]) -> Result<Knowledge, ParseError> {
+        let file = MappedKnowledgeBaseFile::ref_from_bytes(bytes)
+            .map_err(|_| ParseError::ContentIsTooShortForHeader)?;
+
+        let header = file.header.parse()?;
+
+        match header.version {
+            Version::V1 => FileFormatApiV1::read_knowledge(&file.rest),
+        }
+    }
+
+    fn write_knowledge(knowledge: &Knowledge, out: &mut Vec<u8>) {
+        // Latest
+        FileFormatApiV1::write_knowledge(knowledge, out);
+    }
+
+    fn change_knowledge_incremental<'a>(
+        changes: impl Iterator<Item = StatementChange<'a>>,
+        out: &mut Vec<u8>,
+    ) {
+        // Latest
+        FileFormatApiV1::change_knowledge_incremental(changes, out);
+    }
+}
+
+pub trait FileFormatApiContract {
+    /// # Errors
+    ///
+    /// on parse erro
+    fn read_knowledge(bytes: &[u8]) -> Result<Knowledge, ParseError>;
+
+    fn write_knowledge(knowledge: &Knowledge, out: &mut Vec<u8>);
+
+    fn change_knowledge_incremental<'a>(
+        changes: impl Iterator<Item = StatementChange<'a>>,
+        out: &mut Vec<u8>,
+    );
 }
