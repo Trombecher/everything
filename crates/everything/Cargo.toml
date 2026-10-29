@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+arcstr = "1.2.0"
 imbl = "7.0.2"
 num-bigint = "0.5.1"
 num_enum = "0.7.6"

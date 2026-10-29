@@ -6,12 +6,14 @@ mod one_construction;
 
 #[cfg(test)]
 mod tests;
+mod text;
 
 pub use any_set::*;
 pub use byte::*;
 pub use character::*;
 pub use integer::*;
 pub use one_construction::*;
+pub use text::*;
 
 use std::{fmt::Debug, mem};
 
@@ -49,27 +51,30 @@ pub enum Set {
     Character(CharacterSet),
     Byte(ByteSet),
     OneConstruction(OneConstructionSet),
+    Text(TextSet),
     Any(AnySet),
 }
 
 impl SetApi for Set {
     fn size(&self) -> u64 {
         match self {
-            Set::Integer(x) => x.size(),
-            Set::Character(x) => x.size(),
-            Set::Byte(x) => x.size(),
-            Set::OneConstruction(x) => x.size(),
-            Set::Any(x) => x.size(),
+            Self::Integer(x) => x.size(),
+            Self::Character(x) => x.size(),
+            Self::Byte(x) => x.size(),
+            Self::OneConstruction(x) => x.size(),
+            Self::Any(x) => x.size(),
+            Self::Text(x) => x.size(),
         }
     }
 
     fn has(&self, object: &Object) -> bool {
         match self {
-            Set::Integer(x) => x.has(object),
-            Set::Character(x) => x.has(object),
-            Set::Byte(x) => x.has(object),
-            Set::OneConstruction(x) => x.has(object),
-            Set::Any(x) => x.has(object),
+            Self::Integer(x) => x.has(object),
+            Self::Character(x) => x.has(object),
+            Self::Byte(x) => x.has(object),
+            Self::OneConstruction(x) => x.has(object),
+            Self::Any(x) => x.has(object),
+            Self::Text(x) => x.has(object),
         }
     }
 }
@@ -139,33 +144,6 @@ impl<'a> From<&'a mut [Object]> for Set {
     }
 }
 
-/*
-impl<'a> FromIterator<&'a Object> for Set {
-    fn from_iter<I: IntoIterator<Item = &'a Object>>(iter: I) -> Self {
-        Self::from_iter(iter.into_iter().cloned())
-    }
-}
-
-impl FromIterator<Object> for Set {
-    fn from_iter<I: IntoIterator<Item = Object>>(objects: I) -> Self {
-        let mut objects = objects.into_iter().collect::<Vec<_>>();
-        objects.sort_unstable();
-
-        let (unique, _) = objects.partition_dedup();
-
-        if let Some(set) = Self::try_new_primitive_specialization(unique) {
-            return set;
-        }
-
-        if let Some(set) = OneConstructionSet::specialize_from(unique) {
-            return Self::OneConstruction(set);
-        }
-
-        Self::Any(AnySet::from_sorted(unique.iter().cloned()))
-    }
-}
- */
-
 impl Debug for Set {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -174,6 +152,7 @@ impl Debug for Set {
             Self::Character(x) => Debug::fmt(x, f),
             Self::Byte(x) => Debug::fmt(x, f),
             Self::OneConstruction(x) => Debug::fmt(x, f),
+            Self::Text(x) => Debug::fmt(x, f),
         }
     }
 }
@@ -189,6 +168,7 @@ impl IntoIterator for Set {
             Self::Character(x) => SetValues::Character(x.into_iter()),
             Self::Byte(x) => SetValues::Byte(x.into_iter()),
             Self::OneConstruction(x) => SetValues::OneConstruction(x.into_iter()),
+            Self::Text(x) => SetValues::Text(x.into_iter()),
         }
     }
 }
@@ -201,6 +181,7 @@ pub enum SetValues {
     Byte(ByteSetValues),
     OneConstruction(OneConstructionSetValues),
     Any(AnySetValues),
+    Text(TextSetValues),
 }
 
 impl Iterator for SetValues {
@@ -213,6 +194,7 @@ impl Iterator for SetValues {
             Self::Any(x) => x.next(),
             Self::Byte(x) => x.next(),
             Self::OneConstruction(x) => x.next(),
+            Self::Text(x) => x.next(),
         }
     }
 }
