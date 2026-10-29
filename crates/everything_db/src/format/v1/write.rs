@@ -1,6 +1,6 @@
 use everything::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, Object, Set, SetApi},
+    model::{Atom, Object, Set, SetApi, TextSet},
 };
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
         v1::{
             OBJECT_TYPE_ATOM, OBJECT_TYPE_BYTE, OBJECT_TYPE_CHARACTER_1, OBJECT_TYPE_CHARACTER_2,
             OBJECT_TYPE_CHARACTER_3, OBJECT_TYPE_CHARACTER_4, OBJECT_TYPE_CONSTRUCTION,
-            OBJECT_TYPE_SET, STATEMENT_CHANGE_ADD, STATEMENT_CHANGE_REMOVE,
+            OBJECT_TYPE_SET, OBJECT_TYPE_TEXT, STATEMENT_CHANGE_ADD, STATEMENT_CHANGE_REMOVE,
         },
     },
 };
@@ -96,11 +96,27 @@ fn write_set_object(set: &Set, out: &mut Vec<u8>) {
             out.push(OBJECT_TYPE_BYTE);
             out.push(byte.0);
         }
-        Set::OneConstruction(_) | Set::Any(_) | Set::Text(_) => {
+        Set::Text(text) => {
+            out.push(OBJECT_TYPE_TEXT);
+            write_text(text, out);
+        }
+        Set::OneConstruction(_) | Set::Any(_) => {
             out.push(OBJECT_TYPE_SET);
             write_set_values(set, out);
         }
     }
+}
+
+/// Writes a text set: its length in bytes (LEB128) followed by its UTF-8
+/// content.
+fn write_text(text: &TextSet, out: &mut Vec<u8>) {
+    let content = text.as_str();
+
+    leb128::write_leb128_u64(
+        u64::try_from(content.len()).expect("the text fits in a u64"),
+        out,
+    );
+    out.extend_from_slice(content.as_bytes());
 }
 
 /// Writes the values of a set, prefixed by their count.

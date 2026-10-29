@@ -1,6 +1,6 @@
 use everything::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, CharacterSet, Object, Set, SetApi},
+    model::{Atom, CharacterSet, Object, Set, SetApi, TextSet},
 };
 use scursor::ReadCursor;
 use zerocopy::TryFromBytes;
@@ -109,7 +109,7 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
                 representing: character,
             })))
         }
-        ObjectType::Text => todo!(),
+        ObjectType::Text => Ok(Object::Set(Set::Text(parse_text(cursor)?))),
         ObjectType::Binary => todo!(),
         ObjectType::Set => Ok(Object::Set(parse_set(cursor)?)),
         ObjectType::Byte => todo!(),
@@ -138,6 +138,23 @@ fn parse_set(cursor: &mut ReadCursor) -> Result<Set, ParseError> {
     }
 
     Ok(Set::from(properties.as_mut_slice()))
+}
+
+/// Parses a text set: a LEB128 length in bytes followed by that many bytes
+/// of UTF-8 text.
+fn parse_text(cursor: &mut ReadCursor) -> Result<TextSet, ParseError> {
+    let length_in_bytes = cursor
+        .read_leb128_u64()
+        .map_err(|_| ParseError::InvalidTextLength)?;
+
+    let bytes = cursor
+        .read_bytes(u64_to_usize(length_in_bytes))
+        .map_err(|_| ParseError::ContentIsTooShortForText)?;
+
+    let string = std::str::from_utf8(bytes).map_err(|_| ParseError::InvalidText)?;
+
+    // A text set is never empty (see `TextSet::new`).
+    TextSet::new(string.into()).ok_or(ParseError::EmptyText)
 }
 
 fn collect_base(base: &[u8], knowledge: &mut Knowledge) -> Result<(), ParseError> {

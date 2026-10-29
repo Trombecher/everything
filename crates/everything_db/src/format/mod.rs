@@ -30,6 +30,14 @@ pub enum ParseError {
     InvalidCharacter { found: u32 },
     #[error("invalid set value count")]
     InvalidSetValueCount,
+    #[error("invalid text length")]
+    InvalidTextLength,
+    #[error("content is too short for parsing text")]
+    ContentIsTooShortForText,
+    #[error("text is not valid UTF-8")]
+    InvalidText,
+    #[error("text is empty")]
+    EmptyText,
     #[error("content is too short for statement change")]
     ContentIsTooShortForStatementChange,
     #[error("expected statement change byte, found {found_byte:02X}")]

@@ -1,12 +1,14 @@
 use everything::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, CharacterSet, Object, Set},
+    model::{Atom, CharacterSet, Object, Set, TextSet},
 };
 
 use crate::{
     StatementChange,
-    format::{FileFormatApi, FileFormatApiContract},
+    format::{FileFormatApi, FileFormatApiContract, ParseError},
 };
+
+use super::{FileFormatApiV1, OBJECT_TYPE_TEXT};
 
 fn write_and_read(knowledge: &Knowledge) -> Knowledge {
     let mut bytes = Vec::new();
@@ -61,6 +63,83 @@ fn round_trips_nested_character_sets() {
 
         assert_eq!(parsed.map, knowledge.map, "character {character:?}");
     }
+}
+
+#[test]
+fn round_trips_nested_text_sets() {
+    for text in [
+        "a",
+        "hello",
+        "äöü",
+        "€",
+        "😀",
+        &"x".repeat(200),
+        "a longer text with multiple bytes per character: äöü €😀",
+    ] {
+        let mut knowledge = Knowledge::empty();
+
+        knowledge.add_statement(statement(
+            1,
+            Object::Set(Set::Text(TextSet::new(text.into()).expect("the text is not empty"))),
+        ));
+
+        let parsed = write_and_read(&knowledge);
+
+        assert_eq!(parsed.map, knowledge.map, "text {text:?}");
+    }
+}
+
+/// Builds a version 1 payload whose base contains a single atom with one
+/// object, the raw bytes of which are given.
+fn v1_payload_with_text_object(object_bytes: &[u8]) -> Vec<u8> {
+    let mut base = Vec::new();
+    base.extend_from_slice(&1_u128.to_le_bytes());
+    base.push(1); // The atom's set has one value.
+    base.extend_from_slice(object_bytes);
+
+    let mut payload = Vec::new();
+    payload.extend_from_slice(
+        &u64::try_from(base.len())
+            .expect("the base fits in a u64")
+            .to_le_bytes(),
+    );
+    payload.extend_from_slice(&[0_u8; 24]);
+    payload.extend_from_slice(&base);
+
+    payload
+}
+
+fn parse_error(payload: &[u8]) -> ParseError {
+    match FileFormatApiV1::read_knowledge(payload) {
+        Ok(_) => panic!("the payload must not be parseable"),
+        Err(error) => error,
+    }
+}
+
+#[test]
+fn rejects_empty_text() {
+    let payload = v1_payload_with_text_object(&[OBJECT_TYPE_TEXT, 0]);
+
+    assert_eq!(parse_error(&payload), ParseError::EmptyText);
+}
+
+#[test]
+fn rejects_invalid_text() {
+    // A single length byte followed by a byte that is not valid UTF-8.
+    let payload = v1_payload_with_text_object(&[OBJECT_TYPE_TEXT, 1, 0xFF]);
+
+    assert_eq!(parse_error(&payload), ParseError::InvalidText);
+}
+
+#[test]
+fn rejects_truncated_text() {
+    // The length claims five bytes, but only one follows.
+    let payload = v1_payload_with_text_object(&[OBJECT_TYPE_TEXT, 5, b'a']);
+
+    assert_eq!(
+        parse_error(&payload),
+        ParseError::ContentIsTooShortForText
+    );
 }
 
 #[test]
