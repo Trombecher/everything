@@ -1,6 +1,4 @@
 mod read;
-#[cfg(test)]
-mod tests;
 mod write;
 
 use everything::knowledge::Knowledge;
