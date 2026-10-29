@@ -19,19 +19,23 @@ use crate::{
 ///
 /// Everything is written into the base; the change log is empty.
 pub(super) fn write_knowledge(knowledge: &Knowledge, out: &mut Vec<u8>) {
-    let mut base = Vec::new();
+    // Reserve the base length and the reserved bytes (32 bytes in total).
+    // The base length is filled in once the base has been written.
+    let base_length_position = out.len();
+    out.extend_from_slice(&[0_u8; 32]);
+
+    let base_position = out.len();
 
     for (atom, set) in &knowledge.map {
-        write_atom(*atom, &mut base);
-        write_set_values(set, &mut base);
+        write_atom(*atom, out);
+        write_set_values(set, out);
     }
 
-    let base_length_in_bytes = u64::try_from(base.len()).expect("the base fits in a u64");
+    let base_length_in_bytes =
+        u64::try_from(out.len() - base_position).expect("the base fits in a u64");
 
-    out.extend_from_slice(&base_length_in_bytes.to_le_bytes());
-    // Reserved bytes, currently unused.
-    out.extend_from_slice(&[0_u8; 24]);
-    out.extend_from_slice(&base);
+    out[base_length_position..base_length_position + 8]
+        .copy_from_slice(&base_length_in_bytes.to_le_bytes());
 }
 
 /// Appends the given statement changes to `out` in the change log format.
