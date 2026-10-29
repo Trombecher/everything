@@ -12,16 +12,6 @@ use crate::{
     format::{FileFormatApi, FileFormatApiContract, ParseError},
 };
 
-#[cfg(windows)]
-use std::os::windows::fs::OpenOptionsExt;
-
-/// `FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE`.
-///
-/// Deleting has to be allowed so that the open file can be replaced by a
-/// compacted copy.
-#[cfg(windows)]
-const SHARE_MODE: u32 = 0x1 | 0x2 | 0x4;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("could not open the database file")]
@@ -132,13 +122,14 @@ impl PersistantKnowledge {
     }
 
     fn open_file(path: &Path) -> Result<File, Error> {
-        let mut options = OpenOptions::new();
-        options.read(true).append(true);
-
-        #[cfg(windows)]
-        options.share_mode(SHARE_MODE);
-
-        options.open(path).map_err(Error::Open)
+        // On Windows this opens with the standard library's default sharing
+        // mode, which includes `FILE_SHARE_DELETE`. That is what allows the
+        // file to be replaced by `compact` while the handle is open.
+        OpenOptions::new()
+            .read(true)
+            .append(true)
+            .open(path)
+            .map_err(Error::Open)
     }
 
     fn write_compacted_file(knowledge: &Knowledge, path: &Path) -> Result<(), Error> {
