@@ -1,9 +1,10 @@
 #![deny(clippy::pedantic)]
 
+pub use db::*;
 use everything::knowledge::Statement;
 
 pub mod db;
-pub mod format;
+mod format;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum StatementChange<'a> {

@@ -43,13 +43,27 @@ impl PersistantKnowledge {
     /// is released as soon as the knowledge has been parsed. The file itself is
     /// kept open for [`Self::store`].
     ///
+    /// If `create_if_missing` is `true` and the file does not exist, it is created
+    /// containing an empty knowledge base and then loaded as usual.
+    ///
     /// # Errors
     ///
-    /// Returns [`Error::Open`] if the file cannot be opened, [`Error::Map`] if it
-    /// cannot be memory-mapped, and [`Error::Parse`] if its contents are not a
-    /// valid knowledge base file.
-    pub fn load(path: impl AsRef<Path>) -> Result<Self, Error> {
-        let file = Self::open_file(path.as_ref())?;
+    /// Returns [`Error::Open`] if the file cannot be opened or created, [`Error::Map`]
+    /// if it cannot be memory-mapped, and [`Error::Parse`] if its contents are not
+    /// a valid knowledge base file.
+    pub fn load(path: impl AsRef<Path>, create_if_missing: bool) -> Result<Self, Error> {
+        let path = path.as_ref();
+
+        let file = match Self::open_file(path) {
+            Ok(file) => file,
+            Err(Error::Open(source))
+                if create_if_missing && source.kind() == io::ErrorKind::NotFound =>
+            {
+                Self::create_empty_file(path)?;
+                Self::open_file(path)?
+            }
+            Err(error) => return Err(error),
+        };
 
         // SAFETY: The mapping is only read from while this function runs and is
         // never handed out. Concurrent modification of the file by other
@@ -84,7 +98,7 @@ impl PersistantKnowledge {
         let path = path.as_ref();
         let compacted_path = compacted_path(path);
 
-        let result = Self::write_compacted_file(&self.knowledge, &compacted_path)
+        let result = Self::write_new_file(&self.knowledge, &compacted_path)
             .and_then(|()| fs::rename(&compacted_path, path).map_err(Error::Rename));
 
         if result.is_err() {
@@ -132,7 +146,17 @@ impl PersistantKnowledge {
             .map_err(Error::Open)
     }
 
-    fn write_compacted_file(knowledge: &Knowledge, path: &Path) -> Result<(), Error> {
+    /// Creates `path` containing an empty knowledge base.
+    fn create_empty_file(path: &Path) -> Result<(), Error> {
+        match Self::write_new_file(&Knowledge::empty(), path) {
+            // Another writer created the file between the failed open and this
+            // call. Whatever it contains is loaded instead.
+            Err(Error::Open(source)) if source.kind() == io::ErrorKind::AlreadyExists => Ok(()),
+            result => result,
+        }
+    }
+
+    fn write_new_file(knowledge: &Knowledge, path: &Path) -> Result<(), Error> {
         let mut encoded = Vec::new();
         FileFormatApi::write_knowledge(knowledge, &mut encoded);
 
@@ -144,8 +168,8 @@ impl PersistantKnowledge {
 
         file.write_all(&encoded).map_err(Error::Write)?;
 
-        // Make sure the content reaches the disk before the original file is
-        // replaced by it.
+        // Make sure the content reaches the disk before the file is renamed into
+        // place or opened for reading.
         file.sync_all().map_err(Error::Write)
     }
 }
