@@ -68,7 +68,6 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "everything",
- "leb128",
  "memmap2",
  "num_enum",
  "scursor",
@@ -134,12 +133,6 @@ dependencies = [
  "once_cell",
  "wasm-bindgen",
 ]
-
-[[package]]
-name = "leb128"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c83bff1d572d6b9aeef67ddfc8448e4a3737909cb28e81f97c791b9018703e52"
 
 [[package]]
 name = "libc"

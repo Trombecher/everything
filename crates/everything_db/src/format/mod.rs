@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use everything::knowledge::Knowledge;
 use num_enum::TryFromPrimitive;
 use zerocopy::{FromBytes, Immutable, KnownLayout, little_endian::U32};
@@ -21,6 +23,8 @@ pub enum ParseError {
     ContentIsTooShortForObject,
     #[error("invalid object type, found {found:02X}")]
     InvalidObjectType { found: u8 },
+    #[error("invalid character code point, found {found:02X}")]
+    InvalidCharacter { found: u32 },
     #[error("invalid set value count")]
     InvalidSetValueCount,
     #[error("content is too short for statement change")]

@@ -81,40 +81,61 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
         ObjectType::Integer => todo!(),
         ObjectType::Construction => todo!(),
         ObjectType::Character1 => {
-            let byte = cursor.read_u8().map_err(|_| todo!())?;
-            let character = char::try_from(u32::from(byte)).map_err(|_| todo!())?;
+            let byte = cursor
+                .read_u8()
+                .map_err(|_| ParseError::ContentIsTooShortForObject)?;
+
+            let character = char::try_from(u32::from(byte))
+                .map_err(|_| ParseError::InvalidCharacter {
+                    found: u32::from(byte),
+                })?;
 
             Ok(Object::Set(Set::Character(CharacterSet {
                 representing: character,
             })))
         }
         ObjectType::Character2 => {
-            let read_bytes: [u8; 2] = cursor.read_array().map_err(|_| todo!())?;
-            let character =
-                char::try_from(u32::from_le_bytes([read_bytes[0], read_bytes[1], 0, 0]))
-                    .map_err(|_| todo!())?;
+            let read_bytes: [u8; 2] = cursor
+                .read_array()
+                .map_err(|_| ParseError::ContentIsTooShortForObject)?;
+
+            let code_point = u32::from_le_bytes([read_bytes[0], read_bytes[1], 0, 0]);
+
+            let character = char::try_from(code_point)
+                .map_err(|_| ParseError::InvalidCharacter { found: code_point })?;
 
             Ok(Object::Set(Set::Character(CharacterSet {
                 representing: character,
             })))
         }
         ObjectType::Character3 => {
-            let read_bytes: [u8; 3] = cursor.read_array().map_err(|_| todo!())?;
-            let character = char::try_from(u32::from_le_bytes([
+            let read_bytes: [u8; 3] = cursor
+                .read_array()
+                .map_err(|_| ParseError::ContentIsTooShortForObject)?;
+
+            let code_point = u32::from_le_bytes([
                 read_bytes[0],
                 read_bytes[1],
                 read_bytes[2],
                 0,
-            ]))
-            .map_err(|_| todo!())?;
+            ]);
+
+            let character = char::try_from(code_point)
+                .map_err(|_| ParseError::InvalidCharacter { found: code_point })?;
 
             Ok(Object::Set(Set::Character(CharacterSet {
                 representing: character,
             })))
         }
         ObjectType::Character4 => {
-            let read_bytes: [u8; 4] = cursor.read_array().map_err(|_| todo!())?;
-            let character = char::try_from(u32::from_le_bytes(read_bytes)).map_err(|_| todo!())?;
+            let read_bytes: [u8; 4] = cursor
+                .read_array()
+                .map_err(|_| ParseError::ContentIsTooShortForObject)?;
+
+            let code_point = u32::from_le_bytes(read_bytes);
+
+            let character = char::try_from(code_point)
+                .map_err(|_| ParseError::InvalidCharacter { found: code_point })?;
 
             Ok(Object::Set(Set::Character(CharacterSet {
                 representing: character,
