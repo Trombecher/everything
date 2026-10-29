@@ -111,7 +111,7 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
         }
         ObjectType::Text => todo!(),
         ObjectType::Binary => todo!(),
-        ObjectType::Set => todo!(),
+        ObjectType::Set => Ok(Object::Set(parse_set(cursor)?)),
         ObjectType::Byte => todo!(),
     }
 }
