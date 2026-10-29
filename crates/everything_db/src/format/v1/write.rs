@@ -96,7 +96,7 @@ fn write_set_object(set: &Set, out: &mut Vec<u8>) {
             out.push(OBJECT_TYPE_BYTE);
             out.push(byte.0);
         }
-        Set::OneConstruction(_) | Set::Any(_) => {
+        Set::OneConstruction(_) | Set::Any(_) | Set::Text(_) => {
             out.push(OBJECT_TYPE_SET);
             write_set_values(set, out);
         }

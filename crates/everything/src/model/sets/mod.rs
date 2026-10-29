@@ -131,6 +131,10 @@ impl<'a> From<&'a mut [Object]> for Set {
                 return set;
             }
 
+            if let Some(set) = TextSet::specialize_from(unique) {
+                return Self::Text(set);
+            }
+
             if let Some(set) = OneConstructionSet::specialize_from_moving(unique) {
                 return Self::OneConstruction(set);
             }

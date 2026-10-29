@@ -4,6 +4,9 @@ use arcstr::Substr;
 
 use crate::model::{Atom, CharacterSet, Construction, Object, Set, SetApi, SetSpecialization};
 
+#[cfg(test)]
+mod tests;
+
 /// A set object specialization for a non-empty string
 /// of text. Virtual set form:
 ///
@@ -69,9 +72,8 @@ impl TextSet {
         range: impl SliceIndex<str> + Clone + RangeBounds<usize>,
     ) -> Option<Self> {
         if self.string.get(range.clone()).is_some() {
-            Some(Self {
-                string: self.string.substr(range),
-            })
+            // An empty substring is not a valid text set (see `Self::new`).
+            Self::new(self.string.substr(range))
         } else {
             None
         }
@@ -80,11 +82,49 @@ impl TextSet {
 
 impl SetSpecialization for TextSet {
     fn specialize_from(objects: &[Object]) -> Option<Self> {
-        if objects.len() != 2 {
+        let [first, second] = objects else {
             return None;
+        };
+
+        let mut list_item: Option<&Object> = None;
+        let mut list_tail: Option<&Object> = None;
+
+        for object in [first, second] {
+            let Object::Construction(Construction { constructor, value }) = object else {
+                return None;
+            };
+
+            let slot = match constructor.as_ref() {
+                Object::Atom(Atom::LIST_ITEM) => &mut list_item,
+                Object::Atom(Atom::LIST_TAIL) => &mut list_tail,
+                _ => return None,
+            };
+
+            // Each slot must be occupied by exactly one object.
+            if slot.replace(value.as_ref()).is_some() {
+                return None;
+            }
         }
 
-        todo!("specialization detecton for text set")
+        // The item must be a (specialized) character object. Accepting
+        // any other representation would break canonicalization, as
+        // iterating this set always yields the specialized form.
+        let Object::Set(Set::Character(CharacterSet { representing: item })) = list_item? else {
+            return None;
+        };
+
+        // The tail must be text or the empty set (the base case of text).
+        let tail = match list_tail? {
+            Object::Set(Set::Text(tail)) => tail.as_str(),
+            Object::Set(tail) if tail.size() == 0 => "",
+            _ => return None,
+        };
+
+        let mut string = String::with_capacity(item.len_utf8() + tail.len());
+        string.push(*item);
+        string.push_str(tail);
+
+        Self::new(string.into())
     }
 }
 
