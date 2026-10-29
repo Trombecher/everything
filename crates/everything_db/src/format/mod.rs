@@ -5,6 +5,7 @@ use num_enum::TryFromPrimitive;
 use zerocopy::{FromBytes, Immutable, KnownLayout, little_endian::U32};
 
 mod ext;
+mod leb128;
 pub mod v1;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
