@@ -9,27 +9,45 @@ use zerocopy::{FromBytes, Immutable, KnownLayout, little_endian::U64};
 
 use crate::format::{FileFormatApiContract, ParseError};
 
+// Wire discriminants. Reading and writing must agree on these, so they
+// are defined once here and referenced by both the enums and the writer.
+
+const STATEMENT_CHANGE_ADD: u8 = 1;
+const STATEMENT_CHANGE_REMOVE: u8 = 2;
+
+const OBJECT_TYPE_ATOM: u8 = 1;
+const OBJECT_TYPE_INTEGER: u8 = 2;
+const OBJECT_TYPE_CONSTRUCTION: u8 = 3;
+const OBJECT_TYPE_CHARACTER_1: u8 = 4;
+const OBJECT_TYPE_CHARACTER_2: u8 = 5;
+const OBJECT_TYPE_CHARACTER_3: u8 = 6;
+const OBJECT_TYPE_CHARACTER_4: u8 = 7;
+const OBJECT_TYPE_TEXT: u8 = 8;
+const OBJECT_TYPE_BINARY: u8 = 9;
+const OBJECT_TYPE_SET: u8 = 10;
+const OBJECT_TYPE_BYTE: u8 = 11;
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TryFromPrimitive)]
 #[repr(u8)]
 enum StatementChangeKind {
-    Add = 1,
-    Remove = 2,
+    Add = STATEMENT_CHANGE_ADD,
+    Remove = STATEMENT_CHANGE_REMOVE,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TryFromPrimitive)]
 #[repr(u8)]
 enum ObjectType {
-    Atom = 1,
-    Integer = 2,
-    Construction = 3,
-    Character1 = 4,
-    Character2 = 5,
-    Character3 = 6,
-    Character4 = 7,
-    Text = 8,
-    Binary = 9,
-    Set = 10,
-    Byte = 11,
+    Atom = OBJECT_TYPE_ATOM,
+    Integer = OBJECT_TYPE_INTEGER,
+    Construction = OBJECT_TYPE_CONSTRUCTION,
+    Character1 = OBJECT_TYPE_CHARACTER_1,
+    Character2 = OBJECT_TYPE_CHARACTER_2,
+    Character3 = OBJECT_TYPE_CHARACTER_3,
+    Character4 = OBJECT_TYPE_CHARACTER_4,
+    Text = OBJECT_TYPE_TEXT,
+    Binary = OBJECT_TYPE_BINARY,
+    Set = OBJECT_TYPE_SET,
+    Byte = OBJECT_TYPE_BYTE,
 }
 
 #[derive(FromBytes, Immutable, KnownLayout)]

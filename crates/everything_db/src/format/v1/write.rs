@@ -7,7 +7,11 @@ use crate::{
     StatementChange,
     format::{
         leb128,
-        v1::{ObjectType, StatementChangeKind},
+        v1::{
+            OBJECT_TYPE_ATOM, OBJECT_TYPE_BYTE, OBJECT_TYPE_CHARACTER_1, OBJECT_TYPE_CHARACTER_2,
+            OBJECT_TYPE_CHARACTER_3, OBJECT_TYPE_CHARACTER_4, OBJECT_TYPE_CONSTRUCTION,
+            OBJECT_TYPE_SET, STATEMENT_CHANGE_ADD, STATEMENT_CHANGE_REMOVE,
+        },
     },
 };
 
@@ -41,11 +45,11 @@ pub(super) fn write_changes<'a>(
     for change in changes {
         match change {
             StatementChange::Add(statement) => {
-                out.push(StatementChangeKind::Add as u8);
+                out.push(STATEMENT_CHANGE_ADD);
                 write_statement(statement, out);
             }
             StatementChange::Remove(statement) => {
-                out.push(StatementChangeKind::Remove as u8);
+                out.push(STATEMENT_CHANGE_REMOVE);
                 write_statement(statement, out);
             }
         }
@@ -64,11 +68,11 @@ fn write_statement(statement: &Statement, out: &mut Vec<u8>) {
 fn write_object(object: &Object, out: &mut Vec<u8>) {
     match object {
         Object::Atom(atom) => {
-            out.push(ObjectType::Atom as u8);
+            out.push(OBJECT_TYPE_ATOM);
             write_atom(*atom, out);
         }
         Object::Construction(construction) => {
-            out.push(ObjectType::Construction as u8);
+            out.push(OBJECT_TYPE_CONSTRUCTION);
             write_object(&construction.constructor, out);
             write_object(&construction.value, out);
         }
@@ -85,11 +89,11 @@ fn write_set_object(set: &Set, out: &mut Vec<u8>) {
         Set::Integer(_) => todo!("write the payload of an integer object"),
         Set::Character(character) => write_character(character.representing, out),
         Set::Byte(byte) => {
-            out.push(ObjectType::Byte as u8);
+            out.push(OBJECT_TYPE_BYTE);
             out.push(byte.0);
         }
         Set::OneConstruction(_) | Set::Any(_) => {
-            out.push(ObjectType::Set as u8);
+            out.push(OBJECT_TYPE_SET);
             write_set_values(set, out);
         }
     }
@@ -115,19 +119,19 @@ fn write_character(character: char, out: &mut Vec<u8>) {
 
     match significant_byte_count {
         1 => {
-            out.push(ObjectType::Character1 as u8);
+            out.push(OBJECT_TYPE_CHARACTER_1);
             out.push(bytes[0]);
         }
         2 => {
-            out.push(ObjectType::Character2 as u8);
+            out.push(OBJECT_TYPE_CHARACTER_2);
             out.extend_from_slice(&bytes[..2]);
         }
         3 => {
-            out.push(ObjectType::Character3 as u8);
+            out.push(OBJECT_TYPE_CHARACTER_3);
             out.extend_from_slice(&bytes[..3]);
         }
         4 => {
-            out.push(ObjectType::Character4 as u8);
+            out.push(OBJECT_TYPE_CHARACTER_4);
             out.extend_from_slice(&bytes);
         }
         _ => unreachable!("a `u32` has at most four bytes"),
