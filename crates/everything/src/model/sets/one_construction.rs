@@ -1,11 +1,11 @@
 use std::{fmt::Debug, mem};
 
-use crate::model::{Construction, Object, SetApi, SetSpecialization};
+use crate::model::{Construction, Object, SetApi};
 
 /// Specialization for sets that only contain one construction.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OneConstructionSet {
-    pub construction: Construction,
+    construction: Construction,
 }
 
 impl Debug for OneConstructionSet {
@@ -19,9 +19,17 @@ impl OneConstructionSet {
     /// slice of objects.
     ///
     /// If it succeeded, then `objects` is arbitrary.
+    ///
+    /// This must only be called during specialization, after all more
+    /// specific one-construction specializations (e.g. integer and
+    /// character sets) have been tried. Otherwise it would hoist
+    /// constructions that are represented more optimally by those
+    /// specializations and thus create a non-canonical set.
+    ///
+    /// DO NOT EXPOSE THIS!
     #[must_use]
     #[allow(clippy::missing_panics_doc)] // this function does not panic!
-    pub fn specialize_from_moving(objects: &mut [Object]) -> Option<Self> {
+    pub(super) fn specialize_from_moving(objects: &mut [Object]) -> Option<Self> {
         match objects {
             [Object::Construction(_)] => Some(Self {
                 construction: mem::take(objects.first_mut().unwrap())
@@ -29,18 +37,6 @@ impl OneConstructionSet {
                     .unwrap(),
             }),
             _ => None,
-        }
-    }
-}
-
-impl SetSpecialization for OneConstructionSet {
-    fn specialize_from(objects: &[Object]) -> Option<Self> {
-        if let [Object::Construction(construction)] = objects {
-            Some(Self {
-                construction: construction.clone(),
-            })
-        } else {
-            None
         }
     }
 }
