@@ -34,6 +34,8 @@ pub enum Error {
 pub struct PersistantKnowledge {
     knowledge: Knowledge,
     file: File,
+    /// The file `knowledge` was loaded from and `file` refers to.
+    path: PathBuf,
 }
 
 impl PersistantKnowledge {
@@ -76,7 +78,11 @@ impl PersistantKnowledge {
 
         let knowledge = FileFormatApi::read_knowledge(&mapped)?;
 
-        Ok(Self { knowledge, file })
+        Ok(Self {
+            knowledge,
+            file,
+            path: path.to_path_buf(),
+        })
     }
 
     /// Returns the knowledge held by this database.
@@ -85,11 +91,12 @@ impl PersistantKnowledge {
         &self.knowledge
     }
 
-    /// Writes all knowledge into a new file and atomically replaces `path` with it.
+    /// Writes all knowledge into a new file and atomically replaces the database
+    /// file with it.
     ///
     /// Rewriting from scratch compacts the file: the change log is dropped and
     /// only the current knowledge remains. The compacted content is written to
-    /// `<path>.compacting` first, so `path` is only replaced once that file is
+    /// `<path>.compacting` first, so `<path>` is only replaced once that file is
     /// complete.
     ///
     /// # Errors
@@ -97,12 +104,11 @@ impl PersistantKnowledge {
     /// Returns [`Error::Open`] if the new file cannot be created, [`Error::Write`]
     /// if the knowledge cannot be written to it, and [`Error::Rename`] if it
     /// cannot be moved into place.
-    pub fn compact(&mut self, path: impl AsRef<Path>) -> Result<(), Error> {
-        let path = path.as_ref();
-        let compacted_path = compacted_path(path);
+    pub fn compact(&mut self) -> Result<(), Error> {
+        let compacted_path = compacted_path(&self.path);
 
         let result = Self::write_new_file(&self.knowledge, &compacted_path)
-            .and_then(|()| fs::rename(&compacted_path, path).map_err(Error::Rename));
+            .and_then(|()| fs::rename(&compacted_path, &self.path).map_err(Error::Rename));
 
         if result.is_err() {
             // Never leave a half-written compacted file behind.
@@ -113,7 +119,7 @@ impl PersistantKnowledge {
 
         // The file handle still refers to the replaced file, so it has to be
         // reopened. Assigning also drops the handle to the old file.
-        self.file = Self::open_file(path)?;
+        self.file = Self::open_file(&self.path)?;
 
         Ok(())
     }
