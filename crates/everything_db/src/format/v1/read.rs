@@ -1,6 +1,6 @@
 use everything::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, CharacterSet, Object, Set, SetApi, TextSet},
+    model::{Atom, CharacterSet, Construction, Object, Set, SetApi, TextSet},
 };
 use scursor::ReadCursor;
 use zerocopy::TryFromBytes;
@@ -52,7 +52,7 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
     match object_type {
         ObjectType::Atom => Ok(Object::Atom(parse_atom(cursor)?)),
         ObjectType::Integer => todo!(),
-        ObjectType::Construction => todo!(),
+        ObjectType::Construction => Ok(Object::Construction(parse_construction(cursor)?)),
         ObjectType::Character1 => {
             let byte = cursor
                 .read_u8()
@@ -114,6 +114,14 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
         ObjectType::Set => Ok(Object::Set(parse_set(cursor)?)),
         ObjectType::Byte => todo!(),
     }
+}
+
+/// Parses a construction: the constructor object followed by the value object.
+fn parse_construction(cursor: &mut ReadCursor) -> Result<Construction, ParseError> {
+    let constructor = parse_object(cursor)?;
+    let value = parse_object(cursor)?;
+
+    Ok(Construction::new(constructor, value))
 }
 
 fn parse_statement(cursor: &mut ReadCursor) -> Result<Statement, ParseError> {
