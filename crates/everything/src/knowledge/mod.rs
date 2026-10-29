@@ -10,7 +10,7 @@ use crate::model::{Atom, Object, Set, SetApi};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Statement {
     pub atom: Atom,
-    pub is_object: Object,
+    pub object: Object,
 }
 
 #[derive(Clone)]
@@ -25,6 +25,26 @@ impl Default for Knowledge {
 }
 
 impl Knowledge {
+    pub fn add_statement(&mut self, statement: Statement) {
+        let new_set = self
+            .values_of(&statement.atom.into())
+            .add_object(statement.object);
+
+        self.map.insert(statement.atom, new_set);
+    }
+
+    pub fn remove_statement(&mut self, statement: &Statement) {
+        let new_set = self
+            .values_of(&statement.atom.into())
+            .remove_object(&statement.object);
+
+        if new_set.size() == 0 {
+            self.map.remove(&statement.atom);
+        } else {
+            self.map.insert(statement.atom, new_set);
+        }
+    }
+
     #[must_use]
     pub fn empty() -> Self {
         Self {
@@ -50,7 +70,7 @@ impl Knowledge {
     pub fn values_of(&self, object: &Object) -> Set {
         self.values_of_by_ref(object)
             .cloned()
-            .unwrap_or(Set::empty())
+            .unwrap_or_else(Set::empty)
     }
 
     #[must_use]

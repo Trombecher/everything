@@ -84,19 +84,13 @@ fn add() {
 #[test]
 fn unwrap() {
     let cases = [
+        (Object::Set(Set::from([])), Object::Atom(Atom::UNDEFINED)),
         (
-            Object::Set(Set::new_move([])),
-            Object::Atom(Atom::UNDEFINED),
-        ),
-        (
-            Object::Set(Set::new_move([Object::Atom(Atom(42))])),
+            Object::Set(Set::from([Object::Atom(Atom(42))])),
             Object::Atom(Atom(42)),
         ),
         (
-            Object::Set(Set::new_move([
-                Object::Atom(Atom(42)),
-                Object::Atom(Atom(56)),
-            ])),
+            Object::Set(Set::from([Object::Atom(Atom(42)), Object::Atom(Atom(56))])),
             Object::Atom(Atom::UNDEFINED),
         ),
     ];

@@ -269,19 +269,17 @@ impl Node {
     #[allow(clippy::too_many_lines)]
     pub fn into_object(&self) -> Object {
         match self {
-            Self::IsConstruction(inner) => Set::new_move([Construction::new(
+            Self::IsConstruction(inner) => Set::from([Construction::new(
                 Atom::NODE_IS_CONSTRUCTION.into(),
                 inner.into_object(),
             )
             .into()])
             .into(),
             Self::IsSet(inner) => {
-                Set::new_move([
-                    Construction::new(Atom::NODE_IS_SET.into(), inner.into_object()).into(),
-                ])
-                .into()
+                Set::from([Construction::new(Atom::NODE_IS_SET.into(), inner.into_object()).into()])
+                    .into()
             }
-            Self::ConstructionConstructor { construction } => Set::new_move([Construction::new(
+            Self::ConstructionConstructor { construction } => Set::from([Construction::new(
                 Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION.into(),
                 construction.into_object(),
             )
@@ -291,13 +289,13 @@ impl Node {
                 set,
                 folder,
                 initial,
-            } => Set::new_move([
+            } => Set::from([
                 Construction::new(Atom::NODE_FOLD_SET.into(), set.into_object()).into(),
                 Construction::new(Atom::NODE_FOLD_FOLDER.into(), folder.into_object()).into(),
                 Construction::new(Atom::NODE_FOLD_INITIAL.into(), initial.into_object()).into(),
             ])
             .into(),
-            Self::NewConstruction { constructor, value } => Set::new_move([
+            Self::NewConstruction { constructor, value } => Set::from([
                 Construction::new(
                     Atom::NODE_NEW_CONSTRUCTION_CONSTRUCTOR.into(),
                     constructor.into_object(),
@@ -310,24 +308,24 @@ impl Node {
                 .into(),
             ])
             .into(),
-            Self::Contains { element, set } => Set::new_move([
+            Self::Contains { element, set } => Set::from([
                 Construction::new(Atom::NODE_CONTAINS_ELEMENT.into(), element.into_object()).into(),
                 Construction::new(Atom::NODE_CONTAINS_SET.into(), set.into_object()).into(),
             ])
             .into(),
-            Self::ConstructionValue { construction } => Set::new_move([Construction::new(
+            Self::ConstructionValue { construction } => Set::from([Construction::new(
                 Atom::NODE_VALUE_OF_CONSTRUCTION.into(),
                 construction.into_object(),
             )
             .into()])
             .into(),
             Self::IsAtom(inner) => {
-                Set::new_move([
+                Set::from([
                     Construction::new(Atom::NODE_IS_ATOM.into(), inner.into_object()).into(),
                 ])
                 .into()
             }
-            Self::Call { callee, with } => Set::new_move([
+            Self::Call { callee, with } => Set::from([
                 Construction::new(Atom::NODE_CALL_CALLEE.into(), callee.into_object()).into(),
                 Construction::new(Atom::NODE_CALL_WITH.into(), with.into_object()).into(),
             ])
@@ -335,7 +333,7 @@ impl Node {
             Self::QueryConstructionValues {
                 set,
                 property_constructor,
-            } => Set::new_move([
+            } => Set::from([
                 Construction::new(Atom::NODE_CONSTRUCTION_VALUES_SET.into(), set.into_object())
                     .into(),
                 Construction::new(
@@ -346,71 +344,67 @@ impl Node {
             ])
             .into(),
             Self::Function { body } => {
-                Set::new_move([
+                Set::from([
                     Construction::new(Atom::NODE_FUNCTION.into(), body.into_object()).into(),
                 ])
                 .into()
             }
             Self::Literal(literal) => {
-                Set::new_move([
-                    Construction::new(Atom::NODE_LITERAL.into(), literal.clone()).into(),
-                ])
-                .into()
+                Set::from([Construction::new(Atom::NODE_LITERAL.into(), literal.clone()).into()])
+                    .into()
             }
-            Self::And { first, second } => Set::new_move([
+            Self::And { first, second } => Set::from([
                 Construction::new(Atom::NODE_AND_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_AND_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
-            Self::FunctionSelf { depth } => Set::new_move([Construction::new(
+            Self::FunctionSelf { depth } => Set::from([Construction::new(
                 Atom::NODE_FUNCTION_SELF.into(),
                 Object::new_integer(BigInt::from(*depth)),
             )
             .into()])
             .into(),
-            Self::Parameter { depth } => Set::new_move([Construction::new(
+            Self::Parameter { depth } => Set::from([Construction::new(
                 Atom::NODE_PARAMETER.into(),
                 Object::new_integer(BigInt::from(*depth)),
             )
             .into()])
             .into(),
             Self::Count(object) => {
-                Set::new_move([
-                    Construction::new(Atom::NODE_COUNT.into(), object.into_object()).into(),
-                ])
-                .into()
+                Set::from([Construction::new(Atom::NODE_COUNT.into(), object.into_object()).into()])
+                    .into()
             }
-            Self::QueryAtomsWithProperty { property } => Set::new_move([Construction::new(
+            Self::QueryAtomsWithProperty { property } => Set::from([Construction::new(
                 Atom::NODE_ATOMS_WITH_PROPERTY.into(),
                 property.into_object(),
             )
             .into()])
             .into(),
-            Self::Equal { first, second } => Set::new_move([
+            Self::Equal { first, second } => Set::from([
                 Construction::new(Atom::NODE_EQUAL_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_EQUAL_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
-            Self::Or { first, second } => Set::new_move([
+            Self::Or { first, second } => Set::from([
                 Construction::new(Atom::NODE_OR_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_OR_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
-            Self::Xor { first, second } => Set::new_move([
+            Self::Xor { first, second } => Set::from([
                 Construction::new(Atom::NODE_XOR_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_XOR_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
             Self::Not(node) => {
-                Set::new_move([Construction::new(Atom::NODE_NOT.into(), node.into_object()).into()])
+                Set::from([Construction::new(Atom::NODE_NOT.into(), node.into_object()).into()])
                     .into()
             }
-            Self::Add { first, second } => Set::new_move([
+            Self::Add { first, second } => Set::from([
                 Construction::new(Atom::NODE_ADD_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_ADD_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
-            Self::Union { first, second } => Set::new_move([
+            Self::Union { first, second } => Set::from([
                 Construction::new(Atom::NODE_UNION_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_UNION_SECOND.into(), second.into_object()).into(),
             ])
@@ -418,7 +412,7 @@ impl Node {
             Self::Map {
                 set,
                 mapper_function,
-            } => Set::new_move([
+            } => Set::from([
                 Construction::new(Atom::NODE_MAP_SET.into(), set.into_object()).into(),
                 Construction::new(Atom::NODE_MAP_MAPPER.into(), mapper_function.into_object())
                     .into(),
@@ -427,7 +421,7 @@ impl Node {
             Self::Filter {
                 set,
                 filter_function,
-            } => Set::new_move([
+            } => Set::from([
                 Construction::new(Atom::NODE_FILTER_SET.into(), set.into_object()).into(),
                 Construction::new(
                     Atom::NODE_FILTER_FILTER.into(),
@@ -436,18 +430,18 @@ impl Node {
                 .into(),
             ])
             .into(),
-            Self::Every { set, predicate } => Set::new_move([
+            Self::Every { set, predicate } => Set::from([
                 Construction::new(Atom::NODE_EVERY_SET.into(), set.into_object()).into(),
                 Construction::new(Atom::NODE_EVERY_PREDICATE.into(), predicate.into_object())
                     .into(),
             ])
             .into(),
-            Self::Any { set, predicate } => Set::new_move([
+            Self::Any { set, predicate } => Set::from([
                 Construction::new(Atom::NODE_ANY_SET.into(), set.into_object()).into(),
                 Construction::new(Atom::NODE_ANY_PREDICATE.into(), predicate.into_object()).into(),
             ])
             .into(),
-            Self::Less { first, second } => Set::new_move([
+            Self::Less { first, second } => Set::from([
                 Construction::new(Atom::NODE_LESS_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_LESS_SECOND.into(), second.into_object()).into(),
             ])
@@ -456,19 +450,19 @@ impl Node {
                 condition,
                 otherwise,
                 then,
-            } => Set::new_move([
+            } => Set::from([
                 Construction::new(Atom::NODE_IF_CONDITION.into(), condition.into_object()).into(),
                 Construction::new(Atom::NODE_IF_THEN.into(), then.into_object()).into(),
                 Construction::new(Atom::NODE_IF_ELSE.into(), otherwise.into_object()).into(),
             ])
             .into(),
             Self::Unwrap(set) => {
-                Set::new_move([
+                Set::from([
                     Construction::new(Atom::NODE_UNWRAP_SET.into(), set.into_object()).into(),
                 ])
                 .into()
             }
-            Self::Multiply { first, second } => Set::new_move([
+            Self::Multiply { first, second } => Set::from([
                 Construction::new(Atom::NODE_MULTIPLY_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_MULTIPLY_SECOND.into(), second.into_object()).into(),
             ])

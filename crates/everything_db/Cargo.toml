@@ -10,3 +10,5 @@ zerocopy = { version = "0.8.63", features = ["derive"] }
 everything = { path = "../everything" }
 num_enum = "0.7.6"
 byteorder = "1.5.0"
+scursor = "0.5.1"
+leb128 = "0.2.7"

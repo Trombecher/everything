@@ -1,14 +1,19 @@
-use std::io::{Cursor, Read};
-
-use byteorder::{LittleEndian, ReadBytesExt};
 use everything::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, CharacterSet, Object, Set},
+    model::{Atom, CharacterSet, Object, Set, SetApi},
 };
 use num_enum::TryFromPrimitive;
+use scursor::ReadCursor;
 use zerocopy::{FromBytes, Immutable, KnownLayout, TryFromBytes, little_endian::U64};
 
-use crate::format::{ParseError, u64_to_usize};
+use crate::format::{ParseError, ext::ReadCursorExt, u64_to_usize};
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, TryFromPrimitive)]
+#[repr(u8)]
+pub enum StatementChange {
+    Add = 1,
+    Remove = 2,
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, TryFromPrimitive)]
 #[repr(u8)]
@@ -53,15 +58,15 @@ pub(super) fn parse_knowledge(bytes: &[u8]) -> Result<Knowledge, ParseError> {
     Ok(knowledge)
 }
 
-fn parse_atom(cursor: &mut Cursor<&[u8]>) -> Result<Atom, ParseError> {
+fn parse_atom(cursor: &mut ReadCursor) -> Result<Atom, ParseError> {
     let atom_id = cursor
-        .read_u128::<LittleEndian>()
+        .read_u128_le()
         .map_err(|_| ParseError::ContentIsTooShortForAtom)?;
 
     Ok(Atom(atom_id))
 }
 
-fn parse_object(cursor: &mut Cursor<&[u8]>) -> Result<Object, ParseError> {
+fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
     let raw_object_type = cursor
         .read_u8()
         .map_err(|_| ParseError::ContentIsTooShortForObject)?;
@@ -122,23 +127,67 @@ fn parse_object(cursor: &mut Cursor<&[u8]>) -> Result<Object, ParseError> {
     }
 }
 
-fn parse_statement(cursor: &mut Cursor<&[u8]>) -> Result<Statement, ParseError> {
+fn parse_statement(cursor: &mut ReadCursor) -> Result<Statement, ParseError> {
     let atom = parse_atom(cursor)?;
     let is_object = parse_object(cursor)?;
 
-    Ok(Statement { atom, is_object })
+    Ok(Statement {
+        atom,
+        object: is_object,
+    })
+}
+
+fn parse_set(cursor: &mut ReadCursor) -> Result<Set, ParseError> {
+    let value_count = cursor
+        .read_leb128_u64()
+        .map_err(|_| ParseError::InvalidSetValueCount)?;
+
+    let mut properties = Vec::new();
+
+    for _ in 0..value_count {
+        properties.push(parse_object(cursor)?);
+    }
+
+    Ok(Set::from(properties.as_mut_slice()))
 }
 
 fn collect_base(base: &[u8], knowledge: &mut Knowledge) -> Result<(), ParseError> {
-    let mut cursor = Cursor::new(base);
+    let mut cursor = ReadCursor::new(base);
 
-    while cursor.position() < cursor.get_ref().len() as u64 {
+    while cursor.remaining() > 0 {
         let atom = parse_atom(&mut cursor)?;
+        let set = parse_set(&mut cursor)?;
+
+        if set.size() > 0 {
+            knowledge.map.insert(atom, set);
+        }
     }
 
-    todo!()
+    Ok(())
 }
 
 fn apply_changes(change_log: &[u8], knowledge: &mut Knowledge) -> Result<(), ParseError> {
-    todo!()
+    let mut cursor = ReadCursor::new(change_log);
+
+    while cursor.remaining() > 0 {
+        let statement_change = cursor
+            .read_u8()
+            .map_err(|_| ParseError::ContentIsTooShortForStatementChange)
+            .and_then(|raw_statement_change| {
+                StatementChange::try_from(raw_statement_change).map_err(|_| {
+                    ParseError::InvalidStatementChange {
+                        found_byte: raw_statement_change,
+                    }
+                })
+            })?;
+
+        let statement = parse_statement(&mut cursor)?;
+
+        match statement_change {
+            StatementChange::Add => knowledge.add_statement(statement),
+            StatementChange::Remove => knowledge.remove_statement(&statement),
+        }
+    }
+
+    Ok(())
 }

@@ -13,7 +13,7 @@ pub use character::*;
 pub use integer::*;
 pub use one_construction::*;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, mem};
 
 use crate::model::Object;
 
@@ -78,18 +78,44 @@ impl Set {
     /// Returns the empty [`Set`].
     #[must_use]
     pub fn empty() -> Self {
-        Self::new_move([])
+        Self::from([])
     }
 
-    /// Creates a new [`Set`] from the given slice of objects. The objects will be cloned.
-    #[must_use]
-    pub fn new(objects: &[Object]) -> Self {
-        Self::from_iter(objects.iter())
+    /// Tries to create a new [`Set`] primitive specialization variant from the given list of objects.
+    /// If no specialization matches, then this function returns [`None`].
+    fn try_new_primitive_specialization(objects: &[Object]) -> Option<Self> {
+        IntegerSet::specialize_from(objects)
+            .map(Self::Integer)
+            .or_else(|| CharacterSet::specialize_from(objects).map(Self::Character))
+            .or_else(|| ByteSet::specialize_from(objects).map(Self::Byte))
     }
 
-    /// Creates a new [`Set`] from the given array of objects.
     #[must_use]
-    pub fn new_move<const N: usize>(mut objects: [Object; N]) -> Self {
+    pub fn add_object(self, object: Object) -> Self {
+        let mut new_values = self.into_iter().collect::<Vec<_>>();
+        new_values.push(object);
+        Self::from(new_values.as_mut_slice())
+    }
+
+    #[must_use]
+    pub fn remove_object(self, object: &Object) -> Self {
+        let mut new_values = self
+            .into_iter()
+            .filter(|value| value != object)
+            .collect::<Vec<_>>();
+
+        Self::from(new_values.as_mut_slice())
+    }
+}
+
+impl<const N: usize> From<[Object; N]> for Set {
+    fn from(mut objects: [Object; N]) -> Self {
+        Self::from(objects.as_mut_slice())
+    }
+}
+
+impl<'a> From<&'a mut [Object]> for Set {
+    fn from(objects: &'a mut [Object]) -> Self {
         let unique_len = {
             objects.sort_unstable();
 
@@ -107,19 +133,13 @@ impl Set {
             unique_len
         };
 
-        Self::Any(AnySet::from_sorted(objects.into_iter().take(unique_len)))
-    }
-
-    /// Tries to create a new [`Set`] primitive specialization variant from the given list of objects.
-    /// If no specialization matches, then this function returns [`None`].
-    fn try_new_primitive_specialization(objects: &[Object]) -> Option<Self> {
-        IntegerSet::specialize_from(objects)
-            .map(Self::Integer)
-            .or_else(|| CharacterSet::specialize_from(objects).map(Self::Character))
-            .or_else(|| ByteSet::specialize_from(objects).map(Self::Byte))
+        Self::Any(AnySet::from_sorted(
+            objects.iter_mut().map(mem::take).take(unique_len),
+        ))
     }
 }
 
+/*
 impl<'a> FromIterator<&'a Object> for Set {
     fn from_iter<I: IntoIterator<Item = &'a Object>>(iter: I) -> Self {
         Self::from_iter(iter.into_iter().cloned())
@@ -144,6 +164,7 @@ impl FromIterator<Object> for Set {
         Self::Any(AnySet::from_sorted(unique.iter().cloned()))
     }
 }
+ */
 
 impl Debug for Set {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

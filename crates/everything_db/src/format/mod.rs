@@ -2,6 +2,7 @@ use everything::knowledge::Knowledge;
 use num_enum::TryFromPrimitive;
 use zerocopy::{FromBytes, Immutable, KnownLayout, little_endian::U32};
 
+mod ext;
 pub mod v1;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -20,6 +21,12 @@ pub enum ParseError {
     ContentIsTooShortForObject,
     #[error("invalid object type, found {found:02X}")]
     InvalidObjectType { found: u8 },
+    #[error("invalid set value count")]
+    InvalidSetValueCount,
+    #[error("content is too short for statement change")]
+    ContentIsTooShortForStatementChange,
+    #[error("expected statement change byte, found {found_byte:02X}")]
+    InvalidStatementChange { found_byte: u8 },
 }
 
 pub const MAGIC_BYTES: [u8; 28] = *b"EVERYTHING KNOWLEDGE BASE   ";
@@ -62,6 +69,9 @@ struct Header {
     pub version: Version,
 }
 
+/// # Errors
+///
+/// on parse error
 pub fn parse_knowledge(bytes: &[u8]) -> Result<Knowledge, ParseError> {
     let file = MappedKnowledgeBaseFile::ref_from_bytes(bytes)
         .map_err(|_| ParseError::ContentIsTooShortForHeader)?;
@@ -74,6 +84,7 @@ pub fn parse_knowledge(bytes: &[u8]) -> Result<Knowledge, ParseError> {
 }
 
 #[cfg(target_pointer_width = "64")]
+#[must_use]
 pub fn u64_to_usize(u: u64) -> usize {
     #[allow(clippy::cast_possible_truncation)]
     return u as usize;
