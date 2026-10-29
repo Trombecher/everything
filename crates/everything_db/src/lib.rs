@@ -2,6 +2,7 @@
 
 use everything::knowledge::Statement;
 
+pub mod db;
 pub mod format;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
