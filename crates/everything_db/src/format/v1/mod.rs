@@ -1,4 +1,7 @@
 mod read;
+#[cfg(test)]
+mod tests;
+mod write;
 
 use everything::knowledge::Knowledge;
 use num_enum::TryFromPrimitive;
@@ -46,7 +49,7 @@ impl FileFormatApiContract for FileFormatApiV1 {
 
     fn write_knowledge(knowledge: &Knowledge, out: &mut Vec<u8>) {
         // Write knowledge here, all into base, no changes.
-        todo!()
+        write::write_knowledge(knowledge, out);
     }
 
     fn change_knowledge_incremental<'a>(
@@ -54,6 +57,6 @@ impl FileFormatApiContract for FileFormatApiV1 {
         out: &mut Vec<u8>,
     ) {
         // Write changes into out.
-        todo!()
+        write::write_changes(changes, out);
     }
 }

@@ -58,6 +58,13 @@ struct MappedHeader {
     pub version: U32,
 }
 
+impl Header {
+    fn write(self, out: &mut Vec<u8>) {
+        out.extend_from_slice(&MAGIC_BYTES);
+        out.extend_from_slice(&(self.version as u32).to_le_bytes());
+    }
+}
+
 impl MappedHeader {
     pub fn parse(&self) -> Result<Header, ParseError> {
         if self.magic_bytes != MAGIC_BYTES {
@@ -99,6 +106,10 @@ impl FileFormatApiContract for FileFormatApi {
 
     fn write_knowledge(knowledge: &Knowledge, out: &mut Vec<u8>) {
         // Latest
+        Header {
+            version: Version::V1,
+        }
+        .write(out);
         FileFormatApiV1::write_knowledge(knowledge, out);
     }
 

@@ -83,6 +83,20 @@ fn encodings_wider_than_u64_error() {
 }
 
 #[test]
+fn writing_round_trips_through_reading() {
+    for value in [0, 1, 0x7F, 128, 300, 624_485, u64::MAX] {
+        let mut bytes = Vec::new();
+
+        write_leb128_u64(value, &mut bytes);
+
+        let (decoded, length) = decode(&bytes).unwrap();
+
+        assert_eq!(decoded, value);
+        assert_eq!(length, bytes.len(), "value {value}");
+    }
+}
+
+#[test]
 fn cursor_ends_after_the_encoding() {
     // Trailing data must not be swallowed by the decode.
     let mut cursor = ReadCursor::new(&[0xAC, 0x02, 0xAA, 0xBB]);

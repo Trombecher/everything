@@ -41,3 +41,22 @@ pub fn read_leb128_u64(cursor: &mut ReadCursor) -> Result<u64, Leb128U64ParsingE
         shift += 7;
     }
 }
+
+/// Appends the given [`u64`] to `out` in LEB128 form.
+pub fn write_leb128_u64(mut value: u64, out: &mut Vec<u8>) {
+    loop {
+        let mut byte = u8::try_from(value & 0x7F).expect("the value is masked to seven bits");
+
+        value >>= 7;
+
+        if value != 0 {
+            byte |= 0x80;
+        }
+
+        out.push(byte);
+
+        if value == 0 {
+            return;
+        }
+    }
+}
