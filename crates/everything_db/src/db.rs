@@ -39,6 +39,11 @@ pub struct PersistantKnowledge {
 }
 
 impl PersistantKnowledge {
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
     /// Loads the knowledge base stored at `path`.
     ///
     /// The file is memory-mapped and read through [`FileFormatApi`]; the mapping

@@ -25,6 +25,13 @@ impl Default for Knowledge {
 }
 
 impl Knowledge {
+    #[must_use]
+    pub fn known_atoms(self) -> KnownAtoms {
+        KnownAtoms {
+            map_iter: self.map.into_iter(),
+        }
+    }
+
     pub fn add_statement(&mut self, statement: Statement) {
         let new_set = self
             .values_of(&statement.atom.into())
@@ -142,4 +149,17 @@ impl Knowledge {
         })
     }
      */
+}
+
+#[derive(Clone)]
+pub struct KnownAtoms {
+    map_iter: <OrdMap<Atom, Set> as IntoIterator>::IntoIter,
+}
+
+impl Iterator for KnownAtoms {
+    type Item = Atom;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.map_iter.next().map(|(atom, _)| atom)
+    }
 }
