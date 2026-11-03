@@ -1,4 +1,5 @@
 use everything::{
+    knowledge::Values,
     model::{Atom, ByteSet, Construction, Object, Set},
     num_bigint::BigUint,
 };
@@ -189,7 +190,7 @@ fn parses_constructions() {
 
     assert_eq!(
         knowledge.map.get(&Atom(1)),
-        Some(&Set::from([Construction::new(
+        Some(&Values::from([Construction::new(
             Object::Atom(Atom(2)),
             Object::Atom(Atom(3)),
         )
@@ -233,7 +234,7 @@ fn parses_bytes() {
 
     assert_eq!(
         knowledge.map.get(&Atom(1)),
-        Some(&Set::from([Object::Set(Set::Byte(ByteSet(0x2A)))]))
+        Some(&Values::from([Object::Set(Set::Byte(ByteSet(0x2A)))]))
     );
 }
 

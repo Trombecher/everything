@@ -1,7 +1,7 @@
 use crate::{
     compute::{self, InvalidNodeError, MaybeUndefined, Node},
-    knowledge::Knowledge,
-    model::{Atom, Object, SetApi, SetValues},
+    knowledge::{Knowledge, ObjectValues},
+    model::{Atom, Object},
 };
 
 #[derive(Clone, Debug)]
@@ -120,9 +120,7 @@ impl LazyObject {
     pub fn has_at_least_one_element(&self, knowledge: &Knowledge) -> bool {
         match self {
             Self::Node(_) => todo!(),
-            Self::Eager(object) => knowledge
-                .values_of_by_ref(object)
-                .is_some_and(|set| set.size() != 0),
+            Self::Eager(object) => knowledge.size_of_object(object) != 0,
             Self::Union { first, second } => {
                 first.has_at_least_one_element(knowledge)
                     || second.has_at_least_one_element(knowledge)
@@ -194,9 +192,7 @@ impl LazyObject {
     pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
         match self {
             Self::Node(_) => todo!("iter node"),
-            Self::Eager(object) => {
-                LazyObjectIter::ObjectValues(knowledge.values_of(object).into_iter())
-            }
+            Self::Eager(object) => LazyObjectIter::ObjectValues(knowledge.values_of(object)),
             Self::Union { first, second } => LazyObjectIter::Union {
                 first: Box::new(first.iter(knowledge)),
                 second: Box::new(second.iter(knowledge)),
@@ -231,7 +227,7 @@ impl LazyObject {
 }
 
 pub enum LazyObjectIter {
-    ObjectValues(SetValues),
+    ObjectValues(ObjectValues),
     Union {
         first: Box<Self>,
         second: Box<Self>,

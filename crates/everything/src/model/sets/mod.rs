@@ -95,21 +95,57 @@ impl Set {
             .or_else(|| ByteSet::specialize_from(objects).map(Self::Byte))
     }
 
+    /// Creates a set from objects that are already sorted and deduplicated.
+    #[must_use]
+    fn from_sorted(objects: &mut [Object]) -> Self {
+        debug_assert!(
+            objects.windows(2).all(|pair| pair[0] < pair[1]),
+            "the values must be sorted and deduplicated"
+        );
+
+        if let Some(set) = Self::try_new_primitive_specialization(objects) {
+            return set;
+        }
+
+        if let Some(set) = TextSet::specialize_from(objects) {
+            return Self::Text(set);
+        }
+
+        if let Some(set) = OneConstructionSet::specialize_from_moving(objects) {
+            return Self::OneConstruction(set);
+        }
+
+        Self::Any(AnySet::from_sorted(objects.iter_mut().map(mem::take)))
+    }
+
     #[must_use]
     pub fn add_object(self, object: Object) -> Self {
-        let mut new_values = self.into_iter().collect::<Vec<_>>();
-        new_values.push(object);
-        Self::from(new_values.as_mut_slice())
+        if self.has(&object) {
+            return self;
+        }
+
+        let mut values = self.into_iter().collect::<Vec<_>>();
+
+        if let Err(index) = values.binary_search(&object) {
+            values.insert(index, object);
+        }
+
+        Self::from_sorted(values.as_mut_slice())
     }
 
     #[must_use]
     pub fn remove_object(self, object: &Object) -> Self {
-        let mut new_values = self
-            .into_iter()
-            .filter(|value| value != object)
-            .collect::<Vec<_>>();
+        if !self.has(object) {
+            return self;
+        }
 
-        Self::from(new_values.as_mut_slice())
+        let mut values = self.into_iter().collect::<Vec<_>>();
+
+        if let Some(index) = values.iter().position(|value| value == object) {
+            values.remove(index);
+        }
+
+        Self::from_sorted(values.as_mut_slice())
     }
 }
 
@@ -121,30 +157,11 @@ impl<const N: usize> From<[Object; N]> for Set {
 
 impl<'a> From<&'a mut [Object]> for Set {
     fn from(objects: &'a mut [Object]) -> Self {
-        let unique_len = {
-            objects.sort_unstable();
+        objects.sort_unstable();
 
-            let (unique, _) = objects.partition_dedup();
-            let unique_len = unique.len();
+        let (unique, _) = objects.partition_dedup();
 
-            if let Some(set) = Self::try_new_primitive_specialization(unique) {
-                return set;
-            }
-
-            if let Some(set) = TextSet::specialize_from(unique) {
-                return Self::Text(set);
-            }
-
-            if let Some(set) = OneConstructionSet::specialize_from_moving(unique) {
-                return Self::OneConstruction(set);
-            }
-
-            unique_len
-        };
-
-        Self::Any(AnySet::from_sorted(
-            objects.iter_mut().map(mem::take).take(unique_len),
-        ))
+        Self::from_sorted(unique)
     }
 }
 

@@ -126,3 +126,61 @@ fn arbitrary_sets_are_sorted_and_deduplicated() {
     let values: Vec<_> = set.values().collect();
     assert_eq!(values.as_slice(), [a, b, c].as_slice());
 }
+
+#[test]
+fn every_variant_iterates_in_ascending_order() {
+    let sets = [
+        Set::empty(),
+        Set::from([successor_of_zero()]),
+        Set::from([construction(
+            Atom::CODE_POINT.into(),
+            Object::new_integer(BigInt::from(u32::from('A'))),
+        )]),
+        Set::from(byte_objects()),
+        Set::from([construction(Atom(0x1234).into(), Atom(0x5678).into())]),
+        Set::from([
+            Object::Atom(Atom(30)),
+            Object::Atom(Atom(10)),
+            Object::Atom(Atom(20)),
+        ]),
+    ];
+
+    for set in sets {
+        let values: Vec<_> = set.values().collect();
+
+        assert!(
+            values.windows(2).all(|pair| pair[0] < pair[1]),
+            "values are not ascending: {values:?}"
+        );
+    }
+}
+
+#[test]
+fn add_object_keeps_the_canonical_form() {
+    let set = Set::empty().add_object(successor_of_zero());
+
+    assert_eq!(set, Set::from([successor_of_zero()]));
+    assert_eq!(set.size(), 1);
+}
+
+#[test]
+fn adding_a_present_object_does_not_change_the_set() {
+    let set = Set::from([successor_of_zero()]);
+
+    assert_eq!(set.clone().add_object(successor_of_zero()), set);
+}
+
+#[test]
+fn remove_object_keeps_the_canonical_form() {
+    let object = construction(Atom(0x1234).into(), Atom(0x5678).into());
+    let set = Set::from([object.clone(), successor_of_zero()]);
+
+    assert_eq!(set.remove_object(&object), Set::from([successor_of_zero()]));
+}
+
+#[test]
+fn removing_an_absent_object_does_not_change_the_set() {
+    let set = Set::from([successor_of_zero()]);
+
+    assert_eq!(set.clone().remove_object(&Atom(0x1234).into()), set);
+}

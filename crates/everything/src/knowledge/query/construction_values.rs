@@ -1,8 +1,11 @@
-use crate::model::{Construction, Object, SetValues};
+use crate::{
+    knowledge::ObjectValues,
+    model::{Construction, Object},
+};
 
 #[derive(Clone)]
 pub struct QueryConstructionValues {
-    pub properties: SetValues,
+    pub properties: ObjectValues,
     pub property_constructor: Object,
 }
 

@@ -1,10 +1,13 @@
 use imbl::OrdMap;
 
-use crate::model::{Atom, Object, Set, SetApi};
+use crate::{
+    knowledge::Values,
+    model::{Atom, Object},
+};
 
 #[derive(Clone)]
 pub struct QueryAtomsWithProperty {
-    pub atoms: <OrdMap<Atom, Set> as IntoIterator>::IntoIter,
+    pub atoms: <OrdMap<Atom, Values> as IntoIterator>::IntoIter,
     pub property: Object,
 }
 

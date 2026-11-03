@@ -1,6 +1,6 @@
 use everything::{
-    knowledge::{Knowledge, Statement},
-    model::{Atom, ByteSet, CharacterSet, Construction, Object, Set, SetApi, TextSet},
+    knowledge::{Knowledge, Statement, Values},
+    model::{Atom, ByteSet, CharacterSet, Construction, Object, Set, TextSet},
     num_bigint::{BigInt, BigUint, Sign},
 };
 use scursor::ReadCursor;
@@ -180,6 +180,21 @@ fn parse_set(cursor: &mut ReadCursor) -> Result<Set, ParseError> {
     Ok(Set::from(properties.as_mut_slice()))
 }
 
+/// Parses the values of a subject: a LEB128 count followed by that many objects.
+fn parse_values(cursor: &mut ReadCursor) -> Result<Values, ParseError> {
+    let value_count = cursor
+        .read_leb128_u64()
+        .map_err(|_| ParseError::InvalidSetValueCount)?;
+
+    let mut values = Values::empty();
+
+    for _ in 0..value_count {
+        values.insert(parse_object(cursor)?);
+    }
+
+    Ok(values)
+}
+
 /// Parses a text set: a LEB128 length in bytes followed by that many bytes
 /// of UTF-8 text.
 fn parse_text(cursor: &mut ReadCursor) -> Result<TextSet, ParseError> {
@@ -211,10 +226,10 @@ fn collect_base(base: &[u8], knowledge: &mut Knowledge) -> Result<(), ParseError
 
     while cursor.remaining() > 0 {
         let atom = parse_atom(&mut cursor)?;
-        let set = parse_set(&mut cursor)?;
+        let values = parse_values(&mut cursor)?;
 
-        if set.size() > 0 {
-            knowledge.map.insert(atom, set);
+        if !values.is_empty() {
+            knowledge.map.insert(atom, values);
         }
     }
 

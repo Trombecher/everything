@@ -1,11 +1,13 @@
 mod properties;
 mod query;
+mod values;
 
 pub use query::*;
+pub use values::*;
 
 use imbl::OrdMap;
 
-use crate::model::{Atom, Object, Set, SetApi};
+use crate::model::{Atom, Object, SetApi};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Statement {
@@ -15,7 +17,7 @@ pub struct Statement {
 
 #[derive(Clone)]
 pub struct Knowledge {
-    pub map: OrdMap<Atom, Set>,
+    pub map: OrdMap<Atom, Values>,
 }
 
 impl Default for Knowledge {
@@ -33,22 +35,26 @@ impl Knowledge {
     }
 
     pub fn add_statement(&mut self, statement: Statement) {
-        let new_set = self
-            .values_of(&statement.atom.into())
-            .add_object(statement.object);
-
-        self.map.insert(statement.atom, new_set);
+        match self.map.get_mut(&statement.atom) {
+            Some(values) => values.insert(statement.object),
+            None => {
+                self.map
+                    .insert(statement.atom, Values::from([statement.object]));
+            }
+        }
     }
 
     pub fn remove_statement(&mut self, statement: &Statement) {
-        let new_set = self
-            .values_of(&statement.atom.into())
-            .remove_object(&statement.object);
+        let is_empty = match self.map.get_mut(&statement.atom) {
+            Some(values) => {
+                values.remove(&statement.object);
+                values.is_empty()
+            }
+            None => return,
+        };
 
-        if new_set.size() == 0 {
+        if is_empty {
             self.map.remove(&statement.atom);
-        } else {
-            self.map.insert(statement.atom, new_set);
         }
     }
 
@@ -67,34 +73,30 @@ impl Knowledge {
         }
     }
 
-    /// Returns the set of values of the given object.
+    /// Returns an iterator over the values of the given object.
     ///
-    /// * If the given object is an atom,
-    ///   then the set of all properties of that atom will be returned;
-    /// * if the given object is a set, then this set is returned;
-    /// * otherwise the empty set is returned.
+    /// * If the given object is an atom, then the values are all properties of
+    ///   that atom;
+    /// * if the given object is a set, then the values are the members of that
+    ///   set;
+    /// * otherwise the iterator is empty.
     #[must_use]
-    pub fn values_of(&self, object: &Object) -> Set {
-        self.values_of_by_ref(object)
-            .cloned()
-            .unwrap_or_else(Set::empty)
-    }
-
-    #[must_use]
-    pub fn values_of_by_ref<'a>(&'a self, object: &'a Object) -> Option<&'a Set> {
+    pub fn values_of(&self, object: &Object) -> ObjectValues {
         match object {
-            Object::Atom(atom) => self.map.get(atom),
-            Object::Construction(_) => None,
-            Object::Set(set) => Some(set),
+            Object::Atom(atom) => {
+                ObjectValues::properties(self.map.get(atom).cloned().unwrap_or_default())
+            }
+            Object::Construction(_) => ObjectValues::empty(),
+            Object::Set(set) => ObjectValues::members(set.clone()),
         }
     }
 
     #[must_use]
     pub fn object_has(&self, object: &Object, element: &Object) -> bool {
-        if let Some(set) = self.values_of_by_ref(object) {
-            set.has(element)
-        } else {
-            false
+        match object {
+            Object::Atom(atom) => self.map.get(atom).is_some_and(|values| values.has(element)),
+            Object::Construction(_) => false,
+            Object::Set(set) => set.has(element),
         }
     }
 
@@ -105,7 +107,7 @@ impl Knowledge {
         property_constructor: Object,
     ) -> QueryConstructionValues {
         QueryConstructionValues {
-            properties: self.values_of(target).into_iter(),
+            properties: self.values_of(target),
             property_constructor,
         }
     }
@@ -115,7 +117,11 @@ impl Knowledge {
     /// have no values.
     #[must_use]
     pub fn size_of_object(&self, object: &Object) -> u64 {
-        self.values_of_by_ref(object).map_or(0, SetApi::size)
+        match object {
+            Object::Atom(atom) => self.map.get(atom).map_or(0, Values::size),
+            Object::Construction(_) => 0,
+            Object::Set(set) => set.size(),
+        }
     }
 
     /*
@@ -153,7 +159,7 @@ impl Knowledge {
 
 #[derive(Clone)]
 pub struct KnownAtoms {
-    map_iter: <OrdMap<Atom, Set> as IntoIterator>::IntoIter,
+    map_iter: <OrdMap<Atom, Values> as IntoIterator>::IntoIter,
 }
 
 impl Iterator for KnownAtoms {

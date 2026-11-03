@@ -1,5 +1,5 @@
 use everything::{
-    knowledge::{Knowledge, Statement},
+    knowledge::{Knowledge, Statement, Values},
     model::{Atom, NonZeroBigInt, Object, Set, SetApi, TextSet},
     num_bigint::Sign,
 };
@@ -28,9 +28,9 @@ pub(super) fn write_knowledge(knowledge: &Knowledge, out: &mut Vec<u8>) {
 
     let base_position = out.len();
 
-    for (atom, set) in &knowledge.map {
+    for (atom, values) in &knowledge.map {
         write_atom(*atom, out);
-        write_set_values(set, out);
+        write_values(values, out);
     }
 
     let base_length_in_bytes =
@@ -148,6 +148,15 @@ fn write_set_values(set: &Set, out: &mut Vec<u8>) {
     leb128::write_leb128_u64(set.size(), out);
 
     for value in set.clone() {
+        write_object(&value, out);
+    }
+}
+
+/// Writes the values of a subject, prefixed by their count.
+fn write_values(values: &Values, out: &mut Vec<u8>) {
+    leb128::write_leb128_u64(values.size(), out);
+
+    for value in values.clone() {
         write_object(&value, out);
     }
 }
