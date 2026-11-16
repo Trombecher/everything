@@ -76,6 +76,7 @@ impl LazyObject {
     pub fn into_object(self) -> Object {
         match self {
             Self::Eager(object) => object,
+            Self::Node(node) => node.into_object(),
             object => todo!("{object:?} from lazy"),
         }
     }

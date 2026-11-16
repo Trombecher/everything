@@ -105,3 +105,55 @@ fn unwrap() {
         );
     }
 }
+
+fn integer_set() -> Set {
+    Set::from([
+        Object::new_integer(BigInt::from(1)),
+        Object::new_integer(BigInt::from(2)),
+        Object::new_integer(BigInt::from(3)),
+    ])
+}
+
+fn identity_function() -> Node {
+    Node::Function {
+        body: Node::Parameter { depth: 0 }.into(),
+    }
+}
+
+#[test]
+fn filter() {
+    let node = Node::Filter {
+        set: Node::Literal(integer_set().into()).into(),
+        filter_function: Node::Function {
+            body: Node::Equal {
+                first: Node::Parameter { depth: 0 }.into(),
+                second: Node::Literal(Object::new_integer(BigInt::from(2))).into(),
+            }
+            .into(),
+        }
+        .into(),
+    };
+
+    let values = evaluate(&node, &BASE).iter(&BASE).collect::<Vec<_>>();
+
+    assert_eq!(values, vec![Object::new_integer(BigInt::from(2))]);
+}
+
+#[test]
+fn map() {
+    let node = Node::Map {
+        set: Node::Literal(integer_set().into()).into(),
+        mapper_function: identity_function().into(),
+    };
+
+    let values = evaluate(&node, &BASE).iter(&BASE).collect::<Vec<_>>();
+
+    assert_eq!(
+        values,
+        [
+            Object::new_integer(BigInt::from(1)),
+            Object::new_integer(BigInt::from(2)),
+            Object::new_integer(BigInt::from(3)),
+        ]
+    );
+}

@@ -435,12 +435,12 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             }
             Task::Map => {
                 // TODO: make this undefined-aware
-                let mapper_function_object = evaluated.pop().unwrap().into_object();
+                let mapper_function = evaluated.pop().unwrap();
                 let set = evaluated.pop().unwrap();
 
                 if !set.is_undefined()
                     && let Ok(mapper_function @ Node::Function { .. }) =
-                        Node::new(&mapper_function_object, knowledge)
+                        mapper_function.into_node(knowledge)
                 {
                     evaluated.push(LazyObject::Map {
                         target: Box::new(set),
@@ -451,12 +451,12 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 }
             }
             Task::Filter => {
-                let filter_function_object = evaluated.pop().unwrap().into_object();
+                let filter_function = evaluated.pop().unwrap();
                 let set = evaluated.pop().unwrap();
 
                 if !set.is_undefined()
                     && let Ok(filter_function @ Node::Function { .. }) =
-                        Node::new(&filter_function_object, knowledge)
+                        filter_function.into_node(knowledge)
                 {
                     evaluated.push(LazyObject::Filter {
                         target: Box::new(set),
