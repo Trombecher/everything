@@ -89,6 +89,7 @@ pub enum RawNode {
         depth: u32,
     },
     Count(Object),
+    ValuesOf(Object),
     QueryAtomsWithProperty {
         property: Object,
     },
@@ -225,6 +226,13 @@ impl RawNode {
                 .query_construction_values(object, Atom::NODE_COUNT.into())
                 .next_and_last()
                 .map(Self::Count)
+        );
+
+        xor_with!(
+            knowledge
+                .query_construction_values(object, Atom::NODE_VALUES_OF.into())
+                .next_and_last()
+                .map(Self::ValuesOf)
         );
 
         xor_with!(

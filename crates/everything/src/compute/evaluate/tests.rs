@@ -2,7 +2,11 @@ use std::{assert_matches, ops::RangeInclusive};
 
 use num_bigint::BigInt;
 
-use crate::{base::BASE, model::Set};
+use crate::{
+    base::BASE,
+    knowledge::Statement,
+    model::{Construction, Set},
+};
 
 use super::*;
 
@@ -104,6 +108,66 @@ fn unwrap() {
             LazyObject::Eager(object) if object == unwrapped
         );
     }
+}
+
+#[test]
+fn values_of() {
+    let atom = Atom(42);
+    let value = Object::new_integer(BigInt::from(1));
+
+    let mut knowledge = BASE.clone();
+    knowledge.add_statement(Statement {
+        atom,
+        object: value.clone(),
+    });
+
+    let set = Set::from([Object::Atom(atom)]);
+
+    assert_eq!(
+        evaluate(
+            &Node::ValuesOf(Node::Literal(set.clone().into()).into()),
+            &knowledge,
+        )
+        .into_object(),
+        Object::Set(set)
+    );
+
+    assert_matches!(
+        evaluate(
+            &Node::ValuesOf(identity_function().into()),
+            &knowledge
+        ),
+        LazyObject::Node(node) if node == identity_function()
+    );
+
+    assert_eq!(
+        evaluate(
+            &Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()),
+            &knowledge,
+        )
+        .into_object(),
+        Object::Set(Set::from([value]))
+    );
+
+    let construction = Construction::new(Atom(1).into(), Atom(2).into());
+
+    assert_eq!(
+        evaluate(
+            &Node::ValuesOf(Node::Literal(construction.into()).into()),
+            &knowledge,
+        )
+        .into_object(),
+        Atom::UNDEFINED.into()
+    );
+
+    assert_eq!(
+        evaluate(
+            &Node::ValuesOf(Node::Literal(Atom::UNDEFINED.into()).into()),
+            &knowledge
+        )
+        .into_object(),
+        Atom::UNDEFINED.into()
+    );
 }
 
 fn integer_set() -> Set {

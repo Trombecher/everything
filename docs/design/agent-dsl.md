@@ -176,6 +176,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `a \| b`                     | Union                                       |
 | `a in s`                     | Contains                                    |
 | `count(s)` / `unwrap(s)`     | Count / Unwrap                              |
+| `values_of(x)`               | ValuesOf                                    |
 | `map(s, f)`                  | Map                                         |
 | `filter(s, f)`               | Filter                                      |
 | `every(s, p)` / `any(s, p)`  | Every / Any                                 |

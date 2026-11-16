@@ -202,6 +202,16 @@ An object is a _count node_ iff it has the property `node_count <inner>`. It eva
 
 If the result is `undefined`, the result is `undefined`. Deferred set results (union, map, filter) are not supported by count yet.
 
+## Values Of
+
+An object is a _values-of node_ iff it has the property `node_values_of <inner>`. It evaluates `<inner>` and converts the result to the set of its values:
+
+- for a set or function value, the result itself, unchanged (this includes deferred set results);
+- for an atom, the set of the values (properties) the atom has in the knowledge;
+- for a construction, `undefined`.
+
+If the result is `undefined`, the result is `undefined`. An atom without statements evaluates to the empty set. In contrast to [Set Count](#set-count), the conversion from an object to its values is explicit, so counting the values of an atom is written as `count(values_of(<atom>))`.
+
 ## Set Union
 
 An object is a _union node_ iff
@@ -433,6 +443,7 @@ evaluates to `2`.
 | Add | `node_add_first`, `node_add_second` | implemented for integers |
 | Multiply | `node_multiply_first`, `node_multiply_second` | implemented for integers |
 | Count | `node_count` | partial: deferred sets unsupported |
+| Values of | `node_values_of` | implemented |
 | Union | `node_union_first`, `node_union_second` | partial: no deduplication or size |
 | Filter | `node_filter_set`, `node_filter_filter` | partial: iteration and membership only |
 | Map | `node_map_set`, `node_map_mapper` | partial: iteration and membership only |

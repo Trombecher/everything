@@ -23,6 +23,7 @@ fn node_round_trip() {
         Node::FunctionSelf { depth: 0 },
         Node::Parameter { depth: 0 },
         Node::Count(Node::Literal(a.clone()).into()),
+        Node::ValuesOf(Node::Literal(a.clone()).into()),
         Node::QueryAtomsWithProperty {
             property: Node::Literal(a.clone()).into(),
         },

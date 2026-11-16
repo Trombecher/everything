@@ -73,6 +73,9 @@ pub fn capture(
         Node::Count(inner) => {
             Node::Count(capture(inner, additional_depth, evaluation_context).into())
         }
+        Node::ValuesOf(inner) => {
+            Node::ValuesOf(capture(inner, additional_depth, evaluation_context).into())
+        }
         Node::QueryAtomsWithProperty { property } => Node::QueryAtomsWithProperty {
             property: capture(property, additional_depth, evaluation_context).into(),
         },

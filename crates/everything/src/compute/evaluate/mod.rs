@@ -12,7 +12,7 @@ use crate::{
     compute::{LazyObject, MaybeUndefined, Node, capture, operations},
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Atom, Object},
+    model::{Atom, Object, Set},
 };
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
@@ -33,6 +33,7 @@ enum Task {
     /// it transforms it to undefined.
     ForceToBoolean,
     Count,
+    ValuesOf,
     Equal,
     PartialOr {
         second: Arc<Node>,
@@ -137,6 +138,10 @@ fn resolve_evaluate_node(
         }
         Node::Count(object) => {
             tasks.push(Task::Count);
+            tasks.push(Task::Evaluate(Arc::clone(object)));
+        }
+        Node::ValuesOf(object) => {
+            tasks.push(Task::ValuesOf);
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
         Node::Equal { first, second } => {
@@ -308,6 +313,24 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 } else {
                     Object::new_integer(BigInt::from(target.size(knowledge))).into()
                 });
+            }
+            Task::ValuesOf => {
+                let object = evaluated.pop().unwrap();
+
+                if object.is_undefined() {
+                    evaluated.push(UNDEFINED);
+                } else {
+                    evaluated.push(match object {
+                        LazyObject::Eager(Object::Atom(atom)) => {
+                            let mut values =
+                                knowledge.values_of(&Object::Atom(atom)).collect::<Vec<_>>();
+
+                            LazyObject::Eager(Set::from(values.as_mut_slice()).into())
+                        }
+                        LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
+                        object => object,
+                    });
+                }
             }
             Task::ToBoolean => {
                 // TODO: make this undefined-aware.

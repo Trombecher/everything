@@ -42,6 +42,12 @@ pub enum Node {
 
     /// Counts the number of values the inner has.
     Count(Arc<Node>),
+
+    /// Converts the inner result to a set of its values: sets and
+    /// function values are returned unchanged, atoms evaluate to the
+    /// set of their values in the knowledge, and constructions
+    /// evaluate to undefined.
+    ValuesOf(Arc<Node>),
     QueryAtomsWithProperty {
         property: Arc<Node>,
     },
@@ -159,6 +165,7 @@ impl Node {
             RawNode::FunctionSelf { depth } => Self::FunctionSelf { depth },
             RawNode::Parameter { depth } => Self::Parameter { depth },
             RawNode::Count(object) => Self::Count(Self::new(&object, knowledge)?.into()),
+            RawNode::ValuesOf(object) => Self::ValuesOf(Self::new(&object, knowledge)?.into()),
             RawNode::QueryAtomsWithProperty { property } => Self::QueryAtomsWithProperty {
                 property: Self::new(&property, knowledge)?.into(),
             },
@@ -374,6 +381,12 @@ impl Node {
                 Set::from([Construction::new(Atom::NODE_COUNT.into(), object.into_object()).into()])
                     .into()
             }
+            Self::ValuesOf(object) => {
+                Set::from([
+                    Construction::new(Atom::NODE_VALUES_OF.into(), object.into_object()).into(),
+                ])
+                .into()
+            }
             Self::QueryAtomsWithProperty { property } => Set::from([Construction::new(
                 Atom::NODE_ATOMS_WITH_PROPERTY.into(),
                 property.into_object(),
@@ -479,6 +492,7 @@ impl Node {
             | Self::Literal(_)
             | Self::FunctionSelf { .. }
             | Self::Count(_)
+            | Self::ValuesOf(_)
             | Self::QueryAtomsWithProperty { .. }
             | Self::IsAtom(_)
             | Self::IsSet(_)
