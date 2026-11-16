@@ -26,7 +26,6 @@ enum Task {
     PartialAnd {
         second: Arc<Node>,
     },
-    ToBoolean,
     /// `1 -> 1`
     ///
     /// Pops the top value from the evaluated stack and if that value is not a boolean,
@@ -34,6 +33,7 @@ enum Task {
     ForceToBoolean,
     Count,
     ValuesOf,
+    HasValue,
     Equal,
     PartialOr {
         second: Arc<Node>,
@@ -142,6 +142,10 @@ fn resolve_evaluate_node(
         }
         Node::ValuesOf(object) => {
             tasks.push(Task::ValuesOf);
+            tasks.push(Task::Evaluate(Arc::clone(object)));
+        }
+        Node::HasValue(object) => {
+            tasks.push(Task::HasValue);
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
         Node::Equal { first, second } => {
@@ -332,13 +336,18 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     });
                 }
             }
-            Task::ToBoolean => {
-                // TODO: make this undefined-aware.
+            Task::HasValue => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(LazyObject::Eager(
-                    operations::to_boolean(&object, knowledge).into(),
-                ));
+                evaluated.push(
+                    if object.is_undefined()
+                        || matches!(object, LazyObject::Eager(Object::Construction(_)))
+                    {
+                        UNDEFINED
+                    } else {
+                        LazyObject::Eager(object.has_at_least_one_element(knowledge).into())
+                    },
+                );
             }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();

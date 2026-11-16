@@ -212,6 +212,17 @@ An object is a _values-of node_ iff it has the property `node_values_of <inner>`
 
 If the result is `undefined`, the result is `undefined`. An atom without statements evaluates to the empty set. In contrast to [Set Count](#set-count), the conversion from an object to its values is explicit, so counting the values of an atom is written as `count(values_of(<atom>))`.
 
+## Has Value
+
+An object is a _has-value node_ iff it has the property `node_has_value <inner>`. It evaluates `<inner>` and returns `true` iff the result has at least one value:
+
+- for a set, whether it has at least one member (this includes deferred set results, which short-circuit where possible);
+- for an atom, whether it has at least one value in the knowledge;
+- for a construction, `undefined`;
+- for a function value, `true`.
+
+If the result is `undefined`, the result is `undefined`. This is the existential counterpart of [Set Count](#set-count). It is equivalent to `count(values_of(<inner>)) > 0`, but it does not materialise the values of an atom.
+
 ## Set Union
 
 An object is a _union node_ iff
@@ -444,6 +455,7 @@ evaluates to `2`.
 | Multiply | `node_multiply_first`, `node_multiply_second` | implemented for integers |
 | Count | `node_count` | partial: deferred sets unsupported |
 | Values of | `node_values_of` | implemented |
+| Has value | `node_has_value` | implemented |
 | Union | `node_union_first`, `node_union_second` | partial: no deduplication or size |
 | Filter | `node_filter_set`, `node_filter_filter` | partial: iteration and membership only |
 | Map | `node_map_set`, `node_map_mapper` | partial: iteration and membership only |

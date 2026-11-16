@@ -48,6 +48,12 @@ pub enum Node {
     /// set of their values in the knowledge, and constructions
     /// evaluate to undefined.
     ValuesOf(Arc<Node>),
+
+    /// Evaluates to `true` iff the inner result has at least one value.
+    /// Sets and function values are tested directly, atoms are tested
+    /// against their values in the knowledge, and constructions
+    /// evaluate to undefined.
+    HasValue(Arc<Node>),
     QueryAtomsWithProperty {
         property: Arc<Node>,
     },
@@ -166,6 +172,7 @@ impl Node {
             RawNode::Parameter { depth } => Self::Parameter { depth },
             RawNode::Count(object) => Self::Count(Self::new(&object, knowledge)?.into()),
             RawNode::ValuesOf(object) => Self::ValuesOf(Self::new(&object, knowledge)?.into()),
+            RawNode::HasValue(object) => Self::HasValue(Self::new(&object, knowledge)?.into()),
             RawNode::QueryAtomsWithProperty { property } => Self::QueryAtomsWithProperty {
                 property: Self::new(&property, knowledge)?.into(),
             },
@@ -387,6 +394,12 @@ impl Node {
                 ])
                 .into()
             }
+            Self::HasValue(object) => {
+                Set::from([
+                    Construction::new(Atom::NODE_HAS_VALUE.into(), object.into_object()).into(),
+                ])
+                .into()
+            }
             Self::QueryAtomsWithProperty { property } => Set::from([Construction::new(
                 Atom::NODE_ATOMS_WITH_PROPERTY.into(),
                 property.into_object(),
@@ -493,6 +506,7 @@ impl Node {
             | Self::FunctionSelf { .. }
             | Self::Count(_)
             | Self::ValuesOf(_)
+            | Self::HasValue(_)
             | Self::QueryAtomsWithProperty { .. }
             | Self::IsAtom(_)
             | Self::IsSet(_)

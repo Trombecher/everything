@@ -90,6 +90,7 @@ pub enum RawNode {
     },
     Count(Object),
     ValuesOf(Object),
+    HasValue(Object),
     QueryAtomsWithProperty {
         property: Object,
     },
@@ -233,6 +234,13 @@ impl RawNode {
                 .query_construction_values(object, Atom::NODE_VALUES_OF.into())
                 .next_and_last()
                 .map(Self::ValuesOf)
+        );
+
+        xor_with!(
+            knowledge
+                .query_construction_values(object, Atom::NODE_HAS_VALUE.into())
+                .next_and_last()
+                .map(Self::HasValue)
         );
 
         xor_with!(

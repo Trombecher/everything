@@ -44,11 +44,6 @@ pub fn less(first: &Object, second: &Object) -> MaybeUndefined<bool> {
     }
 }
 
-#[must_use]
-pub fn to_boolean(object: &LazyObject, knowledge: &Knowledge) -> bool {
-    object.has_at_least_one_element(knowledge)
-}
-
 /// Iterates over the values of `object` and returns the first and last value;
 /// otherwise [`Maybeundefined::Undefined`].
 #[must_use]

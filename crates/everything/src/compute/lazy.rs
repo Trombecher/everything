@@ -120,17 +120,20 @@ impl LazyObject {
     #[must_use]
     pub fn has_at_least_one_element(&self, knowledge: &Knowledge) -> bool {
         match self {
-            Self::Node(_) => todo!(),
+            Self::Node(node) => node.set_size() != 0,
             Self::Eager(object) => knowledge.size_of_object(object) != 0,
             Self::Union { first, second } => {
                 first.has_at_least_one_element(knowledge)
                     || second.has_at_least_one_element(knowledge)
             }
             Self::Map { target, .. } => target.has_at_least_one_element(knowledge),
-            Self::Intersection { .. }
-            | Self::Difference { .. }
-            | Self::AtomsWithProperty { .. }
-            | Self::Filter { .. } => self.iter(knowledge).next().is_some(),
+            Self::AtomsWithProperty { property } => knowledge
+                .query_atoms_with_property(property.clone())
+                .next()
+                .is_some(),
+            Self::Intersection { .. } | Self::Difference { .. } | Self::Filter { .. } => {
+                self.iter(knowledge).next().is_some()
+            }
         }
     }
 
