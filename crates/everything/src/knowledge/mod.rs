@@ -73,6 +73,12 @@ impl Knowledge {
         }
     }
 
+    /// Returns the values of the given atom in the knowledge.
+    #[must_use]
+    pub fn values_of_atom(&self, atom: &Atom) -> Values {
+        self.map.get(atom).cloned().unwrap_or_default()
+    }
+
     /// Returns an iterator over the values of the given object.
     ///
     /// * If the given object is an atom, then the values are all properties of
@@ -83,9 +89,7 @@ impl Knowledge {
     #[must_use]
     pub fn values_of(&self, object: &Object) -> ObjectValues {
         match object {
-            Object::Atom(atom) => {
-                ObjectValues::properties(self.map.get(atom).cloned().unwrap_or_default())
-            }
+            Object::Atom(atom) => ObjectValues::properties(self.values_of_atom(atom)),
             Object::Construction(_) => ObjectValues::empty(),
             Object::Set(set) => ObjectValues::members(set.clone()),
         }

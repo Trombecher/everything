@@ -146,7 +146,34 @@ fn values_of() {
             &knowledge,
         )
         .into_object(),
-        Object::Set(Set::from([value]))
+        Object::Set(Set::from([value.clone()]))
+    );
+
+    assert_matches!(
+        evaluate(
+            &Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()),
+            &knowledge,
+        ),
+        LazyObject::AtomValues(values) if values.size() == 1
+    );
+
+    assert_eq!(
+        evaluate(
+            &Node::Count(Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()).into()),
+            &knowledge,
+        )
+        .into_object(),
+        Object::new_integer(BigInt::from(1))
+    );
+
+    assert_eq!(
+        evaluate(
+            &Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()),
+            &knowledge,
+        )
+        .iter(&knowledge)
+        .collect::<Vec<_>>(),
+        vec![value]
     );
 
     let construction = Construction::new(Atom(1).into(), Atom(2).into());

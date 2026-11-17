@@ -12,7 +12,7 @@ use crate::{
     compute::{LazyObject, MaybeUndefined, Node, capture, operations},
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Atom, Object, Set},
+    model::{Atom, Object},
 };
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
@@ -326,10 +326,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 } else {
                     evaluated.push(match object {
                         LazyObject::Eager(Object::Atom(atom)) => {
-                            let mut values =
-                                knowledge.values_of(&Object::Atom(atom)).collect::<Vec<_>>();
-
-                            LazyObject::Eager(Set::from(values.as_mut_slice()).into())
+                            LazyObject::AtomValues(knowledge.values_of_atom(&atom))
                         }
                         LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
                         object => object,

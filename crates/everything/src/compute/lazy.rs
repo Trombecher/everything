@@ -1,7 +1,7 @@
 use crate::{
     compute::{self, InvalidNodeError, MaybeUndefined, Node},
-    knowledge::{Knowledge, ObjectValues},
-    model::{Atom, Object},
+    knowledge::{Knowledge, ObjectValues, Values},
+    model::{Atom, Object, Set},
 };
 
 #[derive(Clone, Debug)]
@@ -11,6 +11,12 @@ pub enum LazyObject {
 
     /// A node.
     Node(Node),
+
+    /// The set of values of an atom in the knowledge.
+    ///
+    /// The values are kept in their knowledge container, so iterating
+    /// them does not require materialising a model [`Set`].
+    AtomValues(Values),
 
     /// Represents the set that is the union of two [`LazyObject`]s.
     Union { first: Box<Self>, second: Box<Self> },
@@ -77,6 +83,11 @@ impl LazyObject {
         match self {
             Self::Eager(object) => object,
             Self::Node(node) => node.into_object(),
+            Self::AtomValues(values) => {
+                let mut values = values.into_iter().collect::<Vec<_>>();
+
+                Set::from(values.as_mut_slice()).into()
+            }
             object => todo!("{object:?} from lazy"),
         }
     }
@@ -86,6 +97,7 @@ impl LazyObject {
         match self {
             Self::Node(node) => node.set_size(),
             Self::Eager(object) => knowledge.size_of_object(object),
+            Self::AtomValues(values) => values.size(),
             Self::Union { .. } => {
                 // We have to deduplicate here,
                 // maybe best to just iterate (?)
@@ -122,6 +134,7 @@ impl LazyObject {
         match self {
             Self::Node(node) => node.set_size() != 0,
             Self::Eager(object) => knowledge.size_of_object(object) != 0,
+            Self::AtomValues(values) => !values.is_empty(),
             Self::Union { first, second } => {
                 first.has_at_least_one_element(knowledge)
                     || second.has_at_least_one_element(knowledge)
@@ -150,6 +163,7 @@ impl LazyObject {
         match self {
             Self::Node(_) => todo!(),
             Self::Eager(object) => knowledge.object_has(object, element),
+            Self::AtomValues(values) => values.has(element),
             Self::Union { first, second } => {
                 first.has(element, knowledge) || second.has(element, knowledge)
             }
@@ -197,6 +211,9 @@ impl LazyObject {
         match self {
             Self::Node(_) => todo!("iter node"),
             Self::Eager(object) => LazyObjectIter::ObjectValues(knowledge.values_of(object)),
+            Self::AtomValues(values) => {
+                LazyObjectIter::ObjectValues(ObjectValues::properties(values.clone()))
+            }
             Self::Union { first, second } => LazyObjectIter::Union {
                 first: Box::new(first.iter(knowledge)),
                 second: Box::new(second.iter(knowledge)),
