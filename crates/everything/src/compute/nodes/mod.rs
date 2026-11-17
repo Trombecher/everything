@@ -58,6 +58,11 @@ pub enum Node {
     QueryAtomsWithProperty {
         property: Arc<Node>,
     },
+    /// Queries the knowledge for all atoms that have a property that is a
+    /// construction with the given constructor.
+    QueryAtomsWithConstructor {
+        constructor: Arc<Node>,
+    },
     /// Queries the values of constructions with the given property
     /// constructor among the values of an object. Atoms are resolved
     /// through the knowledge, sets through their members, and
@@ -185,6 +190,9 @@ impl Node {
             RawNode::HasValue(object) => Self::HasValue(Self::new(&object, knowledge)?.into()),
             RawNode::QueryAtomsWithProperty { property } => Self::QueryAtomsWithProperty {
                 property: Self::new(&property, knowledge)?.into(),
+            },
+            RawNode::QueryAtomsWithConstructor { constructor } => Self::QueryAtomsWithConstructor {
+                constructor: Self::new(&constructor, knowledge)?.into(),
             },
             RawNode::QueryConstructionValues {
                 object,
@@ -422,6 +430,12 @@ impl Node {
             )
             .into()])
             .into(),
+            Self::QueryAtomsWithConstructor { constructor } => Set::from([Construction::new(
+                Atom::NODE_ATOMS_WITH_CONSTRUCTOR.into(),
+                constructor.into_object(),
+            )
+            .into()])
+            .into(),
             Self::Equal { first, second } => Set::from([
                 Construction::new(Atom::NODE_EQUAL_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_EQUAL_SECOND.into(), second.into_object()).into(),
@@ -530,6 +544,7 @@ impl Node {
             | Self::ValuesOf(_)
             | Self::HasValue(_)
             | Self::QueryAtomsWithProperty { .. }
+            | Self::QueryAtomsWithConstructor { .. }
             | Self::QueryConstructions { .. }
             | Self::IsAtom(_)
             | Self::IsSet(_)

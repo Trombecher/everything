@@ -84,6 +84,10 @@ pub fn capture(
         Node::QueryAtomsWithProperty { property } => Node::QueryAtomsWithProperty {
             property: capture(property, additional_depth, evaluation_context, knowledge).into(),
         },
+        Node::QueryAtomsWithConstructor { constructor } => Node::QueryAtomsWithConstructor {
+            constructor: capture(constructor, additional_depth, evaluation_context, knowledge)
+                .into(),
+        },
         Node::QueryConstructionValues {
             object,
             property_constructor,

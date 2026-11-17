@@ -12,6 +12,45 @@ fn integer(value: i32) -> Object {
 }
 
 #[test]
+fn query_atoms_with_constructor_yields_matching_atoms_once() {
+    let constructor = Atom(1);
+    let other_constructor = Atom(2);
+    let first_atom = Atom(42);
+    let second_atom = Atom(43);
+    let other_atom = Atom(44);
+    let plain_atom = Atom(45);
+
+    let mut knowledge = Knowledge::empty();
+
+    for value in [1, 2] {
+        knowledge.add_statement(Statement {
+            atom: first_atom,
+            object: Construction::new(constructor.into(), integer(value)).into(),
+        });
+    }
+
+    knowledge.add_statement(Statement {
+        atom: second_atom,
+        object: Construction::new(constructor.into(), integer(3)).into(),
+    });
+    knowledge.add_statement(Statement {
+        atom: other_atom,
+        object: Construction::new(other_constructor.into(), integer(4)).into(),
+    });
+    knowledge.add_statement(Statement {
+        atom: plain_atom,
+        object: integer(5),
+    });
+
+    assert_eq!(
+        knowledge
+            .query_atoms_with_constructor(constructor.into())
+            .collect::<Vec<_>>(),
+        vec![first_atom, second_atom]
+    );
+}
+
+#[test]
 fn query_constructions_yields_matching_atom_value_pairs() {
     let constructor = Atom(1);
     let other_constructor = Atom(2);

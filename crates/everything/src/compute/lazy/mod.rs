@@ -6,7 +6,8 @@ use std::collections::BTreeSet;
 use crate::{
     compute::{self, MaybeUndefined, Node},
     knowledge::{
-        AtomValuePair, Knowledge, ObjectValues, QueryAtomsWithProperty, QueryConstructions, Values,
+        AtomValuePair, Knowledge, ObjectValues, QueryAtomsWithConstructor, QueryAtomsWithProperty,
+        QueryConstructions, Values,
     },
     model::{Atom, Construction, Object, Set},
 };
@@ -39,6 +40,10 @@ pub enum LazyObject {
 
     /// The set of atoms with the given property.
     AtomsWithProperty { property: Object },
+
+    /// The set of atoms that have a property that is a construction with the
+    /// given constructor.
+    AtomsWithConstructor { constructor: Object },
 
     /// The values of constructions with the given constructor among the values
     /// of a given object.
@@ -102,6 +107,7 @@ impl LazyObject {
             | Self::Intersection { .. }
             | Self::Difference { .. }
             | Self::AtomsWithProperty { .. }
+            | Self::AtomsWithConstructor { .. }
             | Self::ConstructionValues { .. }
             | Self::Constructions { .. }
             | Self::Map { .. }
@@ -136,6 +142,7 @@ impl LazyObject {
             | Self::Intersection { .. }
             | Self::Difference { .. }
             | Self::AtomsWithProperty { .. }
+            | Self::AtomsWithConstructor { .. }
             | Self::ConstructionValues { .. }
             | Self::Constructions { .. }
             | Self::Map { .. }
@@ -184,6 +191,9 @@ impl LazyObject {
             Self::AtomsWithProperty { property } => knowledge
                 .query_atoms_with_property(property.clone())
                 .count() as u64,
+            Self::AtomsWithConstructor { constructor } => knowledge
+                .query_atoms_with_constructor(constructor.clone())
+                .count() as u64,
             Self::ConstructionValues { .. } | Self::Constructions { .. } => {
                 self.iter(knowledge).count() as u64
             }
@@ -212,6 +222,10 @@ impl LazyObject {
             Self::Map { target, .. } => target.has_at_least_one_element(knowledge),
             Self::AtomsWithProperty { property } => knowledge
                 .query_atoms_with_property(property.clone())
+                .next()
+                .is_some(),
+            Self::AtomsWithConstructor { constructor } => knowledge
+                .query_atoms_with_constructor(constructor.clone())
                 .next()
                 .is_some(),
             Self::Intersection { .. }
@@ -280,7 +294,9 @@ impl LazyObject {
                 .truthy()
                     == MaybeUndefined::Defined(true)
             }
-            LazyObject::Map { .. } | LazyObject::Constructions { .. } => {
+            LazyObject::AtomsWithConstructor { .. }
+            | LazyObject::Map { .. }
+            | LazyObject::Constructions { .. } => {
                 self.iter(knowledge).any(|object| element == &object)
             }
         }
@@ -346,6 +362,9 @@ impl LazyObject {
             Self::AtomsWithProperty { property } => {
                 LazyObjectIter::AtomsWithProperty(knowledge.query_atoms_with_property(property))
             }
+            Self::AtomsWithConstructor { constructor } => LazyObjectIter::AtomsWithConstructor(
+                knowledge.query_atoms_with_constructor(constructor),
+            ),
             Self::ConstructionValues {
                 target,
                 property_constructor,
@@ -396,6 +415,7 @@ fn atom_values_into_object(values: Values) -> Object {
 pub enum LazyObjectIter {
     ObjectValues(ObjectValues),
     AtomsWithProperty(QueryAtomsWithProperty),
+    AtomsWithConstructor(QueryAtomsWithConstructor),
     ConstructionValues {
         target: Box<Self>,
         property_constructor: Object,
@@ -424,6 +444,7 @@ impl Iterator for LazyObjectIter {
         match self {
             Self::ObjectValues(set_values) => set_values.next(),
             Self::AtomsWithProperty(atoms) => atoms.next().map(Object::Atom),
+            Self::AtomsWithConstructor(atoms) => atoms.next().map(Object::Atom),
             Self::ConstructionValues {
                 target,
                 property_constructor,

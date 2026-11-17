@@ -94,6 +94,9 @@ pub enum RawNode {
     QueryAtomsWithProperty {
         property: Object,
     },
+    QueryAtomsWithConstructor {
+        constructor: Object,
+    },
     QueryConstructionValues {
         object: Object,
         property_constructor: Object,
@@ -413,6 +416,13 @@ impl RawNode {
                 .query_construction_values(object, Atom::NODE_ATOMS_WITH_PROPERTY.into())
                 .next_and_last()
                 .map(|property| Self::QueryAtomsWithProperty { property })
+        );
+
+        xor_with!(
+            knowledge
+                .query_construction_values(object, Atom::NODE_ATOMS_WITH_CONSTRUCTOR.into())
+                .next_and_last()
+                .map(|constructor| Self::QueryAtomsWithConstructor { constructor })
         );
 
         xor_with!(

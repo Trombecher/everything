@@ -116,6 +116,29 @@ fn into_iter_yields_constructions_as_atom_value_objects() {
 }
 
 #[test]
+fn into_iter_captures_atoms_with_constructor() {
+    let constructor = Atom(1);
+    let atom = Atom(42);
+    let statement = Statement {
+        atom,
+        object: Construction::new(constructor.into(), integer(1)).into(),
+    };
+
+    let mut knowledge = Knowledge::empty();
+    knowledge.add_statement(statement.clone());
+
+    let lazy = LazyObject::AtomsWithConstructor {
+        constructor: constructor.into(),
+    };
+    let iterator = lazy.into_iter(&knowledge);
+
+    // Removing the statement after creating the iterator must not be visible.
+    knowledge.remove_statement(&statement);
+
+    assert_eq!(iterator.collect::<Vec<_>>(), vec![Object::Atom(atom)]);
+}
+
+#[test]
 fn into_iter_captures_atoms_with_property() {
     let property = Atom(1);
     let atom = Atom(42);

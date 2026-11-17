@@ -184,6 +184,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `fold(s, f, i)`              | Fold                                        |
 | `if c then a else b`         | If                                          |
 | `atoms_with(p)`              | QueryAtomsWithProperty                      |
+| `atoms_with_ctor(c)`         | QueryAtomsWithConstructor                   |
 | `values(o, c)`               | QueryConstructionValues                     |
 | `constructions(c)`           | QueryConstructions                          |
 | `is_atom(x)` / `is_set(x)` / `is_construction(x)` | IsAtom / IsSet / IsConstruction |

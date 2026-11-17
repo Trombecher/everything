@@ -35,6 +35,7 @@ enum Task {
     ValuesOf,
     HasValue,
     QueryAtomsWithProperty,
+    QueryAtomsWithConstructor,
     QueryConstructionValues,
     QueryConstructions,
     Equal,
@@ -93,6 +94,10 @@ fn resolve_evaluate_node(
         Node::QueryAtomsWithProperty { property } => {
             tasks.push(Task::QueryAtomsWithProperty);
             tasks.push(Task::Evaluate(Arc::clone(property)));
+        }
+        Node::QueryAtomsWithConstructor { constructor } => {
+            tasks.push(Task::QueryAtomsWithConstructor);
+            tasks.push(Task::Evaluate(Arc::clone(constructor)));
         }
         Node::QueryConstructionValues {
             object,
@@ -391,6 +396,11 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                         UNDEFINED
                     },
                 );
+            }
+            Task::QueryAtomsWithConstructor => {
+                let constructor = evaluated.pop().unwrap().into_object(knowledge);
+
+                evaluated.push(LazyObject::AtomsWithConstructor { constructor });
             }
             Task::QueryConstructions => {
                 let constructor = evaluated.pop().unwrap().into_object(knowledge);

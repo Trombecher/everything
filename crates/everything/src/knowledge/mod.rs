@@ -116,6 +116,16 @@ impl Knowledge {
         }
     }
 
+    /// Queries the knowledge for all atoms that have a property that is a
+    /// construction with the given constructor.
+    #[must_use]
+    pub fn query_atoms_with_constructor(&self, constructor: Object) -> QueryAtomsWithConstructor {
+        QueryAtomsWithConstructor {
+            atoms: self.map.clone().into_iter(),
+            constructor,
+        }
+    }
+
     /// Queries the knowledge for all pairs of an atom and a value such that the
     /// atom has the construction `constructor value`.
     #[must_use]

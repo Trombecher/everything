@@ -365,6 +365,12 @@ An object is a _query-atoms-with-property node_ iff it has the property `node_at
 
 It evaluates `<property>` and returns the set of all atoms that have the result as a property in the knowledge. The result is a deferred set: size and membership queries are answered by the knowledge directly, and iteration yields the matching atoms in knowledge order. If `<property>` evaluates to a deferred set, the result is `undefined`.
 
+## Query Atoms With Constructor
+
+An object is a _query-atoms-with-constructor node_ iff it has the property `node_atoms_with_constructor <constructor>`.
+
+It evaluates `<constructor>` and returns the set of all atoms that have at least one property that is a construction whose constructor equals the evaluated `<constructor>`. Each matching atom is yielded once, regardless of how many matching properties it has. The result is a deferred set: iteration yields the matching atoms in knowledge order. If `<constructor>` evaluates to a deferred set, it is materialized by iterating it before the query.
+
 ## Query Construction Values
 
 An object is a _query-construction-values node_ iff
@@ -479,14 +485,14 @@ evaluates to `2`.
 | New construction | `node_new_construction_constructor`, `node_new_construction_value` | not implemented |
 | Contains | `node_contains_element`, `node_contains_set` | not implemented |
 | Query atoms with property | `node_atoms_with_property` | implemented |
+| Query atoms with constructor | `node_atoms_with_constructor` | implemented |
 | Query construction values | `node_construction_values_object`, `node_construction_values_property_constructor` | implemented |
 | Query constructions | `node_query_constructions` | implemented |
 | Fold | `node_fold_set`, `node_fold_folder`, `node_fold_initial` | not implemented |
 
 ## Current Limitations
 
-- Deferred set values (union, map, filter) can be iterated and tested for membership. Converting them to objects, counting them, and comparing them for equality are not implemented and currently abort evaluation. Construction constructor/value extraction on them yields `undefined`.
-- Atoms-with-property, construction-values, and constructions results can be iterated, counted, and tested for membership, but converting them to objects is not implemented and currently aborts evaluation.
+- Deferred set values (union, map, filter) can be iterated and tested for membership, and are materialized when converted to an object or compared for equality. Counting is not implemented for union, map, and filter results; atoms-with-property, atoms-with-constructor, construction-values, and constructions results can be counted. Construction constructor/value extraction on deferred values yields `undefined`.
 - Deferred values and function values have undefined truthiness, so `and`, `or`, `xor`, `not`, and `if` produce `undefined` when given one directly.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
