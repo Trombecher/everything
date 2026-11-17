@@ -283,7 +283,8 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let parameter_value = evaluated.pop().unwrap();
 
                 if !callee_lazy_object.is_undefined()
-                    && let Ok(Node::Function { body }) = callee_lazy_object.into_node(knowledge)
+                    && let Some(Node::Function { body }) =
+                        callee_lazy_object.try_into_node(knowledge)
                 {
                     tasks.push(Task::PopContext);
                     tasks.push(Task::Evaluate(Arc::clone(&body)));
@@ -312,10 +313,10 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             Task::Count => {
                 let target = evaluated.pop().unwrap();
 
-                evaluated.push(if target.is_undefined() {
-                    UNDEFINED
-                } else {
+                evaluated.push(if target.is_set() {
                     Object::new_integer(BigInt::from(target.size(knowledge))).into()
+                } else {
+                    UNDEFINED
                 });
             }
             Task::ValuesOf => {
@@ -416,13 +417,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 evaluated.push(if object.is_undefined() {
                     UNDEFINED
                 } else {
-                    LazyObject::Eager(
-                        (!matches!(
-                            object,
-                            LazyObject::Eager(Object::Atom(_) | Object::Construction(_))
-                        ))
-                        .into(),
-                    )
+                    LazyObject::Eager(object.is_set().into())
                 });
             }
             Task::Not => match evaluated.pop().unwrap().truthy() {
@@ -434,42 +429,47 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 }
             },
             Task::Add => {
-                let right = evaluated.pop().unwrap().into_object();
-                // TODO: (perf) maybe short circuit sets into UNDEFINED.
-                let left = evaluated.pop().unwrap().into_object();
+                let right = evaluated.pop().unwrap().try_into_object();
+                let left = evaluated.pop().unwrap().try_into_object();
 
-                evaluated.push(LazyObject::Eager(operations::add(&left, &right).into()));
+                evaluated.push(match (left, right) {
+                    (Some(left), Some(right)) => {
+                        LazyObject::Eager(operations::add(&left, &right).into())
+                    }
+                    _ => UNDEFINED,
+                });
             }
             Task::Multiply => {
-                // TODO: (perf) maybe short circuit sets into UNDEFINED.
-                let right = evaluated.pop().unwrap().into_object();
-                let left = evaluated.pop().unwrap().into_object();
+                let right = evaluated.pop().unwrap().try_into_object();
+                let left = evaluated.pop().unwrap().try_into_object();
 
-                evaluated.push(LazyObject::Eager(
-                    operations::multiply(&left, &right).into(),
-                ));
+                evaluated.push(match (left, right) {
+                    (Some(left), Some(right)) => {
+                        LazyObject::Eager(operations::multiply(&left, &right).into())
+                    }
+                    _ => UNDEFINED,
+                });
             }
             Task::Union => {
                 let first = evaluated.pop().unwrap();
                 let second = evaluated.pop().unwrap();
 
-                evaluated.push(if first.is_undefined() || second.is_undefined() {
-                    UNDEFINED
-                } else {
+                evaluated.push(if first.is_set() && second.is_set() {
                     LazyObject::Union {
                         first: Box::new(second),
                         second: Box::new(first),
                     }
+                } else {
+                    UNDEFINED
                 });
             }
             Task::Map => {
-                // TODO: make this undefined-aware
                 let mapper_function = evaluated.pop().unwrap();
                 let set = evaluated.pop().unwrap();
 
-                if !set.is_undefined()
-                    && let Ok(mapper_function @ Node::Function { .. }) =
-                        mapper_function.into_node(knowledge)
+                if set.is_set()
+                    && let Some(mapper_function @ Node::Function { .. }) =
+                        mapper_function.try_into_node(knowledge)
                 {
                     evaluated.push(LazyObject::Map {
                         target: Box::new(set),
@@ -483,9 +483,9 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let filter_function = evaluated.pop().unwrap();
                 let set = evaluated.pop().unwrap();
 
-                if !set.is_undefined()
-                    && let Ok(filter_function @ Node::Function { .. }) =
-                        filter_function.into_node(knowledge)
+                if set.is_set()
+                    && let Some(filter_function @ Node::Function { .. }) =
+                        filter_function.try_into_node(knowledge)
                 {
                     evaluated.push(LazyObject::Filter {
                         target: Box::new(set),
@@ -560,11 +560,15 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             }
              */
             Task::Less => {
-                // TODO: make this undefined-aware
-                let second = evaluated.pop().unwrap().into_object();
-                let first = evaluated.pop().unwrap().into_object();
+                let second = evaluated.pop().unwrap().try_into_object();
+                let first = evaluated.pop().unwrap().try_into_object();
 
-                evaluated.push(LazyObject::Eager(operations::less(&first, &second).into()));
+                evaluated.push(match (first, second) {
+                    (Some(first), Some(second)) => {
+                        LazyObject::Eager(operations::less(&first, &second).into())
+                    }
+                    _ => UNDEFINED,
+                });
             }
             Task::PartialIf { then, otherwise } => match evaluated.pop().unwrap().truthy() {
                 MaybeUndefined::Defined(true) => {
@@ -576,11 +580,10 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 }
             },
             Task::Unwrap => {
-                // TODO: make this undefined-aware
                 let inner = evaluated.pop().unwrap();
 
                 evaluated.push(
-                    if !inner.is_undefined()
+                    if inner.is_set()
                         && let Some(inner) = inner.iter(knowledge).next_and_last()
                     {
                         LazyObject::Eager(inner)

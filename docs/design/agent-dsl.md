@@ -190,6 +190,8 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `x.p`                        | `unwrap(values({x}, p))`                    |
 | `true` / `false` / `undefined` | atoms                                      |
 
+Set-taking builtins (`count`, `unwrap`, `map`, `filter`, …) require a set. Use `values_of(x)` to pass an atom's values as a set.
+
 ### Samples
 
 A knowledge transaction an agent might write:

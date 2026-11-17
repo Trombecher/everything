@@ -40,7 +40,8 @@ pub enum Node {
         depth: u32,
     },
 
-    /// Counts the number of values the inner has.
+    /// Counts the number of elements of the inner set. Evaluates to
+    /// undefined if the inner result is not a set.
     Count(Arc<Node>),
 
     /// Converts the inner result to a set of its values: sets and

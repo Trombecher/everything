@@ -1,5 +1,5 @@
 use crate::{
-    compute::{self, InvalidNodeError, MaybeUndefined, Node},
+    compute::{self, MaybeUndefined, Node},
     knowledge::{Knowledge, ObjectValues, Values},
     model::{Atom, Object, Set},
 };
@@ -66,15 +66,52 @@ impl LazyObject {
         matches!(self, Self::Eager(Object::Atom(Atom::UNDEFINED)))
     }
 
-    /// Tries to convert `self` into a node.
-    ///
-    /// # Errors
-    ///
-    /// If `self` is an invalid node.
-    pub fn into_node(self, knowledge: &Knowledge) -> Result<Node, InvalidNodeError> {
+    /// Returns `true` iff `self` is a set result: an evaluated set, atom
+    /// values, a function value, or a deferred set operation.
+    #[must_use]
+    pub fn is_set(&self) -> bool {
         match self {
-            Self::Node(node) => Ok(node),
-            object => Node::new(&object.into_object(), knowledge),
+            Self::Eager(Object::Set(_))
+            | Self::AtomValues(_)
+            | Self::Node(_)
+            | Self::Union { .. }
+            | Self::Intersection { .. }
+            | Self::Difference { .. }
+            | Self::AtomsWithProperty { .. }
+            | Self::Map { .. }
+            | Self::Filter { .. } => true,
+            Self::Eager(Object::Atom(_) | Object::Construction(_)) => false,
+        }
+    }
+
+    /// Tries to convert `self` into a node, returning `None` if the value
+    /// cannot be materialised as an object.
+    #[must_use]
+    pub fn try_into_node(self, knowledge: &Knowledge) -> Option<Node> {
+        if self.is_undefined() {
+            return None;
+        }
+
+        match self {
+            Self::Node(node) => Some(node),
+            object => Node::new(&object.try_into_object()?, knowledge).ok(),
+        }
+    }
+
+    /// Tries to convert `self` into an evaluated object, returning `None`
+    /// for deferred values that cannot be materialised yet.
+    #[must_use]
+    pub fn try_into_object(self) -> Option<Object> {
+        match self {
+            Self::Eager(object) => Some(object),
+            Self::Node(node) => Some(node.into_object()),
+            Self::AtomValues(values) => Some(atom_values_into_object(values)),
+            Self::Union { .. }
+            | Self::Intersection { .. }
+            | Self::Difference { .. }
+            | Self::AtomsWithProperty { .. }
+            | Self::Map { .. }
+            | Self::Filter { .. } => None,
         }
     }
 
@@ -83,11 +120,7 @@ impl LazyObject {
         match self {
             Self::Eager(object) => object,
             Self::Node(node) => node.into_object(),
-            Self::AtomValues(values) => {
-                let mut values = values.into_iter().collect::<Vec<_>>();
-
-                Set::from(values.as_mut_slice()).into()
-            }
+            Self::AtomValues(values) => atom_values_into_object(values),
             object => todo!("{object:?} from lazy"),
         }
     }
@@ -161,7 +194,7 @@ impl LazyObject {
     #[must_use]
     pub fn has(&self, element: &Object, knowledge: &Knowledge) -> bool {
         match self {
-            Self::Node(_) => todo!(),
+            Self::Node(node) => knowledge.object_has(&node.into_object(), element),
             Self::Eager(object) => knowledge.object_has(object, element),
             Self::AtomValues(values) => values.has(element),
             Self::Union { first, second } => {
@@ -209,7 +242,11 @@ impl LazyObject {
     #[must_use]
     pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
         match self {
-            Self::Node(_) => todo!("iter node"),
+            Self::Node(node) => {
+                let object = node.into_object();
+
+                LazyObjectIter::ObjectValues(knowledge.values_of(&object))
+            }
             Self::Eager(object) => LazyObjectIter::ObjectValues(knowledge.values_of(object)),
             Self::AtomValues(values) => {
                 LazyObjectIter::ObjectValues(ObjectValues::properties(values.clone()))
@@ -245,6 +282,13 @@ impl LazyObject {
             },
         }
     }
+}
+
+#[must_use]
+fn atom_values_into_object(values: Values) -> Object {
+    let mut values = values.into_iter().collect::<Vec<_>>();
+
+    Set::from(values.as_mut_slice()).into()
 }
 
 pub enum LazyObjectIter {

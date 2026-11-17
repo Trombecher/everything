@@ -249,6 +249,227 @@ fn has_value() {
     );
 }
 
+#[test]
+fn count_requires_sets() {
+    let atom = Atom(42);
+    let construction = Object::Construction(Construction::new(Atom(1).into(), Atom(2).into()));
+    let set = Object::Set(Set::from([Object::new_integer(BigInt::from(1))]));
+
+    let count =
+        |object: Object| evaluate(&Node::Count(Node::Literal(object).into()), &BASE).into_object();
+
+    assert_eq!(count(Object::Atom(atom)), Atom::UNDEFINED.into());
+    assert_eq!(count(construction), Atom::UNDEFINED.into());
+    assert_eq!(count(Atom::UNDEFINED.into()), Atom::UNDEFINED.into());
+    assert_eq!(count(set), Object::new_integer(BigInt::from(1)));
+
+    // A function value is a set: its node representation has one property.
+    assert_eq!(
+        evaluate(&Node::Count(identity_function().into()), &BASE).into_object(),
+        Object::new_integer(BigInt::from(1))
+    );
+}
+
+#[test]
+fn unwrap_requires_sets() {
+    let atom = Atom(42);
+    let construction = Object::Construction(Construction::new(Atom(1).into(), Atom(2).into()));
+
+    let unwrap = |node: Node| evaluate(&Node::Unwrap(node.into()), &BASE).into_object();
+
+    assert_eq!(
+        unwrap(Node::Literal(Object::Atom(atom))),
+        Atom::UNDEFINED.into()
+    );
+    assert_eq!(unwrap(Node::Literal(construction)), Atom::UNDEFINED.into());
+
+    // A function value is a set of its node properties.
+    assert_eq!(
+        unwrap(identity_function()),
+        Construction::new(
+            Atom::NODE_FUNCTION.into(),
+            Node::Parameter { depth: 0 }.into_object()
+        )
+        .into()
+    );
+}
+
+#[test]
+fn function_values_are_sets() {
+    assert_eq!(
+        evaluate(&Node::IsSet(identity_function().into()), &BASE).into_object(),
+        Atom::TRUE.into()
+    );
+    assert_eq!(
+        evaluate(
+            &Node::IsSet(Node::Literal(Object::Atom(Atom(42))).into()),
+            &BASE
+        )
+        .into_object(),
+        Atom::FALSE.into()
+    );
+    assert_eq!(
+        evaluate(
+            &Node::IsSet(
+                Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into()).into()
+            ),
+            &BASE
+        )
+        .into_object(),
+        Atom::FALSE.into()
+    );
+}
+
+#[test]
+fn map_and_filter_require_sets() {
+    let atom = Node::Literal(Object::Atom(Atom(42)));
+    let construction = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());
+    let identity = identity_function();
+
+    assert_eq!(
+        evaluate(
+            &Node::Map {
+                set: atom.clone().into(),
+                mapper_function: identity.clone().into(),
+            },
+            &BASE,
+        )
+        .into_object(),
+        Atom::UNDEFINED.into()
+    );
+    assert_eq!(
+        evaluate(
+            &Node::Filter {
+                set: atom.into(),
+                filter_function: identity.clone().into(),
+            },
+            &BASE,
+        )
+        .into_object(),
+        Atom::UNDEFINED.into()
+    );
+    assert_eq!(
+        evaluate(
+            &Node::Map {
+                set: construction.clone().into(),
+                mapper_function: identity.clone().into(),
+            },
+            &BASE,
+        )
+        .into_object(),
+        Atom::UNDEFINED.into()
+    );
+    assert_eq!(
+        evaluate(
+            &Node::Filter {
+                set: construction.into(),
+                filter_function: identity.into(),
+            },
+            &BASE,
+        )
+        .into_object(),
+        Atom::UNDEFINED.into()
+    );
+
+    // A function value is a set, so mapping over it yields its node property.
+    let values = evaluate(
+        &Node::Map {
+            set: identity_function().into(),
+            mapper_function: identity_function().into(),
+        },
+        &BASE,
+    )
+    .iter(&BASE)
+    .collect::<Vec<_>>();
+
+    assert_eq!(
+        values,
+        vec![
+            Construction::new(
+                Atom::NODE_FUNCTION.into(),
+                Node::Parameter { depth: 0 }.into_object()
+            )
+            .into()
+        ]
+    );
+}
+
+#[test]
+fn union_requires_sets() {
+    let atom = Node::Literal(Object::Atom(Atom(42)));
+    let empty_set = Node::Literal(Object::Set(Set::empty()));
+    let construction = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());
+
+    for invalid in [atom, construction] {
+        assert_eq!(
+            evaluate(
+                &Node::Union {
+                    first: invalid.into(),
+                    second: empty_set.clone().into(),
+                },
+                &BASE,
+            )
+            .into_object(),
+            Atom::UNDEFINED.into()
+        );
+    }
+
+    let union = evaluate(
+        &Node::Union {
+            first: identity_function().into(),
+            second: empty_set.into(),
+        },
+        &BASE,
+    );
+
+    assert!(union.is_set());
+    assert_eq!(union.iter(&BASE).count(), 1);
+}
+
+#[test]
+fn sets_are_rejected_by_scalar_operations() {
+    let union = Node::Union {
+        first: Node::Literal(Object::Set(Set::empty())).into(),
+        second: Node::Literal(Object::Set(Set::empty())).into(),
+    };
+
+    assert_eq!(
+        evaluate(
+            &Node::Add {
+                first: union.clone().into(),
+                second: Node::Literal(BigInt::from(1).into()).into(),
+            },
+            &BASE,
+        )
+        .into_object(),
+        Atom::UNDEFINED.into()
+    );
+
+    assert_eq!(
+        evaluate(
+            &Node::Add {
+                first: identity_function().into(),
+                second: Node::Literal(BigInt::from(1).into()).into(),
+            },
+            &BASE,
+        )
+        .into_object(),
+        Atom::UNDEFINED.into()
+    );
+
+    assert_eq!(
+        evaluate(
+            &Node::Call {
+                callee: union.into(),
+                with: Node::Literal(BigInt::from(1).into()).into(),
+            },
+            &BASE,
+        )
+        .into_object(),
+        Atom::UNDEFINED.into()
+    );
+}
+
 fn integer_set() -> Set {
     Set::from([
         Object::new_integer(BigInt::from(1)),
