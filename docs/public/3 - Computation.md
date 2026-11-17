@@ -212,7 +212,7 @@ An object is a _values-of node_ iff it has the property `node_values_of <inner>`
 - for an atom, a deferred set of the values (properties) the atom has in the knowledge;
 - for a construction, `undefined`.
 
-If the result is `undefined`, the result is `undefined`. An atom without statements evaluates to the empty set. The atom case is deferred: counting, testing, or iterating the result reads the knowledge values directly and does not materialise a specialised set object. In contrast to [Set Count](#set-count), the conversion from an object to its values is explicit, so counting the values of an atom is written as `count(values_of(<atom>))`.
+If `<inner>` evaluates to `undefined`, then since `undefined` is itself an atom, the result is the set of values of the atom `undefined` in the knowledge, which may be non-empty. An atom without statements evaluates to the empty set. The atom case is deferred: counting, testing, or iterating the result reads the knowledge values directly and does not materialise a specialised set object. In contrast to [Set Count](#set-count), the conversion from an object to its values is explicit, so counting the values of an atom is written as `count(values_of(<atom>))`.
 
 ## Has Value
 

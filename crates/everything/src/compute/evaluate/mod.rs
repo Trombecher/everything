@@ -322,17 +322,15 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             Task::ValuesOf => {
                 let object = evaluated.pop().unwrap();
 
-                if object.is_undefined() {
-                    evaluated.push(UNDEFINED);
-                } else {
-                    evaluated.push(match object {
-                        LazyObject::Eager(Object::Atom(atom)) => {
-                            LazyObject::AtomValues(knowledge.values_of_atom(&atom))
-                        }
-                        LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
-                        object => object,
-                    });
-                }
+                evaluated.push(match object {
+                    // `undefined` is an atom itself, so it may have values in the
+                    // knowledge and must not be rejected as an undefined result.
+                    LazyObject::Eager(Object::Atom(atom)) => {
+                        LazyObject::AtomValues(knowledge.values_of_atom(&atom))
+                    }
+                    LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
+                    object => object,
+                });
             }
             Task::HasValue => {
                 let object = evaluated.pop().unwrap();

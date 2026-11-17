@@ -193,7 +193,23 @@ fn values_of() {
             &knowledge
         )
         .into_object(),
-        Atom::UNDEFINED.into()
+        Object::Set(Set::empty())
+    );
+
+    let undefined_value = Object::new_integer(BigInt::from(2));
+
+    knowledge.add_statement(Statement {
+        atom: Atom::UNDEFINED,
+        object: undefined_value.clone(),
+    });
+
+    assert_eq!(
+        evaluate(
+            &Node::ValuesOf(Node::Literal(Atom::UNDEFINED.into()).into()),
+            &knowledge
+        )
+        .into_object(),
+        Object::Set(Set::from([undefined_value]))
     );
 }
 
