@@ -32,6 +32,9 @@ fn node_round_trip() {
             object: Node::Literal(a.clone()).into(),
             property_constructor: Node::Literal(Atom::PROPERTY.into()).into(),
         },
+        Node::QueryConstructions {
+            constructor: Node::Literal(Atom::PROPERTY.into()).into(),
+        },
         Node::Contains {
             element: Node::Literal(a.clone()).into(),
             set: Node::Literal(b.clone()).into(),

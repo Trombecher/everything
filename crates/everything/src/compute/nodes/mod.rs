@@ -66,6 +66,11 @@ pub enum Node {
         object: Arc<Node>,
         property_constructor: Arc<Node>,
     },
+    /// Queries the knowledge for all pairs of an atom and a value such
+    /// that the atom has a construction with the given constructor.
+    QueryConstructions {
+        constructor: Arc<Node>,
+    },
     Contains {
         element: Arc<Node>,
         set: Arc<Node>,
@@ -187,6 +192,9 @@ impl Node {
             } => Self::QueryConstructionValues {
                 object: Self::new(&object, knowledge)?.into(),
                 property_constructor: Self::new(&property_constructor, knowledge)?.into(),
+            },
+            RawNode::QueryConstructions { constructor } => Self::QueryConstructions {
+                constructor: Self::new(&constructor, knowledge)?.into(),
             },
             RawNode::Contains { element, set } => Self::Contains {
                 element: Self::new(&element, knowledge)?.into(),
@@ -443,6 +451,12 @@ impl Node {
                 Construction::new(Atom::NODE_UNION_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
+            Self::QueryConstructions { constructor } => Set::from([Construction::new(
+                Atom::NODE_QUERY_CONSTRUCTIONS.into(),
+                constructor.into_object(),
+            )
+            .into()])
+            .into(),
             Self::Map {
                 set,
                 mapper_function,
@@ -516,6 +530,7 @@ impl Node {
             | Self::ValuesOf(_)
             | Self::HasValue(_)
             | Self::QueryAtomsWithProperty { .. }
+            | Self::QueryConstructions { .. }
             | Self::IsAtom(_)
             | Self::IsSet(_)
             | Self::IsConstruction(_)

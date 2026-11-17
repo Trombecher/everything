@@ -185,6 +185,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `if c then a else b`         | If                                          |
 | `atoms_with(p)`              | QueryAtomsWithProperty                      |
 | `values(o, c)`               | QueryConstructionValues                     |
+| `constructions(c)`           | QueryConstructions                          |
 | `is_atom(x)` / `is_set(x)` / `is_construction(x)` | IsAtom / IsSet / IsConstruction |
 | `ctor_of(c)` / `val_of(c)`   | ConstructionConstructor / ConstructionValue |
 | `x.p`                        | `unwrap(values(x, p))`                      |

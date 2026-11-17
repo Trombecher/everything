@@ -374,6 +374,12 @@ An object is a _query-construction-values node_ iff
 
 It evaluates `<object>` and `<constructor>`. If `<object>` is a construction, the result is `undefined`. Otherwise the result is a deferred set of all values `v` for which the values of `<object>` contain a construction `c v` whose constructor `c` equals the evaluated `<constructor>`. The values of an object are its values in the knowledge if it is an atom and its members if it is a set; `undefined` is an atom and is queried like any other atom. If `<constructor>` cannot be materialised (a deferred set), the result is `undefined`.
 
+## Query Constructions
+
+An object is a _query-constructions node_ iff it has the property `node_query_constructions <constructor>`.
+
+It evaluates `<constructor>` and returns a deferred set of all pairs `(a, v)` such that the knowledge contains the statement `a is <constructor> v`. Each pair is yielded as the object `{atom a, value v}`, where `atom` and `value` are atoms that are property constructors in the base knowledge. The pairs are yielded in knowledge order: by atom, and for each atom by the value's structural order. If `<constructor>` evaluates to a deferred set, it is materialized by iterating it before the query. `undefined` is an atom and may be used as a constructor like any other atom.
+
 ## Examples
 
 The following examples use decimal integers for readability. As shown in [Children Are Nodes](#children-are-nodes), data in a child position is wrapped in `node_literal`.
@@ -474,16 +480,16 @@ evaluates to `2`.
 | Contains | `node_contains_element`, `node_contains_set` | not implemented |
 | Query atoms with property | `node_atoms_with_property` | implemented |
 | Query construction values | `node_construction_values_object`, `node_construction_values_property_constructor` | implemented |
+| Query constructions | `node_query_constructions` | implemented |
 | Fold | `node_fold_set`, `node_fold_folder`, `node_fold_initial` | not implemented |
 
 ## Current Limitations
 
 - Deferred set values (union, map, filter) can be iterated and tested for membership. Converting them to objects, counting them, and comparing them for equality are not implemented and currently abort evaluation. Construction constructor/value extraction on them yields `undefined`.
-- Atoms-with-property and construction-values results can be iterated, counted, and tested for membership, but converting them to objects is not implemented and currently aborts evaluation.
+- Atoms-with-property, construction-values, and constructions results can be iterated, counted, and tested for membership, but converting them to objects is not implemented and currently aborts evaluation.
 - Deferred values and function values have undefined truthiness, so `and`, `or`, `xor`, `not`, and `if` produce `undefined` when given one directly.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
 - `union` does not deduplicate and cannot currently report its size.
-- Capturing an outer parameter whose value is a deferred set requires converting it to an object and is not implemented.
 - Converting a node to an object is lossy: unknown properties and annotations are not preserved, and atom-defined nodes are normalized into sets.
 - `arithmetic_overflow` is declared but unreachable because arithmetic uses arbitrary-precision integers.

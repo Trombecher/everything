@@ -39,5 +39,20 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
         ]),
     );
 
+    // ---
+
+    base.insert(
+        Atom::ATOM,
+        Values::from([
+            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
+        ]),
+    );
+    base.insert(
+        Atom::VALUE,
+        Values::from([
+            Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
+        ]),
+    );
+
     Knowledge { map: base }
 });

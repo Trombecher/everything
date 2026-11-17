@@ -116,6 +116,13 @@ impl Knowledge {
         }
     }
 
+    /// Queries the knowledge for all pairs of an atom and a value such that the
+    /// atom has the construction `constructor value`.
+    #[must_use]
+    pub fn query_constructions(&self, constructor: Object) -> QueryConstructions {
+        QueryConstructions::new(self.map.clone().into_iter(), constructor)
+    }
+
     /// Determines the size of the object in this knowledge, i.e.
     /// the number of values it has. Constructions
     /// have no values.

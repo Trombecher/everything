@@ -5,7 +5,9 @@ use std::collections::BTreeSet;
 
 use crate::{
     compute::{self, MaybeUndefined, Node},
-    knowledge::{Knowledge, ObjectValues, QueryAtomsWithProperty, Values},
+    knowledge::{
+        AtomValuePair, Knowledge, ObjectValues, QueryAtomsWithProperty, QueryConstructions, Values,
+    },
     model::{Atom, Construction, Object, Set},
 };
 
@@ -48,6 +50,12 @@ pub enum LazyObject {
         target: Box<Self>,
         property_constructor: Object,
     },
+
+    /// The pairs of an atom and a value such that the atom has a construction
+    /// with the given constructor in the knowledge.
+    ///
+    /// Each pair is yielded as the object `{atom <atom>, value <value>}`.
+    Constructions { constructor: Object },
 
     /// Maps every value of a given set with a mapper function.
     Map {
@@ -95,6 +103,7 @@ impl LazyObject {
             | Self::Difference { .. }
             | Self::AtomsWithProperty { .. }
             | Self::ConstructionValues { .. }
+            | Self::Constructions { .. }
             | Self::Map { .. }
             | Self::Filter { .. } => true,
             Self::Eager(Object::Atom(_) | Object::Construction(_)) => false,
@@ -128,18 +137,25 @@ impl LazyObject {
             | Self::Difference { .. }
             | Self::AtomsWithProperty { .. }
             | Self::ConstructionValues { .. }
+            | Self::Constructions { .. }
             | Self::Map { .. }
             | Self::Filter { .. } => None,
         }
     }
 
+    /// Converts the lazy object into an evaluated object, materializing a
+    /// deferred set by iterating it.
     #[must_use]
-    pub fn into_object(self) -> Object {
+    pub fn into_object(self, knowledge: &Knowledge) -> Object {
         match self {
             Self::Eager(object) => object,
             Self::Node(node) => node.into_object(),
             Self::AtomValues(values) => atom_values_into_object(values),
-            object => todo!("{object:?} from lazy"),
+            lazy_set => {
+                let mut values = lazy_set.into_set_iter(knowledge).collect::<Vec<_>>();
+
+                Set::from(values.as_mut_slice()).into()
+            }
         }
     }
 
@@ -168,7 +184,9 @@ impl LazyObject {
             Self::AtomsWithProperty { property } => knowledge
                 .query_atoms_with_property(property.clone())
                 .count() as u64,
-            Self::ConstructionValues { .. } => self.iter(knowledge).count() as u64,
+            Self::ConstructionValues { .. } | Self::Constructions { .. } => {
+                self.iter(knowledge).count() as u64
+            }
             Self::Map { .. } => {
                 // Here too.
 
@@ -199,6 +217,7 @@ impl LazyObject {
             Self::Intersection { .. }
             | Self::Difference { .. }
             | Self::ConstructionValues { .. }
+            | Self::Constructions { .. }
             | Self::Filter { .. } => self.iter(knowledge).next().is_some(),
         }
     }
@@ -261,7 +280,9 @@ impl LazyObject {
                 .truthy()
                     == MaybeUndefined::Defined(true)
             }
-            LazyObject::Map { .. } => self.iter(knowledge).any(|object| element == &object),
+            LazyObject::Map { .. } | LazyObject::Constructions { .. } => {
+                self.iter(knowledge).any(|object| element == &object)
+            }
         }
     }
 
@@ -332,6 +353,9 @@ impl LazyObject {
                 target: Box::new(target.into_iter(knowledge)),
                 property_constructor,
             },
+            Self::Constructions { constructor } => {
+                LazyObjectIter::Constructions(knowledge.query_constructions(constructor))
+            }
             Self::Map {
                 target,
                 mapper_function,
@@ -376,6 +400,7 @@ pub enum LazyObjectIter {
         target: Box<Self>,
         property_constructor: Object,
     },
+    Constructions(QueryConstructions),
     Union {
         first: Box<Self>,
         second: Box<Self>,
@@ -410,6 +435,7 @@ impl Iterator for LazyObjectIter {
                 }
                 _ => None,
             }),
+            Self::Constructions(pairs) => pairs.next().map(AtomValuePair::into_object),
             Self::Union { first, second } => first.next().or_else(|| second.next()),
             Self::Filter {
                 target,
@@ -438,7 +464,7 @@ impl Iterator for LazyObjectIter {
                     },
                     knowledge,
                 )
-                .into_object()
+                .into_object(knowledge)
             }),
         }
     }

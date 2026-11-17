@@ -98,6 +98,9 @@ pub enum RawNode {
         object: Object,
         property_constructor: Object,
     },
+    QueryConstructions {
+        constructor: Object,
+    },
     Contains {
         element: Object,
         set: Object,
@@ -425,6 +428,13 @@ impl RawNode {
                     property_constructor,
                 }
             )
+        );
+
+        xor_with!(
+            knowledge
+                .query_construction_values(object, Atom::NODE_QUERY_CONSTRUCTIONS.into())
+                .next_and_last()
+                .map(|constructor| Self::QueryConstructions { constructor })
         );
 
         xor_with!(

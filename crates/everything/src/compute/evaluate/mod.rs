@@ -36,6 +36,7 @@ enum Task {
     HasValue,
     QueryAtomsWithProperty,
     QueryConstructionValues,
+    QueryConstructions,
     Equal,
     PartialOr {
         second: Arc<Node>,
@@ -67,6 +68,7 @@ enum Task {
 #[allow(clippy::too_many_lines)]
 fn resolve_evaluate_node(
     node: &Node,
+    knowledge: &Knowledge,
     evaluation_context: &mut EvaluationContext,
     tasks: &mut Vec<Task>,
     evaluated: &mut Vec<LazyObject>,
@@ -100,6 +102,10 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(property_constructor)));
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
+        Node::QueryConstructions { constructor } => {
+            tasks.push(Task::QueryConstructions);
+            tasks.push(Task::Evaluate(Arc::clone(constructor)));
+        }
         Node::Contains { .. } | Node::Fold { .. } | Node::NewConstruction { .. } => todo!(),
         Node::IsAtom(inner) => {
             tasks.push(Task::IsAtom);
@@ -123,7 +129,7 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(set)));
         }
         Node::Function { .. } => {
-            evaluated.push(capture(node, 0, evaluation_context).into());
+            evaluated.push(capture(node, 0, evaluation_context, knowledge).into());
         }
         Node::Literal(object) => {
             evaluated.push(object.clone().into());
@@ -261,7 +267,13 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
     while let Some(task) = tasks.pop() {
         match task {
             Task::Evaluate(node) => {
-                resolve_evaluate_node(&node, &mut evaluation_context, &mut tasks, &mut evaluated);
+                resolve_evaluate_node(
+                    &node,
+                    knowledge,
+                    &mut evaluation_context,
+                    &mut tasks,
+                    &mut evaluated,
+                );
             }
             Task::PopContext => {
                 evaluation_context.pop();
@@ -380,6 +392,11 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     },
                 );
             }
+            Task::QueryConstructions => {
+                let constructor = evaluated.pop().unwrap().into_object(knowledge);
+
+                evaluated.push(LazyObject::Constructions { constructor });
+            }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();
 
@@ -390,8 +407,8 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let left_lazy = evaluated.pop().unwrap();
 
                 if !right_lazy.is_undefined() && !left_lazy.is_undefined() {
-                    let left = left_lazy.into_object();
-                    let right = right_lazy.into_object();
+                    let left = left_lazy.into_object(knowledge);
+                    let right = right_lazy.into_object(knowledge);
 
                     // TODO: maybe optimize this comparison (?)
                     evaluated.push(LazyObject::Eager((left == right).into()));
@@ -532,7 +549,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             /*
             Task::Every => {
                 let mut previous_result = evaluated.pop().unwrap();
-                let predicate = evaluated.pop().unwrap().into_object();
+                let predicate = evaluated.pop().unwrap().into_object(knowledge);
                 let mut set = evaluated.pop().unwrap();
 
                 if !previous_result.is_truthy(knowledge) {
@@ -564,7 +581,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             /*
             Task::Any => {
                 let mut previous_result = evaluated.pop().unwrap();
-                let predicate = evaluated.pop().unwrap().into_object();
+                let predicate = evaluated.pop().unwrap().into_object(knowledge);
                 let mut set = evaluated.pop().unwrap();
 
                 if previous_result.is_truthy(knowledge) {

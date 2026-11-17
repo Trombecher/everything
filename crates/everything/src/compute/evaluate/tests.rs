@@ -30,7 +30,7 @@ fn less() {
                 },
                 &BASE,
             )
-            .into_object(),
+            .into_object(&BASE),
             (a < b).into()
         );
     }
@@ -53,7 +53,7 @@ fn and() {
                 },
                 &BASE,
             )
-            .into_object(),
+            .into_object(&BASE),
             match first {
                 Object::Atom(Atom::TRUE) => {
                     MaybeUndefined::from(second.truthy()).into()
@@ -79,7 +79,7 @@ fn add() {
                 },
                 &BASE,
             )
-            .into_object(),
+            .into_object(&BASE),
             BigInt::from(a + b).into()
         );
     }
@@ -128,7 +128,7 @@ fn values_of() {
             &Node::ValuesOf(Node::Literal(set.clone().into()).into()),
             &knowledge,
         )
-        .into_object(),
+        .into_object(&knowledge),
         Object::Set(set)
     );
 
@@ -145,7 +145,7 @@ fn values_of() {
             &Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()),
             &knowledge,
         )
-        .into_object(),
+        .into_object(&knowledge),
         Object::Set(Set::from([value.clone()]))
     );
 
@@ -162,7 +162,7 @@ fn values_of() {
             &Node::Count(Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()).into()),
             &knowledge,
         )
-        .into_object(),
+        .into_object(&knowledge),
         Object::new_integer(BigInt::from(1))
     );
 
@@ -183,7 +183,7 @@ fn values_of() {
             &Node::ValuesOf(Node::Literal(construction.into()).into()),
             &knowledge,
         )
-        .into_object(),
+        .into_object(&knowledge),
         Atom::UNDEFINED.into()
     );
 
@@ -192,7 +192,7 @@ fn values_of() {
             &Node::ValuesOf(Node::Literal(Atom::UNDEFINED.into()).into()),
             &knowledge
         )
-        .into_object(),
+        .into_object(&knowledge),
         Object::Set(Set::empty())
     );
 
@@ -208,7 +208,7 @@ fn values_of() {
             &Node::ValuesOf(Node::Literal(Atom::UNDEFINED.into()).into()),
             &knowledge
         )
-        .into_object(),
+        .into_object(&knowledge),
         Object::Set(Set::from([undefined_value]))
     );
 }
@@ -224,7 +224,7 @@ fn has_value() {
     let mut knowledge = BASE.clone();
 
     let has_value = |object: Object, knowledge: &Knowledge| {
-        evaluate(&Node::HasValue(Node::Literal(object).into()), knowledge).into_object()
+        evaluate(&Node::HasValue(Node::Literal(object).into()), knowledge).into_object(knowledge)
     };
 
     assert_eq!(
@@ -243,7 +243,7 @@ fn has_value() {
     );
 
     assert_eq!(
-        evaluate(&Node::HasValue(identity_function().into()), &knowledge).into_object(),
+        evaluate(&Node::HasValue(identity_function().into()), &knowledge).into_object(&knowledge),
         Atom::TRUE.into()
     );
 
@@ -260,7 +260,7 @@ fn has_value() {
     };
 
     assert_eq!(
-        evaluate(&Node::HasValue(union.into()), &knowledge).into_object(),
+        evaluate(&Node::HasValue(union.into()), &knowledge).into_object(&knowledge),
         Atom::TRUE.into()
     );
 }
@@ -318,7 +318,7 @@ fn query_atoms_with_deferred_property_is_undefined() {
             },
             &BASE,
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
 }
@@ -433,7 +433,8 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
 
     // Constructions have no values and cannot be queried.
     assert_eq!(
-        evaluate_query(Node::Literal(construction), property_constructor.clone()).into_object(),
+        evaluate_query(Node::Literal(construction), property_constructor.clone())
+            .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
 
@@ -468,7 +469,7 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
             Node::Literal(Object::Set(Set::empty())),
             deferred_set.clone()
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
 
@@ -502,14 +503,131 @@ fn query_construction_values_queries_undefined_as_an_atom() {
     assert_eq!(result.iter(&knowledge).collect::<Vec<_>>(), vec![value]);
 }
 
+fn pair(atom: Atom, value: Object) -> Object {
+    Set::from([
+        Construction::new(Atom::ATOM.into(), atom.into()).into(),
+        Construction::new(Atom::VALUE.into(), value).into(),
+    ])
+    .into()
+}
+
+#[test]
+fn query_constructions() {
+    let constructor = Atom(1);
+    let other_constructor = Atom(2);
+    let first_atom = Atom(42);
+    let second_atom = Atom(43);
+
+    let mut knowledge = BASE.clone();
+
+    for value in [1, 2] {
+        knowledge.add_statement(Statement {
+            atom: first_atom,
+            object: Construction::new(constructor.into(), Object::new_integer(BigInt::from(value)))
+                .into(),
+        });
+    }
+
+    knowledge.add_statement(Statement {
+        atom: first_atom,
+        object: Construction::new(
+            other_constructor.into(),
+            Object::new_integer(BigInt::from(3)),
+        )
+        .into(),
+    });
+    knowledge.add_statement(Statement {
+        atom: second_atom,
+        object: Construction::new(constructor.into(), Object::new_integer(BigInt::from(4))).into(),
+    });
+
+    let result = evaluate(
+        &Node::QueryConstructions {
+            constructor: Node::Literal(constructor.into()).into(),
+        },
+        &knowledge,
+    );
+
+    let expected = vec![
+        pair(first_atom, Object::new_integer(BigInt::from(1))),
+        pair(first_atom, Object::new_integer(BigInt::from(2))),
+        pair(second_atom, Object::new_integer(BigInt::from(4))),
+    ];
+
+    assert!(result.is_set());
+    assert_eq!(result.size(&knowledge), 3);
+    assert!(result.has(&expected[0], &knowledge));
+    assert!(result.has(&expected[1], &knowledge));
+    assert!(result.has(&expected[2], &knowledge));
+    assert!(!result.has(
+        &pair(first_atom, Object::new_integer(BigInt::from(3))),
+        &knowledge
+    ));
+    assert_eq!(result.iter(&knowledge).collect::<Vec<_>>(), expected);
+}
+
+#[test]
+fn query_constructions_materializes_deferred_constructor() {
+    let atom = Atom(42);
+    let value = Object::new_integer(BigInt::from(7));
+    let constructor = Object::Set(Set::from([Atom(1).into(), Atom(2).into()]));
+
+    let mut knowledge = BASE.clone();
+    knowledge.add_statement(Statement {
+        atom,
+        object: Construction::new(constructor, value.clone()).into(),
+    });
+
+    let result = evaluate(
+        &Node::QueryConstructions {
+            constructor: Node::Union {
+                first: Node::Literal(Object::Set(Set::from([Atom(1).into()]))).into(),
+                second: Node::Literal(Object::Set(Set::from([Atom(2).into()]))).into(),
+            }
+            .into(),
+        },
+        &knowledge,
+    );
+
+    assert_eq!(
+        result.iter(&knowledge).collect::<Vec<_>>(),
+        vec![pair(atom, value)]
+    );
+}
+
+#[test]
+fn query_constructions_queries_undefined_as_an_atom() {
+    let constructor = Atom(1);
+    let value = Object::new_integer(BigInt::from(7));
+
+    let mut knowledge = BASE.clone();
+    knowledge.add_statement(Statement {
+        atom: Atom::UNDEFINED,
+        object: Construction::new(constructor.into(), value.clone()).into(),
+    });
+
+    let result = evaluate(
+        &Node::QueryConstructions {
+            constructor: Node::Literal(constructor.into()).into(),
+        },
+        &knowledge,
+    );
+
+    assert_eq!(
+        result.iter(&knowledge).collect::<Vec<_>>(),
+        vec![pair(Atom::UNDEFINED, value)]
+    );
+}
+
 #[test]
 fn count_requires_sets() {
     let atom = Atom(42);
     let construction = Object::Construction(Construction::new(Atom(1).into(), Atom(2).into()));
     let set = Object::Set(Set::from([Object::new_integer(BigInt::from(1))]));
 
-    let count =
-        |object: Object| evaluate(&Node::Count(Node::Literal(object).into()), &BASE).into_object();
+    let count = |object: Object| {
+        evaluate(&Node::Count(Node::Literal(object).into()), &BASE).into_object(&BASE)
+    };
 
     assert_eq!(count(Object::Atom(atom)), Atom::UNDEFINED.into());
     assert_eq!(count(construction), Atom::UNDEFINED.into());
@@ -518,7 +636,7 @@ fn count_requires_sets() {
 
     // A function value is a set: its node representation has one property.
     assert_eq!(
-        evaluate(&Node::Count(identity_function().into()), &BASE).into_object(),
+        evaluate(&Node::Count(identity_function().into()), &BASE).into_object(&BASE),
         Object::new_integer(BigInt::from(1))
     );
 }
@@ -528,7 +646,7 @@ fn unwrap_requires_sets() {
     let atom = Atom(42);
     let construction = Object::Construction(Construction::new(Atom(1).into(), Atom(2).into()));
 
-    let unwrap = |node: Node| evaluate(&Node::Unwrap(node.into()), &BASE).into_object();
+    let unwrap = |node: Node| evaluate(&Node::Unwrap(node.into()), &BASE).into_object(&BASE);
 
     assert_eq!(
         unwrap(Node::Literal(Object::Atom(atom))),
@@ -550,7 +668,7 @@ fn unwrap_requires_sets() {
 #[test]
 fn function_values_are_sets() {
     assert_eq!(
-        evaluate(&Node::IsSet(identity_function().into()), &BASE).into_object(),
+        evaluate(&Node::IsSet(identity_function().into()), &BASE).into_object(&BASE),
         Atom::TRUE.into()
     );
     assert_eq!(
@@ -558,7 +676,7 @@ fn function_values_are_sets() {
             &Node::IsSet(Node::Literal(Object::Atom(Atom(42))).into()),
             &BASE
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::FALSE.into()
     );
     assert_eq!(
@@ -568,7 +686,7 @@ fn function_values_are_sets() {
             ),
             &BASE
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::FALSE.into()
     );
 }
@@ -587,7 +705,7 @@ fn map_and_filter_require_sets() {
             },
             &BASE,
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
     assert_eq!(
@@ -598,7 +716,7 @@ fn map_and_filter_require_sets() {
             },
             &BASE,
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
     assert_eq!(
@@ -609,7 +727,7 @@ fn map_and_filter_require_sets() {
             },
             &BASE,
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
     assert_eq!(
@@ -620,7 +738,7 @@ fn map_and_filter_require_sets() {
             },
             &BASE,
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
 
@@ -662,7 +780,7 @@ fn union_requires_sets() {
                 },
                 &BASE,
             )
-            .into_object(),
+            .into_object(&BASE),
             Atom::UNDEFINED.into()
         );
     }
@@ -694,7 +812,7 @@ fn sets_are_rejected_by_scalar_operations() {
             },
             &BASE,
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
 
@@ -706,7 +824,7 @@ fn sets_are_rejected_by_scalar_operations() {
             },
             &BASE,
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
 
@@ -718,7 +836,7 @@ fn sets_are_rejected_by_scalar_operations() {
             },
             &BASE,
         )
-        .into_object(),
+        .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
 }

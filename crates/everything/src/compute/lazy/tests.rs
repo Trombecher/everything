@@ -2,7 +2,7 @@ use num_bigint::BigInt;
 
 use crate::{
     knowledge::{Knowledge, Statement, Values},
-    model::{Atom, Object, Set},
+    model::{Atom, Construction, Object, Set},
 };
 
 use super::*;
@@ -80,6 +80,39 @@ fn into_iter_captures_atom_values() {
     });
 
     assert_eq!(iterator.collect::<Vec<_>>(), vec![first]);
+}
+
+#[test]
+fn into_iter_yields_constructions_as_atom_value_objects() {
+    let constructor = Atom(1);
+    let atom = Atom(42);
+    let value = integer(1);
+    let statement = Statement {
+        atom,
+        object: Construction::new(constructor.into(), value.clone()).into(),
+    };
+
+    let mut knowledge = Knowledge::empty();
+    knowledge.add_statement(statement.clone());
+
+    let lazy = LazyObject::Constructions {
+        constructor: constructor.into(),
+    };
+    let iterator = lazy.into_iter(&knowledge);
+
+    // Removing the statement after creating the iterator must not be visible.
+    knowledge.remove_statement(&statement);
+
+    assert_eq!(
+        iterator.collect::<Vec<_>>(),
+        vec![
+            Set::from([
+                Construction::new(Atom::ATOM.into(), atom.into()).into(),
+                Construction::new(Atom::VALUE.into(), value).into(),
+            ])
+            .into()
+        ]
+    );
 }
 
 #[test]
