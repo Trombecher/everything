@@ -34,6 +34,7 @@ enum Task {
     Count,
     ValuesOf,
     HasValue,
+    QueryAtomsWithProperty,
     Equal,
     PartialOr {
         second: Arc<Node>,
@@ -86,8 +87,11 @@ fn resolve_evaluate_node(
             tasks.push(Task::ValueOfConstruction);
             tasks.push(Task::Evaluate(Arc::clone(construction)));
         }
-        Node::QueryAtomsWithProperty { .. }
-        | Node::QueryConstructionValues { .. }
+        Node::QueryAtomsWithProperty { property } => {
+            tasks.push(Task::QueryAtomsWithProperty);
+            tasks.push(Task::Evaluate(Arc::clone(property)));
+        }
+        Node::QueryConstructionValues { .. }
         | Node::Contains { .. }
         | Node::Fold { .. }
         | Node::NewConstruction { .. } => todo!(),
@@ -344,6 +348,14 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                         LazyObject::Eager(object.has_at_least_one_element(knowledge).into())
                     },
                 );
+            }
+            Task::QueryAtomsWithProperty => {
+                let property = evaluated.pop().unwrap().try_into_object();
+
+                evaluated.push(match property {
+                    Some(property) => LazyObject::AtomsWithProperty { property },
+                    None => UNDEFINED,
+                });
             }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();

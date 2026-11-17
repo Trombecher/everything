@@ -363,7 +363,7 @@ An object is a _new-construction node_ iff
 
 An object is a _query-atoms-with-property node_ iff it has the property `node_atoms_with_property <property>`.
 
-**[partially implemented]** The intended semantics are: evaluate `<property>` and return the set of all atoms that have the result as a property in the knowledge. The runtime has a lazy value of this shape that can answer membership and size queries, but the node is not evaluable yet and iteration over this lazy value is not implemented.
+It evaluates `<property>` and returns the set of all atoms that have the result as a property in the knowledge. The result is a deferred set: size and membership queries are answered by the knowledge directly, and iteration yields the matching atoms in knowledge order. If `<property>` evaluates to a deferred set, the result is `undefined`.
 
 ## Query Construction Values
 
@@ -472,13 +472,14 @@ evaluates to `2`.
 | Construction value | `node_value_of_construction` | implemented |
 | New construction | `node_new_construction_constructor`, `node_new_construction_value` | not implemented |
 | Contains | `node_contains_element`, `node_contains_set` | not implemented |
-| Query atoms with property | `node_atoms_with_property` | partial: no evaluation or iteration |
+| Query atoms with property | `node_atoms_with_property` | implemented |
 | Query construction values | `node_construction_values_set`, `node_construction_values_property_constructor` | not implemented |
 | Fold | `node_fold_set`, `node_fold_folder`, `node_fold_initial` | not implemented |
 
 ## Current Limitations
 
 - Deferred set values (union, map, filter) can be iterated and tested for membership. Converting them to objects, counting them, and comparing them for equality are not implemented and currently abort evaluation. Construction constructor/value extraction on them yields `undefined`.
+- Atoms-with-property values can be iterated, counted, and tested for membership, but converting them to objects is not implemented and currently aborts evaluation.
 - Deferred values and function values have undefined truthiness, so `and`, `or`, `xor`, `not`, and `if` produce `undefined` when given one directly.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.

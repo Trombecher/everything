@@ -1,6 +1,6 @@
 use crate::{
     compute::{self, MaybeUndefined, Node},
-    knowledge::{Knowledge, ObjectValues, Values},
+    knowledge::{Knowledge, ObjectValues, QueryAtomsWithProperty, Values},
     model::{Atom, Object, Set},
 };
 
@@ -263,7 +263,9 @@ impl LazyObject {
                 source: _,
                 without: _,
             } => todo!(),
-            Self::AtomsWithProperty { property: _ } => todo!(),
+            Self::AtomsWithProperty { property } => LazyObjectIter::AtomsWithProperty(
+                knowledge.query_atoms_with_property(property.clone()),
+            ),
             Self::Map {
                 target,
                 mapper_function,
@@ -293,6 +295,7 @@ fn atom_values_into_object(values: Values) -> Object {
 
 pub enum LazyObjectIter {
     ObjectValues(ObjectValues),
+    AtomsWithProperty(QueryAtomsWithProperty),
     Union {
         first: Box<Self>,
         second: Box<Self>,
@@ -315,6 +318,7 @@ impl Iterator for LazyObjectIter {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Self::ObjectValues(set_values) => set_values.next(),
+            Self::AtomsWithProperty(atoms) => atoms.next().map(Object::Atom),
             Self::Union { first, second } => first.next().or_else(|| second.next()),
             Self::Filter {
                 target,
