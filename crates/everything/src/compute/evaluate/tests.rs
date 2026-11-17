@@ -324,6 +324,149 @@ fn query_atoms_with_deferred_property_is_undefined() {
 }
 
 #[test]
+fn query_construction_values() {
+    let atom = Atom(42);
+    let property_constructor = Atom(1);
+    let other_constructor = Atom(2);
+    let matching_values = [
+        Object::new_integer(BigInt::from(1)),
+        Object::new_integer(BigInt::from(2)),
+    ];
+
+    let mut knowledge = BASE.clone();
+
+    for value in &matching_values {
+        knowledge.add_statement(Statement {
+            atom,
+            object: Construction::new(property_constructor.into(), value.clone()).into(),
+        });
+    }
+
+    knowledge.add_statement(Statement {
+        atom,
+        object: Construction::new(
+            other_constructor.into(),
+            Object::new_integer(BigInt::from(3)),
+        )
+        .into(),
+    });
+    knowledge.add_statement(Statement {
+        atom,
+        object: Object::new_integer(BigInt::from(4)),
+    });
+
+    let result = evaluate(
+        &Node::QueryConstructionValues {
+            set: Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()).into(),
+            property_constructor: Node::Literal(property_constructor.into()).into(),
+        },
+        &knowledge,
+    );
+
+    assert!(result.is_set());
+    assert_eq!(result.size(&knowledge), 2);
+    assert!(result.has(&matching_values[0], &knowledge));
+    assert!(result.has(&matching_values[1], &knowledge));
+    assert!(!result.has(&Object::new_integer(BigInt::from(3)), &knowledge));
+    assert!(!result.has(&Object::new_integer(BigInt::from(4)), &knowledge));
+    assert_eq!(
+        result.iter(&knowledge).collect::<Vec<_>>(),
+        matching_values.to_vec()
+    );
+}
+
+#[test]
+fn query_construction_values_of_literal_set() {
+    let constructor = Atom(1);
+
+    let set = Set::from([
+        Construction::new(constructor.into(), Object::new_integer(BigInt::from(1))).into(),
+        Construction::new(Atom(2).into(), Object::new_integer(BigInt::from(2))).into(),
+        Construction::new(constructor.into(), Object::new_integer(BigInt::from(3))).into(),
+    ]);
+
+    let result = evaluate(
+        &Node::QueryConstructionValues {
+            set: Node::Literal(set.into()).into(),
+            property_constructor: Node::Literal(constructor.into()).into(),
+        },
+        &BASE,
+    );
+
+    assert_eq!(
+        result.iter(&BASE).collect::<Vec<_>>(),
+        vec![
+            Object::new_integer(BigInt::from(1)),
+            Object::new_integer(BigInt::from(3)),
+        ]
+    );
+}
+
+#[test]
+fn query_construction_values_requires_a_set() {
+    let construction = Object::Construction(Construction::new(Atom(1).into(), Atom(2).into()));
+    let property_constructor = Node::Literal(Atom(1).into());
+
+    let evaluate_query = |set: Node, property_constructor: Node| {
+        evaluate(
+            &Node::QueryConstructionValues {
+                set: set.into(),
+                property_constructor: property_constructor.into(),
+            },
+            &BASE,
+        )
+        .into_object()
+    };
+
+    assert_eq!(
+        evaluate_query(
+            Node::Literal(construction.clone()),
+            property_constructor.clone()
+        ),
+        Atom::UNDEFINED.into()
+    );
+    assert_eq!(
+        evaluate_query(
+            Node::Literal(Object::Atom(Atom(42))),
+            property_constructor.clone()
+        ),
+        Atom::UNDEFINED.into()
+    );
+    assert_eq!(
+        evaluate_query(Node::Literal(Atom::UNDEFINED.into()), property_constructor),
+        Atom::UNDEFINED.into()
+    );
+
+    // A deferred set is a set, but cannot be used as a constructor.
+    let empty_set = Node::Literal(Object::Set(Set::empty()));
+    let deferred_set = Node::Union {
+        first: empty_set.clone().into(),
+        second: empty_set.clone().into(),
+    };
+
+    assert_eq!(
+        evaluate_query(
+            Node::Literal(Object::Set(Set::empty())),
+            deferred_set.clone()
+        ),
+        Atom::UNDEFINED.into()
+    );
+
+    // A deferred set target yields a deferred result.
+    let result = evaluate(
+        &Node::QueryConstructionValues {
+            set: deferred_set.into(),
+            property_constructor: Node::Literal(Atom(1).into()).into(),
+        },
+        &BASE,
+    );
+
+    assert!(result.is_set());
+    assert_eq!(result.size(&BASE), 0);
+    assert_eq!(result.iter(&BASE).count(), 0);
+}
+
+#[test]
 fn count_requires_sets() {
     let atom = Atom(42);
     let construction = Object::Construction(Construction::new(Atom(1).into(), Atom(2).into()));

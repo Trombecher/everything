@@ -1,7 +1,7 @@
 use crate::{
     compute::{self, MaybeUndefined, Node},
     knowledge::{Knowledge, ObjectValues, QueryAtomsWithProperty, Values},
-    model::{Atom, Object, Set},
+    model::{Atom, Construction, Object, Set},
 };
 
 #[derive(Clone, Debug)]
@@ -32,6 +32,15 @@ pub enum LazyObject {
 
     /// The set of atoms with the given property.
     AtomsWithProperty { property: Object },
+
+    /// The values of constructions with the given constructor in a given set.
+    ///
+    /// The target is iterated lazily and only constructions whose constructor
+    /// equals `property_constructor` contribute their value.
+    ConstructionValues {
+        target: Box<Self>,
+        property_constructor: Object,
+    },
 
     /// Maps every value of a given set with a mapper function.
     Map {
@@ -78,6 +87,7 @@ impl LazyObject {
             | Self::Intersection { .. }
             | Self::Difference { .. }
             | Self::AtomsWithProperty { .. }
+            | Self::ConstructionValues { .. }
             | Self::Map { .. }
             | Self::Filter { .. } => true,
             Self::Eager(Object::Atom(_) | Object::Construction(_)) => false,
@@ -110,6 +120,7 @@ impl LazyObject {
             | Self::Intersection { .. }
             | Self::Difference { .. }
             | Self::AtomsWithProperty { .. }
+            | Self::ConstructionValues { .. }
             | Self::Map { .. }
             | Self::Filter { .. } => None,
         }
@@ -150,6 +161,7 @@ impl LazyObject {
             Self::AtomsWithProperty { property } => knowledge
                 .query_atoms_with_property(property.clone())
                 .count() as u64,
+            Self::ConstructionValues { .. } => self.iter(knowledge).count() as u64,
             Self::Map { .. } => {
                 // Here too.
 
@@ -177,9 +189,10 @@ impl LazyObject {
                 .query_atoms_with_property(property.clone())
                 .next()
                 .is_some(),
-            Self::Intersection { .. } | Self::Difference { .. } | Self::Filter { .. } => {
-                self.iter(knowledge).next().is_some()
-            }
+            Self::Intersection { .. }
+            | Self::Difference { .. }
+            | Self::ConstructionValues { .. }
+            | Self::Filter { .. } => self.iter(knowledge).next().is_some(),
         }
     }
 
@@ -213,6 +226,13 @@ impl LazyObject {
                     false
                 }
             }
+            Self::ConstructionValues {
+                target,
+                property_constructor,
+            } => target.has(
+                &Construction::new(property_constructor.clone(), element.clone()).into(),
+                knowledge,
+            ),
             Self::Filter {
                 target,
                 filter_function,
@@ -266,6 +286,13 @@ impl LazyObject {
             Self::AtomsWithProperty { property } => LazyObjectIter::AtomsWithProperty(
                 knowledge.query_atoms_with_property(property.clone()),
             ),
+            Self::ConstructionValues {
+                target,
+                property_constructor,
+            } => LazyObjectIter::ConstructionValues {
+                target: Box::new(target.iter(knowledge)),
+                property_constructor: property_constructor.clone(),
+            },
             Self::Map {
                 target,
                 mapper_function,
@@ -296,6 +323,10 @@ fn atom_values_into_object(values: Values) -> Object {
 pub enum LazyObjectIter {
     ObjectValues(ObjectValues),
     AtomsWithProperty(QueryAtomsWithProperty),
+    ConstructionValues {
+        target: Box<Self>,
+        property_constructor: Object,
+    },
     Union {
         first: Box<Self>,
         second: Box<Self>,
@@ -319,6 +350,17 @@ impl Iterator for LazyObjectIter {
         match self {
             Self::ObjectValues(set_values) => set_values.next(),
             Self::AtomsWithProperty(atoms) => atoms.next().map(Object::Atom),
+            Self::ConstructionValues {
+                target,
+                property_constructor,
+            } => target.find_map(|object| match object {
+                Object::Construction(Construction { constructor, value })
+                    if constructor.as_ref() == property_constructor =>
+                {
+                    Some(*value)
+                }
+                _ => None,
+            }),
             Self::Union { first, second } => first.next().or_else(|| second.next()),
             Self::Filter {
                 target,

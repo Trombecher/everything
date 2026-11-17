@@ -35,6 +35,7 @@ enum Task {
     ValuesOf,
     HasValue,
     QueryAtomsWithProperty,
+    QueryConstructionValues,
     Equal,
     PartialOr {
         second: Arc<Node>,
@@ -91,10 +92,15 @@ fn resolve_evaluate_node(
             tasks.push(Task::QueryAtomsWithProperty);
             tasks.push(Task::Evaluate(Arc::clone(property)));
         }
-        Node::QueryConstructionValues { .. }
-        | Node::Contains { .. }
-        | Node::Fold { .. }
-        | Node::NewConstruction { .. } => todo!(),
+        Node::QueryConstructionValues {
+            set,
+            property_constructor,
+        } => {
+            tasks.push(Task::QueryConstructionValues);
+            tasks.push(Task::Evaluate(Arc::clone(property_constructor)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
+        }
+        Node::Contains { .. } | Node::Fold { .. } | Node::NewConstruction { .. } => todo!(),
         Node::IsAtom(inner) => {
             tasks.push(Task::IsAtom);
             tasks.push(Task::Evaluate(Arc::clone(inner)));
@@ -356,6 +362,23 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     Some(property) => LazyObject::AtomsWithProperty { property },
                     None => UNDEFINED,
                 });
+            }
+            Task::QueryConstructionValues => {
+                let property_constructor = evaluated.pop().unwrap().try_into_object();
+                let set = evaluated.pop().unwrap();
+
+                evaluated.push(
+                    if set.is_set()
+                        && let Some(property_constructor) = property_constructor
+                    {
+                        LazyObject::ConstructionValues {
+                            target: Box::new(set),
+                            property_constructor,
+                        }
+                    } else {
+                        UNDEFINED
+                    },
+                );
             }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();

@@ -261,7 +261,7 @@ The agent-facing surface includes the tool protocol as well as the language. Mac
 
 - New crate (`everything_dsl`?) providing `parse` and `print` beside `Node::new` / `into_object`. Tests live in separate `tests.rs` files under the module, per the repository conventions.
 - `def name = ...` desugars to the statement `name is node_function <object>`. Node detection (`raw.rs`) already queries the knowledge, so atoms become callable functions with zero evaluator changes. But for these statements to validate, the node atoms (at least `node_function`) must be registered as property constructors in the base knowledge — currently only `property`, `property_constructor`, `successor_of`, and `predecessor_of` are. Verify this early.
-- Several sugar forms lean on nodes that are still `todo!()` in the evaluator: `Fold`, `Contains`, `NewConstruction`, and the `values` query node. That sugar should ship after those nodes do.
+- Several sugar forms lean on nodes that are still `todo!()` in the evaluator: `Fold`, `Contains`, and `NewConstruction`. That sugar should ship after those nodes do.
 - `unwrap_or` is described in the computation docs, but its atoms are commented out in `atoms.rs` and the evaluator has no task for it. Agents will want `unwrap_or`; resolve this inconsistency (either implement it or drop it from the docs).
 
 ## Open Points
