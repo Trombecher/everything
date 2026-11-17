@@ -1,3 +1,8 @@
+#[cfg(test)]
+mod tests;
+
+use std::collections::BTreeSet;
+
 use crate::{
     compute::{self, MaybeUndefined, Node},
     knowledge::{Knowledge, ObjectValues, QueryAtomsWithProperty, Values},
@@ -260,22 +265,54 @@ impl LazyObject {
         }
     }
 
+    /// Returns `true` iff `self` is a set that is computed lazily.
+    ///
+    /// Eagerly represented objects and nodes that can be converted into a model
+    /// object without further computation are not lazy. Lazy set results should
+    /// be iterated with [`Self::into_set_iter`] instead of being materialized
+    /// into a [`Set`].
+    #[must_use]
+    pub fn is_lazy(&self) -> bool {
+        self.is_set() && !matches!(self, Self::Eager(_) | Self::Node(_))
+    }
+
     /// Iterate over the lazy object.
+    ///
+    /// The returned iterator owns a snapshot of everything it needs, so it
+    /// stays valid if the knowledge changes after this call. Use
+    /// [`Self::into_iter`] to avoid cloning the lazy object.
     #[must_use]
     pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
+        match self {
+            Self::Eager(object) => LazyObjectIter::ObjectValues(knowledge.values_of(object)),
+            Self::Node(node) => {
+                let object = node.into_object();
+
+                LazyObjectIter::ObjectValues(knowledge.values_of(&object))
+            }
+            lazy_object => lazy_object.clone().into_iter(knowledge),
+        }
+    }
+
+    /// Consumes the lazy object and returns an iterator over its values.
+    ///
+    /// The iterator captures the parts of the knowledge it needs. Changing the
+    /// knowledge after this call therefore does not affect the iteration.
+    #[must_use]
+    pub fn into_iter(self, knowledge: &Knowledge) -> LazyObjectIter {
         match self {
             Self::Node(node) => {
                 let object = node.into_object();
 
                 LazyObjectIter::ObjectValues(knowledge.values_of(&object))
             }
-            Self::Eager(object) => LazyObjectIter::ObjectValues(knowledge.values_of(object)),
+            Self::Eager(object) => LazyObjectIter::ObjectValues(knowledge.values_of(&object)),
             Self::AtomValues(values) => {
-                LazyObjectIter::ObjectValues(ObjectValues::properties(values.clone()))
+                LazyObjectIter::ObjectValues(ObjectValues::properties(values))
             }
             Self::Union { first, second } => LazyObjectIter::Union {
-                first: Box::new(first.iter(knowledge)),
-                second: Box::new(second.iter(knowledge)),
+                first: Box::new(first.into_iter(knowledge)),
+                second: Box::new(second.into_iter(knowledge)),
             },
             Self::Intersection {
                 first: _,
@@ -285,33 +322,43 @@ impl LazyObject {
                 source: _,
                 without: _,
             } => todo!(),
-            Self::AtomsWithProperty { property } => LazyObjectIter::AtomsWithProperty(
-                knowledge.query_atoms_with_property(property.clone()),
-            ),
+            Self::AtomsWithProperty { property } => {
+                LazyObjectIter::AtomsWithProperty(knowledge.query_atoms_with_property(property))
+            }
             Self::ConstructionValues {
                 target,
                 property_constructor,
             } => LazyObjectIter::ConstructionValues {
-                target: Box::new(target.iter(knowledge)),
-                property_constructor: property_constructor.clone(),
+                target: Box::new(target.into_iter(knowledge)),
+                property_constructor,
             },
             Self::Map {
                 target,
                 mapper_function,
             } => LazyObjectIter::Map {
-                target: Box::new(target.iter(knowledge)),
-                mapper_function: mapper_function.clone(),
+                target: Box::new(target.into_iter(knowledge)),
+                mapper_function,
                 knowledge: knowledge.clone(),
             },
             Self::Filter {
                 target,
                 filter_function,
             } => LazyObjectIter::Filter {
-                target: Box::new(target.iter(knowledge)),
-                filter_function: filter_function.clone(),
+                target: Box::new(target.into_iter(knowledge)),
+                filter_function,
                 knowledge: knowledge.clone(),
             },
         }
+    }
+
+    /// Consumes the lazy object and returns an iterator over its values that
+    /// respects set semantics, i.e. yields every value at most once.
+    ///
+    /// Like [`Self::into_iter`], the returned iterator captures the parts of the
+    /// knowledge it needs.
+    #[must_use]
+    pub fn into_set_iter(self, knowledge: &Knowledge) -> LazySetIterator {
+        LazySetIterator::new(self.into_iter(knowledge))
     }
 }
 
@@ -393,6 +440,39 @@ impl Iterator for LazyObjectIter {
                 )
                 .into_object()
             }),
+        }
+    }
+}
+
+/// Iterates over the values of a lazy set, yielding every value at most once.
+///
+/// The values seen so far are remembered, so this does not materialize the set
+/// in advance but uses memory proportional to the number of yielded values.
+pub struct LazySetIterator {
+    values: LazyObjectIter,
+    yielded: BTreeSet<Object>,
+}
+
+impl LazySetIterator {
+    #[must_use]
+    pub fn new(values: LazyObjectIter) -> Self {
+        Self {
+            values,
+            yielded: BTreeSet::new(),
+        }
+    }
+}
+
+impl Iterator for LazySetIterator {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let object = self.values.next()?;
+
+            if self.yielded.insert(object.clone()) {
+                return Some(object);
+            }
         }
     }
 }
