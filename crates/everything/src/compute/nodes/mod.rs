@@ -58,8 +58,12 @@ pub enum Node {
     QueryAtomsWithProperty {
         property: Arc<Node>,
     },
+    /// Queries the values of constructions with the given property
+    /// constructor among the values of an object. Atoms are resolved
+    /// through the knowledge, sets through their members, and
+    /// constructions evaluate to undefined.
     QueryConstructionValues {
-        set: Arc<Node>,
+        object: Arc<Node>,
         property_constructor: Arc<Node>,
     },
     Contains {
@@ -178,10 +182,10 @@ impl Node {
                 property: Self::new(&property, knowledge)?.into(),
             },
             RawNode::QueryConstructionValues {
-                set,
+                object,
                 property_constructor,
             } => Self::QueryConstructionValues {
-                set: Self::new(&set, knowledge)?.into(),
+                object: Self::new(&object, knowledge)?.into(),
                 property_constructor: Self::new(&property_constructor, knowledge)?.into(),
             },
             RawNode::Contains { element, set } => Self::Contains {
@@ -346,11 +350,14 @@ impl Node {
             ])
             .into(),
             Self::QueryConstructionValues {
-                set,
+                object,
                 property_constructor,
             } => Set::from([
-                Construction::new(Atom::NODE_CONSTRUCTION_VALUES_SET.into(), set.into_object())
-                    .into(),
+                Construction::new(
+                    Atom::NODE_CONSTRUCTION_VALUES_OBJECT.into(),
+                    object.into_object(),
+                )
+                .into(),
                 Construction::new(
                     Atom::NODE_CONSTRUCTION_VALUES_PROPERTY_CONSTRUCTOR.into(),
                     property_constructor.into_object(),

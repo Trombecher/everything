@@ -71,7 +71,7 @@ Two policies prevent the worst agent foot-guns:
 The docs' `a b` means _construction_, but expression intuition says `f x` means _call_. Both readings must not coexist on the same syntax. The resolution adopted here keeps juxtaposition faithful to the docs everywhere:
 
 - `c v` juxtaposition is a construction (right-associative, as in the object model). In expression position it evaluates both sides and constructs, which is already the evaluation semantics of constructions, so "data is code" stays uniform (it corresponds to `NewConstruction` semantics).
-- Calls are always parenthesized: `f(x)`, curried as `f(x)(y)`. Builtin node forms use the same shape (`map(s, f)`, `values(s, c)`) or infix (`if c then a else b`).
+- Calls are always parenthesized: `f(x)`, curried as `f(x)(y)`. Builtin node forms use the same shape (`map(s, f)`, `values(o, c)`) or infix (`if c then a else b`).
 - Parens directly following an expression are a call, **whitespace-insensitively**; parens elsewhere are grouping. Right-associativity covers the common grouped-value case (`f g x` ≡ `f (g x)`), and left-nesting is writable as `((a b) c)`.
 - One postfix sugar corrects the biggest intuition trap: `p.prop` desugars to `unwrap(values({p}, prop))`. Agents will want to write `p.born` and mean "p's birth timestamp"; bare juxtaposition `p born` would hand them the construction object instead. The postfix form gives the intuition the right semantics, and it chains: `p.born.date_time`.
 
@@ -184,13 +184,13 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `fold(s, f, i)`              | Fold                                        |
 | `if c then a else b`         | If                                          |
 | `atoms_with(p)`              | QueryAtomsWithProperty                      |
-| `values(s, c)`               | QueryConstructionValues                     |
+| `values(o, c)`               | QueryConstructionValues                     |
 | `is_atom(x)` / `is_set(x)` / `is_construction(x)` | IsAtom / IsSet / IsConstruction |
 | `ctor_of(c)` / `val_of(c)`   | ConstructionConstructor / ConstructionValue |
-| `x.p`                        | `unwrap(values({x}, p))`                    |
+| `x.p`                        | `unwrap(values(x, p))`                      |
 | `true` / `false` / `undefined` | atoms                                      |
 
-Set-taking builtins (`count`, `unwrap`, `map`, `filter`, …) require a set. Use `values_of(x)` to pass an atom's values as a set.
+Set-taking builtins (`count`, `unwrap`, `map`, `filter`, …) require a set. Use `values_of(x)` to pass an atom's values as a set. `values(o, c)` is a query rather than a set operation: it accepts any object, resolving atoms through the knowledge and sets through their members.
 
 ### Samples
 
@@ -275,7 +275,7 @@ These decisions are open and should be settled before implementation:
 5. **Anonymous atoms in print**: raw `@<id>`, or short deterministic derived names (e.g. `a1234`) to save tokens?
 6. **`new` semantics within one document**: multiple `new`s with the same alias (error?), id generation strategy, and whether `new` can reference the just-created atom in the same transaction.
 7. **`unwrap_or`**: implement the node (docs mention it, atoms are commented out) or drop it?
-8. **Printer aggressiveness**: how eagerly the printer re-sugars (e.g. does it always fold `unwrap(values({x}, p))` back into `x.p`?), and what the tie-breaking rules are when multiple sugar patterns match.
+8. **Printer aggressiveness**: how eagerly the printer re-sugars (e.g. does it always fold `unwrap(values(x, p))` back into `x.p`?), and what the tie-breaking rules are when multiple sugar patterns match.
 9. **`.` lookup on multi-valued properties**: `x.p` uses `unwrap`, so multiple values collapse to `undefined`. Is a `x.p*` (or similar) form wanted for the whole value set?
 10. **Fuel/step budget size** and the granularity of budget-exceeded error reporting.
 

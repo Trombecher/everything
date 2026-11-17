@@ -33,10 +33,12 @@ pub enum LazyObject {
     /// The set of atoms with the given property.
     AtomsWithProperty { property: Object },
 
-    /// The values of constructions with the given constructor in a given set.
+    /// The values of constructions with the given constructor among the values
+    /// of a given object.
     ///
     /// The target is iterated lazily and only constructions whose constructor
-    /// equals `property_constructor` contribute their value.
+    /// equals `property_constructor` contribute their value. Atoms are resolved
+    /// through the knowledge and sets through their members.
     ConstructionValues {
         target: Box<Self>,
         property_constructor: Object,

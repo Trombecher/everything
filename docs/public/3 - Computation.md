@@ -369,10 +369,10 @@ It evaluates `<property>` and returns the set of all atoms that have the result 
 
 An object is a _query-construction-values node_ iff
 
-- it has the property `node_construction_values_set <set>` and
+- it has the property `node_construction_values_object <object>` and
 - it has the property `node_construction_values_property_constructor <constructor>`.
 
-It evaluates `<set>` and `<constructor>`. If `<set>` is not a set, the result is `undefined`. Otherwise the result is a deferred set of all values `v` for which `<set>` contains a construction `c v` whose constructor `c` equals the evaluated `<constructor>`. If `<constructor>` cannot be materialised (a deferred set), the result is `undefined`.
+It evaluates `<object>` and `<constructor>`. If `<object>` is a construction, the result is `undefined`. Otherwise the result is a deferred set of all values `v` for which the values of `<object>` contain a construction `c v` whose constructor `c` equals the evaluated `<constructor>`. The values of an object are its values in the knowledge if it is an atom and its members if it is a set; `undefined` is an atom and is queried like any other atom. If `<constructor>` cannot be materialised (a deferred set), the result is `undefined`.
 
 ## Examples
 
@@ -473,7 +473,7 @@ evaluates to `2`.
 | New construction | `node_new_construction_constructor`, `node_new_construction_value` | not implemented |
 | Contains | `node_contains_element`, `node_contains_set` | not implemented |
 | Query atoms with property | `node_atoms_with_property` | implemented |
-| Query construction values | `node_construction_values_set`, `node_construction_values_property_constructor` | implemented |
+| Query construction values | `node_construction_values_object`, `node_construction_values_property_constructor` | implemented |
 | Fold | `node_fold_set`, `node_fold_folder`, `node_fold_initial` | not implemented |
 
 ## Current Limitations

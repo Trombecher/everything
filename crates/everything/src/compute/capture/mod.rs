@@ -83,10 +83,10 @@ pub fn capture(
             property: capture(property, additional_depth, evaluation_context).into(),
         },
         Node::QueryConstructionValues {
-            set,
+            object,
             property_constructor,
         } => Node::QueryConstructionValues {
-            set: capture(set, additional_depth, evaluation_context).into(),
+            object: capture(object, additional_depth, evaluation_context).into(),
             property_constructor: capture(
                 property_constructor,
                 additional_depth,

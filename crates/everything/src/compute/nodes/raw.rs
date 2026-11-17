@@ -95,7 +95,7 @@ pub enum RawNode {
         property: Object,
     },
     QueryConstructionValues {
-        set: Object,
+        object: Object,
         property_constructor: Object,
     },
     Contains {
@@ -416,12 +416,12 @@ impl RawNode {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_CONSTRUCTION_VALUES_SET.into(),
+                Atom::NODE_CONSTRUCTION_VALUES_OBJECT.into(),
                 Atom::NODE_CONSTRUCTION_VALUES_PROPERTY_CONSTRUCTOR.into(),
             )
             .map(
-                |(set, property_constructor)| Self::QueryConstructionValues {
-                    set,
+                |(object, property_constructor)| Self::QueryConstructionValues {
+                    object,
                     property_constructor,
                 }
             )

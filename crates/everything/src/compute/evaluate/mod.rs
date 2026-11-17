@@ -93,12 +93,12 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(property)));
         }
         Node::QueryConstructionValues {
-            set,
+            object,
             property_constructor,
         } => {
             tasks.push(Task::QueryConstructionValues);
             tasks.push(Task::Evaluate(Arc::clone(property_constructor)));
-            tasks.push(Task::Evaluate(Arc::clone(set)));
+            tasks.push(Task::Evaluate(Arc::clone(object)));
         }
         Node::Contains { .. } | Node::Fold { .. } | Node::NewConstruction { .. } => todo!(),
         Node::IsAtom(inner) => {
@@ -365,14 +365,14 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             }
             Task::QueryConstructionValues => {
                 let property_constructor = evaluated.pop().unwrap().try_into_object();
-                let set = evaluated.pop().unwrap();
+                let object = evaluated.pop().unwrap();
 
                 evaluated.push(
-                    if set.is_set()
+                    if !matches!(&object, LazyObject::Eager(Object::Construction(_)))
                         && let Some(property_constructor) = property_constructor
                     {
                         LazyObject::ConstructionValues {
-                            target: Box::new(set),
+                            target: Box::new(object),
                             property_constructor,
                         }
                     } else {
