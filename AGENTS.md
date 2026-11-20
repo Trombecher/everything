@@ -12,6 +12,8 @@ Many design decisions have been discussed frequently in `docs/design`. Here you 
 
 ## Code Style
 
+Use `mod.rs`-style nested modules, instead of the sidecar files.
+
 ### Testing
 
 Do not write "inline" `mod tests { ... }` test modules within the source file of the code to be tested. Tests shall be written in their own `tests.rs` file **with the parent module being the code to test**. To accomplish this, you may need to move the module to be tested, e.g. `<module>.rs`, to its own folder, i.e. into `<module>/mod.rs`, with the test module living at `module/tests.rs`.
