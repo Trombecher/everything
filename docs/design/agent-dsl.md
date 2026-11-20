@@ -264,7 +264,6 @@ The agent-facing surface includes the tool protocol as well as the language. Mac
 - New crate (`everything_dsl`?) providing `parse` and `print` beside `Node::new` / `into_object`. Tests live in separate `tests.rs` files under the module, per the repository conventions.
 - `def name = ...` desugars to the statement `name is node_function <object>`. Node detection (`raw.rs`) already queries the knowledge, so atoms become callable functions with zero evaluator changes. But for these statements to validate, the node atoms (at least `node_function`) must be registered as property constructors in the base knowledge — currently only `property`, `property_constructor`, `successor_of`, and `predecessor_of` are. Verify this early.
 - `Contains` and `NewConstruction` are implemented, so the `in` and juxtaposition sugar can ship.
-- `unwrap_or` is described in the computation docs, but its atoms are commented out in `atoms.rs` and the evaluator has no task for it. Agents will want `unwrap_or`; resolve this inconsistency (either implement it or drop it from the docs).
 
 ## Open Points
 
@@ -276,10 +275,9 @@ These decisions are open and should be settled before implementation:
 4. **Alias statement shape**: which property constructor registers names (`x is name "x"`?), how uniqueness is enforced, and how collisions are disambiguated (`person#2`).
 5. **Anonymous atoms in print**: raw `@<id>`, or short deterministic derived names (e.g. `a1234`) to save tokens?
 6. **`new` semantics within one document**: multiple `new`s with the same alias (error?), id generation strategy, and whether `new` can reference the just-created atom in the same transaction.
-7. **`unwrap_or`**: implement the node (docs mention it, atoms are commented out) or drop it?
-8. **Printer aggressiveness**: how eagerly the printer re-sugars (e.g. does it always fold `unwrap(values(x, p))` back into `x.p`?), and what the tie-breaking rules are when multiple sugar patterns match.
-9. **`.` lookup on multi-valued properties**: `x.p` uses `unwrap`, so multiple values collapse to `undefined`. Is a `x.p*` (or similar) form wanted for the whole value set?
-10. **Fuel/step budget size** and the granularity of budget-exceeded error reporting.
+7. **Printer aggressiveness**: how eagerly the printer re-sugars (e.g. does it always fold `unwrap(values(x, p))` back into `x.p`?), and what the tie-breaking rules are when multiple sugar patterns match.
+8. **`.` lookup on multi-valued properties**: `x.p` uses `unwrap`, so multiple values collapse to `undefined`. Is a `x.p*` (or similar) form wanted for the whole value set?
+9. **Fuel/step budget size** and the granularity of budget-exceeded error reporting.
 
 ## Verdict
 

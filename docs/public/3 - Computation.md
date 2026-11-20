@@ -180,7 +180,7 @@ An object is an _add node_ iff
 
 It evaluates both children. If both results are integers, the result is their sum. If either result is not an integer, the result is `undefined`.
 
-Integers are arbitrary precision, so addition cannot overflow. The atom `arithmetic_overflow` is reserved but is not produced by the current implementation.
+Integers are arbitrary precision, so addition cannot overflow.
 
 ## Multiplication
 
@@ -191,7 +191,7 @@ An object is a _multiply node_ iff
 
 It evaluates both children. If both results are integers, the result is their product. If either result is not an integer, the result is `undefined`.
 
-As with addition, integers are arbitrary precision and the current implementation never produces `arithmetic_overflow`.
+As with addition, integers are arbitrary precision and cannot overflow.
 
 ## Set Count
 
@@ -580,4 +580,3 @@ evaluates to `2`.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
 - Converting a node to an object is lossy: unknown properties and annotations are not preserved, and atom-defined nodes are normalized into sets.
-- `arithmetic_overflow` is declared but unreachable because arithmetic uses arbitrary-precision integers.
