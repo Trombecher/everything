@@ -369,7 +369,7 @@ An object is a _contains node_ iff
 - it has the property `node_contains_element <element>` and
 - it has the property `node_contains_set <set>`.
 
-**[not implemented]** The intended semantics are: evaluate `<element>` and `<set>` and return whether `<element>` is a member of `<set>`. If `<set>` is not a set, the result is `undefined`. Membership testing already exists internally for evaluated and deferred sets; only the node form is not evaluable yet.
+It evaluates both children and returns whether `<element>` is a member of `<set>`. If `<set>` is not a set, the result is `undefined`. Membership is answered without materialising `<set>`, so it works for evaluated sets, `values_of` results, function values, and deferred sets. A deferred `<element>` is materialised before the test. `undefined` is a first-class atom and can be tested for membership like any other object.
 
 ## Conditional Nodes
 
@@ -540,7 +540,7 @@ evaluates to `2`.
 | Construction constructor | `node_constructor_of_construction` | implemented |
 | Construction value | `node_value_of_construction` | implemented |
 | New construction | `node_new_construction_constructor`, `node_new_construction_value` | not implemented |
-| Contains | `node_contains_element`, `node_contains_set` | not implemented |
+| Contains | `node_contains_element`, `node_contains_set` | implemented |
 | Query atoms with property | `node_atoms_with_property` | implemented |
 | Query atoms with constructor | `node_atoms_with_constructor` | implemented |
 | Query construction values | `node_construction_values_object`, `node_construction_values_property_constructor` | implemented |

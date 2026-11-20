@@ -3,6 +3,7 @@ mod and;
 mod any;
 mod call;
 mod common;
+mod contains;
 mod count;
 mod every;
 mod filter;

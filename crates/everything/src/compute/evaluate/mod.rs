@@ -36,6 +36,7 @@ enum Task {
     QueryAtomsWithConstructor,
     QueryConstructionValues,
     QueryConstructions,
+    Contains,
     Equal,
     PartialOr {
         second: Arc<Node>,
@@ -152,7 +153,12 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(folder)));
             tasks.push(Task::Evaluate(Arc::clone(set)));
         }
-        Node::Contains { .. } | Node::NewConstruction { .. } => todo!(),
+        Node::Contains { element, set } => {
+            tasks.push(Task::Contains);
+            tasks.push(Task::Evaluate(Arc::clone(set)));
+            tasks.push(Task::Evaluate(Arc::clone(element)));
+        }
+        Node::NewConstruction { .. } => todo!(),
         Node::IsAtom(inner) => {
             tasks.push(Task::IsAtom);
             tasks.push(Task::Evaluate(Arc::clone(inner)));
@@ -428,6 +434,16 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let constructor = evaluated.pop().unwrap().into_object(knowledge);
 
                 evaluated.push(LazyObject::Constructions { constructor });
+            }
+            Task::Contains => {
+                let set = evaluated.pop().unwrap();
+                let element = evaluated.pop().unwrap();
+
+                evaluated.push(if set.is_set() {
+                    LazyObject::Eager(set.has(&element.into_object(knowledge), knowledge).into())
+                } else {
+                    UNDEFINED
+                });
             }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();
