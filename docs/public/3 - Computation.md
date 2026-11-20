@@ -200,7 +200,7 @@ An object is a _count node_ iff it has the property `node_count <inner>`. It eva
 - for an evaluated set, the number of members;
 - for an atom's values, the number of values;
 - for a function value, the number of properties of its node representation, which is `1` for a function;
-- for a deferred set result (union, map, or filter), the number of distinct elements it yields.
+- for a deferred set result (union, intersection, map, or filter), the number of distinct elements it yields.
 
 If the result is an atom, a construction, or `undefined`, the result is `undefined`. Use [Values Of](#values-of) to count the values of an atom: `count(values_of(<atom>))`.
 
@@ -235,6 +235,17 @@ An object is a _union node_ iff
 It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is a deferred set that represents the union of the two results.
 
 Conceptually, the result contains every element of the left result and every element of the right result. Iteration yields the left elements followed by the right elements, skipping values that were already yielded, so every element appears at most once. Membership tests and size are consistent with that.
+
+## Set Intersection
+
+An object is an _intersection node_ iff
+
+- it has the property `node_intersection_first <left>` and
+- it has the property `node_intersection_second <right>`.
+
+It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is a deferred set that represents the intersection of the two results.
+
+Iteration yields the elements of the left result that are also members of the right result, skipping values that were already yielded, so every element appears at most once. Membership tests and size are consistent with that.
 
 ## Filter
 
@@ -528,6 +539,7 @@ evaluates to `2`.
 | Values of | `node_values_of` | implemented |
 | Has value | `node_has_value` | implemented |
 | Union | `node_union_first`, `node_union_second` | implemented; set operands only |
+| Intersection | `node_intersection_first`, `node_intersection_second` | implemented; set operands only |
 | Filter | `node_filter_set`, `node_filter_filter` | implemented; set operand required |
 | Map | `node_map_set`, `node_map_mapper` | implemented; iteration is not deduplicated, size counts distinct values |
 | Every | `node_every_set`, `node_every_predicate` | implemented; expressible with `fold` |
@@ -549,7 +561,7 @@ evaluates to `2`.
 
 ## Current Limitations
 
-- Deferred set values (union, map, filter) can be iterated, tested for membership, and counted; their size is the number of distinct values. They are materialized when converted to an object or compared for equality. Construction constructor/value extraction on deferred values yields `undefined`.
+- Deferred set values (union, intersection, map, filter) can be iterated, tested for membership, and counted; their size is the number of distinct values. They are materialized when converted to an object or compared for equality. Construction constructor/value extraction on deferred values yields `undefined`.
 - Deferred values and function values have undefined truthiness, so `and`, `or`, `xor`, `not`, and `if` produce `undefined` when given one directly.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.

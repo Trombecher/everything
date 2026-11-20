@@ -101,6 +101,13 @@ pub enum Node {
         first: Arc<Node>,
         second: Arc<Node>,
     },
+    /// A set intersection. Evaluates to a deferred set containing the values
+    /// that are members of both results. If either result is not a set, the
+    /// result is undefined.
+    Intersection {
+        first: Arc<Node>,
+        second: Arc<Node>,
+    },
     Map {
         set: Arc<Node>,
         mapper_function: Arc<Node>,
@@ -226,6 +233,10 @@ impl Node {
                 second: Self::new(&second, knowledge)?.into(),
             },
             RawNode::Union { first, second } => Self::Union {
+                first: Self::new(&first, knowledge)?.into(),
+                second: Self::new(&second, knowledge)?.into(),
+            },
+            RawNode::Intersection { first, second } => Self::Intersection {
                 first: Self::new(&first, knowledge)?.into(),
                 second: Self::new(&second, knowledge)?.into(),
             },
@@ -465,6 +476,12 @@ impl Node {
                 Construction::new(Atom::NODE_UNION_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
+            Self::Intersection { first, second } => Set::from([
+                Construction::new(Atom::NODE_INTERSECTION_FIRST.into(), first.into_object()).into(),
+                Construction::new(Atom::NODE_INTERSECTION_SECOND.into(), second.into_object())
+                    .into(),
+            ])
+            .into(),
             Self::QueryConstructions { constructor } => Set::from([Construction::new(
                 Atom::NODE_QUERY_CONSTRUCTIONS.into(),
                 constructor.into_object(),
@@ -562,6 +579,7 @@ impl Node {
             | Self::Xor { .. }
             | Self::Add { .. }
             | Self::Union { .. }
+            | Self::Intersection { .. }
             | Self::Map { .. }
             | Self::Filter { .. }
             | Self::Less { .. }

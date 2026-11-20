@@ -63,6 +63,10 @@ fn node_round_trip() {
             first: Node::Literal(a.clone()).into(),
             second: Node::Literal(b.clone()).into(),
         },
+        Node::Intersection {
+            first: Node::Literal(a.clone()).into(),
+            second: Node::Literal(b.clone()).into(),
+        },
         Node::Map {
             set: Node::Literal(a.clone()).into(),
             mapper_function: Node::Literal(b.clone()).into(),

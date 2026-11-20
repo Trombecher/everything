@@ -132,6 +132,10 @@ pub fn capture(
             first: capture(first, additional_depth, evaluation_context, knowledge).into(),
             second: capture(second, additional_depth, evaluation_context, knowledge).into(),
         },
+        Node::Intersection { first, second } => Node::Intersection {
+            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
+            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+        },
         Node::Map {
             set,
             mapper_function,

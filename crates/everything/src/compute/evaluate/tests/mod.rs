@@ -9,6 +9,7 @@ mod every;
 mod filter;
 mod fold;
 mod has_value;
+mod intersection;
 mod is_set;
 mod less;
 mod map;

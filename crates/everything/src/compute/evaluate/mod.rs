@@ -47,6 +47,7 @@ enum Task {
     Add,
     Multiply,
     Union,
+    Intersection,
     Map,
     Filter,
     Every,
@@ -248,6 +249,11 @@ fn resolve_evaluate_node(
         }
         Node::Union { first, second } => {
             tasks.push(Task::Union);
+            tasks.push(Task::Evaluate(Arc::clone(second)));
+            tasks.push(Task::Evaluate(Arc::clone(first)));
+        }
+        Node::Intersection { first, second } => {
+            tasks.push(Task::Intersection);
             tasks.push(Task::Evaluate(Arc::clone(second)));
             tasks.push(Task::Evaluate(Arc::clone(first)));
         }
@@ -569,6 +575,19 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
 
                 evaluated.push(if first.is_set() && second.is_set() {
                     LazyObject::Union {
+                        first: Box::new(second),
+                        second: Box::new(first),
+                    }
+                } else {
+                    UNDEFINED
+                });
+            }
+            Task::Intersection => {
+                let first = evaluated.pop().unwrap();
+                let second = evaluated.pop().unwrap();
+
+                evaluated.push(if first.is_set() && second.is_set() {
+                    LazyObject::Intersection {
                         first: Box::new(second),
                         second: Box::new(first),
                     }
