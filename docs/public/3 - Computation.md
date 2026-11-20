@@ -414,7 +414,7 @@ An object is a _new-construction node_ iff
 - it has the property `node_new_construction_constructor <constructor>` and
 - it has the property `node_new_construction_value <value>`.
 
-**[not implemented]** The intended semantics are: evaluate both children and return the construction `<constructor> <value>`.
+It evaluates both children and returns the construction `<constructor> <value>`. `undefined` is not treated specially: it is a first-class atom, so either child may evaluate to `undefined` and becomes the corresponding part of the construction. A deferred child is materialised before constructing.
 
 ## Query Atoms With Property
 
@@ -539,7 +539,7 @@ evaluates to `2`.
 | Is set | `node_is_set` | implemented |
 | Construction constructor | `node_constructor_of_construction` | implemented |
 | Construction value | `node_value_of_construction` | implemented |
-| New construction | `node_new_construction_constructor`, `node_new_construction_value` | not implemented |
+| New construction | `node_new_construction_constructor`, `node_new_construction_value` | implemented |
 | Contains | `node_contains_element`, `node_contains_set` | implemented |
 | Query atoms with property | `node_atoms_with_property` | implemented |
 | Query atoms with constructor | `node_atoms_with_constructor` | implemented |

@@ -12,7 +12,7 @@ use crate::{
     compute::{LazyObject, LazyObjectIter, MaybeUndefined, Node, capture, operations},
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Atom, Object},
+    model::{Atom, Construction, Object},
 };
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
@@ -37,6 +37,7 @@ enum Task {
     QueryConstructionValues,
     QueryConstructions,
     Contains,
+    NewConstruction,
     Equal,
     PartialOr {
         second: Arc<Node>,
@@ -158,7 +159,11 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(set)));
             tasks.push(Task::Evaluate(Arc::clone(element)));
         }
-        Node::NewConstruction { .. } => todo!(),
+        Node::NewConstruction { constructor, value } => {
+            tasks.push(Task::NewConstruction);
+            tasks.push(Task::Evaluate(Arc::clone(value)));
+            tasks.push(Task::Evaluate(Arc::clone(constructor)));
+        }
         Node::IsAtom(inner) => {
             tasks.push(Task::IsAtom);
             tasks.push(Task::Evaluate(Arc::clone(inner)));
@@ -444,6 +449,16 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 } else {
                     UNDEFINED
                 });
+            }
+            Task::NewConstruction => {
+                let value = evaluated.pop().unwrap().into_object(knowledge);
+                let constructor = evaluated.pop().unwrap().into_object(knowledge);
+
+                // `undefined` is not special here: either child may be the atom
+                // `undefined` like any other object.
+                evaluated.push(LazyObject::Eager(
+                    Construction::new(constructor, value).into(),
+                ));
             }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();

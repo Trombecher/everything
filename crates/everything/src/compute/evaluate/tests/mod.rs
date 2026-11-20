@@ -12,6 +12,7 @@ mod has_value;
 mod is_set;
 mod less;
 mod map;
+mod new_construction;
 mod query_atoms_with_constructor;
 mod query_atoms_with_property;
 mod query_construction_values;
