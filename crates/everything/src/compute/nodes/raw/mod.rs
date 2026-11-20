@@ -1,10 +1,14 @@
 //! This module handles node kind detection and first-level parsing.
 
+mod diagnose;
+
+use super::{InvalidNodeError, NodeKind};
 use crate::{
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
     model::{Atom, Object},
 };
+use diagnose::diagnose;
 
 pub(crate) fn node_function_body(object: &Object, knowledge: &Knowledge) -> Option<Object> {
     knowledge
@@ -194,39 +198,50 @@ pub enum RawNode {
 impl RawNode {
     /// Tries to parse a raw node from an object.
     #[allow(clippy::too_many_lines)]
-    pub fn new(object: &Object, knowledge: &Knowledge) -> Option<Self> {
-        // TODO: maybe change return type to a result (?)
-
+    pub fn new(object: &Object, knowledge: &Knowledge) -> Result<Self, InvalidNodeError> {
         let mut node: Option<Self> = None;
+        let mut kind: Option<NodeKind> = None;
 
         macro_rules! xor_with {
-            ($e:expr) => {{
+            ($kind:expr, $e:expr) => {{
                 let variant = $e;
 
                 if variant.is_some() {
-                    if node.is_some() {
-                        return None;
+                    if let Some(first) = kind {
+                        return Err(InvalidNodeError::Ambiguous {
+                            first,
+                            second: $kind,
+                        });
                     }
 
+                    kind = Some($kind);
                     node = variant;
                 }
             }};
         }
 
-        xor_with!(node_function_body(object, knowledge).map(|body| Self::Function { body }));
+        xor_with!(
+            NodeKind::Function,
+            node_function_body(object, knowledge).map(|body| Self::Function { body })
+        );
 
         xor_with!(
+            NodeKind::Literal,
             knowledge
                 .query_construction_values(object, Atom::NODE_LITERAL.into())
                 .next_and_last()
                 .map(Self::Literal)
         );
 
-        xor_with!(node_function_self(object, knowledge));
+        xor_with!(
+            NodeKind::FunctionSelfReference,
+            node_function_self(object, knowledge)
+        );
 
-        xor_with!(node_parameter_depth(object, knowledge));
+        xor_with!(NodeKind::Parameter, node_parameter_depth(object, knowledge));
 
         xor_with!(
+            NodeKind::Call,
             pair_values(
                 object,
                 knowledge,
@@ -237,6 +252,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Count,
             knowledge
                 .query_construction_values(object, Atom::NODE_COUNT.into())
                 .next_and_last()
@@ -244,6 +260,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::ValuesOf,
             knowledge
                 .query_construction_values(object, Atom::NODE_VALUES_OF.into())
                 .next_and_last()
@@ -251,6 +268,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::HasValue,
             knowledge
                 .query_construction_values(object, Atom::NODE_HAS_VALUE.into())
                 .next_and_last()
@@ -258,6 +276,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Not,
             knowledge
                 .query_construction_values(object, Atom::NODE_NOT.into())
                 .next_and_last()
@@ -265,6 +284,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::And,
             pair_values(
                 object,
                 knowledge,
@@ -275,6 +295,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Or,
             pair_values(
                 object,
                 knowledge,
@@ -285,6 +306,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Equal,
             pair_values(
                 object,
                 knowledge,
@@ -295,6 +317,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Xor,
             pair_values(
                 object,
                 knowledge,
@@ -305,6 +328,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Add,
             pair_values(
                 object,
                 knowledge,
@@ -315,6 +339,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Union,
             pair_values(
                 object,
                 knowledge,
@@ -325,6 +350,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Intersection,
             pair_values(
                 object,
                 knowledge,
@@ -335,6 +361,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Difference,
             pair_values(
                 object,
                 knowledge,
@@ -345,6 +372,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Map,
             pair_values(
                 object,
                 knowledge,
@@ -358,6 +386,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Filter,
             pair_values(
                 object,
                 knowledge,
@@ -371,6 +400,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Less,
             pair_values(
                 object,
                 knowledge,
@@ -381,6 +411,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::If,
             triple_values(
                 object,
                 knowledge,
@@ -396,6 +427,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Unwrap,
             knowledge
                 .query_construction_values(object, Atom::NODE_UNWRAP_SET.into())
                 .next_and_last()
@@ -403,6 +435,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Multiply,
             pair_values(
                 object,
                 knowledge,
@@ -413,6 +446,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::IsAtom,
             knowledge
                 .query_construction_values(object, Atom::NODE_IS_ATOM.into())
                 .next_and_last()
@@ -420,6 +454,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Every,
             pair_values(
                 object,
                 knowledge,
@@ -430,6 +465,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Any,
             pair_values(
                 object,
                 knowledge,
@@ -440,6 +476,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::QueryAtomsWithProperty,
             knowledge
                 .query_construction_values(object, Atom::NODE_ATOMS_WITH_PROPERTY.into())
                 .next_and_last()
@@ -447,6 +484,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::QueryAtomsWithConstructor,
             knowledge
                 .query_construction_values(object, Atom::NODE_ATOMS_WITH_CONSTRUCTOR.into())
                 .next_and_last()
@@ -454,6 +492,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::QueryConstructionValues,
             pair_values(
                 object,
                 knowledge,
@@ -469,6 +508,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::QueryConstructions,
             knowledge
                 .query_construction_values(object, Atom::NODE_QUERY_CONSTRUCTIONS.into())
                 .next_and_last()
@@ -476,6 +516,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Contains,
             pair_values(
                 object,
                 knowledge,
@@ -486,6 +527,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::IsConstruction,
             knowledge
                 .query_construction_values(object, Atom::NODE_IS_CONSTRUCTION.into())
                 .next_and_last()
@@ -493,6 +535,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::IsSet,
             knowledge
                 .query_construction_values(object, Atom::NODE_IS_SET.into())
                 .next_and_last()
@@ -500,6 +543,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::Fold,
             triple_values(
                 object,
                 knowledge,
@@ -515,6 +559,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::NewConstruction,
             pair_values(
                 object,
                 knowledge,
@@ -525,6 +570,7 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::ConstructionConstructor,
             knowledge
                 .query_construction_values(object, Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION.into())
                 .next_and_last()
@@ -532,12 +578,18 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::ConstructionValue,
             knowledge
                 .query_construction_values(object, Atom::NODE_VALUE_OF_CONSTRUCTION.into())
                 .next_and_last()
                 .map(|construction| Self::ConstructionValue { construction })
         );
 
-        node
+        debug_assert_eq!(kind.is_some(), node.is_some());
+
+        match node {
+            Some(node) => Ok(node),
+            None => Err(diagnose(object, knowledge)),
+        }
     }
 }

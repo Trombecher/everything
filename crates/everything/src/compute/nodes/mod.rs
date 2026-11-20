@@ -1,6 +1,11 @@
+mod error;
+mod kind;
 mod raw;
 #[cfg(test)]
 mod tests;
+
+pub use error::InvalidNodeError;
+pub use kind::{NodeKind, NodeProperty, PropertyRequirement};
 
 use std::sync::Arc;
 
@@ -176,10 +181,6 @@ pub enum Node {
     },
 }
 
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
-#[error("invalid node error")]
-pub struct InvalidNodeError;
-
 impl Node {
     /// Tries to parse a node from an object (and a knowledge).
     ///
@@ -188,140 +189,162 @@ impl Node {
     /// If the object is invalid.
     #[allow(clippy::too_many_lines)]
     pub fn new(object: &Object, knowledge: &Knowledge) -> Result<Self, InvalidNodeError> {
-        let raw = RawNode::new(object, knowledge).ok_or(InvalidNodeError)?;
+        let raw = RawNode::new(object, knowledge)?;
+
+        macro_rules! child {
+            ($property:expr, $object:expr) => {
+                Self::child($object, knowledge, $property)?
+            };
+        }
 
         Ok(match raw {
             RawNode::Function { body } => Self::Function {
-                body: Self::new(&body, knowledge)?.into(),
+                body: child!(NodeProperty::Function, &body),
             },
             RawNode::Literal(object) => Self::Literal(object),
             RawNode::And { first, second } => Self::And {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::AndFirst, &first),
+                second: child!(NodeProperty::AndSecond, &second),
             },
             RawNode::FunctionSelf { depth } => Self::FunctionSelf { depth },
             RawNode::Parameter { depth } => Self::Parameter { depth },
-            RawNode::Count(object) => Self::Count(Self::new(&object, knowledge)?.into()),
-            RawNode::ValuesOf(object) => Self::ValuesOf(Self::new(&object, knowledge)?.into()),
-            RawNode::HasValue(object) => Self::HasValue(Self::new(&object, knowledge)?.into()),
+            RawNode::Count(object) => Self::Count(child!(NodeProperty::Count, &object)),
+            RawNode::ValuesOf(object) => Self::ValuesOf(child!(NodeProperty::ValuesOf, &object)),
+            RawNode::HasValue(object) => Self::HasValue(child!(NodeProperty::HasValue, &object)),
             RawNode::QueryAtomsWithProperty { property } => Self::QueryAtomsWithProperty {
-                property: Self::new(&property, knowledge)?.into(),
+                property: child!(NodeProperty::AtomsWithProperty, &property),
             },
             RawNode::QueryAtomsWithConstructor { constructor } => Self::QueryAtomsWithConstructor {
-                constructor: Self::new(&constructor, knowledge)?.into(),
+                constructor: child!(NodeProperty::AtomsWithConstructor, &constructor),
             },
             RawNode::QueryConstructionValues {
                 object,
                 property_constructor,
             } => Self::QueryConstructionValues {
-                object: Self::new(&object, knowledge)?.into(),
-                property_constructor: Self::new(&property_constructor, knowledge)?.into(),
+                object: child!(NodeProperty::ConstructionValuesObject, &object),
+                property_constructor: child!(
+                    NodeProperty::ConstructionValuesPropertyConstructor,
+                    &property_constructor
+                ),
             },
             RawNode::QueryConstructions { constructor } => Self::QueryConstructions {
-                constructor: Self::new(&constructor, knowledge)?.into(),
+                constructor: child!(NodeProperty::QueryConstructions, &constructor),
             },
             RawNode::Contains { element, set } => Self::Contains {
-                element: Self::new(&element, knowledge)?.into(),
-                set: Self::new(&set, knowledge)?.into(),
+                element: child!(NodeProperty::ContainsElement, &element),
+                set: child!(NodeProperty::ContainsSet, &set),
             },
             RawNode::Equal { first, second } => Self::Equal {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::EqualFirst, &first),
+                second: child!(NodeProperty::EqualSecond, &second),
             },
             RawNode::Or { first, second } => Self::Or {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::OrFirst, &first),
+                second: child!(NodeProperty::OrSecond, &second),
             },
             RawNode::Xor { first, second } => Self::Xor {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::XorFirst, &first),
+                second: child!(NodeProperty::XorSecond, &second),
             },
-            RawNode::Not(object) => Self::Not(Self::new(&object, knowledge)?.into()),
+            RawNode::Not(object) => Self::Not(child!(NodeProperty::Not, &object)),
             RawNode::Add { first, second } => Self::Add {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::AddFirst, &first),
+                second: child!(NodeProperty::AddSecond, &second),
             },
             RawNode::Union { first, second } => Self::Union {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::UnionFirst, &first),
+                second: child!(NodeProperty::UnionSecond, &second),
             },
             RawNode::Intersection { first, second } => Self::Intersection {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::IntersectionFirst, &first),
+                second: child!(NodeProperty::IntersectionSecond, &second),
             },
             RawNode::Difference { first, second } => Self::Difference {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::DifferenceFirst, &first),
+                second: child!(NodeProperty::DifferenceSecond, &second),
             },
             RawNode::Map {
                 set,
                 mapper_function,
             } => Self::Map {
-                set: Self::new(&set, knowledge)?.into(),
-                mapper_function: Self::new(&mapper_function, knowledge)?.into(),
+                set: child!(NodeProperty::MapSet, &set),
+                mapper_function: child!(NodeProperty::MapMapper, &mapper_function),
             },
             RawNode::Filter {
                 set,
                 filter_function,
             } => Self::Filter {
-                set: Self::new(&set, knowledge)?.into(),
-                filter_function: Self::new(&filter_function, knowledge)?.into(),
+                set: child!(NodeProperty::FilterSet, &set),
+                filter_function: child!(NodeProperty::FilterFilter, &filter_function),
             },
             RawNode::Less { first, second } => Self::Less {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::LessFirst, &first),
+                second: child!(NodeProperty::LessSecond, &second),
             },
             RawNode::If {
                 condition,
                 then,
                 otherwise,
             } => Self::If {
-                condition: Self::new(&condition, knowledge)?.into(),
-                then: Self::new(&then, knowledge)?.into(),
-                otherwise: Self::new(&otherwise, knowledge)?.into(),
+                condition: child!(NodeProperty::IfCondition, &condition),
+                then: child!(NodeProperty::IfThen, &then),
+                otherwise: child!(NodeProperty::IfElse, &otherwise),
             },
-            RawNode::Unwrap(set) => Self::Unwrap(Self::new(&set, knowledge)?.into()),
+            RawNode::Unwrap(set) => Self::Unwrap(child!(NodeProperty::UnwrapSet, &set)),
             RawNode::Multiply { first, second } => Self::Multiply {
-                first: Self::new(&first, knowledge)?.into(),
-                second: Self::new(&second, knowledge)?.into(),
+                first: child!(NodeProperty::MultiplyFirst, &first),
+                second: child!(NodeProperty::MultiplySecond, &second),
             },
             RawNode::Call { callee, with } => Self::Call {
-                callee: Self::new(&callee, knowledge)?.into(),
-                with: Self::new(&with, knowledge)?.into(),
+                callee: child!(NodeProperty::CallCallee, &callee),
+                with: child!(NodeProperty::CallWith, &with),
             },
-            RawNode::IsAtom(object) => Self::IsAtom(Self::new(&object, knowledge)?.into()),
+            RawNode::IsAtom(object) => Self::IsAtom(child!(NodeProperty::IsAtom, &object)),
             RawNode::IsConstruction(object) => {
-                Self::IsConstruction(Self::new(&object, knowledge)?.into())
+                Self::IsConstruction(child!(NodeProperty::IsConstruction, &object))
             }
-            RawNode::IsSet(object) => Self::IsSet(Self::new(&object, knowledge)?.into()),
+            RawNode::IsSet(object) => Self::IsSet(child!(NodeProperty::IsSet, &object)),
             RawNode::Every { set, predicate } => Self::Every {
-                set: Self::new(&set, knowledge)?.into(),
-                predicate: Self::new(&predicate, knowledge)?.into(),
+                set: child!(NodeProperty::EverySet, &set),
+                predicate: child!(NodeProperty::EveryPredicate, &predicate),
             },
             RawNode::Any { set, predicate } => Self::Any {
-                set: Self::new(&set, knowledge)?.into(),
-                predicate: Self::new(&predicate, knowledge)?.into(),
+                set: child!(NodeProperty::AnySet, &set),
+                predicate: child!(NodeProperty::AnyPredicate, &predicate),
             },
             RawNode::Fold {
                 set,
                 folder,
                 initial,
             } => Self::Fold {
-                set: Self::new(&set, knowledge)?.into(),
-                folder: Self::new(&folder, knowledge)?.into(),
-                initial: Self::new(&initial, knowledge)?.into(),
+                set: child!(NodeProperty::FoldSet, &set),
+                folder: child!(NodeProperty::FoldFolder, &folder),
+                initial: child!(NodeProperty::FoldInitial, &initial),
             },
             RawNode::NewConstruction { constructor, value } => Self::NewConstruction {
-                constructor: Self::new(&constructor, knowledge)?.into(),
-                value: Self::new(&value, knowledge)?.into(),
+                constructor: child!(NodeProperty::NewConstructionConstructor, &constructor),
+                value: child!(NodeProperty::NewConstructionValue, &value),
             },
             RawNode::ConstructionConstructor { construction } => Self::ConstructionConstructor {
-                construction: Self::new(&construction, knowledge)?.into(),
+                construction: child!(NodeProperty::ConstructorOfConstruction, &construction),
             },
             RawNode::ConstructionValue { construction } => Self::ConstructionValue {
-                construction: Self::new(&construction, knowledge)?.into(),
+                construction: child!(NodeProperty::ValueOfConstruction, &construction),
             },
         })
+    }
+
+    fn child(
+        object: &Object,
+        knowledge: &Knowledge,
+        property: NodeProperty,
+    ) -> Result<Arc<Self>, InvalidNodeError> {
+        Self::new(object, knowledge)
+            .map(Arc::new)
+            .map_err(|source| InvalidNodeError::Child {
+                property,
+                source: Box::new(source),
+            })
     }
 
     #[must_use]

@@ -131,3 +131,154 @@ fn node_round_trip() {
         assert_eq!(Node::new(&object, &knowledge), Ok(node));
     }
 }
+
+#[test]
+fn node_parse_rejects_empty_object() {
+    let knowledge = Knowledge { map: OrdMap::new() };
+    let object = Object::Set(Set::empty());
+
+    assert_eq!(
+        Node::new(&object, &knowledge),
+        Err(InvalidNodeError::NotANode)
+    );
+}
+
+#[test]
+fn node_parse_rejects_ambiguous_kind() {
+    let knowledge = Knowledge { map: OrdMap::new() };
+    let value = Object::new_integer(BigInt::from(1));
+
+    let object = Object::Set(Set::from([
+        Construction::new(Atom::NODE_LITERAL.into(), value.clone()).into(),
+        Construction::new(Atom::NODE_COUNT.into(), value).into(),
+    ]));
+
+    assert_eq!(
+        Node::new(&object, &knowledge),
+        Err(InvalidNodeError::Ambiguous {
+            first: NodeKind::Literal,
+            second: NodeKind::Count,
+        })
+    );
+}
+
+#[test]
+fn node_parse_reports_partial_kind() {
+    let knowledge = Knowledge { map: OrdMap::new() };
+    let value = Object::new_integer(BigInt::from(1));
+
+    let object = Object::Set(Set::from([Construction::new(
+        Atom::NODE_AND_FIRST.into(),
+        value,
+    )
+    .into()]));
+
+    assert_eq!(
+        Node::new(&object, &knowledge),
+        Err(InvalidNodeError::MissingProperty {
+            kind: NodeKind::And,
+            property: NodeProperty::AndSecond,
+        })
+    );
+}
+
+#[test]
+fn node_parse_prefers_a_complete_kind_over_a_partial_one() {
+    let knowledge = Knowledge { map: OrdMap::new() };
+    let value = Object::new_integer(BigInt::from(1));
+
+    let object = Object::Set(Set::from([
+        Construction::new(Atom::NODE_LITERAL.into(), value.clone()).into(),
+        Construction::new(Atom::NODE_AND_FIRST.into(), value).into(),
+    ]));
+
+    assert_eq!(
+        Node::new(&object, &knowledge),
+        Ok(Node::Literal(Object::new_integer(BigInt::from(1))))
+    );
+}
+
+#[test]
+fn node_parse_reports_duplicate_property() {
+    let knowledge = Knowledge { map: OrdMap::new() };
+
+    let object = Object::Set(Set::from([
+        Construction::new(
+            Atom::NODE_LITERAL.into(),
+            Object::new_integer(BigInt::from(1)),
+        )
+        .into(),
+        Construction::new(
+            Atom::NODE_LITERAL.into(),
+            Object::new_integer(BigInt::from(2)),
+        )
+        .into(),
+    ]));
+
+    assert_eq!(
+        Node::new(&object, &knowledge),
+        Err(InvalidNodeError::DuplicateProperty {
+            kind: NodeKind::Literal,
+            property: NodeProperty::Literal,
+        })
+    );
+}
+
+#[test]
+fn node_parse_reports_invalid_depth() {
+    let knowledge = Knowledge { map: OrdMap::new() };
+    let depth = Object::new_integer(BigInt::from(-1));
+
+    let object = Object::Set(Set::from([Construction::new(
+        Atom::NODE_PARAMETER.into(),
+        depth,
+    )
+    .into()]));
+
+    assert_eq!(
+        Node::new(&object, &knowledge),
+        Err(InvalidNodeError::InvalidProperty {
+            kind: NodeKind::Parameter,
+            property: NodeProperty::Parameter,
+            expected: PropertyRequirement::Depth,
+        })
+    );
+}
+
+#[test]
+fn node_parse_error_display_uses_node_names() {
+    assert_eq!(NodeKind::And.to_string(), "and");
+    assert_eq!(NodeProperty::AndSecond.to_string(), "node_and_second");
+    assert_eq!(
+        PropertyRequirement::Depth.to_string(),
+        "a non-negative 32-bit integer"
+    );
+    assert_eq!(
+        InvalidNodeError::MissingProperty {
+            kind: NodeKind::And,
+            property: NodeProperty::AndSecond,
+        }
+        .to_string(),
+        "object looks like a node of kind `and`, but required property `node_and_second` is missing"
+    );
+}
+
+#[test]
+fn node_parse_wraps_child_errors() {
+    let knowledge = Knowledge { map: OrdMap::new() };
+    let invalid_child = Object::Set(Set::empty());
+
+    let object = Object::Set(Set::from([Construction::new(
+        Atom::NODE_COUNT.into(),
+        invalid_child,
+    )
+    .into()]));
+
+    assert_eq!(
+        Node::new(&object, &knowledge),
+        Err(InvalidNodeError::Child {
+            property: NodeProperty::Count,
+            source: Box::new(InvalidNodeError::NotANode),
+        })
+    );
+}
