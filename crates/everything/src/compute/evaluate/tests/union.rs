@@ -37,3 +37,19 @@ fn union_requires_sets() {
     assert!(union.is_set());
     assert_eq!(union.iter(&BASE).count(), 1);
 }
+
+#[test]
+fn union_iterates_each_element_once() {
+    let union = Node::Union {
+        first: Node::Literal(Object::Set(integer_set())).into(),
+        second: Node::Literal(Object::Set(integer_set())).into(),
+    };
+
+    let result = evaluate(&union, &BASE);
+
+    assert_eq!(
+        result.iter(&BASE).collect::<Vec<_>>(),
+        vec![integer(1), integer(2), integer(3)]
+    );
+    assert_eq!(result.size(&BASE), 3);
+}

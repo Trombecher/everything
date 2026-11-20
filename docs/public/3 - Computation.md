@@ -234,7 +234,7 @@ An object is a _union node_ iff
 
 It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is a deferred set that represents the union of the two results.
 
-Conceptually, the result contains every element of the left result and every element of the right result. Iteration currently yields the left elements followed by the right elements without re-checking for duplicates, so overlapping operands can yield an element more than once. Membership tests are correct. The size counts distinct elements.
+Conceptually, the result contains every element of the left result and every element of the right result. Iteration yields the left elements followed by the right elements, skipping values that were already yielded, so every element appears at most once. Membership tests and size are consistent with that.
 
 ## Filter
 
@@ -527,7 +527,7 @@ evaluates to `2`.
 | Count | `node_count` | implemented for sets, including deferred set results |
 | Values of | `node_values_of` | implemented |
 | Has value | `node_has_value` | implemented |
-| Union | `node_union_first`, `node_union_second` | partial: size and membership are correct, but iteration does not deduplicate; set operands only |
+| Union | `node_union_first`, `node_union_second` | implemented; set operands only |
 | Filter | `node_filter_set`, `node_filter_filter` | implemented; set operand required |
 | Map | `node_map_set`, `node_map_mapper` | implemented; iteration is not deduplicated, size counts distinct values |
 | Every | `node_every_set`, `node_every_predicate` | implemented; expressible with `fold` |
@@ -553,6 +553,5 @@ evaluates to `2`.
 - Deferred values and function values have undefined truthiness, so `and`, `or`, `xor`, `not`, and `if` produce `undefined` when given one directly.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
-- `union` does not deduplicate while iterating; its size, membership, and materialized form are deduplicated.
 - Converting a node to an object is lossy: unknown properties and annotations are not preserved, and atom-defined nodes are normalized into sets.
 - `arithmetic_overflow` is declared but unreachable because arithmetic uses arbitrary-precision integers.

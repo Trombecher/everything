@@ -59,6 +59,22 @@ fn into_set_iter_yields_each_value_at_most_once() {
 }
 
 #[test]
+fn into_iter_of_a_union_yields_each_value_at_most_once() {
+    let first = LazyObject::Eager(Object::Set(Set::from([integer(1), integer(2)])));
+    let second = LazyObject::Eager(Object::Set(Set::from([integer(2), integer(3)])));
+
+    let union = LazyObject::Union {
+        first: Box::new(first),
+        second: Box::new(second),
+    };
+
+    assert_eq!(
+        union.into_iter(&Knowledge::empty()).collect::<Vec<_>>(),
+        vec![integer(1), integer(2), integer(3)]
+    );
+}
+
+#[test]
 fn into_iter_captures_atom_values() {
     let atom = Atom(42);
     let first = integer(1);

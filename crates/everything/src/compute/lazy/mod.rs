@@ -332,9 +332,12 @@ impl LazyObject {
             Self::AtomValues(values) => {
                 LazyObjectIter::ObjectValues(ObjectValues::properties(values))
             }
-            Self::Union { first, second } => LazyObjectIter::Union {
-                first: Box::new(first.into_iter(knowledge)),
-                second: Box::new(second.into_iter(knowledge)),
+            Self::Union { first, second } => LazyObjectIter::Deduplicated {
+                values: Box::new(LazyObjectIter::Union {
+                    first: Box::new(first.into_iter(knowledge)),
+                    second: Box::new(second.into_iter(knowledge)),
+                }),
+                yielded: BTreeSet::new(),
             },
             Self::Intersection { first, second } => LazyObjectIter::Intersection {
                 first: Box::new(first.into_iter(knowledge)),
@@ -413,6 +416,11 @@ pub enum LazyObjectIter {
         first: Box<Self>,
         second: Box<Self>,
     },
+    /// Yields the values of `values` that have not been yielded before.
+    Deduplicated {
+        values: Box<Self>,
+        yielded: BTreeSet<Object>,
+    },
     /// Yields the values of `first` that are members of `second`.
     Intersection {
         first: Box<Self>,
@@ -464,6 +472,13 @@ impl Iterator for LazyObjectIter {
             }),
             Self::Constructions(pairs) => pairs.next().map(AtomValuePair::into_object),
             Self::Union { first, second } => first.next().or_else(|| second.next()),
+            Self::Deduplicated { values, yielded } => loop {
+                let object = values.next()?;
+
+                if yielded.insert(object.clone()) {
+                    return Some(object);
+                }
+            },
             Self::Intersection {
                 first,
                 second,

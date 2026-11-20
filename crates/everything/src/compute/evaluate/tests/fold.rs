@@ -21,6 +21,25 @@ fn fold_sums_the_set() {
 }
 
 #[test]
+fn fold_of_a_union_iterates_each_element_once() {
+    let union = Node::Union {
+        first: Node::Literal(Object::Set(integer_set())).into(),
+        second: Node::Literal(Object::Set(integer_set())).into(),
+    };
+
+    let node = Node::Fold {
+        set: union.into(),
+        folder: add_folder().into(),
+        initial: Node::Literal(integer(0)).into(),
+    };
+
+    assert_eq!(
+        evaluate(&node, &BASE).into_object(&BASE),
+        integer(1 + 2 + 3)
+    );
+}
+
+#[test]
 fn fold_of_an_empty_set_returns_the_initial_value() {
     let initial = integer(42);
 
