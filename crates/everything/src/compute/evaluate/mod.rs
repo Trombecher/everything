@@ -9,7 +9,7 @@ use std::sync::Arc;
 use num_bigint::BigInt;
 
 use crate::{
-    compute::{LazyObject, MaybeUndefined, Node, capture, operations},
+    compute::{LazyObject, LazyObjectIter, MaybeUndefined, Node, capture, operations},
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
     model::{Atom, Object},
@@ -51,6 +51,17 @@ enum Task {
     Filter,
     Every,
     Any,
+    Fold,
+    /// One iteration of a fold. The accumulator is taken from the evaluated
+    /// stack.
+    FoldStep {
+        values: Box<LazyObjectIter>,
+        folder: Node,
+    },
+    /// Applies the result of the first folder call to the current element.
+    FoldApply {
+        element: Object,
+    },
     Less,
     PartialIf {
         then: Arc<Node>,
@@ -111,7 +122,17 @@ fn resolve_evaluate_node(
             tasks.push(Task::QueryConstructions);
             tasks.push(Task::Evaluate(Arc::clone(constructor)));
         }
-        Node::Contains { .. } | Node::Fold { .. } | Node::NewConstruction { .. } => todo!(),
+        Node::Fold {
+            set,
+            folder,
+            initial,
+        } => {
+            tasks.push(Task::Fold);
+            tasks.push(Task::Evaluate(Arc::clone(initial)));
+            tasks.push(Task::Evaluate(Arc::clone(folder)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
+        }
+        Node::Contains { .. } | Node::NewConstruction { .. } => todo!(),
         Node::IsAtom(inner) => {
             tasks.push(Task::IsAtom);
             tasks.push(Task::Evaluate(Arc::clone(inner)));
@@ -619,6 +640,55 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 }
             }
              */
+            Task::Fold => {
+                let initial = evaluated.pop().unwrap();
+                let folder = evaluated.pop().unwrap();
+                let set = evaluated.pop().unwrap();
+
+                if !set.is_set() {
+                    evaluated.push(UNDEFINED);
+                } else if !set.has_at_least_one_element(knowledge) {
+                    // The folder is never called and may therefore be invalid.
+                    evaluated.push(initial);
+                } else if let Some(folder @ Node::Function { .. }) = folder.try_into_node(knowledge)
+                {
+                    tasks.push(Task::FoldStep {
+                        values: Box::new(set.into_iter(knowledge)),
+                        folder,
+                    });
+                    evaluated.push(initial);
+                } else {
+                    evaluated.push(UNDEFINED);
+                }
+            }
+            Task::FoldStep { mut values, folder } => {
+                let accumulator = evaluated.pop().unwrap();
+
+                if let Some(element) = values.next() {
+                    // Schedule `(folder(accumulator))(element)`.
+                    tasks.push(Task::FoldStep {
+                        values,
+                        folder: folder.clone(),
+                    });
+                    tasks.push(Task::FoldApply { element });
+
+                    tasks.push(Task::Call);
+                    evaluated.push(accumulator);
+                    evaluated.push(LazyObject::Node(folder));
+                } else {
+                    evaluated.push(accumulator);
+                }
+            }
+            Task::FoldApply { element } => {
+                let callee = evaluated.pop().unwrap();
+
+                // `Task::Call` pops the callee first and the parameter second,
+                // so the element has to be pushed before the callee.
+                evaluated.push(LazyObject::Eager(element));
+                evaluated.push(callee);
+
+                tasks.push(Task::Call);
+            }
             Task::Less => {
                 let second = evaluated.pop().unwrap().try_into_object();
                 let first = evaluated.pop().unwrap().try_into_object();

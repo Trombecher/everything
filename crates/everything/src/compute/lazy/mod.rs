@@ -412,6 +412,7 @@ fn atom_values_into_object(values: Values) -> Object {
     Set::from(values.as_mut_slice()).into()
 }
 
+#[derive(Clone)]
 pub enum LazyObjectIter {
     ObjectValues(ObjectValues),
     AtomsWithProperty(QueryAtomsWithProperty),
@@ -435,6 +436,12 @@ pub enum LazyObjectIter {
         mapper_function: Node,
         knowledge: Knowledge,
     },
+}
+
+impl std::fmt::Debug for LazyObjectIter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_set().entries(self.clone()).finish()
+    }
 }
 
 impl Iterator for LazyObjectIter {

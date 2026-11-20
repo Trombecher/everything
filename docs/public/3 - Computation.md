@@ -286,13 +286,15 @@ An object is a _fold node_ iff
 - it has the property `node_fold_folder <folder>`, and
 - it has the property `node_fold_initial <initial>`.
 
-**[not implemented]** The intended semantics are:
+It evaluates `<set>`, `<folder>`, and `<initial>`:
 
-1. Evaluate `<set>`, `<folder>`, and `<initial>`.
-2. If `<set>` is not a set, or `<folder>` is not a function, the result is `undefined`.
-3. If `<set>` has no elements, the result is the value of `<initial>`.
+1. If `<set>` is not a set, the result is `undefined`.
+2. If `<set>` has no elements, the result is the value of `<initial>`. The folder is not called in this case, so it may even be `undefined`.
+3. If `<folder>` is not a function, the result is `undefined`.
 4. Otherwise the accumulator starts as the value of `<initial>`. For each element `<o>` of `<set>` in iteration order, apply `<folder>` pairwise: the first call receives the previous accumulator and returns a function, which is then called with `<o>`. The result of that call becomes the new accumulator.
 5. The final accumulator is the result.
+
+In contrast to [Map](#map) and [Filter](#filter), a fold is evaluated eagerly, and its result is the final accumulator rather than a deferred set. The accumulator may itself be a deferred set. If a folder application does not return a function, that step and all following steps evaluate to `undefined`, but folding continues over the remaining elements.
 
 In object form, each step is:
 
@@ -488,7 +490,7 @@ evaluates to `2`.
 | Query atoms with constructor | `node_atoms_with_constructor` | implemented |
 | Query construction values | `node_construction_values_object`, `node_construction_values_property_constructor` | implemented |
 | Query constructions | `node_query_constructions` | implemented |
-| Fold | `node_fold_set`, `node_fold_folder`, `node_fold_initial` | not implemented |
+| Fold | `node_fold_set`, `node_fold_folder`, `node_fold_initial` | implemented |
 
 ## Current Limitations
 
