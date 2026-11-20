@@ -160,3 +160,96 @@ fn into_iter_captures_atoms_with_property() {
 
     assert_eq!(iterator.collect::<Vec<_>>(), vec![Object::Atom(atom)]);
 }
+
+fn eager_set(values: impl IntoIterator<Item = Object>) -> LazyObject {
+    let mut values = values.into_iter().collect::<Vec<_>>();
+
+    LazyObject::Eager(Object::Set(Set::from(values.as_mut_slice())))
+}
+
+#[test]
+fn size_of_deferred_set_operations_is_deduplicated() {
+    let knowledge = Knowledge::empty();
+
+    let union = LazyObject::Union {
+        first: Box::new(eager_set([integer(1), integer(2)])),
+        second: Box::new(eager_set([integer(2), integer(3)])),
+    };
+    let intersection = LazyObject::Intersection {
+        first: Box::new(eager_set([integer(1), integer(2)])),
+        second: Box::new(eager_set([integer(2), integer(3)])),
+    };
+    let difference = LazyObject::Difference {
+        source: Box::new(eager_set([integer(1), integer(2), integer(3)])),
+        without: Box::new(eager_set([integer(2)])),
+    };
+
+    assert_eq!(union.size(&knowledge), 3);
+    assert_eq!(intersection.size(&knowledge), 1);
+    assert_eq!(difference.size(&knowledge), 2);
+}
+
+#[test]
+fn size_of_map_counts_distinct_values() {
+    // `_ |-> 1` maps every element to the same value.
+    let mapper = Node::Function {
+        body: Node::Literal(integer(1)).into(),
+    };
+    let map = LazyObject::Map {
+        target: Box::new(eager_set([integer(1), integer(2)])),
+        mapper_function: mapper,
+    };
+
+    assert_eq!(map.size(&Knowledge::empty()), 1);
+}
+
+#[test]
+fn size_of_filter_counts_distinct_retained_values() {
+    // `x |-> x == 1`, applied to a target that yields `1` twice.
+    let predicate = Node::Function {
+        body: Node::Equal {
+            first: Node::Parameter { depth: 0 }.into(),
+            second: Node::Literal(integer(1)).into(),
+        }
+        .into(),
+    };
+    let filter = LazyObject::Filter {
+        target: Box::new(LazyObject::Union {
+            first: Box::new(eager_set([integer(1), integer(2)])),
+            second: Box::new(eager_set([integer(1), integer(2)])),
+        }),
+        filter_function: predicate,
+    };
+
+    assert_eq!(filter.size(&Knowledge::empty()), 1);
+}
+
+#[test]
+fn into_iter_of_intersection_yields_only_members_of_both_sets() {
+    let intersection = LazyObject::Intersection {
+        first: Box::new(eager_set([integer(1), integer(2)])),
+        second: Box::new(eager_set([integer(2), integer(3)])),
+    };
+
+    assert_eq!(
+        intersection
+            .into_iter(&Knowledge::empty())
+            .collect::<Vec<_>>(),
+        vec![integer(2)]
+    );
+}
+
+#[test]
+fn into_iter_of_difference_excludes_members_of_the_other_set() {
+    let difference = LazyObject::Difference {
+        source: Box::new(eager_set([integer(1), integer(2), integer(3)])),
+        without: Box::new(eager_set([integer(2)])),
+    };
+
+    assert_eq!(
+        difference
+            .into_iter(&Knowledge::empty())
+            .collect::<Vec<_>>(),
+        vec![integer(1), integer(3)]
+    );
+}

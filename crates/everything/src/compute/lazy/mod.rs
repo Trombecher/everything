@@ -172,21 +172,14 @@ impl LazyObject {
             Self::Node(node) => node.set_size(),
             Self::Eager(object) => knowledge.size_of_object(object),
             Self::AtomValues(values) => values.size(),
-            Self::Union { .. } => {
-                // We have to deduplicate here,
-                // maybe best to just iterate (?)
-
-                todo!("size of union")
-            }
-            Self::Intersection { .. } => {
-                // Here too.
-
-                todo!("size of intersection")
-            }
-            Self::Difference { .. } => {
-                // Here too.
-
-                todo!("size of difference")
+            Self::Union { .. }
+            | Self::Intersection { .. }
+            | Self::Difference { .. }
+            | Self::Map { .. }
+            | Self::Filter { .. } => {
+                // Deferred sets may yield an element more than once, so the
+                // values are deduplicated while counting.
+                self.clone().into_set_iter(knowledge).count() as u64
             }
             Self::AtomsWithProperty { property } => knowledge
                 .query_atoms_with_property(property.clone())
@@ -196,14 +189,6 @@ impl LazyObject {
                 .count() as u64,
             Self::ConstructionValues { .. } | Self::Constructions { .. } => {
                 self.iter(knowledge).count() as u64
-            }
-            Self::Map { .. } => {
-                // Here too.
-
-                todo!("size of map")
-            }
-            Self::Filter { .. } => {
-                todo!("size of filter")
             }
         }
     }
@@ -351,14 +336,16 @@ impl LazyObject {
                 first: Box::new(first.into_iter(knowledge)),
                 second: Box::new(second.into_iter(knowledge)),
             },
-            Self::Intersection {
-                first: _,
-                second: _,
-            } => todo!(),
-            Self::Difference {
-                source: _,
-                without: _,
-            } => todo!(),
+            Self::Intersection { first, second } => LazyObjectIter::Intersection {
+                first: Box::new(first.into_iter(knowledge)),
+                second,
+                knowledge: knowledge.clone(),
+            },
+            Self::Difference { source, without } => LazyObjectIter::Difference {
+                source: Box::new(source.into_iter(knowledge)),
+                without,
+                knowledge: knowledge.clone(),
+            },
             Self::AtomsWithProperty { property } => {
                 LazyObjectIter::AtomsWithProperty(knowledge.query_atoms_with_property(property))
             }
@@ -426,6 +413,18 @@ pub enum LazyObjectIter {
         first: Box<Self>,
         second: Box<Self>,
     },
+    /// Yields the values of `first` that are members of `second`.
+    Intersection {
+        first: Box<Self>,
+        second: Box<LazyObject>,
+        knowledge: Knowledge,
+    },
+    /// Yields the values of `source` that are not members of `without`.
+    Difference {
+        source: Box<Self>,
+        without: Box<LazyObject>,
+        knowledge: Knowledge,
+    },
     Filter {
         target: Box<Self>,
         filter_function: Node,
@@ -465,6 +464,16 @@ impl Iterator for LazyObjectIter {
             }),
             Self::Constructions(pairs) => pairs.next().map(AtomValuePair::into_object),
             Self::Union { first, second } => first.next().or_else(|| second.next()),
+            Self::Intersection {
+                first,
+                second,
+                knowledge,
+            } => first.find(|object| second.has(object, knowledge)),
+            Self::Difference {
+                source,
+                without,
+                knowledge,
+            } => source.find(|object| !without.has(object, knowledge)),
             Self::Filter {
                 target,
                 filter_function,

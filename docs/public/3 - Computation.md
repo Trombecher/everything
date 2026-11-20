@@ -200,7 +200,7 @@ An object is a _count node_ iff it has the property `node_count <inner>`. It eva
 - for an evaluated set, the number of members;
 - for an atom's values, the number of values;
 - for a function value, the number of properties of its node representation, which is `1` for a function;
-- deferred set results (union, map, filter) are sets, but their size is not implemented yet.
+- for a deferred set result (union, map, or filter), the number of distinct elements it yields.
 
 If the result is an atom, a construction, or `undefined`, the result is `undefined`. Use [Values Of](#values-of) to count the values of an atom: `count(values_of(<atom>))`.
 
@@ -234,7 +234,7 @@ An object is a _union node_ iff
 
 It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is a deferred set that represents the union of the two results.
 
-Conceptually, the result contains every element of the left result and every element of the right result. Iteration currently yields the left elements followed by the right elements without re-checking for duplicates, so overlapping operands can yield an element more than once. Membership tests are correct. The size of a union is not implemented yet.
+Conceptually, the result contains every element of the left result and every element of the right result. Iteration currently yields the left elements followed by the right elements without re-checking for duplicates, so overlapping operands can yield an element more than once. Membership tests are correct. The size counts distinct elements.
 
 ## Filter
 
@@ -245,7 +245,7 @@ An object is a _filter node_ iff
 
 It evaluates `<set>` and `<filter>`. If `<set>` is not a set, or if `<filter>` is not a function, the result is `undefined`. Otherwise the result is a deferred set.
 
-When the result is iterated, each element of `<set>` is passed to `<filter>` as a literal argument. An element is retained iff the call evaluates to exactly `true`. Results that are `false` or have undefined truthiness are dropped. The filter function is called lazily, during iteration, not when the filter node is evaluated.
+When the result is iterated, each element of `<set>` is passed to `<filter>` as a literal argument. An element is retained iff the call evaluates to exactly `true`. Results that are `false` or have undefined truthiness are dropped. The filter function is called lazily, during iteration, not when the filter node is evaluated. The size counts distinct retained elements.
 
 ## Map
 
@@ -256,7 +256,7 @@ An object is a _map node_ iff
 
 It evaluates `<set>` and `<mapper>`. If `<set>` is not a set, or if `<mapper>` is not a function, the result is `undefined`. Otherwise the result is a deferred set.
 
-When the result is iterated, each element of `<set>` is passed to `<mapper>` as a literal argument and replaced by the call's result. The mapper is called lazily, during iteration. The result is not deduplicated: if two elements map to the same object, both are yielded. The size of a map result is not implemented yet.
+When the result is iterated, each element of `<set>` is passed to `<mapper>` as a literal argument and replaced by the call's result. The mapper is called lazily, during iteration. The result is not deduplicated: if two elements map to the same object, both are yielded. The size counts distinct mapped values.
 
 ## Every
 
@@ -524,12 +524,12 @@ evaluates to `2`.
 | Less | `node_less_first`, `node_less_second` | implemented for integers |
 | Add | `node_add_first`, `node_add_second` | implemented for integers |
 | Multiply | `node_multiply_first`, `node_multiply_second` | implemented for integers |
-| Count | `node_count` | partial: sets only; deferred sizes unsupported |
+| Count | `node_count` | implemented for sets, including deferred set results |
 | Values of | `node_values_of` | implemented |
 | Has value | `node_has_value` | implemented |
-| Union | `node_union_first`, `node_union_second` | partial: no deduplication or size; set operands only |
-| Filter | `node_filter_set`, `node_filter_filter` | partial: iteration and membership only; set operand required |
-| Map | `node_map_set`, `node_map_mapper` | partial: iteration and membership only; set operand required |
+| Union | `node_union_first`, `node_union_second` | partial: size and membership are correct, but iteration does not deduplicate; set operands only |
+| Filter | `node_filter_set`, `node_filter_filter` | implemented; set operand required |
+| Map | `node_map_set`, `node_map_mapper` | implemented; iteration is not deduplicated, size counts distinct values |
 | Every | `node_every_set`, `node_every_predicate` | implemented; expressible with `fold` |
 | Any | `node_any_set`, `node_any_predicate` | implemented; expressible with `fold` |
 | If | `node_if_condition`, `node_if_then`, `node_if_else` | implemented |
@@ -549,10 +549,10 @@ evaluates to `2`.
 
 ## Current Limitations
 
-- Deferred set values (union, map, filter) can be iterated and tested for membership, and are materialized when converted to an object or compared for equality. Counting is not implemented for union, map, and filter results; atoms-with-property, atoms-with-constructor, construction-values, and constructions results can be counted. Construction constructor/value extraction on deferred values yields `undefined`.
+- Deferred set values (union, map, filter) can be iterated, tested for membership, and counted; their size is the number of distinct values. They are materialized when converted to an object or compared for equality. Construction constructor/value extraction on deferred values yields `undefined`.
 - Deferred values and function values have undefined truthiness, so `and`, `or`, `xor`, `not`, and `if` produce `undefined` when given one directly.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
-- `union` does not deduplicate and cannot currently report its size.
+- `union` does not deduplicate while iterating; its size, membership, and materialized form are deduplicated.
 - Converting a node to an object is lossy: unknown properties and annotations are not preserved, and atom-defined nodes are normalized into sets.
 - `arithmetic_overflow` is declared but unreachable because arithmetic uses arbitrary-precision integers.

@@ -29,3 +29,29 @@ fn count_requires_sets() {
         Object::new_integer(BigInt::from(1))
     );
 }
+
+#[test]
+fn count_of_deferred_sets_is_deduplicated() {
+    let count = |node: Node| evaluate(&Node::Count(node.into()), &BASE).into_object(&BASE);
+
+    let union = Node::Union {
+        first: Node::Literal(Object::Set(integer_set())).into(),
+        second: Node::Literal(Object::Set(integer_set())).into(),
+    };
+
+    assert_eq!(count(union.clone()), Object::new_integer(BigInt::from(3)));
+
+    let map = Node::Map {
+        set: Node::Literal(Object::Set(integer_set())).into(),
+        mapper_function: constant_predicate(integer(1)).into(),
+    };
+
+    assert_eq!(count(map), Object::new_integer(BigInt::from(1)));
+
+    let filter = Node::Filter {
+        set: union.into(),
+        filter_function: equals_two_predicate().into(),
+    };
+
+    assert_eq!(count(filter), Object::new_integer(BigInt::from(1)));
+}
