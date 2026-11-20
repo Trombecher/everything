@@ -12,7 +12,7 @@ Many design decisions have been discussed frequently in `docs/design`. Here you 
 
 ## Code Style
 
-Use `mod.rs`-style nested modules, instead of the sidecar files.
+If you use module nesting, prefer to use files. For that please use the alternative module style which declares `mod.rs` instead of a same-name `.rs` file in the parent directory.
 
 ### Testing
 
