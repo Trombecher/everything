@@ -4,7 +4,7 @@ Everything has a computation system where functions and expressions can be evalu
 
 Evaluation is knowledge-relative. Node recognition, atom property lookup, queries, and calling atom-defined functions all consult the knowledge that is supplied to the evaluator. A subset of the system can be evaluated in an empty knowledge, but anything that reads properties or queries atoms needs a knowledge context.
 
-This chapter describes the implemented model. Node kinds that are recognized but not yet evaluable are marked **[not implemented]** or **[partially implemented]**.
+This chapter describes the implemented model.
 
 ## Node Objects and Recognition
 

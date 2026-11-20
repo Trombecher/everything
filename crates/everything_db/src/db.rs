@@ -31,14 +31,14 @@ pub enum Error {
 /// The file is opened for reading and appending and stays open for the lifetime
 /// of this value. It is only memory-mapped while it is being read, so no mapping
 /// is kept around.
-pub struct PersistantKnowledge {
+pub struct PersistentKnowledge {
     knowledge: Knowledge,
     file: File,
     /// The file `knowledge` was loaded from and `file` refers to.
     path: PathBuf,
 }
 
-impl PersistantKnowledge {
+impl PersistentKnowledge {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path

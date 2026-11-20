@@ -17,7 +17,6 @@ use crate::{
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
 
-#[allow(dead_code)]
 #[derive(Debug)]
 enum Task {
     Evaluate(Arc<Node>),
