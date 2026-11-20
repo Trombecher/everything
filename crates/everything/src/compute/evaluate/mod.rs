@@ -21,7 +21,6 @@ const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
 #[derive(Debug)]
 enum Task {
     Evaluate(Arc<Node>),
-    PushLiteralTrue,
     PushLiteralFalse,
     PartialAnd {
         second: Arc<Node>,
@@ -50,6 +49,17 @@ enum Task {
     Map,
     Filter,
     Every,
+    /// One iteration of an `every` evaluation. Calls the predicate for the
+    /// next element, if there is one.
+    EveryStep {
+        values: Box<LazyObjectIter>,
+        predicate: Node,
+    },
+    /// Checks the predicate result produced by the preceding `EveryStep`.
+    EveryCheck {
+        values: Box<LazyObjectIter>,
+        predicate: Node,
+    },
     Any,
     Fold,
     /// One iteration of a fold. The accumulator is taken from the evaluated
@@ -230,15 +240,6 @@ fn resolve_evaluate_node(
         }
         Node::Every { set, predicate } => {
             tasks.push(Task::Every);
-
-            // Push the result of a previous, virtual predicate call.
-            // This literal acts like the virtual call completed
-            // last which aligns with the `Task::Every` case where
-            // subsequent predicate calls for set items are scheduled
-            // and pushed onto the evaluated objects when the evaluated
-            // set and predicate already sit there (late).
-            tasks.push(Task::PushLiteralTrue);
-
             tasks.push(Task::Evaluate(Arc::clone(predicate)));
             tasks.push(Task::Evaluate(Arc::clone(set)));
         }
@@ -303,9 +304,6 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             }
             Task::PopContext => {
                 evaluation_context.pop();
-            }
-            Task::PushLiteralTrue => {
-                evaluated.push(LazyObject::Eager(true.into()));
             }
             Task::PushLiteralFalse => {
                 evaluated.push(LazyObject::Eager(false.into()));
@@ -576,70 +574,58 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     evaluated.push(UNDEFINED);
                 }
             }
-            Task::Every => todo!("task every"),
-            /*
             Task::Every => {
-                let mut previous_result = evaluated.pop().unwrap();
-                let predicate = evaluated.pop().unwrap().into_object(knowledge);
-                let mut set = evaluated.pop().unwrap();
+                let predicate = evaluated.pop().unwrap();
+                let set = evaluated.pop().unwrap();
 
-                if !previous_result.is_truthy(knowledge) {
-                    // Previous run did not succeed.
-
-                    evaluated.push(LazyObject::Object(Composite::new_bool(false).into()));
-                } else if let Some(value) = set.next() {
-                    // Previous run did succeed, but there is another value.
-                    // -> Validate predicate for this value.
-
-                    tasks.push(Task::Every);
-
-                    // Simulate the set and predicate being evaluated first.
-                    evaluated.push(set.into());
-                    evaluated.push(predicate.clone().into());
-
-                    // Prepare for call.
-                    tasks.push(Task::Call);
-                    evaluated.push(value.into());
-                    evaluated.push(predicate.into());
+                if !set.is_set() {
+                    evaluated.push(UNDEFINED);
+                } else if !set.has_at_least_one_element(knowledge) {
+                    // The predicate is never called and may therefore be invalid.
+                    evaluated.push(LazyObject::Eager(true.into()));
+                } else if let Some(predicate @ Node::Function { .. }) =
+                    predicate.try_into_node(knowledge)
+                {
+                    tasks.push(Task::EveryStep {
+                        values: Box::new(set.into_iter(knowledge)),
+                        predicate,
+                    });
                 } else {
-                    // Previous run succeeded and there are no more elements. Yay.
-
-                    evaluated.push(LazyObject::Object(Composite::new_bool(true).into()));
+                    evaluated.push(UNDEFINED);
                 }
             }
-             */
+            Task::EveryStep {
+                mut values,
+                predicate,
+            } => {
+                if let Some(element) = values.next() {
+                    tasks.push(Task::EveryCheck {
+                        values,
+                        predicate: predicate.clone(),
+                    });
+                    tasks.push(Task::Call);
+
+                    // `Task::Call` pops the callee first and the parameter
+                    // second, so the element has to be pushed before the
+                    // callee.
+                    evaluated.push(LazyObject::Eager(element));
+                    evaluated.push(LazyObject::Node(predicate));
+                } else {
+                    evaluated.push(LazyObject::Eager(true.into()));
+                }
+            }
+            Task::EveryCheck { values, predicate } => match evaluated.pop().unwrap().truthy() {
+                MaybeUndefined::Defined(true) => {
+                    tasks.push(Task::EveryStep { values, predicate });
+                }
+                MaybeUndefined::Defined(false) => {
+                    evaluated.push(LazyObject::Eager(false.into()));
+                }
+                MaybeUndefined::Undefined => {
+                    evaluated.push(UNDEFINED);
+                }
+            },
             Task::Any => todo!("task any"),
-            /*
-            Task::Any => {
-                let mut previous_result = evaluated.pop().unwrap();
-                let predicate = evaluated.pop().unwrap().into_object(knowledge);
-                let mut set = evaluated.pop().unwrap();
-
-                if previous_result.is_truthy(knowledge) {
-                    // Previous run succeeded. Yay.
-
-                    evaluated.push(LazyObject::Object(Composite::new_bool(true).into()));
-                } else if let Some(value) = set.next() {
-                    // Previous run did not succeed, but there is another value.
-                    // -> Validate predicate for this value.
-
-                    tasks.push(Task::Any);
-
-                    // Simulate the set and predicate being evaluated first.
-                    evaluated.push(set.into());
-                    evaluated.push(predicate.clone().into());
-
-                    // Prepare for call.
-                    tasks.push(Task::Call);
-                    evaluated.push(value.into());
-                    evaluated.push(predicate.into());
-                } else {
-                    // Previous run did not succeed and there are no more elements.
-
-                    evaluated.push(LazyObject::Object(Composite::new_bool(false).into()));
-                }
-            }
-             */
             Task::Fold => {
                 let initial = evaluated.pop().unwrap();
                 let folder = evaluated.pop().unwrap();

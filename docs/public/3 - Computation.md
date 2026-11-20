@@ -265,7 +265,24 @@ An object is an _every node_ iff
 - it has the property `node_every_set <set>` and
 - it has the property `node_every_predicate <predicate>`.
 
-**[not implemented]** The intended semantics are: evaluate `<set>` and `<predicate>`. If `<set>` is not a set, or if `<predicate>` is not a function, the result is `undefined`. Otherwise, for every element `<o>` evaluate `{node_call_callee <predicate>, node_call_with <o>}`. The result is `true` iff all calls are truthy, and `false` as soon as one call is not. The empty set vacuously satisfies the predicate. Predicate calls stop once the result is determined.
+It evaluates `<set>` and `<predicate>`:
+
+1. If `<set>` is not a set, the result is `undefined`.
+2. If `<set>` has no elements, the result is `true`. The predicate is not called in this case, so it may even be `undefined` or not a function.
+3. If `<predicate>` is not a function, the result is `undefined`.
+4. Otherwise each element `<o>` of `<set>` is passed to `<predicate>` in iteration order as `{node_call_callee <predicate>, node_call_with <o>}`. The first call result determines the outcome:
+   - `true` continues with the next element;
+   - `false` yields `false` and stops;
+   - anything else yields `undefined` and stops.
+5. If every call is `true`, the result is `true`.
+
+`every` is the short-circuiting fold
+
+```text
+fold(<set>, x |-> y |-> x and (predicate y), true)
+```
+
+and therefore inherits the [correctness caveat for folds](#correctness-and-associativity). It is independent of iteration order only if `<predicate>` returns `true` or `false` for every element. Otherwise a `false` before an undefined result yields `false`, while an undefined result before a `false` yields `undefined`.
 
 ## Any
 
@@ -306,6 +323,27 @@ In object form, each step is:
     node_call_with {node_literal <element>}
 }
 ```
+
+### Correctness and associativity
+
+For a fold to be independent of the order in which the set is traversed, its folding operation must be **associative**: for all values `x`, `y`, and `z`,
+
+```text
+(x ⊕ y) ⊕ z = x ⊕ (y ⊕ z)
+```
+
+Only then does folding a set yield the same result for every order and grouping of its elements. Otherwise the result is determined by the set's iteration order, which is an implementation detail.
+
+The `and` node is not associative on all inputs. For example:
+
+```text
+false and undefined = false
+undefined and false = undefined
+```
+
+Consequently, `and` is associative only when every operand has truthiness `true` or `false`; in particular, when no folded value is `undefined` or another non-boolean value. Equivalently, the mapper or folder must never produce `undefined` truthiness for an element.
+
+Whether a particular folder or mapper satisfies this property depends on the behaviour of arbitrary nodes. Since the computation system is Turing complete, the property is undecidable in general: no algorithm can decide it for all nodes, and the evaluator cannot check or guarantee it. Correctness of a `fold` is therefore the programmer's responsibility. Without a proof of associativity, the evaluator can only produce the result for the chosen iteration order.
 
 ## Contains
 
@@ -475,7 +513,7 @@ evaluates to `2`.
 | Union | `node_union_first`, `node_union_second` | partial: no deduplication or size; set operands only |
 | Filter | `node_filter_set`, `node_filter_filter` | partial: iteration and membership only; set operand required |
 | Map | `node_map_set`, `node_map_mapper` | partial: iteration and membership only; set operand required |
-| Every | `node_every_set`, `node_every_predicate` | not implemented; expressible with `fold` |
+| Every | `node_every_set`, `node_every_predicate` | implemented; expressible with `fold` |
 | Any | `node_any_set`, `node_any_predicate` | not implemented; expressible with `fold` |
 | If | `node_if_condition`, `node_if_then`, `node_if_else` | implemented |
 | Unwrap | `node_unwrap_set` | implemented for sets |
