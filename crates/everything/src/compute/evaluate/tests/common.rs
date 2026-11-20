@@ -60,6 +60,10 @@ pub fn always_true_predicate() -> Node {
     constant_predicate(Atom::TRUE.into())
 }
 
+pub fn always_false_predicate() -> Node {
+    constant_predicate(Atom::FALSE.into())
+}
+
 pub fn equals_two_predicate() -> Node {
     Node::Function {
         body: Node::Equal {
@@ -113,6 +117,49 @@ pub fn every_result(set: Node, predicate: Node) -> Object {
     .into_object(&BASE)
 }
 
+pub fn any_result(set: Node, predicate: Node) -> Object {
+    evaluate(
+        &Node::Any {
+            set: set.into(),
+            predicate: predicate.into(),
+        },
+        &BASE,
+    )
+    .into_object(&BASE)
+}
+
+/// Returns `true` for the first element and `undefined` for all others.
+pub fn true_on_one_undefined_otherwise_predicate() -> Node {
+    Node::Function {
+        body: Node::If {
+            condition: Node::Equal {
+                first: Node::Parameter { depth: 0 }.into(),
+                second: Node::Literal(integer(1)).into(),
+            }
+            .into(),
+            then: Node::Literal(true.into()).into(),
+            otherwise: Node::Literal(Atom::UNDEFINED.into()).into(),
+        }
+        .into(),
+    }
+}
+
+/// Returns `undefined` for the first element and `true` for all others.
+pub fn undefined_on_one_true_otherwise_predicate() -> Node {
+    Node::Function {
+        body: Node::If {
+            condition: Node::Equal {
+                first: Node::Parameter { depth: 0 }.into(),
+                second: Node::Literal(integer(1)).into(),
+            }
+            .into(),
+            then: Node::Literal(Atom::UNDEFINED.into()).into(),
+            otherwise: Node::Literal(true.into()).into(),
+        }
+        .into(),
+    }
+}
+
 pub fn and_apply_folder(predicate: Object) -> Node {
     Node::Function {
         body: Node::Function {
@@ -138,6 +185,37 @@ pub fn every_by_and_fold(set: Node, predicate: &Node) -> Object {
             set: set.into(),
             folder: and_apply_folder(predicate).into(),
             initial: Node::Literal(Atom::TRUE.into()).into(),
+        },
+        &BASE,
+    )
+    .into_object(&BASE)
+}
+
+pub fn or_apply_folder(predicate: Object) -> Node {
+    Node::Function {
+        body: Node::Function {
+            body: Node::Or {
+                first: Node::Parameter { depth: 1 }.into(),
+                second: Node::Call {
+                    callee: Node::Literal(predicate).into(),
+                    with: Node::Parameter { depth: 0 }.into(),
+                }
+                .into(),
+            }
+            .into(),
+        }
+        .into(),
+    }
+}
+
+pub fn any_by_or_fold(set: Node, predicate: &Node) -> Object {
+    let predicate = evaluate(predicate, &BASE).into_object(&BASE);
+
+    evaluate(
+        &Node::Fold {
+            set: set.into(),
+            folder: or_apply_folder(predicate).into(),
+            initial: Node::Literal(Atom::FALSE.into()).into(),
         },
         &BASE,
     )

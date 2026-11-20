@@ -21,7 +21,6 @@ const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
 #[derive(Debug)]
 enum Task {
     Evaluate(Arc<Node>),
-    PushLiteralFalse,
     PartialAnd {
         second: Arc<Node>,
     },
@@ -61,6 +60,17 @@ enum Task {
         predicate: Node,
     },
     Any,
+    /// One iteration of an `any` evaluation. Calls the predicate for the
+    /// next element, if there is one.
+    AnyStep {
+        values: Box<LazyObjectIter>,
+        predicate: Node,
+    },
+    /// Checks the predicate result produced by the preceding `AnyStep`.
+    AnyCheck {
+        values: Box<LazyObjectIter>,
+        predicate: Node,
+    },
     Fold,
     /// One iteration of a fold. The accumulator is taken from the evaluated
     /// stack.
@@ -245,10 +255,6 @@ fn resolve_evaluate_node(
         }
         Node::Any { set, predicate } => {
             tasks.push(Task::Any);
-
-            // Same as `Task::Every` but with false.
-            tasks.push(Task::PushLiteralFalse);
-
             tasks.push(Task::Evaluate(Arc::clone(predicate)));
             tasks.push(Task::Evaluate(Arc::clone(set)));
         }
@@ -304,9 +310,6 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             }
             Task::PopContext => {
                 evaluation_context.pop();
-            }
-            Task::PushLiteralFalse => {
-                evaluated.push(LazyObject::Eager(false.into()));
             }
             Task::ConstructorOfConstruction => {
                 let object = evaluated.pop().unwrap();
@@ -625,7 +628,57 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     evaluated.push(UNDEFINED);
                 }
             },
-            Task::Any => todo!("task any"),
+            Task::Any => {
+                let predicate = evaluated.pop().unwrap();
+                let set = evaluated.pop().unwrap();
+
+                if !set.is_set() {
+                    evaluated.push(UNDEFINED);
+                } else if !set.has_at_least_one_element(knowledge) {
+                    // The predicate is never called and may therefore be invalid.
+                    evaluated.push(LazyObject::Eager(false.into()));
+                } else if let Some(predicate @ Node::Function { .. }) =
+                    predicate.try_into_node(knowledge)
+                {
+                    tasks.push(Task::AnyStep {
+                        values: Box::new(set.into_iter(knowledge)),
+                        predicate,
+                    });
+                } else {
+                    evaluated.push(UNDEFINED);
+                }
+            }
+            Task::AnyStep {
+                mut values,
+                predicate,
+            } => {
+                if let Some(element) = values.next() {
+                    tasks.push(Task::AnyCheck {
+                        values,
+                        predicate: predicate.clone(),
+                    });
+                    tasks.push(Task::Call);
+
+                    // `Task::Call` pops the callee first and the parameter
+                    // second, so the element has to be pushed before the
+                    // callee.
+                    evaluated.push(LazyObject::Eager(element));
+                    evaluated.push(LazyObject::Node(predicate));
+                } else {
+                    evaluated.push(LazyObject::Eager(false.into()));
+                }
+            }
+            Task::AnyCheck { values, predicate } => match evaluated.pop().unwrap().truthy() {
+                MaybeUndefined::Defined(false) => {
+                    tasks.push(Task::AnyStep { values, predicate });
+                }
+                MaybeUndefined::Defined(true) => {
+                    evaluated.push(LazyObject::Eager(true.into()));
+                }
+                MaybeUndefined::Undefined => {
+                    evaluated.push(UNDEFINED);
+                }
+            },
             Task::Fold => {
                 let initial = evaluated.pop().unwrap();
                 let folder = evaluated.pop().unwrap();

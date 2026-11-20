@@ -291,7 +291,24 @@ An object is an _any node_ iff
 - it has the property `node_any_set <set>` and
 - it has the property `node_any_predicate <predicate>`.
 
-**[not implemented]** The intended semantics are: evaluate `<set>` and `<predicate>`. If `<set>` is not a set, or if `<predicate>` is not a function, the result is `undefined`. Otherwise, for every element `<o>` evaluate `{node_call_callee <predicate>, node_call_with <o>}`. The result is `true` as soon as one call is truthy, and `false` otherwise. The empty set does not satisfy the predicate. Predicate calls stop once the result is determined.
+It evaluates `<set>` and `<predicate>`:
+
+1. If `<set>` is not a set, the result is `undefined`.
+2. If `<set>` has no elements, the result is `false`. The predicate is not called in this case, so it may even be `undefined` or not a function.
+3. If `<predicate>` is not a function, the result is `undefined`.
+4. Otherwise each element `<o>` of `<set>` is passed to `<predicate>` in iteration order as `{node_call_callee <predicate>, node_call_with <o>}`. The first call result determines the outcome:
+   - `false` continues with the next element;
+   - `true` yields `true` and stops;
+   - anything else yields `undefined` and stops.
+5. If every call is `false`, the result is `false`.
+
+`any` is the short-circuiting fold
+
+```text
+fold(<set>, x |-> y |-> x or (predicate y), false)
+```
+
+and therefore inherits the [correctness caveat for folds](#correctness-and-associativity). It is independent of iteration order only if `<predicate>` returns `true` or `false` for every element. Otherwise a `true` before an undefined result yields `true`, while an undefined result before a `true` yields `undefined`.
 
 Both `every` and `any` can be expressed with `fold`; whether they will remain primitive nodes is still undecided.
 
@@ -514,7 +531,7 @@ evaluates to `2`.
 | Filter | `node_filter_set`, `node_filter_filter` | partial: iteration and membership only; set operand required |
 | Map | `node_map_set`, `node_map_mapper` | partial: iteration and membership only; set operand required |
 | Every | `node_every_set`, `node_every_predicate` | implemented; expressible with `fold` |
-| Any | `node_any_set`, `node_any_predicate` | not implemented; expressible with `fold` |
+| Any | `node_any_set`, `node_any_predicate` | implemented; expressible with `fold` |
 | If | `node_if_condition`, `node_if_then`, `node_if_else` | implemented |
 | Unwrap | `node_unwrap_set` | implemented for sets |
 | Is atom | `node_is_atom` | implemented |
