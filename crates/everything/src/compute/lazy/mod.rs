@@ -339,15 +339,21 @@ impl LazyObject {
                 }),
                 yielded: BTreeSet::new(),
             },
-            Self::Intersection { first, second } => LazyObjectIter::Intersection {
-                first: Box::new(first.into_iter(knowledge)),
-                second,
-                knowledge: knowledge.clone(),
+            Self::Intersection { first, second } => LazyObjectIter::Deduplicated {
+                values: Box::new(LazyObjectIter::Intersection {
+                    first: Box::new(first.into_iter(knowledge)),
+                    second,
+                    knowledge: knowledge.clone(),
+                }),
+                yielded: BTreeSet::new(),
             },
-            Self::Difference { source, without } => LazyObjectIter::Difference {
-                source: Box::new(source.into_iter(knowledge)),
-                without,
-                knowledge: knowledge.clone(),
+            Self::Difference { source, without } => LazyObjectIter::Deduplicated {
+                values: Box::new(LazyObjectIter::Difference {
+                    source: Box::new(source.into_iter(knowledge)),
+                    without,
+                    knowledge: knowledge.clone(),
+                }),
+                yielded: BTreeSet::new(),
             },
             Self::AtomsWithProperty { property } => {
                 LazyObjectIter::AtomsWithProperty(knowledge.query_atoms_with_property(property))

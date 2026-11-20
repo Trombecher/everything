@@ -12,7 +12,7 @@ use crate::{
     compute::{LazyObject, LazyObjectIter, MaybeUndefined, Node, capture, operations},
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Atom, Construction, Object},
+    model::{Atom, Construction, Object, Set},
 };
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
@@ -48,6 +48,12 @@ enum Task {
     Multiply,
     Union,
     Intersection,
+    /// Evaluates the first child and short-circuits the second one if the
+    /// first result is empty.
+    PartialDifference {
+        second: Arc<Node>,
+    },
+    Difference,
     Map,
     Filter,
     Every,
@@ -255,6 +261,12 @@ fn resolve_evaluate_node(
         Node::Intersection { first, second } => {
             tasks.push(Task::Intersection);
             tasks.push(Task::Evaluate(Arc::clone(second)));
+            tasks.push(Task::Evaluate(Arc::clone(first)));
+        }
+        Node::Difference { first, second } => {
+            tasks.push(Task::PartialDifference {
+                second: Arc::clone(second),
+            });
             tasks.push(Task::Evaluate(Arc::clone(first)));
         }
         Node::Map {
@@ -590,6 +602,34 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     LazyObject::Intersection {
                         first: Box::new(second),
                         second: Box::new(first),
+                    }
+                } else {
+                    UNDEFINED
+                });
+            }
+            Task::PartialDifference { second } => {
+                let first = evaluated.pop().unwrap();
+
+                if !first.is_set() {
+                    evaluated.push(UNDEFINED);
+                } else if !first.has_at_least_one_element(knowledge) {
+                    // Nothing can be removed from an empty set, so the second
+                    // child is never evaluated.
+                    evaluated.push(LazyObject::Eager(Object::Set(Set::empty())));
+                } else {
+                    evaluated.push(first);
+                    tasks.push(Task::Difference);
+                    tasks.push(Task::Evaluate(second));
+                }
+            }
+            Task::Difference => {
+                let without = evaluated.pop().unwrap();
+                let source = evaluated.pop().unwrap();
+
+                evaluated.push(if without.is_set() {
+                    LazyObject::Difference {
+                        source: Box::new(source),
+                        without: Box::new(without),
                     }
                 } else {
                     UNDEFINED

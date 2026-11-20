@@ -136,6 +136,10 @@ pub fn capture(
             first: capture(first, additional_depth, evaluation_context, knowledge).into(),
             second: capture(second, additional_depth, evaluation_context, knowledge).into(),
         },
+        Node::Difference { first, second } => Node::Difference {
+            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
+            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+        },
         Node::Map {
             set,
             mapper_function,

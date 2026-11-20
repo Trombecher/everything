@@ -133,6 +133,10 @@ pub enum RawNode {
         first: Object,
         second: Object,
     },
+    Difference {
+        first: Object,
+        second: Object,
+    },
     Map {
         set: Object,
         mapper_function: Object,
@@ -328,6 +332,16 @@ impl RawNode {
                 Atom::NODE_INTERSECTION_SECOND.into(),
             )
             .map(|(first, second)| Self::Intersection { first, second })
+        );
+
+        xor_with!(
+            pair_values(
+                object,
+                knowledge,
+                Atom::NODE_DIFFERENCE_FIRST.into(),
+                Atom::NODE_DIFFERENCE_SECOND.into(),
+            )
+            .map(|(first, second)| Self::Difference { first, second })
         );
 
         xor_with!(

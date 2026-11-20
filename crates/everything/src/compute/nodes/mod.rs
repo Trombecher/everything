@@ -108,6 +108,15 @@ pub enum Node {
         first: Arc<Node>,
         second: Arc<Node>,
     },
+    /// A set difference. Evaluates to a deferred set containing the values of
+    /// the first result without the values of the second result. If the first
+    /// result is not a set, the result is undefined. If the first result is
+    /// empty, the second result is not evaluated and the empty set is returned.
+    /// Otherwise, if the second result is not a set, the result is undefined.
+    Difference {
+        first: Arc<Node>,
+        second: Arc<Node>,
+    },
     Map {
         set: Arc<Node>,
         mapper_function: Arc<Node>,
@@ -237,6 +246,10 @@ impl Node {
                 second: Self::new(&second, knowledge)?.into(),
             },
             RawNode::Intersection { first, second } => Self::Intersection {
+                first: Self::new(&first, knowledge)?.into(),
+                second: Self::new(&second, knowledge)?.into(),
+            },
+            RawNode::Difference { first, second } => Self::Difference {
                 first: Self::new(&first, knowledge)?.into(),
                 second: Self::new(&second, knowledge)?.into(),
             },
@@ -482,6 +495,11 @@ impl Node {
                     .into(),
             ])
             .into(),
+            Self::Difference { first, second } => Set::from([
+                Construction::new(Atom::NODE_DIFFERENCE_FIRST.into(), first.into_object()).into(),
+                Construction::new(Atom::NODE_DIFFERENCE_SECOND.into(), second.into_object()).into(),
+            ])
+            .into(),
             Self::QueryConstructions { constructor } => Set::from([Construction::new(
                 Atom::NODE_QUERY_CONSTRUCTIONS.into(),
                 constructor.into_object(),
@@ -580,6 +598,7 @@ impl Node {
             | Self::Add { .. }
             | Self::Union { .. }
             | Self::Intersection { .. }
+            | Self::Difference { .. }
             | Self::Map { .. }
             | Self::Filter { .. }
             | Self::Less { .. }

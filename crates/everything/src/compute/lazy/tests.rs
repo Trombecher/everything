@@ -269,3 +269,35 @@ fn into_iter_of_difference_excludes_members_of_the_other_set() {
         vec![integer(1), integer(3)]
     );
 }
+
+#[test]
+fn into_iter_of_intersection_and_difference_deduplicates() {
+    let colliding_map = || LazyObject::Map {
+        target: Box::new(eager_set([integer(1), integer(2)])),
+        mapper_function: Node::Function {
+            body: Node::Literal(integer(1)).into(),
+        },
+    };
+
+    let intersection = LazyObject::Intersection {
+        first: Box::new(colliding_map()),
+        second: Box::new(eager_set([integer(1)])),
+    };
+    let difference = LazyObject::Difference {
+        source: Box::new(colliding_map()),
+        without: Box::new(eager_set([])),
+    };
+
+    assert_eq!(
+        intersection
+            .into_iter(&Knowledge::empty())
+            .collect::<Vec<_>>(),
+        vec![integer(1)]
+    );
+    assert_eq!(
+        difference
+            .into_iter(&Knowledge::empty())
+            .collect::<Vec<_>>(),
+        vec![integer(1)]
+    );
+}

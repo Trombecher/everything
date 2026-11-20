@@ -5,6 +5,7 @@ mod call;
 mod common;
 mod contains;
 mod count;
+mod difference;
 mod every;
 mod filter;
 mod fold;
