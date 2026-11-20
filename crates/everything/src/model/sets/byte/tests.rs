@@ -16,6 +16,45 @@ mod Byte {
         assert_eq!(byte.bit(BitSlot::Slot7), Bit::One);
     }
 
+    #[test]
+    fn from_bits() {
+        assert_eq!(ByteSet::from_bits([Bit::Zero; 8]), ByteSet(0b0000_0000));
+        assert_eq!(ByteSet::from_bits([Bit::One; 8]), ByteSet(0b1111_1111));
+        assert_eq!(
+            ByteSet::from_bits([
+                Bit::One,
+                Bit::Zero,
+                Bit::One,
+                Bit::Zero,
+                Bit::Zero,
+                Bit::One,
+                Bit::Zero,
+                Bit::One,
+            ]),
+            ByteSet(0b1010_0101)
+        );
+
+        for slot in [
+            BitSlot::Slot0,
+            BitSlot::Slot1,
+            BitSlot::Slot2,
+            BitSlot::Slot3,
+            BitSlot::Slot4,
+            BitSlot::Slot5,
+            BitSlot::Slot6,
+            BitSlot::Slot7,
+        ] {
+            let mut bits = [Bit::Zero; 8];
+            bits[usize::from(u8::from(slot))] = Bit::One;
+
+            assert_eq!(
+                ByteSet::from_bits(bits),
+                ByteSet(1 << u8::from(slot)),
+                "slot {slot:?}"
+            );
+        }
+    }
+
     /*
     #[test]
     fn has() {

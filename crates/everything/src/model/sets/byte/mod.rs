@@ -89,7 +89,6 @@ impl IntoIterator for ByteSet {
 impl ByteSet {
     #[must_use]
     pub fn from_bits(bits: [Bit; 8]) -> Self {
-        // FIXME: optimize?
         Self(
             bits.iter()
                 .copied()
