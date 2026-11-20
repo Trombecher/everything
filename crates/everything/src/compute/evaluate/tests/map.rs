@@ -28,6 +28,20 @@ fn map() {
 }
 
 #[test]
+fn map_deduplicates() {
+    let node = Node::Map {
+        set: Node::Literal(integer_set().into()).into(),
+        // Maps every element to `1`.
+        mapper_function: constant_predicate(integer(1)).into(),
+    };
+
+    let result = evaluate(&node, &BASE);
+
+    assert_eq!(result.iter(&BASE).collect::<Vec<_>>(), vec![integer(1)]);
+    assert_eq!(result.size(&BASE), 1);
+}
+
+#[test]
 fn map_requires_sets() {
     let atom = Node::Literal(Object::Atom(Atom(42)));
     let construction = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());

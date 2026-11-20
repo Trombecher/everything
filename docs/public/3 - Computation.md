@@ -41,7 +41,7 @@ Evaluation maps a node and a knowledge to a _result_. A result is one of:
 
 - an evaluated object,
 - a function value, which is a captured node that is kept as code rather than evaluated further,
-- a deferred set operation: a union, map, or filter,
+- a deferred set operation: a union, intersection, difference, map, or filter,
 - the atom `undefined`.
 
 Deferred set operations are built without iterating their inputs. They are iterated when an operation needs their elements, such as `unwrap`, `filter`, `map`, membership tests, or explicit iteration. Not every operation supports deferred results yet; see [Current Limitations](#current-limitations).
@@ -50,7 +50,7 @@ A result is a _set_ if it is an evaluated set, the values of an atom produced by
 
 `undefined` is a first-class atom. It is produced when the input of an operation does not have the required shape, for example when arithmetic receives a non-integer, when a call's callee is not a function, or when a parameter or function self-reference is out of range. Most operations propagate `undefined`.
 
-Evaluation is big-step and pure. Operands are evaluated before the node is applied unless the node explicitly short-circuits (`and`, `or`, `if`) or builds a deferred set operation (`union`, `map`, `filter`). The order in which operands are evaluated is fixed by the evaluator, but it is an implementation detail and should not be relied upon.
+Evaluation is big-step and pure. Operands are evaluated before the node is applied unless the node explicitly short-circuits (`and`, `or`, `if`, `difference` with an empty first set) or builds a deferred set operation (`union`, `intersection`, `difference`, `map`, `filter`). The order in which operands are evaluated is fixed by the evaluator, but it is an implementation detail and should not be relied upon.
 
 ## Truthiness
 
@@ -280,7 +280,7 @@ An object is a _map node_ iff
 
 It evaluates `<set>` and `<mapper>`. If `<set>` is not a set, or if `<mapper>` is not a function, the result is `undefined`. Otherwise the result is a deferred set.
 
-When the result is iterated, each element of `<set>` is passed to `<mapper>` as a literal argument and replaced by the call's result. The mapper is called lazily, during iteration. The result is not deduplicated: if two elements map to the same object, both are yielded. The size counts distinct mapped values.
+When the result is iterated, each element of `<set>` is passed to `<mapper>` as a literal argument and replaced by the call's result. The mapper is called lazily, during iteration. Iteration yields every distinct mapped value once; if two elements map to the same object, that object is yielded once. The size is consistent with that.
 
 ## Every
 
@@ -555,7 +555,7 @@ evaluates to `2`.
 | Intersection | `node_intersection_first`, `node_intersection_second` | implemented; set operands only |
 | Difference | `node_difference_first`, `node_difference_second` | implemented; set operands only; second child is not evaluated for an empty first set |
 | Filter | `node_filter_set`, `node_filter_filter` | implemented; set operand required |
-| Map | `node_map_set`, `node_map_mapper` | implemented; iteration is not deduplicated, size counts distinct values |
+| Map | `node_map_set`, `node_map_mapper` | implemented; set operand required |
 | Every | `node_every_set`, `node_every_predicate` | implemented; expressible with `fold` |
 | Any | `node_any_set`, `node_any_predicate` | implemented; expressible with `fold` |
 | If | `node_if_condition`, `node_if_then`, `node_if_else` | implemented |

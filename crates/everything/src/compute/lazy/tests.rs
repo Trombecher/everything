@@ -220,6 +220,23 @@ fn size_of_map_counts_distinct_values() {
 }
 
 #[test]
+fn into_iter_of_map_deduplicates() {
+    // `_ |-> 1` maps every element to the same value.
+    let mapper = Node::Function {
+        body: Node::Literal(integer(1)).into(),
+    };
+    let map = LazyObject::Map {
+        target: Box::new(eager_set([integer(1), integer(2)])),
+        mapper_function: mapper,
+    };
+
+    assert_eq!(
+        map.into_iter(&Knowledge::empty()).collect::<Vec<_>>(),
+        vec![integer(1)]
+    );
+}
+
+#[test]
 fn size_of_filter_counts_distinct_retained_values() {
     // `x |-> x == 1`, applied to a target that yields `1` twice.
     let predicate = Node::Function {

@@ -374,10 +374,13 @@ impl LazyObject {
             Self::Map {
                 target,
                 mapper_function,
-            } => LazyObjectIter::Map {
-                target: Box::new(target.into_iter(knowledge)),
-                mapper_function,
-                knowledge: knowledge.clone(),
+            } => LazyObjectIter::Deduplicated {
+                values: Box::new(LazyObjectIter::Map {
+                    target: Box::new(target.into_iter(knowledge)),
+                    mapper_function,
+                    knowledge: knowledge.clone(),
+                }),
+                yielded: BTreeSet::new(),
             },
             Self::Filter {
                 target,
