@@ -214,3 +214,6 @@ fn compacted_path(path: &Path) -> PathBuf {
     compacted.push(".compacting");
     PathBuf::from(compacted)
 }
+
+#[cfg(test)]
+mod tests;
