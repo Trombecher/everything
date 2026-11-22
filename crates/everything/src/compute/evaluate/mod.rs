@@ -395,8 +395,6 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(match object {
-                    // `undefined` is an atom itself, so it may have values in the
-                    // knowledge and must not be rejected as an undefined result.
                     LazyObject::Eager(Object::Atom(atom)) => {
                         LazyObject::AtomValues(knowledge.values_of_atom(&atom))
                     }
@@ -464,8 +462,6 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let value = evaluated.pop().unwrap().into_object(knowledge);
                 let constructor = evaluated.pop().unwrap().into_object(knowledge);
 
-                // `undefined` is not special here: either child may be the atom
-                // `undefined` like any other object.
                 evaluated.push(LazyObject::Eager(
                     Construction::new(constructor, value).into(),
                 ));

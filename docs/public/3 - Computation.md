@@ -48,7 +48,7 @@ Deferred set operations are built without iterating their inputs. They are itera
 
 A result is a _set_ if it is an evaluated set, the values of an atom produced by [Values Of](#values-of), a function value, or a deferred set operation. An evaluated atom or construction is not a set. Nodes that take a set operand return `undefined` for other results; use [Values Of](#values-of) to make an atom's values explicit. A function value is a node object, and its values are the properties of its node representation.
 
-`undefined` is a first-class atom. It is produced when the input of an operation does not have the required shape, for example when arithmetic receives a non-integer, when a call's callee is not a function, or when a parameter or function self-reference is out of range. Most operations propagate `undefined`.
+`undefined` is a first-class atom and is treated like any other atom by nodes and queries. It is produced when the input of an operation does not have the required shape, for example when arithmetic receives a non-integer, when a call's callee is not a function, or when a parameter or function self-reference is out of range. Most operations propagate `undefined`.
 
 Evaluation is big-step and pure. Operands are evaluated before the node is applied unless the node explicitly short-circuits (`and`, `or`, `if`, `difference` with an empty first set) or builds a deferred set operation (`union`, `intersection`, `difference`, `map`, `filter`). The order in which operands are evaluated is fixed by the evaluator, but it is an implementation detail and should not be relied upon.
 
@@ -102,7 +102,7 @@ A call evaluates the argument `<value>` and then the callee `<callee>`. It then 
 
 - if the callee result is a function value, it is used directly;
 - otherwise the callee result is parsed as a node in the current knowledge, and it must be a `node_function` node;
-- if the callee is `undefined`, is not a function, or the callee object is not a valid node, the call evaluates to `undefined`.
+- if the callee is not a function, or the callee object is not a valid node, the call evaluates to `undefined`.
 
 The argument is bound to the function's parameter and the body is evaluated with the function context pushed. The context is popped when the body finishes. The argument is evaluated but not forced: a deferred set argument stays deferred inside the function.
 
@@ -160,7 +160,7 @@ An object is an _equal node_ iff
 - it has the property `node_equal_first <left>` and
 - it has the property `node_equal_second <right>`.
 
-It evaluates both children. The result is `true` iff the two results are structurally equal as objects. Since `undefined` is itself an atom, two `undefined` results are equal, while an `undefined` result and any other object are not.
+It evaluates both children. The result is `true` iff the two results are structurally equal as objects.
 
 ## Less Than
 
@@ -202,7 +202,7 @@ An object is a _count node_ iff it has the property `node_count <inner>`. It eva
 - for a function value, the number of properties of its node representation, which is `1` for a function;
 - for a deferred set result (union, intersection, difference, map, or filter), the number of distinct elements it yields.
 
-If the result is an atom, a construction, or `undefined`, the result is `undefined`. Use [Values Of](#values-of) to count the values of an atom: `count(values_of(<atom>))`.
+If the result is an atom or a construction, the result is `undefined`. Use [Values Of](#values-of) to count the values of an atom: `count(values_of(<atom>))`.
 
 ## Values Of
 
@@ -212,7 +212,7 @@ An object is a _values-of node_ iff it has the property `node_values_of <inner>`
 - for an atom, a deferred set of the values (properties) the atom has in the knowledge;
 - for a construction, `undefined`.
 
-If `<inner>` evaluates to `undefined`, then since `undefined` is itself an atom, the result is the set of values of the atom `undefined` in the knowledge, which may be non-empty. An atom without statements evaluates to the empty set. The atom case is deferred: counting, testing, or iterating the result reads the knowledge values directly and does not materialise a specialised set object. In contrast to [Set Count](#set-count), the conversion from an object to its values is explicit, so counting the values of an atom is written as `count(values_of(<atom>))`.
+An atom without statements evaluates to the empty set. The atom case is deferred: counting, testing, or iterating the result reads the knowledge values directly and does not materialise a specialised set object. In contrast to [Set Count](#set-count), the conversion from an object to its values is explicit, so counting the values of an atom is written as `count(values_of(<atom>))`.
 
 ## Has Value
 
@@ -223,7 +223,7 @@ An object is a _has-value node_ iff it has the property `node_has_value <inner>`
 - for a construction, `undefined`;
 - for a function value, `true`.
 
-Since `undefined` is itself an atom, it is tested against its values in the knowledge. This is the existential counterpart of [Set Count](#set-count). It is equivalent to `count(values_of(<inner>)) > 0`, but it does not materialise the values of an atom.
+This is the existential counterpart of [Set Count](#set-count). It is equivalent to `count(values_of(<inner>)) > 0`, but it does not materialise the values of an atom.
 
 ## Set Union
 
@@ -393,7 +393,7 @@ An object is a _contains node_ iff
 - it has the property `node_contains_element <element>` and
 - it has the property `node_contains_set <set>`.
 
-It evaluates both children and returns whether `<element>` is a member of `<set>`. If `<set>` is not a set, the result is `undefined`. Membership is answered without materialising `<set>`, so it works for evaluated sets, `values_of` results, function values, and deferred sets. A deferred `<element>` is materialised before the test. `undefined` is a first-class atom and can be tested for membership like any other object.
+It evaluates both children and returns whether `<element>` is a member of `<set>`. If `<set>` is not a set, the result is `undefined`. Membership is answered without materialising `<set>`, so it works for evaluated sets, `values_of` results, function values, and deferred sets. A deferred `<element>` is materialised before the test.
 
 ## Conditional Nodes
 
@@ -413,15 +413,15 @@ There is no default branch in the current implementation.
 
 ## Is Atom
 
-An object is an _is-atom node_ iff it has the property `node_is_atom <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an evaluated atom. Since `undefined` is itself an atom, it yields `true`. Deferred set values and function values are not atoms and yield `false`.
+An object is an _is-atom node_ iff it has the property `node_is_atom <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an evaluated atom. Deferred set values and function values are not atoms and yield `false`.
 
 ## Is Construction
 
-An object is an _is-construction node_ iff it has the property `node_is_construction <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an evaluated construction. `undefined` is an atom and therefore yields `false`. Deferred set values and function values yield `false`.
+An object is an _is-construction node_ iff it has the property `node_is_construction <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an evaluated construction. Deferred set values and function values yield `false`.
 
 ## Is Set
 
-An object is an _is-set node_ iff it has the property `node_is_set <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a set: an evaluated set, a deferred set result, or a function value. Atoms (including `undefined`) and constructions are not sets.
+An object is an _is-set node_ iff it has the property `node_is_set <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a set: an evaluated set, a deferred set result, or a function value. Atoms and constructions are not sets.
 
 A function value is a node object and therefore a set in its own right; its elements are the properties of its node representation.
 
@@ -438,7 +438,7 @@ An object is a _new-construction node_ iff
 - it has the property `node_new_construction_constructor <constructor>` and
 - it has the property `node_new_construction_value <value>`.
 
-It evaluates both children and returns the construction `<constructor> <value>`. `undefined` is not treated specially: it is a first-class atom, so either child may evaluate to `undefined` and becomes the corresponding part of the construction. A deferred child is materialised before constructing.
+It evaluates both children and returns the construction `<constructor> <value>`. A deferred child is materialised before constructing.
 
 ## Query Atoms With Property
 
@@ -459,13 +459,13 @@ An object is a _query-construction-values node_ iff
 - it has the property `node_construction_values_object <object>` and
 - it has the property `node_construction_values_property_constructor <constructor>`.
 
-It evaluates `<object>` and `<constructor>`. If `<object>` is a construction, the result is `undefined`. Otherwise the result is a deferred set of all values `v` for which the values of `<object>` contain a construction `c v` whose constructor `c` equals the evaluated `<constructor>`. The values of an object are its values in the knowledge if it is an atom and its members if it is a set; `undefined` is an atom and is queried like any other atom. If `<constructor>` cannot be materialised (a deferred set), the result is `undefined`.
+It evaluates `<object>` and `<constructor>`. If `<object>` is a construction, the result is `undefined`. Otherwise the result is a deferred set of all values `v` for which the values of `<object>` contain a construction `c v` whose constructor `c` equals the evaluated `<constructor>`. The values of an object are its values in the knowledge if it is an atom and its members if it is a set. If `<constructor>` cannot be materialised (a deferred set), the result is `undefined`.
 
 ## Query Constructions
 
 An object is a _query-constructions node_ iff it has the property `node_query_constructions <constructor>`.
 
-It evaluates `<constructor>` and returns a deferred set of all pairs `(a, v)` such that the knowledge contains the statement `a is <constructor> v`. Each pair is yielded as the object `{atom a, value v}`, where `atom` and `value` are atoms that are property constructors in the base knowledge. The pairs are yielded in knowledge order: by atom, and for each atom by the value's structural order. If `<constructor>` evaluates to a deferred set, it is materialized by iterating it before the query. `undefined` is an atom and may be used as a constructor like any other atom.
+It evaluates `<constructor>` and returns a deferred set of all pairs `(a, v)` such that the knowledge contains the statement `a is <constructor> v`. Each pair is yielded as the object `{atom a, value v}`, where `atom` and `value` are atoms that are property constructors in the base knowledge. The pairs are yielded in knowledge order: by atom, and for each atom by the value's structural order. If `<constructor>` evaluates to a deferred set, it is materialized by iterating it before the query.
 
 ## Examples
 
