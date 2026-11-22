@@ -343,7 +343,6 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(
-                    // This function is undefined-aware.
                     operations::constructor_of_construction(object).into(),
                 ));
             }
@@ -351,7 +350,6 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(
-                    // This function is undefined-aware.
                     operations::value_of_construction(object).into(),
                 ));
             }
