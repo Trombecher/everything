@@ -9,7 +9,7 @@ use crate::{
         AtomValuePair, Knowledge, ObjectValues, QueryAtomsWithConstructor, QueryAtomsWithProperty,
         QueryConstructions, Values,
     },
-    model::{Atom, Construction, Object, Set},
+    model::{Construction, Object, Set},
 };
 
 #[derive(Clone, Debug)]
