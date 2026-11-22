@@ -413,15 +413,15 @@ There is no default branch in the current implementation.
 
 ## Is Atom
 
-An object is an _is-atom node_ iff it has the property `node_is_atom <inner>`. It evaluates `<inner>`. If the result is `undefined`, the result is `undefined`. Otherwise the result is `true` iff the result is an evaluated atom. Deferred set values and function values are not atoms and yield `false`.
+An object is an _is-atom node_ iff it has the property `node_is_atom <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an evaluated atom. Since `undefined` is itself an atom, it yields `true`. Deferred set values and function values are not atoms and yield `false`.
 
 ## Is Construction
 
-An object is an _is-construction node_ iff it has the property `node_is_construction <inner>`. It evaluates `<inner>`. If the result is `undefined`, the result is `undefined`. Otherwise the result is `true` iff the result is an evaluated construction. Deferred set values and function values yield `false`.
+An object is an _is-construction node_ iff it has the property `node_is_construction <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an evaluated construction. `undefined` is an atom and therefore yields `false`. Deferred set values and function values yield `false`.
 
 ## Is Set
 
-An object is an _is-set node_ iff it has the property `node_is_set <inner>`. It evaluates `<inner>`. If the result is `undefined`, the result is `undefined`. Otherwise the result is `true` iff the result is a set: an evaluated set, a deferred set result, or a function value. Atoms and constructions are not sets.
+An object is an _is-set node_ iff it has the property `node_is_set <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a set: an evaluated set, a deferred set result, or a function value. Atoms (including `undefined`) and constructions are not sets.
 
 A function value is a node object and therefore a set in its own right; its elements are the properties of its node representation.
 

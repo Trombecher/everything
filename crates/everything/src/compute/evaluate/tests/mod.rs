@@ -11,6 +11,8 @@ mod filter;
 mod fold;
 mod has_value;
 mod intersection;
+mod is_atom;
+mod is_construction;
 mod is_set;
 mod less;
 mod map;

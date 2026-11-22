@@ -524,31 +524,21 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             Task::IsAtom => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(if object.is_undefined() {
-                    UNDEFINED
-                } else {
-                    LazyObject::Eager(matches!(object, LazyObject::Eager(Object::Atom(_))).into())
-                });
+                evaluated.push(LazyObject::Eager(
+                    matches!(object, LazyObject::Eager(Object::Atom(_))).into(),
+                ));
             }
             Task::IsConstruction => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(if object.is_undefined() {
-                    UNDEFINED
-                } else {
-                    LazyObject::Eager(
-                        matches!(object, LazyObject::Eager(Object::Construction(_))).into(),
-                    )
-                });
+                evaluated.push(LazyObject::Eager(
+                    matches!(object, LazyObject::Eager(Object::Construction(_))).into(),
+                ));
             }
             Task::IsSet => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(if object.is_undefined() {
-                    UNDEFINED
-                } else {
-                    LazyObject::Eager(object.is_set().into())
-                });
+                evaluated.push(LazyObject::Eager(object.is_set().into()));
             }
             Task::Not => match evaluated.pop().unwrap().truthy() {
                 MaybeUndefined::Defined(truth) => {

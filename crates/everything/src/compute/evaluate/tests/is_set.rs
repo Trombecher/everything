@@ -31,3 +31,15 @@ fn function_values_are_sets() {
         Atom::FALSE.into()
     );
 }
+
+#[test]
+fn undefined_is_not_a_set() {
+    assert_eq!(
+        evaluate(
+            &Node::IsSet(Node::Literal(Object::Atom(Atom::UNDEFINED)).into()),
+            &BASE
+        )
+        .into_object(&BASE),
+        Atom::FALSE.into()
+    );
+}
