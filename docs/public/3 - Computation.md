@@ -223,7 +223,7 @@ An object is a _has-value node_ iff it has the property `node_has_value <inner>`
 - for a construction, `undefined`;
 - for a function value, `true`.
 
-If the result is `undefined`, the result is `undefined`. This is the existential counterpart of [Set Count](#set-count). It is equivalent to `count(values_of(<inner>)) > 0`, but it does not materialise the values of an atom.
+Since `undefined` is itself an atom, it is tested against its values in the knowledge. This is the existential counterpart of [Set Count](#set-count). It is equivalent to `count(values_of(<inner>)) > 0`, but it does not materialise the values of an atom.
 
 ## Set Union
 

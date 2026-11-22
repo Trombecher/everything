@@ -12,6 +12,14 @@ fn integer(value: i32) -> Object {
 }
 
 #[test]
+fn undefined_is_not_a_node() {
+    assert_eq!(
+        LazyObject::Eager(Object::Atom(Atom::UNDEFINED)).try_into_node(&Knowledge::empty()),
+        None
+    );
+}
+
+#[test]
 fn is_lazy_distinguishes_materialized_results() {
     let eager_set = LazyObject::Eager(Object::Set(Set::from([integer(1)])));
     let eager_atom = LazyObject::Eager(Atom(42).into());

@@ -23,6 +23,21 @@ fn curried_add_function() {
 }
 
 #[test]
+fn call_with_undefined_callee_is_undefined() {
+    assert_eq!(
+        evaluate(
+            &Node::Call {
+                callee: Node::Literal(Atom::UNDEFINED.into()).into(),
+                with: Node::Literal(integer(1)).into(),
+            },
+            &BASE,
+        )
+        .into_object(&BASE),
+        Atom::UNDEFINED.into()
+    );
+}
+
+#[test]
 fn call_rejects_sets() {
     let union = Node::Union {
         first: Node::Literal(Object::Set(Set::empty())).into(),

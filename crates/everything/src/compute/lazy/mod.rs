@@ -90,11 +90,6 @@ impl From<Node> for LazyObject {
 }
 
 impl LazyObject {
-    #[must_use]
-    pub fn is_undefined(&self) -> bool {
-        matches!(self, Self::Eager(Object::Atom(Atom::UNDEFINED)))
-    }
-
     /// Returns `true` iff `self` is a set result: an evaluated set, atom
     /// values, a function value, or a deferred set operation.
     #[must_use]
@@ -120,10 +115,6 @@ impl LazyObject {
     /// cannot be materialised as an object.
     #[must_use]
     pub fn try_into_node(self, knowledge: &Knowledge) -> Option<Node> {
-        if self.is_undefined() {
-            return None;
-        }
-
         match self {
             Self::Node(node) => Some(node),
             object => Node::new(&object.try_into_object()?, knowledge).ok(),

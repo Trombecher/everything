@@ -35,7 +35,7 @@ fn has_value() {
     assert_eq!(has_value(construction, &knowledge), Atom::UNDEFINED.into());
     assert_eq!(
         has_value(Atom::UNDEFINED.into(), &knowledge),
-        Atom::UNDEFINED.into()
+        Atom::FALSE.into()
     );
 
     assert_eq!(
@@ -49,6 +49,16 @@ fn has_value() {
     });
 
     assert_eq!(has_value(Object::Atom(atom), &knowledge), Atom::TRUE.into());
+
+    knowledge.add_statement(Statement {
+        atom: Atom::UNDEFINED,
+        object: Atom(3).into(),
+    });
+
+    assert_eq!(
+        has_value(Atom::UNDEFINED.into(), &knowledge),
+        Atom::TRUE.into()
+    );
 
     let union = Node::Union {
         first: Node::Literal(empty_set).into(),

@@ -357,10 +357,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let callee_lazy_object = evaluated.pop().unwrap();
                 let parameter_value = evaluated.pop().unwrap();
 
-                if !callee_lazy_object.is_undefined()
-                    && let Some(Node::Function { body }) =
-                        callee_lazy_object.try_into_node(knowledge)
-                {
+                if let Some(Node::Function { body }) = callee_lazy_object.try_into_node(knowledge) {
                     tasks.push(Task::PopContext);
                     tasks.push(Task::Evaluate(Arc::clone(&body)));
 
@@ -411,9 +408,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(
-                    if object.is_undefined()
-                        || matches!(object, LazyObject::Eager(Object::Construction(_)))
-                    {
+                    if matches!(object, LazyObject::Eager(Object::Construction(_))) {
                         UNDEFINED
                     } else {
                         LazyObject::Eager(object.has_at_least_one_element(knowledge).into())
