@@ -160,7 +160,7 @@ An object is an _equal node_ iff
 - it has the property `node_equal_first <left>` and
 - it has the property `node_equal_second <right>`.
 
-It evaluates both children. If either result is `undefined`, the result is `undefined`. Otherwise the result is `true` iff the two results are structurally equal as objects.
+It evaluates both children. The result is `true` iff the two results are structurally equal as objects. Since `undefined` is itself an atom, two `undefined` results are equal, while an `undefined` result and any other object are not.
 
 ## Less Than
 

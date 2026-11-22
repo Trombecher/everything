@@ -6,6 +6,7 @@ mod common;
 mod contains;
 mod count;
 mod difference;
+mod equal;
 mod every;
 mod filter;
 mod fold;

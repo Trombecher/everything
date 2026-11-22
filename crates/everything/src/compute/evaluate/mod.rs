@@ -483,18 +483,11 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 evaluated.push(LazyObject::Eager(object.truthy().into()));
             }
             Task::Equal => {
-                let right_lazy = evaluated.pop().unwrap();
-                let left_lazy = evaluated.pop().unwrap();
+                let right = evaluated.pop().unwrap().into_object(knowledge);
+                let left = evaluated.pop().unwrap().into_object(knowledge);
 
-                if !right_lazy.is_undefined() && !left_lazy.is_undefined() {
-                    let left = left_lazy.into_object(knowledge);
-                    let right = right_lazy.into_object(knowledge);
-
-                    // TODO: maybe optimize this comparison (?)
-                    evaluated.push(LazyObject::Eager((left == right).into()));
-                } else {
-                    evaluated.push(UNDEFINED);
-                }
+                // TODO: maybe optimize this comparison (?)
+                evaluated.push(LazyObject::Eager((left == right).into()));
             }
             Task::PartialOr { second } => match evaluated.pop().unwrap().truthy() {
                 MaybeUndefined::Defined(false) => {
