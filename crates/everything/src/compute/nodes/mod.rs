@@ -187,6 +187,14 @@ pub enum Node {
         constructor: Arc<Node>,
         value: Arc<Node>,
     },
+    /// Constructs a set from the results of the given child nodes.
+    ///
+    /// There is always at least one child. The children are evaluated in an
+    /// unspecified order; see the computation documentation for the resulting
+    /// well-formedness requirement.
+    NewSet {
+        values: Vec<Arc<Node>>,
+    },
     ConstructionConstructor {
         construction: Arc<Node>,
     },
@@ -388,6 +396,12 @@ impl Node {
                 constructor: child!(NodeProperty::NewConstructionConstructor, &constructor),
                 value: child!(NodeProperty::NewConstructionValue, &value),
             },
+            RawNode::NewSet { values } => Self::NewSet {
+                values: values
+                    .iter()
+                    .map(|value| Self::child(value, knowledge, NodeProperty::NewSetValue))
+                    .collect::<Result<Vec<_>, _>>()?,
+            },
             RawNode::ConstructionConstructor { construction } => Self::ConstructionConstructor {
                 construction: child!(NodeProperty::ConstructorOfConstruction, &construction),
             },
@@ -481,6 +495,17 @@ impl Node {
                 .into(),
             ])
             .into(),
+            Self::NewSet { values } => {
+                let mut properties = values
+                    .iter()
+                    .map(|value| {
+                        Construction::new(Atom::NODE_NEW_SET_VALUE.into(), value.into_object())
+                            .into()
+                    })
+                    .collect::<Vec<Object>>();
+
+                Set::from(properties.as_mut_slice()).into()
+            }
             Self::Contains { element, set } => Set::from([
                 Construction::new(Atom::NODE_CONTAINS_ELEMENT.into(), element.into_object()).into(),
                 Construction::new(Atom::NODE_CONTAINS_SET.into(), set.into_object()).into(),
@@ -725,6 +750,8 @@ impl Node {
             | Self::Unwrap { .. } => 2,
 
             Self::If { .. } | Self::Fold { .. } => 3,
+
+            Self::NewSet { values } => values.len() as u64,
         }
     }
 }

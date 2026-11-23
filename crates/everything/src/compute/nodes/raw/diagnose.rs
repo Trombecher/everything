@@ -147,6 +147,7 @@ const KINDS: &[KindSpec] = &[
             NodeProperty::NewConstructionValue,
         ]
     ),
+    kind!(NodeKind::NewSet, [NodeProperty::NewSetValue]),
     kind!(
         NodeKind::ConstructionConstructor,
         [NodeProperty::ConstructorOfConstruction]
@@ -181,7 +182,7 @@ pub(super) fn diagnose(object: &Object, knowledge: &Knowledge) -> InvalidNodeErr
 
             present += 1;
 
-            if values.next().is_some() {
+            if !property.allows_multiple() && values.next().is_some() {
                 error.get_or_insert(InvalidNodeError::DuplicateProperty {
                     kind: spec.kind,
                     property: *property,

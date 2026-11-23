@@ -55,6 +55,20 @@ fn triple_values(
     Some((first, second, third))
 }
 
+/// Collects all values of a property that may occur more than once. Returns
+/// `None` if the property has no values.
+fn many_values(
+    object: &Object,
+    knowledge: &Knowledge,
+    property_constructor: Object,
+) -> Option<Vec<Object>> {
+    let values = knowledge
+        .query_construction_values(object, property_constructor)
+        .collect::<Vec<_>>();
+
+    (!values.is_empty()).then_some(values)
+}
+
 fn node_function_self(object: &Object, knowledge: &Knowledge) -> Option<RawNode> {
     let depth_i128 = knowledge
         .query_construction_values(object, Atom::NODE_FUNCTION_SELF.into())
@@ -186,6 +200,9 @@ pub enum RawNode {
     NewConstruction {
         constructor: Object,
         value: Object,
+    },
+    NewSet {
+        values: Vec<Object>,
     },
     ConstructionConstructor {
         construction: Object,
@@ -567,6 +584,12 @@ impl RawNode {
                 Atom::NODE_NEW_CONSTRUCTION_VALUE.into(),
             )
             .map(|(constructor, value)| Self::NewConstruction { constructor, value })
+        );
+
+        xor_with!(
+            NodeKind::NewSet,
+            many_values(object, knowledge, Atom::NODE_NEW_SET_VALUE.into())
+                .map(|values| Self::NewSet { values })
         );
 
         xor_with!(

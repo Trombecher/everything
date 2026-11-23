@@ -115,6 +115,12 @@ fn node_round_trip() {
             constructor: Node::Literal(a.clone()).into(),
             value: Node::Literal(b.clone()).into(),
         },
+        Node::NewSet {
+            values: vec![
+                Node::Literal(a.clone()).into(),
+                Node::Literal(b.clone()).into(),
+            ],
+        },
         Node::ConstructionConstructor {
             construction: Node::Literal(a.clone()).into(),
         },

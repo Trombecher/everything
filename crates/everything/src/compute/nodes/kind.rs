@@ -40,6 +40,7 @@ pub enum NodeKind {
     IsSet,
     Fold,
     NewConstruction,
+    NewSet,
     ConstructionConstructor,
     ConstructionValue,
 }
@@ -82,6 +83,7 @@ impl fmt::Display for NodeKind {
             Self::IsSet => "is set",
             Self::Fold => "fold",
             Self::NewConstruction => "new construction",
+            Self::NewSet => "new set",
             Self::ConstructionConstructor => "construction constructor",
             Self::ConstructionValue => "construction value",
         })
@@ -165,6 +167,7 @@ pub enum NodeProperty {
     FoldInitial,
     NewConstructionConstructor,
     NewConstructionValue,
+    NewSetValue,
     ConstructorOfConstruction,
     ValueOfConstruction,
 }
@@ -232,6 +235,7 @@ impl NodeProperty {
             Self::FoldInitial => Atom::NODE_FOLD_INITIAL,
             Self::NewConstructionConstructor => Atom::NODE_NEW_CONSTRUCTION_CONSTRUCTOR,
             Self::NewConstructionValue => Atom::NODE_NEW_CONSTRUCTION_VALUE,
+            Self::NewSetValue => Atom::NODE_NEW_SET_VALUE,
             Self::ConstructorOfConstruction => Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION,
             Self::ValueOfConstruction => Atom::NODE_VALUE_OF_CONSTRUCTION,
         }
@@ -243,6 +247,13 @@ impl NodeProperty {
             Self::FunctionSelf | Self::Parameter => PropertyRequirement::Depth,
             _ => PropertyRequirement::Value,
         }
+    }
+
+    /// Returns `true` iff an object may have any positive number of values for
+    /// this property. Every other property must have exactly one value.
+    #[must_use]
+    pub(crate) const fn allows_multiple(self) -> bool {
+        matches!(self, Self::NewSetValue)
     }
 }
 
@@ -308,6 +319,7 @@ impl fmt::Display for NodeProperty {
             Self::FoldInitial => "node_fold_initial",
             Self::NewConstructionConstructor => "node_new_construction_constructor",
             Self::NewConstructionValue => "node_new_construction_value",
+            Self::NewSetValue => "node_new_set_value",
             Self::ConstructorOfConstruction => "node_constructor_of_construction",
             Self::ValueOfConstruction => "node_value_of_construction",
         })

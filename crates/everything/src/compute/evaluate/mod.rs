@@ -37,6 +37,10 @@ enum Task {
     QueryConstructions,
     Contains,
     NewConstruction,
+    /// Collects the results of the preceding child evaluations into a set.
+    NewSet {
+        count: usize,
+    },
     Equal,
     PartialOr {
         second: Arc<Node>,
@@ -172,6 +176,17 @@ fn resolve_evaluate_node(
             tasks.push(Task::NewConstruction);
             tasks.push(Task::Evaluate(Arc::clone(value)));
             tasks.push(Task::Evaluate(Arc::clone(constructor)));
+        }
+        Node::NewSet { values } => {
+            tasks.push(Task::NewSet {
+                count: values.len(),
+            });
+
+            // The children are evaluated in the order of `values`: the stack
+            // is LIFO, so they have to be scheduled in reverse.
+            for value in values.iter().rev() {
+                tasks.push(Task::Evaluate(Arc::clone(value)));
+            }
         }
         Node::IsAtom(inner) => {
             tasks.push(Task::IsAtom);
@@ -466,6 +481,17 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 evaluated.push(LazyObject::Eager(
                     Construction::new(constructor, value).into(),
                 ));
+            }
+            Task::NewSet { count } => {
+                let mut values = Vec::with_capacity(count);
+
+                for _ in 0..count {
+                    values.push(evaluated.pop().unwrap().into_object(knowledge));
+                }
+
+                values.reverse();
+
+                evaluated.push(LazyObject::Eager(Set::from(values.as_mut_slice()).into()));
             }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();

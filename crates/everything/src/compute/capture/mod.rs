@@ -287,6 +287,12 @@ pub fn capture(
                 .into(),
             value: capture(value, additional_depth, evaluation_context, knowledge).into(),
         },
+        Node::NewSet { values } => Node::NewSet {
+            values: values
+                .iter()
+                .map(|value| capture(value, additional_depth, evaluation_context, knowledge).into())
+                .collect(),
+        },
         Node::ConstructionConstructor { construction } => Node::ConstructionConstructor {
             construction: capture(
                 construction,

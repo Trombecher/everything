@@ -11,7 +11,7 @@ This chapter describes the implemented model. It distinguishes the reference eva
 An object is a valid _node_ iff it matches exactly one node kind described in this chapter and every child position parses as a node. Node matching is shallow and structural:
 
 - A node object is an atom or a set. The required properties are read from the atom's values in the knowledge or, for a set, from the set's members. A bare construction cannot be a node.
-- For every required property of a node kind, the object must have exactly one matching construction. For example, an add node needs exactly one `node_add_first` value and exactly one `node_add_second` value. A required property with zero or several values means the kind does not match.
+- For every required property of a node kind, the object must have exactly one matching construction, unless the property is repeatable. For example, an add node needs exactly one `node_add_first` value and exactly one `node_add_second` value. The only repeatable property is `node_new_set_value`, which a [new-set node](#new-set) may have any positive number of times. A required property with zero values, or with several values when it is not repeatable, means the kind does not match.
 - If the object matches no node kind, it is not a node. If it matches more than one kind, it is also not a valid node; node kinds may not be combined.
 - Additional properties that are not part of the recognized kind are ignored. This makes node definitions _open_: annotations and other metadata may be attached without changing the node kind. The `node_*` constructors are reserved and must not be used for annotations, because they can change the recognized kind.
 
@@ -412,6 +412,20 @@ An object is a _new-construction node_ iff
 
 It evaluates both children and returns the construction `<constructor> <value>`.
 
+## New Set
+
+An object is a _new-set node_ iff it has at least one property `node_new_set_value <value>`. Unlike the properties of the other node kinds, `node_new_set_value` may occur any positive number of times.
+
+It evaluates every `<value>` child exactly once and returns the set of their results. The result may contain atoms, constructions, or sets. If several children evaluate to equal objects, that object appears only once, because the result is a set. A child that evaluates to `undefined` contributes the atom `undefined` as an ordinary member.
+
+The node recognition rule that a required property must have exactly one value does not apply to `node_new_set_value`; having zero values means the object is not a new-set node.
+
+### Correctness and evaluation order
+
+The reference evaluation specifies only the set of child results, not an order in which the children are evaluated. The implementation evaluates the children in a concrete order.
+
+For a well-formed program this order cannot be observed: every child terminates and the result is the set of their results, independent of the order. However, if the program is not well-formed—for example if a child does not terminate, or if a child reads a value whose evaluation depends on the order in which children are visited—then the implementation may diverge on one child before reaching another, or may produce a result that depends on the chosen order. As with [fold](#correctness-and-associativity), the evaluator cannot check well-formedness, so it remains the programmer's responsibility.
+
 ## Query Atoms With Property
 
 An object is a _query-atoms-with-property node_ iff it has the property `node_atoms_with_property <property>`.
@@ -491,6 +505,19 @@ Mapping `x + 1` over `{1, 2, 3}`:
 
 evaluates to the set `{2, 3, 4}`.
 
+### New Set
+
+Constructing `{1, 2}` from two child expressions:
+
+```
+{
+    node_new_set_value {node_literal 1},
+    node_new_set_value {node_literal 2}
+}
+```
+
+evaluates to the set `{1, 2}`.
+
 ### Conditional
 
 ```
@@ -511,6 +538,7 @@ The implementation is demand-driven:
 
 - [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#map), [filter](#filter), and the query nodes build a description of a set without iterating their operands. The members are computed when an operation needs them: by [count](#set-count), [unwrap](#unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the elements, such as [fold](#fold), [every](#every), [any](#any), [map](#map), or [filter](#filter).
 - [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#map) only depends on whether the source set has an element, so the mapper is not called.
+- A [new set](#new-set) evaluates all of its children and materialises the resulting set. Its members are therefore not represented lazily.
 - Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call. Parsed nodes retain the object they were parsed from, so materialising a captured function reproduces its body exactly, including annotations and unknown properties. Atom-defined functions materialise into sets; see [Functions](#functions).
 
 Because evaluation is demand-driven, a program that is not well-formed may still terminate here, for example when testing whether a mapped set is non-empty without applying a divergent mapper. This is not guaranteed.
@@ -554,6 +582,7 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 | Construction constructor | `node_constructor_of_construction` | implemented |
 | Construction value | `node_value_of_construction` | implemented |
 | New construction | `node_new_construction_constructor`, `node_new_construction_value` | implemented |
+| New set | `node_new_set_value` (one or more) | implemented |
 | Contains | `node_contains_element`, `node_contains_set` | implemented |
 | Query atoms with property | `node_atoms_with_property` | implemented |
 | Query atoms with constructor | `node_atoms_with_constructor` | implemented |
