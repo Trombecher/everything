@@ -30,6 +30,53 @@ fn function_evaluation_preserves_extra_properties() {
 }
 
 #[test]
+fn function_can_inspect_annotations_in_its_own_body() {
+    // The function's body retrieves its own body object through `function_self`
+    // and checks whether that object carries an annotation. If capture drops
+    // the annotation, the function observes a different body and returns
+    // `false`.
+    let annotation: Object = Construction::new(Atom(42).into(), Atom(7).into()).into();
+
+    let query = Set::from([
+        Construction::new(
+            Atom::NODE_CONSTRUCTION_VALUES_OBJECT.into(),
+            Node::FunctionSelf { depth: 0 }.into_object(),
+        )
+        .into(),
+        Construction::new(
+            Atom::NODE_CONSTRUCTION_VALUES_PROPERTY_CONSTRUCTOR.into(),
+            Node::Literal(Atom::NODE_FUNCTION.into()).into_object(),
+        )
+        .into(),
+    ])
+    .into();
+
+    // The query yields the body as its only value; unwrap selects it.
+    let body_set =
+        Set::from([Construction::new(Atom::NODE_UNWRAP_SET.into(), query).into()]).into();
+
+    let body = Set::from([
+        Construction::new(
+            Atom::NODE_CONTAINS_ELEMENT.into(),
+            Node::Literal(annotation.clone()).into_object(),
+        )
+        .into(),
+        Construction::new(Atom::NODE_CONTAINS_SET.into(), body_set).into(),
+        annotation,
+    ])
+    .into();
+
+    let function = Set::from([Construction::new(Atom::NODE_FUNCTION.into(), body).into()]).into();
+    let function = Node::new(&function, &BASE).unwrap();
+    let call = Node::Call {
+        callee: function.into(),
+        with: Node::Literal(integer(1)).into(),
+    };
+
+    assert_eq!(evaluate(&call, &BASE).into_object(&BASE), Atom::TRUE.into());
+}
+
+#[test]
 fn atom_defined_function_materialises_into_a_set() {
     let atom = Atom(99);
     let body = Node::Literal(integer(1));

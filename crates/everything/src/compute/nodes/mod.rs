@@ -20,6 +20,17 @@ use crate::{
 /// A node / expression in the computation system.
 #[derive(Clone, PartialEq, Debug)]
 pub enum Node {
+    /// A parsed node together with the exact object it was parsed from.
+    ///
+    /// Preserving the source object keeps all properties, including ones that
+    /// are not part of the node kind, such as annotations. This makes
+    /// node-to-object conversion lossless. Use [`Node::resolve`] to inspect
+    /// the structural node and [`Node::into_plain`] to unwrap it.
+    WithSource {
+        node: Arc<Self>,
+        source: Arc<Object>,
+    },
+
     /// A function node. Abstracts over the function body.
     Function {
         body: Arc<Node>,
@@ -184,7 +195,10 @@ pub enum Node {
     },
 }
 
-fn function_source_set(object: &Object, knowledge: &Knowledge) -> Set {
+/// Materialises the source object into a set so that its properties can be
+/// transformed. Sets are returned unchanged; atoms are expanded through the
+/// knowledge; constructions have no properties.
+pub(crate) fn source_set(object: &Object, knowledge: &Knowledge) -> Set {
     match object {
         Object::Set(set) => set.clone(),
         Object::Atom(atom) => {
@@ -245,10 +259,10 @@ impl Node {
             };
         }
 
-        Ok(match raw {
+        let node = match raw {
             RawNode::Function { body } => Self::Function {
                 body: child!(NodeProperty::Function, &body),
-                object: Arc::new(function_source_set(object, knowledge)),
+                object: Arc::new(source_set(object, knowledge)),
             },
             RawNode::Literal(object) => Self::Literal(object),
             RawNode::And { first, second } => Self::And {
@@ -380,6 +394,11 @@ impl Node {
             RawNode::ConstructionValue { construction } => Self::ConstructionValue {
                 construction: child!(NodeProperty::ValueOfConstruction, &construction),
             },
+        };
+
+        Ok(Self::WithSource {
+            node: Arc::new(node),
+            source: Arc::new(object.clone()),
         })
     }
 
@@ -396,10 +415,33 @@ impl Node {
             })
     }
 
+    /// Returns the structural node, bypassing any source wrappers.
+    #[must_use]
+    pub fn resolve(&self) -> &Self {
+        let mut node = self;
+
+        while let Self::WithSource { node: inner, .. } = node {
+            node = inner;
+        }
+
+        node
+    }
+
+    /// Consumes the node and returns its structural form, dropping the
+    /// preserved source object.
+    #[must_use]
+    pub fn into_plain(self) -> Self {
+        match self {
+            Self::WithSource { node, .. } => (*node).clone().into_plain(),
+            node => node,
+        }
+    }
+
     #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn into_object(&self) -> Object {
         match self {
+            Self::WithSource { source, .. } => (**source).clone(),
             Self::IsConstruction(inner) => Set::from([Construction::new(
                 Atom::NODE_IS_CONSTRUCTION.into(),
                 inner.into_object(),
@@ -639,6 +681,11 @@ impl Node {
         // Just count the properties.
 
         match self {
+            Self::WithSource { node, source } => match &**source {
+                Object::Set(set) => set.size(),
+                Object::Atom(_) | Object::Construction(_) => node.set_size(),
+            },
+
             Self::Function { object, .. } => object.size(),
 
             Self::Literal(_)

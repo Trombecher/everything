@@ -113,7 +113,10 @@ fn resolve_evaluate_node(
     tasks: &mut Vec<Task>,
     evaluated: &mut Vec<LazyObject>,
 ) {
+    let node = node.resolve();
+
     match node {
+        Node::WithSource { .. } => unreachable!("resolve removes source wrappers"),
         Node::IsSet(inner) => {
             tasks.push(Task::IsSet);
             tasks.push(Task::Evaluate(Arc::clone(inner)));
@@ -357,8 +360,9 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let callee_lazy_object = evaluated.pop().unwrap();
                 let parameter_value = evaluated.pop().unwrap();
 
-                if let Some(Node::Function { body, object }) =
-                    callee_lazy_object.try_into_node(knowledge)
+                if let Some(Node::Function { body, object }) = callee_lazy_object
+                    .try_into_node(knowledge)
+                    .map(Node::into_plain)
                 {
                     tasks.push(Task::PopContext);
                     tasks.push(Task::Evaluate(Arc::clone(&body)));
@@ -608,8 +612,9 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let set = evaluated.pop().unwrap();
 
                 if set.is_set()
-                    && let Some(mapper_function @ Node::Function { .. }) =
-                        mapper_function.try_into_node(knowledge)
+                    && let Some(mapper_function @ Node::Function { .. }) = mapper_function
+                        .try_into_node(knowledge)
+                        .map(Node::into_plain)
                 {
                     evaluated.push(LazyObject::Map {
                         target: Box::new(set),
@@ -624,8 +629,9 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let set = evaluated.pop().unwrap();
 
                 if set.is_set()
-                    && let Some(filter_function @ Node::Function { .. }) =
-                        filter_function.try_into_node(knowledge)
+                    && let Some(filter_function @ Node::Function { .. }) = filter_function
+                        .try_into_node(knowledge)
+                        .map(Node::into_plain)
                 {
                     evaluated.push(LazyObject::Filter {
                         target: Box::new(set),
@@ -645,7 +651,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     // The predicate is never called and may therefore be invalid.
                     evaluated.push(LazyObject::Eager(true.into()));
                 } else if let Some(predicate @ Node::Function { .. }) =
-                    predicate.try_into_node(knowledge)
+                    predicate.try_into_node(knowledge).map(Node::into_plain)
                 {
                     tasks.push(Task::EveryStep {
                         values: Box::new(set.into_iter(knowledge)),
@@ -696,7 +702,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     // The predicate is never called and may therefore be invalid.
                     evaluated.push(LazyObject::Eager(false.into()));
                 } else if let Some(predicate @ Node::Function { .. }) =
-                    predicate.try_into_node(knowledge)
+                    predicate.try_into_node(knowledge).map(Node::into_plain)
                 {
                     tasks.push(Task::AnyStep {
                         values: Box::new(set.into_iter(knowledge)),
@@ -747,7 +753,8 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 } else if !set.has_at_least_one_element(knowledge) {
                     // The folder is never called and may therefore be invalid.
                     evaluated.push(initial);
-                } else if let Some(folder @ Node::Function { .. }) = folder.try_into_node(knowledge)
+                } else if let Some(folder @ Node::Function { .. }) =
+                    folder.try_into_node(knowledge).map(Node::into_plain)
                 {
                     tasks.push(Task::FoldStep {
                         values: Box::new(set.into_iter(knowledge)),

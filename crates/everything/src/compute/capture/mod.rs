@@ -1,11 +1,64 @@
 #[cfg(test)]
 mod tests;
 
+use std::{collections::BTreeSet, sync::Arc};
+
 use crate::{
-    compute::{EvaluationContext, MaybeUndefined, Node},
+    compute::{EvaluationContext, MaybeUndefined, Node, nodes::source_set},
     knowledge::Knowledge,
-    model::Atom,
+    model::{Atom, Object, Set},
 };
+
+/// Rebuilds the source object of a captured node.
+///
+/// The members of the original source object are preserved, except for the
+/// properties that belong to the node kind. Those are taken from the captured
+/// node, so that substituted children are reflected in the materialised
+/// object. Annotations and unknown properties therefore survive capture.
+fn source_with_captured_properties(
+    source: &Object,
+    original: &Node,
+    captured: &Node,
+    knowledge: &Knowledge,
+) -> Object {
+    let captured_object = captured.into_object();
+
+    let Object::Set(captured_set) = captured_object else {
+        return captured_object;
+    };
+
+    let source_set = match source {
+        Object::Set(set) => set.clone(),
+        Object::Atom(_) => source_set(source, knowledge),
+        Object::Construction(_) => return Object::Set(captured_set),
+    };
+
+    let property_constructors = match original.into_object() {
+        Object::Set(set) => set
+            .into_iter()
+            .filter_map(|value| match value {
+                Object::Construction(construction) => Some(*construction.constructor),
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>(),
+        _ => BTreeSet::new(),
+    };
+
+    let mut values = source_set
+        .into_iter()
+        .filter(|value| {
+            !matches!(
+                value,
+                Object::Construction(construction)
+                    if property_constructors.contains(construction.constructor.as_ref())
+            )
+        })
+        .collect::<Vec<_>>();
+
+    values.extend(captured_set);
+
+    Set::from(values.as_mut_slice()).into()
+}
 
 /// Captures the evaluation context in the node tree.
 #[must_use]
@@ -22,6 +75,18 @@ pub fn capture(
     }
 
     match node {
+        Node::WithSource {
+            node: inner,
+            source,
+        } => {
+            let captured = capture(inner, additional_depth, evaluation_context, knowledge);
+            let source = source_with_captured_properties(source, inner, &captured, knowledge);
+
+            Node::WithSource {
+                node: Arc::new(captured),
+                source: Arc::new(source),
+            }
+        }
         Node::Parameter { depth } => {
             if let Some(offset_depth) = (*depth as usize).checked_sub(additional_depth) {
                 // The min additional depth is 1.

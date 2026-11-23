@@ -125,9 +125,37 @@ fn node_round_trip() {
 
     for node in nodes {
         let object = Object::new_node(node.clone());
+        let parsed = Node::new(&object, &knowledge).unwrap();
 
-        assert_eq!(Node::new(&object, &knowledge), Ok(node));
+        assert_eq!(parsed.into_object(), object);
     }
+}
+
+#[test]
+fn node_round_trip_preserves_extra_properties() {
+    let knowledge = Knowledge { map: OrdMap::new() };
+    let value = Object::new_integer(BigInt::from(1));
+    let annotation = Construction::new(Atom(42).into(), Atom(7).into()).into();
+
+    let object = Set::from([
+        Construction::new(
+            Atom::NODE_ADD_FIRST.into(),
+            Node::Literal(value.clone()).into_object(),
+        )
+        .into(),
+        Construction::new(
+            Atom::NODE_ADD_SECOND.into(),
+            Node::Literal(value).into_object(),
+        )
+        .into(),
+        annotation,
+    ])
+    .into();
+
+    let parsed = Node::new(&object, &knowledge).unwrap();
+
+    assert!(matches!(parsed.resolve(), Node::Add { .. }));
+    assert_eq!(parsed.into_object(), object);
 }
 
 #[test]
@@ -190,10 +218,13 @@ fn node_parse_prefers_a_complete_kind_over_a_partial_one() {
         Construction::new(Atom::NODE_AND_FIRST.into(), value).into(),
     ]));
 
+    let parsed = Node::new(&object, &knowledge).unwrap();
+
     assert_eq!(
-        Node::new(&object, &knowledge),
-        Ok(Node::Literal(Object::new_integer(BigInt::from(1))))
+        parsed.resolve(),
+        &Node::Literal(Object::new_integer(BigInt::from(1)))
     );
+    assert_eq!(parsed.into_object(), object);
 }
 
 #[test]
