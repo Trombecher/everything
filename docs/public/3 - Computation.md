@@ -33,22 +33,7 @@ The object encoding produced by the implementation therefore always wraps litera
 }
 ```
 
-Node recognition is not itself an evaluator operation. The evaluator takes an already parsed node together with a knowledge. Conversion from an object to a node can fail; conversion from a node back to an object produces a set of construction properties and does not preserve unknown properties or annotations. It also normalizes atom-defined nodes into sets, losing the atom's identity.
-
-## Evaluation Results
-
-Evaluation maps a node and a knowledge to a _result_. A result is:
-
-- an atom,
-- a construction,
-- a set,
-- a function value, which is a captured node that is kept as code rather than evaluated further.
-
-Sets do not distinguish duplicates and have no intrinsic order. The atom `undefined` is a normal atom and may appear anywhere an atom may appear.
-
-A result is a _set result_ if it is a set or a function value. Atoms and constructions are not sets. Nodes that take a set operand return `undefined` for other results; use [Values Of](#values-of) to make an atom's values explicit. A function value is a node object, and its values are the properties of its node representation.
-
-`undefined` is produced when the input of an operation does not have the required shape, for example when arithmetic receives a non-integer, when a call's callee is not a function, or when a parameter or function self-reference is out of range. Most operations propagate `undefined`.
+Node recognition is not itself an evaluator operation. The evaluator takes an already parsed node together with a knowledge. Conversion from an object to a node can fail; reverse conversion is lossy (see [Current Limitations](#current-limitations)).
 
 ## Reference Evaluation
 
@@ -73,13 +58,13 @@ Truthiness is deliberately narrow:
 - An object is _falsy_ iff it is equal to `false`.
 - Every other object, including sets, constructions, and `undefined`, has _undefined truthiness_.
 
-There is no general "non-empty means true" coercion in the language. Boolean operations therefore produce only `true`, `false`, or `undefined`; they do not treat a non-empty set as true. A function value also has undefined truthiness because it is kept as code rather than evaluated.
+There is no general "non-empty means true" coercion in the language. Boolean operations therefore produce only `true`, `false`, or `undefined`; they do not treat a non-empty set as true.
 
 ## Functions
 
 An object is a _function_ iff it has the property `node_function <body>`. The associated value `<body>` is the function body. Functions have exactly one parameter. Multiple arguments are encoded by currying: a function returns another function that takes the next argument.
 
-Evaluating a function does not evaluate its body. It produces a function value: a copy of the function node in which free references to enclosing functions have been captured (see [Captures](#captures)). The body is evaluated only when the function is called.
+Evaluating a function does not evaluate its body. It produces a function object: a copy of the original in which free references to enclosing functions have been captured (see [Captures](#captures)). The body is evaluated only when the function is called.
 
 ## Parameter References
 
@@ -94,7 +79,7 @@ If the depth does not identify an enclosing function at evaluation time, the par
 
 An object is a (function) _self-reference_ iff it has the property `node_function_self <depth>`. `<depth>` has the same meaning and restrictions as for parameter references. These nodes support recursive functions without a fix-point operator.
 
-A self-reference evaluates to the enclosing function value itself, not to the result of calling it. The function value can then be called with a normal call node. An out-of-range depth evaluates to `undefined`.
+A self-reference evaluates to the enclosing function object itself, not to the result of calling it. The function object can then be called with a normal call node. An out-of-range depth evaluates to `undefined`.
 
 ## Captures
 
@@ -102,7 +87,7 @@ Functions are closures. When a function is evaluated inside an enclosing functio
 
 Capturing a parameter value escapes it into a literal, so a value that happens to look like a node is not reinterpreted as code when the function is later called. This is also why functions can escape the call that created them.
 
-Evaluation of a function does not capture runtime parameter values from functions that have not been called yet; capture happens when the function value is produced. Nested functions therefore capture the environment of the call in which they are evaluated.
+Evaluation of a function does not capture runtime parameter values from functions that have not been called yet; capture happens when the function object is produced. Nested functions therefore capture the environment of the call in which they are evaluated.
 
 ## Function Application
 
@@ -113,8 +98,7 @@ An object is a _function application/call_ iff
 
 A call evaluates the argument `<value>` and then the callee `<callee>`. It then interprets the callee result as a function:
 
-- if the callee result is a function value, it is used directly;
-- otherwise the callee result is parsed as a node in the current knowledge, and it must be a `node_function` node;
+- the callee result is parsed as a node in the current knowledge, and it must be a `node_function` node;
 - if the callee is not a function, or the callee object is not a valid node, the call evaluates to `undefined`.
 
 The argument is bound to the function's parameter and the body is evaluated with the function context pushed. The context is popped when the body finishes.
@@ -203,8 +187,7 @@ As with addition, integers are arbitrary precision and cannot overflow.
 An object is a _count node_ iff it has the property `node_count <inner>`. It evaluates `<inner>` and, if the result is a set, returns its number of elements:
 
 - for a set, the number of members;
-- for the values of an atom, the number of values;
-- for a function value, the number of properties of its node representation, which is `1` for a function.
+- for the values of an atom, the number of values.
 
 If the result is an atom or a construction, the result is `undefined`. Use [Values Of](#values-of) to count the values of an atom: `count(values_of(<atom>))`.
 
@@ -212,7 +195,7 @@ If the result is an atom or a construction, the result is `undefined`. Use [Valu
 
 An object is a _values-of node_ iff it has the property `node_values_of <inner>`. It evaluates `<inner>` and converts the result to the set of its values:
 
-- for a set or function value, the result itself;
+- for a set, the result itself;
 - for an atom, the set of values (properties) the atom has in the knowledge;
 - for a construction, `undefined`.
 
@@ -224,8 +207,7 @@ An object is a _has-value node_ iff it has the property `node_has_value <inner>`
 
 - for a set, whether it has at least one member;
 - for an atom, whether it has at least one value in the knowledge;
-- for a construction, `undefined`;
-- for a function value, `true`.
+- for a construction, `undefined`.
 
 This is the existential counterpart of [Set Count](#set-count). It is equivalent to `count(values_of(<inner>)) > 0`.
 
@@ -403,17 +385,15 @@ There is no default branch in the current implementation.
 
 ## Is Atom
 
-An object is an _is-atom node_ iff it has the property `node_is_atom <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an atom. Sets and function values are not atoms and yield `false`.
+An object is an _is-atom node_ iff it has the property `node_is_atom <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an atom. Sets are not atoms and yield `false`.
 
 ## Is Construction
 
-An object is an _is-construction node_ iff it has the property `node_is_construction <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a construction. Sets and function values yield `false`.
+An object is an _is-construction node_ iff it has the property `node_is_construction <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a construction. Sets yield `false`.
 
 ## Is Set
 
-An object is an _is-set node_ iff it has the property `node_is_set <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a set or a function value. Atoms and constructions are not sets.
-
-A function value is a node object and therefore a set in its own right; its elements are the properties of its node representation.
+An object is an _is-set node_ iff it has the property `node_is_set <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a set. Atoms and constructions are not sets.
 
 ## Construction Constructor and Value
 
@@ -529,6 +509,7 @@ The implementation is demand-driven:
 
 - [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#map), [filter](#filter), and the query nodes build a description of a set without iterating their operands. The members are computed when an operation needs them: by [count](#set-count), [unwrap](#unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the elements, such as [fold](#fold), [every](#every), [any](#any), [map](#map), or [filter](#filter).
 - [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#map) only depends on whether the source set has an element, so the mapper is not called.
+- Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call; the current lossiness of that object form is listed under [Current Limitations](#current-limitations).
 
 Because evaluation is demand-driven, a program that is not well-formed may still terminate here, for example when testing whether a mapped set is non-empty without applying a divergent mapper. This is not guaranteed.
 
@@ -581,6 +562,5 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 ## Current Limitations
 
 - Well-formedness is not checked by the evaluator. Termination and independence from iteration order are semantic preconditions, so a program that is not well-formed may appear to observe laziness or iteration order.
-- Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
+- Cached function results and the implementation's node-to-object conversion are lossy: annotations and unknown properties are not preserved, and atom-defined nodes are normalised into sets. This is an implementation gap for function results: the reference evaluation treats functions as ordinary objects and preserves their properties.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
-- Converting a node to an object is lossy: unknown properties and annotations are not preserved, and atom-defined nodes are normalized into sets.
