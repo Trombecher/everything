@@ -52,13 +52,18 @@ A result is a _set result_ if it is a set or a function value. Atoms and constru
 
 ## Reference Evaluation
 
-The meaning of a node is defined by a _reference evaluation_ that builds every set eagerly. A program (a node together with a knowledge) is _well-formed_ if the reference evaluation terminates. Its result may be the atom `undefined`; producing `undefined` is an ordinary, specified result.
+The meaning of a node is defined by a _reference evaluation_ that builds every set eagerly and follows the short-circuiting rules of each node. A program (a node together with a knowledge) is _well-formed_ if:
 
-Set iteration order is not specified. Different implementations or versions may visit elements in a different order, so programs whose result depends on it are not portable. This affects [fold](#fold), [every](#every), and [any](#any) when their function is not order-insensitive; see [Correctness and associativity](#correctness-and-associativity).
+- the reference evaluation terminates for every iteration order, and
+- its result is the same for every iteration order.
 
-The implementation uses demand-driven evaluation instead; see [Evaluation Strategy](#evaluation-strategy). Apart from iteration order, it produces the reference result for every well-formed program. Laziness changes how much work is done, not the result.
+Its result may be the atom `undefined`; producing `undefined` is an ordinary, specified result.
 
-If the reference evaluation does not terminate, the program is not well-formed and has no specified result. The implementation may diverge, or it may happen to terminate because a divergent subcomputation was never demanded. This is not guaranteed and may change between implementations or versions. It is unrelated to the atom `undefined`, which is an ordinary value.
+For every well-formed program, the implementation produces that result. In particular, a well-formed program cannot observe laziness or iteration order. Laziness only changes how much work is done.
+
+The implementation uses demand-driven evaluation instead; see [Evaluation Strategy](#evaluation-strategy).
+
+If a program is not well-formed, it has no specified result. The implementation may diverge, or it may happen to terminate because a divergent subcomputation was never demanded, or it may produce a result that depends on iteration order. This is not guaranteed and may change between implementations or versions. It is unrelated to the atom `undefined`, which is an ordinary value.
 
 ## Truthiness
 
@@ -125,11 +130,7 @@ An object is an _and node_ iff
 - it has the property `node_and_first <left>` and
 - it has the property `node_and_second <right>`.
 
-It evaluates both children and combines their truthiness:
-
-- if `<left>` is `false`, the result is `false`;
-- if `<left>` has undefined truthiness, the result is `undefined`;
-- if `<left>` is `true`, the result is `true` if `<right>` is truthy, `false` if it is falsy, and `undefined` if its truthiness is undefined.
+It evaluates `<left>`. If `<left>` is `false`, the result is `false`; if it has undefined truthiness, the result is `undefined`. If `<left>` is `true`, it evaluates `<right>` and returns its truthiness coerced to a boolean.
 
 An and node therefore never returns the value of `<right>` itself.
 
@@ -140,11 +141,7 @@ An object is an _or node_ iff
 - it has the property `node_or_first <left>` and
 - it has the property `node_or_second <right>`.
 
-It evaluates both children and combines their truthiness:
-
-- if `<left>` is `true`, the result is `true`;
-- if `<left>` has undefined truthiness, the result is `undefined`;
-- if `<left>` is `false`, the result is `true` if `<right>` is truthy, `false` if it is falsy, and `undefined` if its truthiness is undefined.
+It evaluates `<left>`. If `<left>` is `true`, the result is `true`; if it has undefined truthiness, the result is `undefined`. If `<left>` is `false`, it evaluates `<right>` and returns its truthiness coerced to a boolean.
 
 An or node therefore never returns the value of `<right>` itself.
 
@@ -257,7 +254,7 @@ An object is a _difference node_ iff
 - it has the property `node_difference_first <left>` and
 - it has the property `node_difference_second <right>`.
 
-It evaluates both children. If the left result is the empty set, the result is the empty set. Otherwise, if either result is not a set, the result is `undefined`; if both are sets, the result is the set of elements of the left result that are not elements of the right result.
+It evaluates `<left>`. If the result is not a set, the result is `undefined`. If it is the empty set, the result is that empty set and `<right>` is not evaluated. Otherwise it evaluates `<right>`; if that result is not a set, the result is `undefined`; otherwise the result is the set of elements of the left result that are not elements of the right result.
 
 Node recognition requires both children to parse as nodes.
 
@@ -291,7 +288,7 @@ It evaluates `<set>` and `<predicate>`:
 1. If `<set>` is not a set, the result is `undefined`.
 2. If `<set>` has no elements, the result is `true`; the predicate is not used.
 3. If `<predicate>` is not a function, the result is `undefined`.
-4. Otherwise the elements are visited in the implementation's iteration order. Each element `<o>` is passed to `<predicate>` as a literal argument via `{node_call_callee <predicate>, node_call_with <o>}`. The first call whose result is not `true` determines the outcome: `false` yields `false`, and anything else yields `undefined`.
+4. Otherwise the elements are visited in the set's iteration order. Each element `<o>` is passed to `<predicate>` as a literal argument via `{node_call_callee <predicate>, node_call_with <o>}`. The first call whose result is not `true` determines the outcome: `false` yields `false`, and anything else yields `undefined`.
 5. If every call yields `true`, the result is `true`.
 
 `every` is the short-circuiting fold
@@ -300,7 +297,7 @@ It evaluates `<set>` and `<predicate>`:
 fold(<set>, x |-> y |-> x and (predicate y), true)
 ```
 
-and therefore inherits the [correctness caveat for folds](#correctness-and-associativity). It is independent of iteration order only if `<predicate>` returns `true` or `false` for every element. Otherwise a `false` before an undefined result yields `false`, while an undefined result before a `false` yields `undefined`.
+and therefore inherits the [well-formedness caveat for folds](#correctness-and-associativity). Its result does not depend on iteration order unless the predicate produces both `false` and a result with undefined truthiness: a `false` visited first yields `false`, while an undefined-truthiness result visited first yields `undefined`. In particular, the result is order-independent if the predicate returns `true` or `false` for every element. If the result depends on iteration order, the program is not well-formed.
 
 ## Any
 
@@ -314,7 +311,7 @@ It evaluates `<set>` and `<predicate>`:
 1. If `<set>` is not a set, the result is `undefined`.
 2. If `<set>` has no elements, the result is `false`; the predicate is not used.
 3. If `<predicate>` is not a function, the result is `undefined`.
-4. Otherwise the elements are visited in the implementation's iteration order. Each element `<o>` is passed to `<predicate>` as a literal argument via `{node_call_callee <predicate>, node_call_with <o>}`. The first call whose result is not `false` determines the outcome: `true` yields `true`, and anything else yields `undefined`.
+4. Otherwise the elements are visited in the set's iteration order. Each element `<o>` is passed to `<predicate>` as a literal argument via `{node_call_callee <predicate>, node_call_with <o>}`. The first call whose result is not `false` determines the outcome: `true` yields `true`, and anything else yields `undefined`.
 5. If every call yields `false`, the result is `false`.
 
 `any` is the short-circuiting fold
@@ -323,7 +320,7 @@ It evaluates `<set>` and `<predicate>`:
 fold(<set>, x |-> y |-> x or (predicate y), false)
 ```
 
-and therefore inherits the [correctness caveat for folds](#correctness-and-associativity). It is independent of iteration order only if `<predicate>` returns `true` or `false` for every element. Otherwise a `true` before an undefined result yields `true`, while an undefined result before a `true` yields `undefined`.
+and therefore inherits the [well-formedness caveat for folds](#correctness-and-associativity). Its result does not depend on iteration order unless the predicate produces both `true` and a result with undefined truthiness: a `true` visited first yields `true`, while an undefined-truthiness result visited first yields `undefined`. In particular, the result is order-independent if the predicate returns `true` or `false` for every element. If the result depends on iteration order, the program is not well-formed.
 
 Both `every` and `any` can be expressed with `fold`; whether they will remain primitive nodes is still undecided.
 
@@ -358,13 +355,15 @@ In object form, each step is:
 
 ### Correctness and associativity
 
-For a fold to be independent of the order in which the set is traversed, its folding operation must be **associative**: for all values `x`, `y`, and `z`,
+A fold is well-formed only if its result is independent of the order in which the set is traversed. A sufficient condition is that the folding operation is **associative**: for all values `x`, `y`, and `z`,
 
 ```text
 (x ⊕ y) ⊕ z = x ⊕ (y ⊕ z)
 ```
 
-Only then does folding a set yield the same result for every order and grouping of its elements. Otherwise the result is determined by the set's iteration order, which is an implementation detail.
+An associative folder guarantees the same result for every order and grouping of the elements. Associativity is sufficient but not necessary: a non-associative folder can still happen to produce the same result for every order of a particular set.
+
+If the result depends on iteration order, the program is not well-formed (see [Reference Evaluation](#reference-evaluation)). The result is then determined by the set's iteration order, which is not specified.
 
 The `and` node is not associative on all inputs. For example:
 
@@ -373,9 +372,9 @@ false and undefined = false
 undefined and false = undefined
 ```
 
-Consequently, `and` is associative only when every operand has truthiness `true` or `false`; in particular, when no folded value is `undefined` or another non-boolean value. Equivalently, the mapper or folder must never produce `undefined` truthiness for an element.
+Consequently, `and` is associative only when every operand has truthiness `true` or `false`. A folded value with undefined truthiness can therefore make the fold order-dependent.
 
-Whether a particular folder or mapper satisfies this property depends on the behaviour of arbitrary nodes. Since the computation system is Turing complete, the property is undecidable in general: no algorithm can decide it for all nodes, and the evaluator cannot check or guarantee it. Correctness of a `fold` is therefore the programmer's responsibility. Without a proof of associativity, the evaluator can only produce the result for the chosen iteration order.
+Whether a particular folder or mapper satisfies this property depends on the behaviour of arbitrary nodes. Since the computation system is Turing complete, the property is undecidable in general: no algorithm can decide it for all nodes, and the evaluator cannot check or guarantee it. Correctness of a `fold` is therefore the programmer's responsibility. If order-independence cannot be established, the fold is not well-formed, and the evaluator gives no guarantee about the result.
 
 ## Contains
 
@@ -394,7 +393,7 @@ An object is an _if node_ iff
 - it has the property `node_if_then <then>`, and
 - it has the property `node_if_else <else>`.
 
-It evaluates all three children. If `<condition>` is truthy, the result is `<then>`; if it is falsy, the result is `<else>`; if it has undefined truthiness, the result is `undefined`.
+It evaluates `<condition>`. If `<condition>` is truthy, it evaluates and returns `<then>`; if it is falsy, it evaluates and returns `<else>`; if it has undefined truthiness, the result is `undefined`.
 
 ## Unwrap
 
@@ -524,18 +523,18 @@ evaluates to `2`.
 
 ## Evaluation Strategy
 
-This section describes implementation choices. With the exception of iteration order, they do not affect the result of a well-formed program (see [Reference Evaluation](#reference-evaluation)), but they determine how much work is done and can matter for programs whose evaluation does not terminate.
+This section describes implementation choices. They do not affect the result of a well-formed program (see [Reference Evaluation](#reference-evaluation)), but they determine how much work is done and can matter for programs that are not well-formed.
 
 The implementation is demand-driven:
 
 - [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#map), [filter](#filter), and the query nodes build a description of a set without iterating their operands. The members are computed when an operation needs them: by [count](#set-count), [unwrap](#unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the elements, such as [fold](#fold), [every](#every), [any](#any), [map](#map), or [filter](#filter).
-- [Has value](#has-value), [every](#every), and [any](#any) stop as soon as the answer is known. For example, the has-value result of a [map](#map) only depends on whether the source set has an element, so the mapper is not called.
-- [And](#logical-and) and [or](#logical-or) do not evaluate `<right>` when `<left>` already determines the result. [If](#conditional-nodes) evaluates only the selected branch. [Difference](#set-difference) with an empty left result does not evaluate `<right>`.
-- Iteration order is not specified. It can be observed through [fold](#fold), [every](#every), and [any](#any) when their function is not order-insensitive; see [Correctness and associativity](#correctness-and-associativity).
+- [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#map) only depends on whether the source set has an element, so the mapper is not called.
 
-Because evaluation is demand-driven, a program that does not terminate under the reference evaluation may still terminate here, for example when testing whether a mapped set is non-empty without applying a divergent mapper. This is not guaranteed.
+Because evaluation is demand-driven, a program that is not well-formed may still terminate here, for example when testing whether a mapped set is non-empty without applying a divergent mapper. This is not guaranteed.
 
 Where an operation needs a value as an object or as a node, lazily represented values are materialised first. This can force a set that would otherwise not be iterated, such as a query operand or a value that is parsed as a node.
+
+The implementation uses a concrete iteration order internally; a well-formed program cannot observe which one.
 
 ## Implementation Status
 
@@ -581,6 +580,7 @@ Where an operation needs a value as an object or as a node, lazily represented v
 
 ## Current Limitations
 
+- Well-formedness is not checked by the evaluator. Termination and independence from iteration order are semantic preconditions, so a program that is not well-formed may appear to observe laziness or iteration order.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
 - Converting a node to an object is lossy: unknown properties and annotations are not preserved, and atom-defined nodes are normalized into sets.
