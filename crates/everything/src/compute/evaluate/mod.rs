@@ -414,27 +414,22 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 );
             }
             Task::QueryAtomsWithProperty => {
-                let property = evaluated.pop().unwrap().try_into_object();
+                let property = evaluated.pop().unwrap().into_object(knowledge);
 
-                evaluated.push(match property {
-                    Some(property) => LazyObject::AtomsWithProperty { property },
-                    None => UNDEFINED,
-                });
+                evaluated.push(LazyObject::AtomsWithProperty { property });
             }
             Task::QueryConstructionValues => {
-                let property_constructor = evaluated.pop().unwrap().try_into_object();
+                let property_constructor = evaluated.pop().unwrap().into_object(knowledge);
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(
-                    if !matches!(&object, LazyObject::Eager(Object::Construction(_)))
-                        && let Some(property_constructor) = property_constructor
-                    {
+                    if matches!(&object, LazyObject::Eager(Object::Construction(_))) {
+                        UNDEFINED
+                    } else {
                         LazyObject::ConstructionValues {
                             target: Box::new(object),
                             property_constructor,
                         }
-                    } else {
-                        UNDEFINED
                     },
                 );
             }

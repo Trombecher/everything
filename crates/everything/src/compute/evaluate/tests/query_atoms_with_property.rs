@@ -45,21 +45,32 @@ fn query_atoms_with_property() {
 }
 
 #[test]
-fn query_atoms_with_deferred_property_is_undefined() {
+fn query_atoms_with_deferred_property_is_materialised() {
+    let atom = Atom(42);
+    let property = Object::Set(Set::empty());
+
+    let mut knowledge = BASE.clone();
+    knowledge.add_statement(Statement {
+        atom,
+        object: property,
+    });
+
     let empty_set = Node::Literal(Object::Set(Set::empty()));
 
+    let result = evaluate(
+        &Node::QueryAtomsWithProperty {
+            property: Node::Union {
+                first: empty_set.clone().into(),
+                second: empty_set.into(),
+            }
+            .into(),
+        },
+        &knowledge,
+    );
+
+    assert!(result.is_set());
     assert_eq!(
-        evaluate(
-            &Node::QueryAtomsWithProperty {
-                property: Node::Union {
-                    first: empty_set.clone().into(),
-                    second: empty_set.into(),
-                }
-                .into(),
-            },
-            &BASE,
-        )
-        .into_object(&BASE),
-        Atom::UNDEFINED.into()
+        result.iter(&knowledge).collect::<Vec<_>>(),
+        vec![atom.into()]
     );
 }

@@ -117,7 +117,7 @@ impl LazyObject {
     pub fn try_into_node(self, knowledge: &Knowledge) -> Option<Node> {
         match self {
             Self::Node(node) => Some(node),
-            object => Node::new(&object.try_into_object()?, knowledge).ok(),
+            object => Node::new(&object.into_object(knowledge), knowledge).ok(),
         }
     }
 

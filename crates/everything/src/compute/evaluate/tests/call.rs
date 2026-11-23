@@ -23,6 +23,28 @@ fn curried_add_function() {
 }
 
 #[test]
+fn call_parses_deferred_callee_as_a_node() {
+    let function = identity_function().into_object();
+    let empty_set = Node::Literal(Object::Set(Set::empty()));
+    let callee = Node::Union {
+        first: Node::Literal(function).into(),
+        second: empty_set.into(),
+    };
+
+    assert_eq!(
+        evaluate(
+            &Node::Call {
+                callee: callee.into(),
+                with: Node::Literal(integer(5)).into(),
+            },
+            &BASE,
+        )
+        .into_object(&BASE),
+        integer(5)
+    );
+}
+
+#[test]
 fn call_with_undefined_callee_is_undefined() {
     assert_eq!(
         evaluate(

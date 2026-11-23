@@ -56,7 +56,7 @@ The meaning of a node is defined by a _reference evaluation_ that builds every s
 
 Set iteration order is not specified. Different implementations or versions may visit elements in a different order, so programs whose result depends on it are not portable. This affects [fold](#fold), [every](#every), and [any](#any) when their function is not order-insensitive; see [Correctness and associativity](#correctness-and-associativity).
 
-The implementation uses demand-driven evaluation instead; see [Evaluation Strategy](#evaluation-strategy). Apart from iteration order and the implementation gaps listed under [Current Limitations](#current-limitations), it produces the reference result for every well-formed program. Laziness changes how much work is done, not the result.
+The implementation uses demand-driven evaluation instead; see [Evaluation Strategy](#evaluation-strategy). Apart from iteration order, it produces the reference result for every well-formed program. Laziness changes how much work is done, not the result.
 
 If the reference evaluation does not terminate, the program is not well-formed and has no specified result. The implementation may diverge, or it may happen to terminate because a divergent subcomputation was never demanded. This is not guaranteed and may change between implementations or versions. It is unrelated to the atom `undefined`, which is an ordinary value.
 
@@ -528,14 +528,14 @@ This section describes implementation choices. With the exception of iteration o
 
 The implementation is demand-driven:
 
-- [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#map), [filter](#filter), and the query nodes build a description of a set without iterating their operands. The members are computed when an operation needs them: by [count](#set-count), [unwrap](#unwrap), [equality](#equality), [new construction](#new-construction), or an operation that visits the elements, such as [fold](#fold), [every](#every), [any](#any), [map](#map), or [filter](#filter).
+- [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#map), [filter](#filter), and the query nodes build a description of a set without iterating their operands. The members are computed when an operation needs them: by [count](#set-count), [unwrap](#unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the elements, such as [fold](#fold), [every](#every), [any](#any), [map](#map), or [filter](#filter).
 - [Has value](#has-value), [every](#every), and [any](#any) stop as soon as the answer is known. For example, the has-value result of a [map](#map) only depends on whether the source set has an element, so the mapper is not called.
 - [And](#logical-and) and [or](#logical-or) do not evaluate `<right>` when `<left>` already determines the result. [If](#conditional-nodes) evaluates only the selected branch. [Difference](#set-difference) with an empty left result does not evaluate `<right>`.
 - Iteration order is not specified. It can be observed through [fold](#fold), [every](#every), and [any](#any) when their function is not order-insensitive; see [Correctness and associativity](#correctness-and-associativity).
 
 Because evaluation is demand-driven, a program that does not terminate under the reference evaluation may still terminate here, for example when testing whether a mapped set is non-empty without applying a divergent mapper. This is not guaranteed.
 
-Where an operation needs a value as an object or as a node, the current implementation can reject a lazily represented set that the reference evaluation would accept in its eager form. See [Current Limitations](#current-limitations).
+Where an operation needs a value as an object or as a node, lazily represented values are materialised first. This can force a set that would otherwise not be iterated, such as a query operand or a value that is parsed as a node.
 
 ## Implementation Status
 
@@ -581,8 +581,6 @@ Where an operation needs a value as an object or as a node, the current implemen
 
 ## Current Limitations
 
-- [Query atoms with property](#query-atoms-with-property) and [query construction values](#query-construction-values) currently reject a lazily represented operand with `undefined`, while an eagerly evaluated operand with the same value is accepted. This is an implementation gap: the reference evaluation does not distinguish them.
-- Node parsing positions ([call](#function-application), [map](#map), [filter](#filter), [every](#every), [any](#any), [fold](#fold)) currently reject lazily represented values. An eagerly evaluated value that encodes a node is accepted. This is an implementation gap.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
 - Converting a node to an object is lossy: unknown properties and annotations are not preserved, and atom-defined nodes are normalized into sets.

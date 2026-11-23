@@ -102,6 +102,36 @@ fn query_construction_values_of_literal_set() {
 }
 
 #[test]
+fn query_construction_values_materialises_deferred_constructor() {
+    let constructor = Object::Set(Set::empty());
+    let value = Object::new_integer(BigInt::from(7));
+    let atom = Atom(42);
+
+    let mut knowledge = BASE.clone();
+    knowledge.add_statement(Statement {
+        atom,
+        object: Construction::new(constructor, value.clone()).into(),
+    });
+
+    let empty_set = Node::Literal(Object::Set(Set::empty()));
+    let deferred_constructor = Node::Union {
+        first: empty_set.clone().into(),
+        second: empty_set.into(),
+    };
+
+    let result = evaluate(
+        &Node::QueryConstructionValues {
+            object: Node::Literal(Object::Atom(atom)).into(),
+            property_constructor: deferred_constructor.into(),
+        },
+        &knowledge,
+    );
+
+    assert!(result.is_set());
+    assert_eq!(result.iter(&knowledge).collect::<Vec<_>>(), vec![value]);
+}
+
+#[test]
 fn query_construction_values_resolves_objects_through_the_knowledge() {
     let construction = Object::Construction(Construction::new(Atom(1).into(), Atom(2).into()));
     let property_constructor = Node::Literal(Atom(1).into());
@@ -142,21 +172,21 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
     assert_eq!(undefined_result.size(&BASE), 0);
     assert_eq!(undefined_result.iter(&BASE).count(), 0);
 
-    // A deferred set is a set, but cannot be used as a constructor.
+    // A deferred constructor is materialised and accepted like an eager one.
     let empty_set = Node::Literal(Object::Set(Set::empty()));
     let deferred_set = Node::Union {
         first: empty_set.clone().into(),
         second: empty_set.clone().into(),
     };
 
-    assert_eq!(
-        evaluate_query(
-            Node::Literal(Object::Set(Set::empty())),
-            deferred_set.clone()
-        )
-        .into_object(&BASE),
-        Atom::UNDEFINED.into()
+    let from_deferred = evaluate_query(
+        Node::Literal(Object::Set(Set::empty())),
+        deferred_set.clone(),
     );
+
+    assert!(from_deferred.is_set());
+    assert_eq!(from_deferred.size(&BASE), 0);
+    assert_eq!(from_deferred.iter(&BASE).count(), 0);
 
     // A deferred set target yields a deferred result.
     let result = evaluate_query(deferred_set, Node::Literal(Atom(1).into()));
