@@ -4,7 +4,7 @@ Everything has a computation system where functions and expressions can be evalu
 
 Evaluation is knowledge-relative. Node recognition, atom property lookup, queries, and calling atom-defined functions all consult the knowledge that is supplied to the evaluator. A subset of the system can be evaluated in an empty knowledge, but anything that reads properties or queries atoms needs a knowledge context.
 
-This chapter describes the implemented model.
+This chapter describes the implemented model. It distinguishes the reference evaluation, which defines the meaning of a program, from the implementation's evaluation strategy.
 
 ## Node Objects and Recognition
 
@@ -37,20 +37,28 @@ Node recognition is not itself an evaluator operation. The evaluator takes an al
 
 ## Evaluation Results
 
-Evaluation maps a node and a knowledge to a _result_. A result is one of:
+Evaluation maps a node and a knowledge to a _result_. A result is:
 
-- an evaluated object,
-- a function value, which is a captured node that is kept as code rather than evaluated further,
-- a deferred set operation: a union, intersection, difference, map, or filter,
-- the atom `undefined`.
+- an atom,
+- a construction,
+- a set,
+- a function value, which is a captured node that is kept as code rather than evaluated further.
 
-Deferred set operations are built without iterating their inputs. They are iterated when an operation needs their elements, such as `unwrap`, `filter`, `map`, membership tests, or explicit iteration. Not every operation supports deferred results yet; see [Current Limitations](#current-limitations).
+Sets do not distinguish duplicates and have no intrinsic order. The atom `undefined` is a normal atom and may appear anywhere an atom may appear.
 
-A result is a _set_ if it is an evaluated set, the values of an atom produced by [Values Of](#values-of), a function value, or a deferred set operation. An evaluated atom or construction is not a set. Nodes that take a set operand return `undefined` for other results; use [Values Of](#values-of) to make an atom's values explicit. A function value is a node object, and its values are the properties of its node representation.
+A result is a _set result_ if it is a set or a function value. Atoms and constructions are not sets. Nodes that take a set operand return `undefined` for other results; use [Values Of](#values-of) to make an atom's values explicit. A function value is a node object, and its values are the properties of its node representation.
 
-`undefined` is a first-class atom and is treated like any other atom by nodes and queries. It is produced when the input of an operation does not have the required shape, for example when arithmetic receives a non-integer, when a call's callee is not a function, or when a parameter or function self-reference is out of range. Most operations propagate `undefined`.
+`undefined` is produced when the input of an operation does not have the required shape, for example when arithmetic receives a non-integer, when a call's callee is not a function, or when a parameter or function self-reference is out of range. Most operations propagate `undefined`.
 
-Evaluation is big-step and pure. Operands are evaluated before the node is applied unless the node explicitly short-circuits (`and`, `or`, `if`, `difference` with an empty first set) or builds a deferred set operation (`union`, `intersection`, `difference`, `map`, `filter`). The order in which operands are evaluated is fixed by the evaluator, but it is an implementation detail and should not be relied upon.
+## Reference Evaluation
+
+The meaning of a node is defined by a _reference evaluation_ that builds every set eagerly. A program (a node together with a knowledge) is _well-formed_ if the reference evaluation terminates. Its result may be the atom `undefined`; producing `undefined` is an ordinary, specified result.
+
+Set iteration order is not specified. Different implementations or versions may visit elements in a different order, so programs whose result depends on it are not portable. This affects [fold](#fold), [every](#every), and [any](#any) when their function is not order-insensitive; see [Correctness and associativity](#correctness-and-associativity).
+
+The implementation uses demand-driven evaluation instead; see [Evaluation Strategy](#evaluation-strategy). Apart from iteration order and the implementation gaps listed under [Current Limitations](#current-limitations), it produces the reference result for every well-formed program. Laziness changes how much work is done, not the result.
+
+If the reference evaluation does not terminate, the program is not well-formed and has no specified result. The implementation may diverge, or it may happen to terminate because a divergent subcomputation was never demanded. This is not guaranteed and may change between implementations or versions. It is unrelated to the atom `undefined`, which is an ordinary value.
 
 ## Truthiness
 
@@ -60,7 +68,7 @@ Truthiness is deliberately narrow:
 - An object is _falsy_ iff it is equal to `false`.
 - Every other object, including sets, constructions, and `undefined`, has _undefined truthiness_.
 
-There is no general "non-empty means true" coercion in the language. Boolean operations therefore produce only `true`, `false`, or `undefined`; they do not treat a non-empty set as true. A deferred result or a function value also has undefined truthiness because it is not yet an evaluated object.
+There is no general "non-empty means true" coercion in the language. Boolean operations therefore produce only `true`, `false`, or `undefined`; they do not treat a non-empty set as true. A function value also has undefined truthiness because it is kept as code rather than evaluated.
 
 ## Functions
 
@@ -104,7 +112,7 @@ A call evaluates the argument `<value>` and then the callee `<callee>`. It then 
 - otherwise the callee result is parsed as a node in the current knowledge, and it must be a `node_function` node;
 - if the callee is not a function, or the callee object is not a valid node, the call evaluates to `undefined`.
 
-The argument is bound to the function's parameter and the body is evaluated with the function context pushed. The context is popped when the body finishes. The argument is evaluated but not forced: a deferred set argument stays deferred inside the function.
+The argument is bound to the function's parameter and the body is evaluated with the function context pushed. The context is popped when the body finishes.
 
 ## Literals
 
@@ -117,11 +125,11 @@ An object is an _and node_ iff
 - it has the property `node_and_first <left>` and
 - it has the property `node_and_second <right>`.
 
-It first evaluates `<left>`:
+It evaluates both children and combines their truthiness:
 
-- if `<left>` is `false`, the result is `false` and `<right>` is not evaluated;
-- if `<left>` has undefined truthiness, the result is `undefined` and `<right>` is not evaluated;
-- if `<left>` is `true`, it evaluates `<right>` and coerces its truthiness to a boolean. The result is `true`, `false`, or `undefined` accordingly.
+- if `<left>` is `false`, the result is `false`;
+- if `<left>` has undefined truthiness, the result is `undefined`;
+- if `<left>` is `true`, the result is `true` if `<right>` is truthy, `false` if it is falsy, and `undefined` if its truthiness is undefined.
 
 An and node therefore never returns the value of `<right>` itself.
 
@@ -132,11 +140,11 @@ An object is an _or node_ iff
 - it has the property `node_or_first <left>` and
 - it has the property `node_or_second <right>`.
 
-It first evaluates `<left>`:
+It evaluates both children and combines their truthiness:
 
-- if `<left>` is `true`, the result is `true` and `<right>` is not evaluated;
-- if `<left>` has undefined truthiness, the result is `undefined` and `<right>` is not evaluated;
-- if `<left>` is `false`, it evaluates `<right>` and coerces its truthiness to a boolean. The result is `true`, `false`, or `undefined` accordingly.
+- if `<left>` is `true`, the result is `true`;
+- if `<left>` has undefined truthiness, the result is `undefined`;
+- if `<left>` is `false`, the result is `true` if `<right>` is truthy, `false` if it is falsy, and `undefined` if its truthiness is undefined.
 
 An or node therefore never returns the value of `<right>` itself.
 
@@ -197,10 +205,9 @@ As with addition, integers are arbitrary precision and cannot overflow.
 
 An object is a _count node_ iff it has the property `node_count <inner>`. It evaluates `<inner>` and, if the result is a set, returns its number of elements:
 
-- for an evaluated set, the number of members;
-- for an atom's values, the number of values;
-- for a function value, the number of properties of its node representation, which is `1` for a function;
-- for a deferred set result (union, intersection, difference, map, or filter), the number of distinct elements it yields.
+- for a set, the number of members;
+- for the values of an atom, the number of values;
+- for a function value, the number of properties of its node representation, which is `1` for a function.
 
 If the result is an atom or a construction, the result is `undefined`. Use [Values Of](#values-of) to count the values of an atom: `count(values_of(<atom>))`.
 
@@ -208,22 +215,22 @@ If the result is an atom or a construction, the result is `undefined`. Use [Valu
 
 An object is a _values-of node_ iff it has the property `node_values_of <inner>`. It evaluates `<inner>` and converts the result to the set of its values:
 
-- for a set or function value, the result itself, unchanged (this includes deferred set results);
-- for an atom, a deferred set of the values (properties) the atom has in the knowledge;
+- for a set or function value, the result itself;
+- for an atom, the set of values (properties) the atom has in the knowledge;
 - for a construction, `undefined`.
 
-An atom without statements evaluates to the empty set. The atom case is deferred: counting, testing, or iterating the result reads the knowledge values directly and does not materialise a specialised set object. In contrast to [Set Count](#set-count), the conversion from an object to its values is explicit, so counting the values of an atom is written as `count(values_of(<atom>))`.
+An atom without statements evaluates to the empty set. In contrast to [Set Count](#set-count), the conversion from an object to its values is explicit, so counting the values of an atom is written as `count(values_of(<atom>))`.
 
 ## Has Value
 
 An object is a _has-value node_ iff it has the property `node_has_value <inner>`. It evaluates `<inner>` and returns `true` iff the result has at least one value:
 
-- for a set, whether it has at least one member (this includes deferred set results, which short-circuit where possible);
+- for a set, whether it has at least one member;
 - for an atom, whether it has at least one value in the knowledge;
 - for a construction, `undefined`;
 - for a function value, `true`.
 
-This is the existential counterpart of [Set Count](#set-count). It is equivalent to `count(values_of(<inner>)) > 0`, but it does not materialise the values of an atom.
+This is the existential counterpart of [Set Count](#set-count). It is equivalent to `count(values_of(<inner>)) > 0`.
 
 ## Set Union
 
@@ -232,9 +239,7 @@ An object is a _union node_ iff
 - it has the property `node_union_first <left>` and
 - it has the property `node_union_second <right>`.
 
-It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is a deferred set that represents the union of the two results.
-
-Conceptually, the result contains every element of the left result and every element of the right result. Iteration yields the left elements followed by the right elements, skipping values that were already yielded, so every element appears at most once. Membership tests and size are consistent with that.
+It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is the union of the two sets.
 
 ## Set Intersection
 
@@ -243,9 +248,7 @@ An object is an _intersection node_ iff
 - it has the property `node_intersection_first <left>` and
 - it has the property `node_intersection_second <right>`.
 
-It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is a deferred set that represents the intersection of the two results.
-
-Iteration yields the elements of the left result that are also members of the right result, skipping values that were already yielded, so every element appears at most once. Membership tests and size are consistent with that.
+It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is the intersection of the two sets.
 
 ## Set Difference
 
@@ -254,11 +257,9 @@ An object is a _difference node_ iff
 - it has the property `node_difference_first <left>` and
 - it has the property `node_difference_second <right>`.
 
-It evaluates `<left>`. If the result is not a set, the result is `undefined`. If the result is the empty set, the result is that empty set and `<right>` is not evaluated. Otherwise it evaluates `<right>`; if that result is not a set, the result is `undefined`, and otherwise the result is a deferred set containing the elements of the left result that are not members of the right result.
+It evaluates both children. If the left result is the empty set, the result is the empty set. Otherwise, if either result is not a set, the result is `undefined`; if both are sets, the result is the set of elements of the left result that are not elements of the right result.
 
-The empty-left case yields an evaluated (empty) set; every other result is deferred. Iteration yields elements in the order of the left result, skipping values that were already yielded, so every element appears at most once. Membership tests and size are consistent with that.
-
-Node recognition still requires both children to parse as nodes; only the evaluation of `<right>` is skipped when the left result is empty.
+Node recognition requires both children to parse as nodes.
 
 ## Filter
 
@@ -267,9 +268,7 @@ An object is a _filter node_ iff
 - it has the property `node_filter_set <set>` and
 - it has the property `node_filter_filter <filter>`.
 
-It evaluates `<set>` and `<filter>`. If `<set>` is not a set, or if `<filter>` is not a function, the result is `undefined`. Otherwise the result is a deferred set.
-
-When the result is iterated, each element of `<set>` is passed to `<filter>` as a literal argument. An element is retained iff the call evaluates to exactly `true`. Results that are `false` or have undefined truthiness are dropped. The filter function is called lazily, during iteration, not when the filter node is evaluated. The size counts distinct retained elements.
+It evaluates `<set>` and `<filter>`. If `<set>` is not a set, or if `<filter>` is not a function, the result is `undefined`. Otherwise the result is the set of elements of `<set>` for which the call of `<filter>` with the element as a literal argument evaluates to exactly `true`. Results that are `false` or have undefined truthiness are excluded.
 
 ## Map
 
@@ -278,9 +277,7 @@ An object is a _map node_ iff
 - it has the property `node_map_set <set>` and
 - it has the property `node_map_mapper <mapper>`.
 
-It evaluates `<set>` and `<mapper>`. If `<set>` is not a set, or if `<mapper>` is not a function, the result is `undefined`. Otherwise the result is a deferred set.
-
-When the result is iterated, each element of `<set>` is passed to `<mapper>` as a literal argument and replaced by the call's result. The mapper is called lazily, during iteration. Iteration yields every distinct mapped value once; if two elements map to the same object, that object is yielded once. The size is consistent with that.
+It evaluates `<set>` and `<mapper>`. If `<set>` is not a set, or if `<mapper>` is not a function, the result is `undefined`. Otherwise the result is the set of results of calling `<mapper>` with each element of `<set>` as a literal argument. Because the result is a set, equal mapped values are not distinguished.
 
 ## Every
 
@@ -292,13 +289,10 @@ An object is an _every node_ iff
 It evaluates `<set>` and `<predicate>`:
 
 1. If `<set>` is not a set, the result is `undefined`.
-2. If `<set>` has no elements, the result is `true`. The predicate is not called in this case, so it may even be `undefined` or not a function.
+2. If `<set>` has no elements, the result is `true`; the predicate is not used.
 3. If `<predicate>` is not a function, the result is `undefined`.
-4. Otherwise each element `<o>` of `<set>` is passed to `<predicate>` in iteration order as `{node_call_callee <predicate>, node_call_with <o>}`. The first call result determines the outcome:
-   - `true` continues with the next element;
-   - `false` yields `false` and stops;
-   - anything else yields `undefined` and stops.
-5. If every call is `true`, the result is `true`.
+4. Otherwise the elements are visited in the implementation's iteration order. Each element `<o>` is passed to `<predicate>` as a literal argument via `{node_call_callee <predicate>, node_call_with <o>}`. The first call whose result is not `true` determines the outcome: `false` yields `false`, and anything else yields `undefined`.
+5. If every call yields `true`, the result is `true`.
 
 `every` is the short-circuiting fold
 
@@ -318,13 +312,10 @@ An object is an _any node_ iff
 It evaluates `<set>` and `<predicate>`:
 
 1. If `<set>` is not a set, the result is `undefined`.
-2. If `<set>` has no elements, the result is `false`. The predicate is not called in this case, so it may even be `undefined` or not a function.
+2. If `<set>` has no elements, the result is `false`; the predicate is not used.
 3. If `<predicate>` is not a function, the result is `undefined`.
-4. Otherwise each element `<o>` of `<set>` is passed to `<predicate>` in iteration order as `{node_call_callee <predicate>, node_call_with <o>}`. The first call result determines the outcome:
-   - `false` continues with the next element;
-   - `true` yields `true` and stops;
-   - anything else yields `undefined` and stops.
-5. If every call is `false`, the result is `false`.
+4. Otherwise the elements are visited in the implementation's iteration order. Each element `<o>` is passed to `<predicate>` as a literal argument via `{node_call_callee <predicate>, node_call_with <o>}`. The first call whose result is not `false` determines the outcome: `true` yields `true`, and anything else yields `undefined`.
+5. If every call yields `false`, the result is `false`.
 
 `any` is the short-circuiting fold
 
@@ -347,12 +338,12 @@ An object is a _fold node_ iff
 It evaluates `<set>`, `<folder>`, and `<initial>`:
 
 1. If `<set>` is not a set, the result is `undefined`.
-2. If `<set>` has no elements, the result is the value of `<initial>`. The folder is not called in this case, so it may even be `undefined`.
+2. If `<set>` has no elements, the result is the value of `<initial>`; the folder is not used.
 3. If `<folder>` is not a function, the result is `undefined`.
 4. Otherwise the accumulator starts as the value of `<initial>`. For each element `<o>` of `<set>` in iteration order, apply `<folder>` pairwise: the first call receives the previous accumulator and returns a function, which is then called with `<o>`. The result of that call becomes the new accumulator.
 5. The final accumulator is the result.
 
-In contrast to [Map](#map) and [Filter](#filter), a fold is evaluated eagerly, and its result is the final accumulator rather than a deferred set. The accumulator may itself be a deferred set. If a folder application does not return a function, that step and all following steps evaluate to `undefined`, but folding continues over the remaining elements.
+In contrast to [Map](#map) and [Filter](#filter), a fold returns the final accumulator rather than a set. The accumulator may itself be a set. If a folder application does not return a function, the result is `undefined`; remaining elements do not change that.
 
 In object form, each step is:
 
@@ -393,7 +384,7 @@ An object is a _contains node_ iff
 - it has the property `node_contains_element <element>` and
 - it has the property `node_contains_set <set>`.
 
-It evaluates both children and returns whether `<element>` is a member of `<set>`. If `<set>` is not a set, the result is `undefined`. Membership is answered without materialising `<set>`, so it works for evaluated sets, `values_of` results, function values, and deferred sets. A deferred `<element>` is materialised before the test.
+It evaluates both children and returns `true` iff `<element>` is a member of `<set>`. If `<set>` is not a set, the result is `undefined`.
 
 ## Conditional Nodes
 
@@ -403,33 +394,33 @@ An object is an _if node_ iff
 - it has the property `node_if_then <then>`, and
 - it has the property `node_if_else <else>`.
 
-First the if node evaluates `<condition>`. If the result is truthy, it evaluates `<then>` and returns that result. If the result is falsy, it evaluates `<else>` and returns that result. If the condition has undefined truthiness, the result is `undefined` and neither branch is evaluated.
+It evaluates all three children. If `<condition>` is truthy, the result is `<then>`; if it is falsy, the result is `<else>`; if it has undefined truthiness, the result is `undefined`.
 
 ## Unwrap
 
-An object is an _unwrap node_ iff it has the property `node_unwrap_set <set>`. It evaluates `<set>`. If the result is not a set, the result is `undefined`. Otherwise it iterates the result: if the result has exactly one element, that element is returned; if it has zero elements or more than one element, the result is `undefined`.
+An object is an _unwrap node_ iff it has the property `node_unwrap_set <set>`. It evaluates `<set>`. If the result is not a set, the result is `undefined`. Otherwise, if the result has exactly one element, that element is returned; if it has zero elements or more than one element, the result is `undefined`.
 
 There is no default branch in the current implementation.
 
 ## Is Atom
 
-An object is an _is-atom node_ iff it has the property `node_is_atom <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an evaluated atom. Deferred set values and function values are not atoms and yield `false`.
+An object is an _is-atom node_ iff it has the property `node_is_atom <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an atom. Sets and function values are not atoms and yield `false`.
 
 ## Is Construction
 
-An object is an _is-construction node_ iff it has the property `node_is_construction <inner>`. It evaluates `<inner>`. The result is `true` iff the result is an evaluated construction. Deferred set values and function values yield `false`.
+An object is an _is-construction node_ iff it has the property `node_is_construction <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a construction. Sets and function values yield `false`.
 
 ## Is Set
 
-An object is an _is-set node_ iff it has the property `node_is_set <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a set: an evaluated set, a deferred set result, or a function value. Atoms and constructions are not sets.
+An object is an _is-set node_ iff it has the property `node_is_set <inner>`. It evaluates `<inner>`. The result is `true` iff the result is a set or a function value. Atoms and constructions are not sets.
 
 A function value is a node object and therefore a set in its own right; its elements are the properties of its node representation.
 
 ## Construction Constructor and Value
 
-An object is a _construction-constructor node_ iff it has the property `node_constructor_of_construction <construction>`. It evaluates `<construction>` and returns the constructor of the resulting construction. If the result is not an evaluated construction, the result is `undefined`.
+An object is a _construction-constructor node_ iff it has the property `node_constructor_of_construction <construction>`. It evaluates `<construction>` and returns the constructor of the resulting construction. If the result is not a construction, the result is `undefined`.
 
-An object is a _construction-value node_ iff it has the property `node_value_of_construction <construction>`. It evaluates `<construction>` and returns the value of the resulting construction. If the result is not an evaluated construction, the result is `undefined`.
+An object is a _construction-value node_ iff it has the property `node_value_of_construction <construction>`. It evaluates `<construction>` and returns the value of the resulting construction. If the result is not a construction, the result is `undefined`.
 
 ## New Construction
 
@@ -438,19 +429,19 @@ An object is a _new-construction node_ iff
 - it has the property `node_new_construction_constructor <constructor>` and
 - it has the property `node_new_construction_value <value>`.
 
-It evaluates both children and returns the construction `<constructor> <value>`. A deferred child is materialised before constructing.
+It evaluates both children and returns the construction `<constructor> <value>`.
 
 ## Query Atoms With Property
 
 An object is a _query-atoms-with-property node_ iff it has the property `node_atoms_with_property <property>`.
 
-It evaluates `<property>` and returns the set of all atoms that have the result as a property in the knowledge. The result is a deferred set: size and membership queries are answered by the knowledge directly, and iteration yields the matching atoms in knowledge order. If `<property>` evaluates to a deferred set, the result is `undefined`.
+It evaluates `<property>` and returns the set of all atoms that have the result as a property in the knowledge.
 
 ## Query Atoms With Constructor
 
 An object is a _query-atoms-with-constructor node_ iff it has the property `node_atoms_with_constructor <constructor>`.
 
-It evaluates `<constructor>` and returns the set of all atoms that have at least one property that is a construction whose constructor equals the evaluated `<constructor>`. Each matching atom is yielded once, regardless of how many matching properties it has. The result is a deferred set: iteration yields the matching atoms in knowledge order. If `<constructor>` evaluates to a deferred set, it is materialized by iterating it before the query.
+It evaluates `<constructor>` and returns the set of all atoms that have at least one property that is a construction whose constructor equals the evaluated `<constructor>`. Each matching atom appears once, regardless of how many matching properties it has.
 
 ## Query Construction Values
 
@@ -459,13 +450,13 @@ An object is a _query-construction-values node_ iff
 - it has the property `node_construction_values_object <object>` and
 - it has the property `node_construction_values_property_constructor <constructor>`.
 
-It evaluates `<object>` and `<constructor>`. If `<object>` is a construction, the result is `undefined`. Otherwise the result is a deferred set of all values `v` for which the values of `<object>` contain a construction `c v` whose constructor `c` equals the evaluated `<constructor>`. The values of an object are its values in the knowledge if it is an atom and its members if it is a set. If `<constructor>` cannot be materialised (a deferred set), the result is `undefined`.
+It evaluates `<object>` and `<constructor>`. If `<object>` is a construction, the result is `undefined`. Otherwise the result is the set of all values `v` for which the values of `<object>` contain a construction `c v` whose constructor `c` equals the evaluated `<constructor>`. The values of an object are its values in the knowledge if it is an atom and its members if it is a set.
 
 ## Query Constructions
 
 An object is a _query-constructions node_ iff it has the property `node_query_constructions <constructor>`.
 
-It evaluates `<constructor>` and returns a deferred set of all pairs `(a, v)` such that the knowledge contains the statement `a is <constructor> v`. Each pair is yielded as the object `{atom a, value v}`, where `atom` and `value` are atoms that are property constructors in the base knowledge. The pairs are yielded in knowledge order: by atom, and for each atom by the value's structural order. If `<constructor>` evaluates to a deferred set, it is materialized by iterating it before the query.
+It evaluates `<constructor>` and returns the set of all pairs `(a, v)` such that the knowledge contains the statement `a is <constructor> v`. Each pair is represented as the object `{atom a, value v}`, where `atom` and `value` are atoms that are property constructors in the base knowledge.
 
 ## Examples
 
@@ -517,7 +508,7 @@ Mapping `x + 1` over `{1, 2, 3}`:
 }
 ```
 
-evaluates to a deferred set. Iterating it yields `2`, `3`, and `4`.
+evaluates to the set `{2, 3, 4}`.
 
 ### Conditional
 
@@ -530,6 +521,21 @@ evaluates to a deferred set. Iterating it yields `2`, `3`, and `4`.
 ```
 
 evaluates to `2`.
+
+## Evaluation Strategy
+
+This section describes implementation choices. With the exception of iteration order, they do not affect the result of a well-formed program (see [Reference Evaluation](#reference-evaluation)), but they determine how much work is done and can matter for programs whose evaluation does not terminate.
+
+The implementation is demand-driven:
+
+- [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#map), [filter](#filter), and the query nodes build a description of a set without iterating their operands. The members are computed when an operation needs them: by [count](#set-count), [unwrap](#unwrap), [equality](#equality), [new construction](#new-construction), or an operation that visits the elements, such as [fold](#fold), [every](#every), [any](#any), [map](#map), or [filter](#filter).
+- [Has value](#has-value), [every](#every), and [any](#any) stop as soon as the answer is known. For example, the has-value result of a [map](#map) only depends on whether the source set has an element, so the mapper is not called.
+- [And](#logical-and) and [or](#logical-or) do not evaluate `<right>` when `<left>` already determines the result. [If](#conditional-nodes) evaluates only the selected branch. [Difference](#set-difference) with an empty left result does not evaluate `<right>`.
+- Iteration order is not specified. It can be observed through [fold](#fold), [every](#every), and [any](#any) when their function is not order-insensitive; see [Correctness and associativity](#correctness-and-associativity).
+
+Because evaluation is demand-driven, a program that does not terminate under the reference evaluation may still terminate here, for example when testing whether a mapped set is non-empty without applying a divergent mapper. This is not guaranteed.
+
+Where an operation needs a value as an object or as a node, the current implementation can reject a lazily represented set that the reference evaluation would accept in its eager form. See [Current Limitations](#current-limitations).
 
 ## Implementation Status
 
@@ -544,16 +550,16 @@ evaluates to `2`.
 | Or | `node_or_first`, `node_or_second` | implemented |
 | XOr | `node_xor_first`, `node_xor_second` | implemented |
 | Not | `node_not` | implemented |
-| Equal | `node_equal_first`, `node_equal_second` | implemented for evaluated objects |
+| Equal | `node_equal_first`, `node_equal_second` | implemented for all values |
 | Less | `node_less_first`, `node_less_second` | implemented for integers |
 | Add | `node_add_first`, `node_add_second` | implemented for integers |
 | Multiply | `node_multiply_first`, `node_multiply_second` | implemented for integers |
-| Count | `node_count` | implemented for sets, including deferred set results |
+| Count | `node_count` | implemented for sets |
 | Values of | `node_values_of` | implemented |
 | Has value | `node_has_value` | implemented |
 | Union | `node_union_first`, `node_union_second` | implemented; set operands only |
 | Intersection | `node_intersection_first`, `node_intersection_second` | implemented; set operands only |
-| Difference | `node_difference_first`, `node_difference_second` | implemented; set operands only; second child is not evaluated for an empty first set |
+| Difference | `node_difference_first`, `node_difference_second` | implemented; set operands only |
 | Filter | `node_filter_set`, `node_filter_filter` | implemented; set operand required |
 | Map | `node_map_set`, `node_map_mapper` | implemented; set operand required |
 | Every | `node_every_set`, `node_every_predicate` | implemented; expressible with `fold` |
@@ -575,8 +581,8 @@ evaluates to `2`.
 
 ## Current Limitations
 
-- Deferred set values (union, intersection, difference, map, filter) can be iterated, tested for membership, and counted; their size is the number of distinct values. They are materialized when converted to an object or compared for equality. Construction constructor/value extraction on deferred values yields `undefined`.
-- Deferred values and function values have undefined truthiness, so `and`, `or`, `xor`, `not`, and `if` produce `undefined` when given one directly.
+- [Query atoms with property](#query-atoms-with-property) and [query construction values](#query-construction-values) currently reject a lazily represented operand with `undefined`, while an eagerly evaluated operand with the same value is accepted. This is an implementation gap: the reference evaluation does not distinguish them.
+- Node parsing positions ([call](#function-application), [map](#map), [filter](#filter), [every](#every), [any](#any), [fold](#fold)) currently reject lazily represented values. An eagerly evaluated value that encodes a node is accepted. This is an implementation gap.
 - Function values are iterated through the values of their node representation, which is materialised on demand. Because node conversion is lossy, annotations and unknown properties of the original object are not part of that set.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
 - Converting a node to an object is lossy: unknown properties and annotations are not preserved, and atom-defined nodes are normalized into sets.
