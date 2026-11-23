@@ -357,12 +357,14 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let callee_lazy_object = evaluated.pop().unwrap();
                 let parameter_value = evaluated.pop().unwrap();
 
-                if let Some(Node::Function { body }) = callee_lazy_object.try_into_node(knowledge) {
+                if let Some(Node::Function { body, object }) =
+                    callee_lazy_object.try_into_node(knowledge)
+                {
                     tasks.push(Task::PopContext);
                     tasks.push(Task::Evaluate(Arc::clone(&body)));
 
                     evaluation_context.push(FunctionContext {
-                        function: Node::Function { body },
+                        function: Node::Function { body, object },
                         parameter: parameter_value,
                     });
                 } else {

@@ -12,13 +12,10 @@ use super::common::*;
 fn filter() {
     let node = Node::Filter {
         set: Node::Literal(integer_set().into()).into(),
-        filter_function: Node::Function {
-            body: Node::Equal {
-                first: Node::Parameter { depth: 0 }.into(),
-                second: Node::Literal(Object::new_integer(BigInt::from(2))).into(),
-            }
-            .into(),
-        }
+        filter_function: Node::function(Node::Equal {
+            first: Node::Parameter { depth: 0 }.into(),
+            second: Node::Literal(Object::new_integer(BigInt::from(2))).into(),
+        })
         .into(),
     };
 

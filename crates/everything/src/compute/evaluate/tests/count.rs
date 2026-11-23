@@ -23,7 +23,7 @@ fn count_requires_sets() {
     assert_eq!(count(Atom::UNDEFINED.into()), Atom::UNDEFINED.into());
     assert_eq!(count(set), Object::new_integer(BigInt::from(1)));
 
-    // A function value is a set: its node representation has one property.
+    // A plain function object is a set with one property.
     assert_eq!(
         evaluate(&Node::Count(identity_function().into()), &BASE).into_object(&BASE),
         Object::new_integer(BigInt::from(1))

@@ -32,28 +32,18 @@ pub fn integer_set() -> Set {
 
 /// The curried function `acc |-> element |-> acc + element`.
 pub fn add_folder() -> Node {
-    Node::Function {
-        body: Node::Function {
-            body: Node::Add {
-                first: Node::Parameter { depth: 1 }.into(),
-                second: Node::Parameter { depth: 0 }.into(),
-            }
-            .into(),
-        }
-        .into(),
-    }
+    Node::function(Node::function(Node::Add {
+        first: Node::Parameter { depth: 1 }.into(),
+        second: Node::Parameter { depth: 0 }.into(),
+    }))
 }
 
 pub fn identity_function() -> Node {
-    Node::Function {
-        body: Node::Parameter { depth: 0 }.into(),
-    }
+    Node::function(Node::Parameter { depth: 0 })
 }
 
 pub fn constant_predicate(value: Object) -> Node {
-    Node::Function {
-        body: Node::Literal(value).into(),
-    }
+    Node::function(Node::Literal(value))
 }
 
 pub fn always_true_predicate() -> Node {
@@ -65,45 +55,36 @@ pub fn always_false_predicate() -> Node {
 }
 
 pub fn equals_two_predicate() -> Node {
-    Node::Function {
-        body: Node::Equal {
-            first: Node::Parameter { depth: 0 }.into(),
-            second: Node::Literal(integer(2)).into(),
-        }
-        .into(),
-    }
+    Node::function(Node::Equal {
+        first: Node::Parameter { depth: 0 }.into(),
+        second: Node::Literal(integer(2)).into(),
+    })
 }
 
 /// Returns `false` for the first element and `undefined` for all others.
 pub fn false_on_one_undefined_otherwise_predicate() -> Node {
-    Node::Function {
-        body: Node::If {
-            condition: Node::Equal {
-                first: Node::Parameter { depth: 0 }.into(),
-                second: Node::Literal(integer(1)).into(),
-            }
-            .into(),
-            then: Node::Literal(false.into()).into(),
-            otherwise: Node::Literal(Atom::UNDEFINED.into()).into(),
+    Node::function(Node::If {
+        condition: Node::Equal {
+            first: Node::Parameter { depth: 0 }.into(),
+            second: Node::Literal(integer(1)).into(),
         }
         .into(),
-    }
+        then: Node::Literal(false.into()).into(),
+        otherwise: Node::Literal(Atom::UNDEFINED.into()).into(),
+    })
 }
 
 /// Returns `undefined` for the first element and `false` for all others.
 pub fn undefined_on_one_false_otherwise_predicate() -> Node {
-    Node::Function {
-        body: Node::If {
-            condition: Node::Equal {
-                first: Node::Parameter { depth: 0 }.into(),
-                second: Node::Literal(integer(1)).into(),
-            }
-            .into(),
-            then: Node::Literal(Atom::UNDEFINED.into()).into(),
-            otherwise: Node::Literal(false.into()).into(),
+    Node::function(Node::If {
+        condition: Node::Equal {
+            first: Node::Parameter { depth: 0 }.into(),
+            second: Node::Literal(integer(1)).into(),
         }
         .into(),
-    }
+        then: Node::Literal(Atom::UNDEFINED.into()).into(),
+        otherwise: Node::Literal(false.into()).into(),
+    })
 }
 
 pub fn every_result(set: Node, predicate: Node) -> Object {
@@ -130,51 +111,39 @@ pub fn any_result(set: Node, predicate: Node) -> Object {
 
 /// Returns `true` for the first element and `undefined` for all others.
 pub fn true_on_one_undefined_otherwise_predicate() -> Node {
-    Node::Function {
-        body: Node::If {
-            condition: Node::Equal {
-                first: Node::Parameter { depth: 0 }.into(),
-                second: Node::Literal(integer(1)).into(),
-            }
-            .into(),
-            then: Node::Literal(true.into()).into(),
-            otherwise: Node::Literal(Atom::UNDEFINED.into()).into(),
+    Node::function(Node::If {
+        condition: Node::Equal {
+            first: Node::Parameter { depth: 0 }.into(),
+            second: Node::Literal(integer(1)).into(),
         }
         .into(),
-    }
+        then: Node::Literal(true.into()).into(),
+        otherwise: Node::Literal(Atom::UNDEFINED.into()).into(),
+    })
 }
 
 /// Returns `undefined` for the first element and `true` for all others.
 pub fn undefined_on_one_true_otherwise_predicate() -> Node {
-    Node::Function {
-        body: Node::If {
-            condition: Node::Equal {
-                first: Node::Parameter { depth: 0 }.into(),
-                second: Node::Literal(integer(1)).into(),
-            }
-            .into(),
-            then: Node::Literal(Atom::UNDEFINED.into()).into(),
-            otherwise: Node::Literal(true.into()).into(),
+    Node::function(Node::If {
+        condition: Node::Equal {
+            first: Node::Parameter { depth: 0 }.into(),
+            second: Node::Literal(integer(1)).into(),
         }
         .into(),
-    }
+        then: Node::Literal(Atom::UNDEFINED.into()).into(),
+        otherwise: Node::Literal(true.into()).into(),
+    })
 }
 
 pub fn and_apply_folder(predicate: Object) -> Node {
-    Node::Function {
-        body: Node::Function {
-            body: Node::And {
-                first: Node::Parameter { depth: 1 }.into(),
-                second: Node::Call {
-                    callee: Node::Literal(predicate).into(),
-                    with: Node::Parameter { depth: 0 }.into(),
-                }
-                .into(),
-            }
-            .into(),
+    Node::function(Node::function(Node::And {
+        first: Node::Parameter { depth: 1 }.into(),
+        second: Node::Call {
+            callee: Node::Literal(predicate).into(),
+            with: Node::Parameter { depth: 0 }.into(),
         }
         .into(),
-    }
+    }))
 }
 
 pub fn every_by_and_fold(set: Node, predicate: &Node) -> Object {
@@ -192,20 +161,14 @@ pub fn every_by_and_fold(set: Node, predicate: &Node) -> Object {
 }
 
 pub fn or_apply_folder(predicate: Object) -> Node {
-    Node::Function {
-        body: Node::Function {
-            body: Node::Or {
-                first: Node::Parameter { depth: 1 }.into(),
-                second: Node::Call {
-                    callee: Node::Literal(predicate).into(),
-                    with: Node::Parameter { depth: 0 }.into(),
-                }
-                .into(),
-            }
-            .into(),
+    Node::function(Node::function(Node::Or {
+        first: Node::Parameter { depth: 1 }.into(),
+        second: Node::Call {
+            callee: Node::Literal(predicate).into(),
+            with: Node::Parameter { depth: 0 }.into(),
         }
         .into(),
-    }
+    }))
 }
 
 pub fn any_by_or_fold(set: Node, predicate: &Node) -> Object {

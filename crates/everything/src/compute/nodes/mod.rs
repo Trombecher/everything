@@ -14,7 +14,7 @@ use num_bigint::BigInt;
 use crate::{
     compute::nodes::raw::RawNode,
     knowledge::Knowledge,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Construction, Object, Set, SetApi},
 };
 
 /// A node / expression in the computation system.
@@ -23,6 +23,11 @@ pub enum Node {
     /// A function node. Abstracts over the function body.
     Function {
         body: Arc<Node>,
+        /// The object form of the function, with all non-body properties.
+        ///
+        /// Atom-defined functions are materialised into sets here. The body is
+        /// replaced on materialisation, so this may still contain an older body.
+        object: Arc<Set>,
     },
 
     /// A literal node. Evaluates to the inner object.
@@ -49,16 +54,14 @@ pub enum Node {
     /// undefined if the inner result is not a set.
     Count(Arc<Node>),
 
-    /// Converts the inner result to a set of its values: sets and
-    /// function values are returned unchanged, atoms evaluate to the
-    /// set of their values in the knowledge, and constructions
-    /// evaluate to undefined.
+    /// Converts the inner result to a set of its values: sets are
+    /// returned unchanged, atoms evaluate to the set of their values
+    /// in the knowledge, and constructions evaluate to undefined.
     ValuesOf(Arc<Node>),
 
     /// Evaluates to `true` iff the inner result has at least one value.
-    /// Sets and function values are tested directly, atoms are tested
-    /// against their values in the knowledge, and constructions
-    /// evaluate to undefined.
+    /// Sets are tested directly, atoms are tested against their values
+    /// in the knowledge, and constructions evaluate to undefined.
     HasValue(Arc<Node>),
     QueryAtomsWithProperty {
         property: Arc<Node>,
@@ -181,7 +184,52 @@ pub enum Node {
     },
 }
 
+fn function_source_set(object: &Object, knowledge: &Knowledge) -> Set {
+    match object {
+        Object::Set(set) => set.clone(),
+        Object::Atom(atom) => {
+            let mut values = knowledge
+                .values_of_atom(atom)
+                .into_iter()
+                .collect::<Vec<_>>();
+
+            Set::from(values.as_mut_slice())
+        }
+        Object::Construction(_) => Set::empty(),
+    }
+}
+
+fn function_object(object: &Set, body: &Node) -> Object {
+    let mut values = object
+        .clone()
+        .into_iter()
+        .filter(|value| {
+            !matches!(
+                value,
+                Object::Construction(Construction { constructor, .. })
+                    if matches!(&**constructor, Object::Atom(atom) if *atom == Atom::NODE_FUNCTION)
+            )
+        })
+        .collect::<Vec<_>>();
+
+    values.push(Construction::new(Atom::NODE_FUNCTION.into(), body.into_object()).into());
+
+    Set::from(values.as_mut_slice()).into()
+}
+
 impl Node {
+    /// Creates a function node with the minimal function object form.
+    #[must_use]
+    pub fn function(body: Self) -> Self {
+        let object =
+            Set::from([Construction::new(Atom::NODE_FUNCTION.into(), body.into_object()).into()]);
+
+        Self::Function {
+            body: Arc::new(body),
+            object: Arc::new(object),
+        }
+    }
+
     /// Tries to parse a node from an object (and a knowledge).
     ///
     /// # Errors
@@ -200,6 +248,7 @@ impl Node {
         Ok(match raw {
             RawNode::Function { body } => Self::Function {
                 body: child!(NodeProperty::Function, &body),
+                object: Arc::new(function_source_set(object, knowledge)),
             },
             RawNode::Literal(object) => Self::Literal(object),
             RawNode::And { first, second } => Self::And {
@@ -428,12 +477,7 @@ impl Node {
                 .into(),
             ])
             .into(),
-            Self::Function { body } => {
-                Set::from([
-                    Construction::new(Atom::NODE_FUNCTION.into(), body.into_object()).into(),
-                ])
-                .into()
-            }
+            Self::Function { body, object } => function_object(object, body),
             Self::Literal(literal) => {
                 Set::from([Construction::new(Atom::NODE_LITERAL.into(), literal.clone()).into()])
                     .into()
@@ -595,8 +639,9 @@ impl Node {
         // Just count the properties.
 
         match self {
-            Self::Function { .. }
-            | Self::Literal(_)
+            Self::Function { object, .. } => object.size(),
+
+            Self::Literal(_)
             | Self::FunctionSelf { .. }
             | Self::Count(_)
             | Self::ValuesOf(_)

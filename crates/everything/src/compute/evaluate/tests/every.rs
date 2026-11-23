@@ -34,9 +34,7 @@ fn every_of_an_empty_set_is_true() {
 
 #[test]
 fn every_of_an_empty_deferred_set_is_true() {
-    let drop_everything = Node::Function {
-        body: Node::Literal(Atom::FALSE.into()).into(),
-    };
+    let drop_everything = Node::function(Node::Literal(Atom::FALSE.into()));
     let empty_set = Node::Filter {
         set: Node::Literal(integer_set().into()).into(),
         filter_function: drop_everything.into(),
@@ -161,42 +159,30 @@ fn every_short_circuits_on_undefined() {
 fn every_iterates_deferred_sets() {
     let doubled = Node::Map {
         set: Node::Literal(integer_set().into()).into(),
-        mapper_function: Node::Function {
-            body: Node::Add {
-                first: Node::Parameter { depth: 0 }.into(),
-                second: Node::Parameter { depth: 0 }.into(),
-            }
-            .into(),
-        }
-        .into(),
-    };
-    let is_positive = Node::Function {
-        body: Node::Less {
-            first: Node::Literal(integer(0)).into(),
+        mapper_function: Node::function(Node::Add {
+            first: Node::Parameter { depth: 0 }.into(),
             second: Node::Parameter { depth: 0 }.into(),
-        }
+        })
         .into(),
     };
+    let is_positive = Node::function(Node::Less {
+        first: Node::Literal(integer(0)).into(),
+        second: Node::Parameter { depth: 0 }.into(),
+    });
 
     assert_eq!(every_result(doubled, is_positive), Atom::TRUE.into());
 }
 
 #[test]
 fn every_captures_the_evaluation_context() {
-    let outer_function = Node::Function {
-        body: Node::Every {
-            set: Node::Literal(integer_set().into()).into(),
-            predicate: Node::Function {
-                body: Node::Less {
-                    first: Node::Parameter { depth: 0 }.into(),
-                    second: Node::Parameter { depth: 1 }.into(),
-                }
-                .into(),
-            }
-            .into(),
-        }
+    let outer_function = Node::function(Node::Every {
+        set: Node::Literal(integer_set().into()).into(),
+        predicate: Node::function(Node::Less {
+            first: Node::Parameter { depth: 0 }.into(),
+            second: Node::Parameter { depth: 1 }.into(),
+        })
         .into(),
-    };
+    });
 
     let call = |value| {
         evaluate(

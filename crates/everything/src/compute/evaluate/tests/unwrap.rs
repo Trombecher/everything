@@ -43,7 +43,7 @@ fn unwrap_requires_sets() {
     );
     assert_eq!(unwrap(Node::Literal(construction)), Atom::UNDEFINED.into());
 
-    // A function value is a set of its node properties.
+    // A function object is a set of its properties.
     assert_eq!(
         unwrap(identity_function()),
         Construction::new(

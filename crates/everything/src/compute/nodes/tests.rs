@@ -12,9 +12,7 @@ fn node_round_trip() {
     let c = Object::new_integer(BigInt::from(3));
 
     let nodes = [
-        Node::Function {
-            body: Node::Literal(a.clone()).into(),
-        },
+        Node::function(Node::Literal(a.clone())),
         Node::Literal(Node::Literal(a.clone()).into()),
         Node::And {
             first: Node::Literal(a.clone()).into(),

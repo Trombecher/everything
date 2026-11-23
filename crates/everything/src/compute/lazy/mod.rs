@@ -91,7 +91,7 @@ impl From<Node> for LazyObject {
 
 impl LazyObject {
     /// Returns `true` iff `self` is a set result: an evaluated set, atom
-    /// values, a function value, or a deferred set operation.
+    /// values, a function object, or a deferred set operation.
     #[must_use]
     pub fn is_set(&self) -> bool {
         match self {

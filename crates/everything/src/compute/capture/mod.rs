@@ -64,8 +64,9 @@ pub fn capture(
                 node.clone()
             }
         }
-        Node::Function { body } => Node::Function {
+        Node::Function { body, object } => Node::Function {
             body: capture(body, additional_depth + 1, evaluation_context, knowledge).into(),
+            object: object.clone(),
         },
         Node::Literal(object) => Node::Literal(object.clone()),
         Node::And { first, second } => Node::And {

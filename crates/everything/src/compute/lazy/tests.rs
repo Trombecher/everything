@@ -216,9 +216,7 @@ fn size_of_deferred_set_operations_is_deduplicated() {
 #[test]
 fn size_of_map_counts_distinct_values() {
     // `_ |-> 1` maps every element to the same value.
-    let mapper = Node::Function {
-        body: Node::Literal(integer(1)).into(),
-    };
+    let mapper = Node::function(Node::Literal(integer(1)));
     let map = LazyObject::Map {
         target: Box::new(eager_set([integer(1), integer(2)])),
         mapper_function: mapper,
@@ -230,9 +228,7 @@ fn size_of_map_counts_distinct_values() {
 #[test]
 fn into_iter_of_map_deduplicates() {
     // `_ |-> 1` maps every element to the same value.
-    let mapper = Node::Function {
-        body: Node::Literal(integer(1)).into(),
-    };
+    let mapper = Node::function(Node::Literal(integer(1)));
     let map = LazyObject::Map {
         target: Box::new(eager_set([integer(1), integer(2)])),
         mapper_function: mapper,
@@ -247,13 +243,10 @@ fn into_iter_of_map_deduplicates() {
 #[test]
 fn size_of_filter_counts_distinct_retained_values() {
     // `x |-> x == 1`, applied to a target that yields `1` twice.
-    let predicate = Node::Function {
-        body: Node::Equal {
-            first: Node::Parameter { depth: 0 }.into(),
-            second: Node::Literal(integer(1)).into(),
-        }
-        .into(),
-    };
+    let predicate = Node::function(Node::Equal {
+        first: Node::Parameter { depth: 0 }.into(),
+        second: Node::Literal(integer(1)).into(),
+    });
     let filter = LazyObject::Filter {
         target: Box::new(LazyObject::Union {
             first: Box::new(eager_set([integer(1), integer(2)])),
@@ -299,9 +292,7 @@ fn into_iter_of_difference_excludes_members_of_the_other_set() {
 fn into_iter_of_intersection_and_difference_deduplicates() {
     let colliding_map = || LazyObject::Map {
         target: Box::new(eager_set([integer(1), integer(2)])),
-        mapper_function: Node::Function {
-            body: Node::Literal(integer(1)).into(),
-        },
+        mapper_function: Node::function(Node::Literal(integer(1))),
     };
 
     let intersection = LazyObject::Intersection {

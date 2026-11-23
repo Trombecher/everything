@@ -70,7 +70,7 @@ fn map_requires_sets() {
         Atom::UNDEFINED.into()
     );
 
-    // A function value is a set, so mapping over it yields its node property.
+    // A function object is a set, so mapping over it yields its property.
     let values = evaluate(
         &Node::Map {
             set: identity_function().into(),

@@ -55,9 +55,7 @@ fn fold_of_an_empty_set_returns_the_initial_value() {
 
 #[test]
 fn fold_of_an_empty_deferred_set_returns_the_initial_value() {
-    let drop_everything = Node::Function {
-        body: Node::Literal(Atom::FALSE.into()).into(),
-    };
+    let drop_everything = Node::function(Node::Literal(Atom::FALSE.into()));
     let empty_set = Node::Filter {
         set: Node::Literal(integer_set().into()).into(),
         filter_function: drop_everything.into(),
@@ -130,9 +128,7 @@ fn fold_requires_a_function_folder() {
 #[test]
 fn fold_yields_undefined_when_the_folder_result_is_not_callable() {
     // The folder returns the accumulator, which is not a function.
-    let folder = Node::Function {
-        body: Node::Parameter { depth: 0 }.into(),
-    };
+    let folder = Node::function(Node::Parameter { depth: 0 });
 
     let node = Node::Fold {
         set: Node::Literal(integer_set().into()).into(),
@@ -148,9 +144,7 @@ fn fold_yields_undefined_when_the_folder_result_is_not_callable() {
 
 #[test]
 fn fold_yields_undefined_when_the_folder_returns_undefined() {
-    let folder = Node::Function {
-        body: Node::Literal(Atom::UNDEFINED.into()).into(),
-    };
+    let folder = Node::function(Node::Literal(Atom::UNDEFINED.into()));
 
     let node = Node::Fold {
         set: Node::Literal(integer_set().into()).into(),
@@ -168,13 +162,10 @@ fn fold_yields_undefined_when_the_folder_returns_undefined() {
 fn fold_iterates_deferred_sets() {
     let doubled = Node::Map {
         set: Node::Literal(integer_set().into()).into(),
-        mapper_function: Node::Function {
-            body: Node::Add {
-                first: Node::Parameter { depth: 0 }.into(),
-                second: Node::Parameter { depth: 0 }.into(),
-            }
-            .into(),
-        }
+        mapper_function: Node::function(Node::Add {
+            first: Node::Parameter { depth: 0 }.into(),
+            second: Node::Parameter { depth: 0 }.into(),
+        })
         .into(),
     };
 
@@ -198,16 +189,10 @@ fn fold_can_accumulate_deferred_sets() {
     ]);
 
     // The curried function `acc |-> element |-> acc | element`.
-    let folder = Node::Function {
-        body: Node::Function {
-            body: Node::Union {
-                first: Node::Parameter { depth: 1 }.into(),
-                second: Node::Parameter { depth: 0 }.into(),
-            }
-            .into(),
-        }
-        .into(),
-    };
+    let folder = Node::function(Node::function(Node::Union {
+        first: Node::Parameter { depth: 1 }.into(),
+        second: Node::Parameter { depth: 0 }.into(),
+    }));
 
     let node = Node::Fold {
         set: Node::Literal(set.into()).into(),
@@ -229,29 +214,20 @@ fn fold_captures_the_evaluation_context() {
     // The curried function
     // `acc |-> element |-> acc + element + offset`,
     // where `offset` comes from the surrounding function.
-    let folder = Node::Function {
-        body: Node::Function {
-            body: Node::Add {
-                first: Node::Add {
-                    first: Node::Parameter { depth: 1 }.into(),
-                    second: Node::Parameter { depth: 0 }.into(),
-                }
-                .into(),
-                second: Node::Parameter { depth: 2 }.into(),
-            }
-            .into(),
+    let folder = Node::function(Node::function(Node::Add {
+        first: Node::Add {
+            first: Node::Parameter { depth: 1 }.into(),
+            second: Node::Parameter { depth: 0 }.into(),
         }
         .into(),
-    };
+        second: Node::Parameter { depth: 2 }.into(),
+    }));
 
-    let outer_function = Node::Function {
-        body: Node::Fold {
-            set: Node::Literal(integer_set().into()).into(),
-            folder: folder.into(),
-            initial: Node::Literal(integer(0)).into(),
-        }
-        .into(),
-    };
+    let outer_function = Node::function(Node::Fold {
+        set: Node::Literal(integer_set().into()).into(),
+        folder: folder.into(),
+        initial: Node::Literal(integer(0)).into(),
+    });
 
     let node = Node::Call {
         callee: outer_function.into(),

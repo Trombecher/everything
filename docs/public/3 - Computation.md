@@ -33,7 +33,7 @@ The object encoding produced by the implementation therefore always wraps litera
 }
 ```
 
-Node recognition is not itself an evaluator operation. The evaluator takes an already parsed node together with a knowledge. Conversion from an object to a node can fail; reverse conversion is lossy (see [Current Limitations](#current-limitations)).
+Node recognition is not itself an evaluator operation. The evaluator takes an already parsed node together with a knowledge. Conversion from an object to a node can fail; reverse conversion is lossy for non-function nodes (see [Current Limitations](#current-limitations)).
 
 ## Reference Evaluation
 
@@ -66,6 +66,8 @@ An object is a _function_ iff it has the property `node_function <body>`. The as
 
 Evaluating a function does not evaluate its body. It produces a function object: a copy of the original in which free references to enclosing functions have been captured (see [Captures](#captures)). The body is evaluated only when the function is called.
 
+An atom-defined function materialises into a set when it is evaluated: the atom's values become the set members, with the `node_function` value replaced by the captured body. An atom cannot be given a new body, so it cannot remain an atom.
+
 ## Parameter References
 
 An object is a _parameter reference_ iff it has the property `node_parameter <depth>`. `<depth>` is a non-negative integer that must fit into an unsigned 32-bit integer. It references the runtime value of the parameter of an enclosing function:
@@ -85,7 +87,7 @@ A self-reference evaluates to the enclosing function object itself, not to the r
 
 Functions are closures. When a function is evaluated inside an enclosing function call, every free parameter reference and free function self-reference in its body is replaced by a literal holding the current value or function. References to functions and parameters bound inside the function remain unchanged.
 
-Capturing a parameter value escapes it into a literal, so a value that happens to look like a node is not reinterpreted as code when the function is later called. This is also why functions can escape the call that created them.
+Capturing a parameter value escapes it into a literal, so a value that happens to look like a node is not reinterpreted as code when the function is later called. This is also why functions can escape the call that created them. Capturing an atom-defined function produces a set, because the captured body replaces the atom's `node_function` value.
 
 Evaluation of a function does not capture runtime parameter values from functions that have not been called yet; capture happens when the function object is produced. Nested functions therefore capture the environment of the call in which they are evaluated.
 
@@ -509,7 +511,7 @@ The implementation is demand-driven:
 
 - [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#map), [filter](#filter), and the query nodes build a description of a set without iterating their operands. The members are computed when an operation needs them: by [count](#set-count), [unwrap](#unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the elements, such as [fold](#fold), [every](#every), [any](#any), [map](#map), or [filter](#filter).
 - [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#map) only depends on whether the source set has an element, so the mapper is not called.
-- Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call; the current lossiness of that object form is listed under [Current Limitations](#current-limitations).
+- Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call; the cached node keeps the function's source object, so materialisation preserves its non-body properties. Atom-defined functions materialise into sets; see [Functions](#functions).
 
 Because evaluation is demand-driven, a program that is not well-formed may still terminate here, for example when testing whether a mapped set is non-empty without applying a divergent mapper. This is not guaranteed.
 
@@ -562,5 +564,5 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 ## Current Limitations
 
 - Well-formedness is not checked by the evaluator. Termination and independence from iteration order are semantic preconditions, so a program that is not well-formed may appear to observe laziness or iteration order.
-- Cached function results and the implementation's node-to-object conversion are lossy: annotations and unknown properties are not preserved, and atom-defined nodes are normalised into sets. This is an implementation gap for function results: the reference evaluation treats functions as ordinary objects and preserves their properties.
+- Converting a parsed node back to an object is lossy for non-function nodes: annotations and unknown properties are not preserved.
 - Set-taking nodes require a set. Atoms and constructions are rejected with `undefined`; use `values_of` to pass an atom's values.
