@@ -7,7 +7,7 @@ use crate::model::{Atom, Construction, Object, SetApi, SetSpecialization};
 #[cfg(test)]
 mod tests;
 
-/// A byte. Specialization for `{bit_0 on|off, ..., bit_7 on|off}`
+/// A byte. Specialization for `{bit_0 : on|off, ..., bit_7 : on|off}`
 /// (set of objects).
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ByteSet(pub u8);

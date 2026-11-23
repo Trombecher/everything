@@ -40,7 +40,7 @@ This keeps the converter small and correct: `Node::new` / `into_object` is alrea
 
 ### 3. Adopt the documentation notation
 
-The docs already write `David is born {date_time 10234823948}`, `{successor_of zero}`, and `subject |-> value |-> ...`. If the DSL _is_ that notation (formalized), then:
+The docs already write `David is born {date_time : 10234823948}`, `{successor_of : zero}`, and `subject |-> value |-> ...`. If the DSL _is_ that notation (formalized), then:
 
 - the existing documentation is seed training data,
 - the desktop app can render the exact same canonical text (shared printer crate),
@@ -50,12 +50,12 @@ Everything compounds into one language instead of three. This is the main argume
 
 ### 4. Named binders, never exposed De Bruijn indices
 
-Internally, parameter references and function self-references use depths (`node_parameter <depth>`, `node_function_self <depth>`), i.e. De Bruijn-style indices. LLMs are reliably bad at counting indices across nesting; one off-by-one silently changes meaning. Therefore:
+Internally, parameter references and function self-references use depths (`node_parameter : <depth>`, `node_function_self : <depth>`), i.e. De Bruijn-style indices. LLMs are reliably bad at counting indices across nesting; one off-by-one silently changes meaning. Therefore:
 
 - The surface syntax uses `λx. body` with a named parameter. Functions are unary anyway, which makes names trivially unambiguous.
 - The **converter** computes depths; the model never sees or writes an index.
 - The **printer** regenerates canonical names from position, never echoing whatever name an author used, so round-trips are stable and training pairs are consistent.
-- Recursion names the function at the definition site: inside `def length = λl. ... length(l.list_tail) ...`, the inner `length` desugars to `node_function_self 0`. Recursion by name is the most pretraining-anchored form of recursion there is.
+- Recursion names the function at the definition site: inside `def length = λl. ... length(l.list_tail) ...`, the inner `length` desugars to `node_function_self : 0`. Recursion by name is the most pretraining-anchored form of recursion there is.
 
 ### 5. Aliases are the namespace, and they live in the knowledge
 
@@ -68,7 +68,7 @@ Two policies prevent the worst agent foot-guns:
 
 ### 6. Juxtaposition is construction; calls are parenthesized
 
-The docs' `a b` means _construction_, but expression intuition says `f x` means _call_. Both readings must not coexist on the same syntax. The resolution adopted here keeps juxtaposition faithful to the docs everywhere:
+The object model's `a : b` means _construction_, but expression intuition says `f x` means _call_. Both readings must not coexist on the same syntax. The resolution adopted here keeps juxtaposition as construction and always parenthesizes calls:
 
 - `c v` juxtaposition is a construction (right-associative, as in the object model). In expression position it evaluates both sides and constructs, which is already the evaluation semantics of constructions, so "data is code" stays uniform (it corresponds to `NewConstruction` semantics).
 - Calls are always parenthesized: `f(x)`, curried as `f(x)(y)`. Builtin node forms use the same shape (`map(s, f)`, `values(o, c)`) or infix (`if c then a else b`).
@@ -136,7 +136,7 @@ Desugaring:
 - `new a` creates a fresh atom (ULID-style id) and registers the alias.
 - `prop a = f` is `new a` plus `a is property <f>`.
 - `ctor a = f` is `new a` plus `a is property_constructor <f>`.
-- `def a = f` is `new a` plus `a is node_function <f>` — atoms become callable functions because node detection already queries the knowledge for the `node_function` property.
+- `def a = f` is `new a` plus `a is node_function : <f>` — atoms become callable functions because node detection already queries the knowledge for the `node_function` property.
 - `a is e` is the plain statement with `e`'s object.
 
 ### Expressions (sketch)
@@ -207,11 +207,11 @@ ctor  child_of = λ s v. s is person and v is person
 
 new david
 david is person
-david is born {date_time 1700000000}
+david is born {date_time : 1700000000}
 
 new anna
 anna is person
-anna is born {date_time 4700000000}
+anna is born {date_time : 4700000000}
 anna is child_of david
 
 def adults = λ people.
@@ -222,13 +222,13 @@ def length = λ l.
     else 1 + length(l.list_tail)
 ```
 
-Note `λ s v. body` (curried unary functions, the docs' `subject |-> value |-> ...` shape) and `s is person` as an expression (see open point 2). `p.born` is the single `born` value of `p` (`{date_time N}`), and `.date_time` unwraps the timestamp out of it.
+Note `λ s v. body` (curried unary functions, the docs' `subject |-> value |-> ...` shape) and `s is person` as an expression (see open point 2). `p.born` is the single `born` value of `p` (`{date_time : N}`), and `.date_time` unwraps the timestamp out of it.
 
 The core tier underneath: the canonical object for `λx. x + 1`, printed when no sugar pattern matches. This is exactly the docs' notation:
 
 ```
-{node_function {node_add_first {node_parameter 0},
-                node_add_second {successor_of zero}}}
+{node_function : {node_add_first : {node_parameter : 0},
+                  node_add_second : {successor_of : zero}}}
 ```
 
 An error exchange (in-language, positioned, repairable):
@@ -262,7 +262,7 @@ The agent-facing surface includes the tool protocol as well as the language. Mac
 ## Integration Notes
 
 - New crate (`everything_dsl`?) providing `parse` and `print` beside `Node::new` / `into_object`. Tests live in separate `tests.rs` files under the module, per the repository conventions.
-- `def name = ...` desugars to the statement `name is node_function <object>`. Node detection (`raw.rs`) already queries the knowledge, so atoms become callable functions with zero evaluator changes. But for these statements to validate, the node atoms (at least `node_function`) must be registered as property constructors in the base knowledge — currently only `property`, `property_constructor`, `successor_of`, and `predecessor_of` are. Verify this early.
+- `def name = ...` desugars to the statement `name is node_function : <object>`. Node detection (`raw.rs`) already queries the knowledge, so atoms become callable functions with zero evaluator changes. But for these statements to validate, the node atoms (at least `node_function`) must be registered as property constructors in the base knowledge — currently only `property`, `property_constructor`, `successor_of`, and `predecessor_of` are. Verify this early.
 - `Contains` and `NewConstruction` are implemented, so the `in` and juxtaposition sugar can ship.
 
 ## Open Points
@@ -281,4 +281,4 @@ These decisions are open and should be settled before implementation:
 
 ## Verdict
 
-The DSL should be a two-tier language: a bijective core that _is_ the documentation's object notation, plus a small, closed set of desugaring sugars chosen for pretraining anchorage and token economy. Binders are named and depths are never exposed. Aliases are knowledge, creation is explicit, printing is canonical, and the language is versioned additively. Around it sits an equally small tool protocol with positioned errors, fuel budgets, and name discovery — because the loop, not the format, is what agents actually operate.
+The DSL should be a two-tier language: a bijective core that mirrors the documentation's object notation, plus a small, closed set of desugaring sugars chosen for pretraining anchorage and token economy. Binders are named and depths are never exposed. Aliases are knowledge, creation is explicit, printing is canonical, and the language is versioned additively. Around it sits an equally small tool protocol with positioned errors, fuel budgets, and name discovery — because the loop, not the format, is what agents actually operate.

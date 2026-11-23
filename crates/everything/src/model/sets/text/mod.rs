@@ -11,7 +11,7 @@ mod tests;
 /// of text. Virtual set form:
 ///
 /// ```plain
-/// {list_item <char>, list_rest <text or empty set>}
+/// {list_item : <char>, list_rest : <text or empty set>}
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TextSet {

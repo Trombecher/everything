@@ -28,8 +28,8 @@ The object encoding produced by the implementation therefore always wraps litera
 
 ```
 {
-    node_add_first : {node_literal 1},
-    node_add_second : {node_literal 2}
+    node_add_first : {node_literal : 1},
+    node_add_second : {node_literal : 2}
 }
 ```
 

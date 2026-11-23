@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 
 use crate::model::{Atom, Construction, Object, SetApi, SetSpecialization};
 
-/// Specialization for `{code_point i}`.
+/// Specialization for `{code_point : i}`.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CharacterSet {
     pub representing: char,

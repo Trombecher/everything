@@ -14,16 +14,16 @@ In Everything, every _property_ is either non-constructed or constructed. You ca
 
 Formally, an object `p` is a property of `o` in knowledge `K` iff one of the following holds:
 
-- `p` is an atom, `p is property f ∈ K`, and `{node_call_callee f, node_call_with o}` evaluates to a truthy object;
-- `p` is a construction `c v`, `c is property_constructor f ∈ K`, and `{node_call_callee {node_call_callee f, node_call_with o}, node_call_with v}` evaluates to a truthy object; or
-- `p` is a set, `property f ∈ p`, and `{node_call_callee f, node_call_with p}` evaluates to a truthy object.
+- `p` is an atom, `p is property : f ∈ K`, and `{node_call_callee : f, node_call_with : o}` evaluates to a truthy object;
+- `p` is a construction `c : v`, `c is property_constructor f ∈ K`, and `{node_call_callee : {node_call_callee : f, node_call_with : o}, node_call_with : v}` evaluates to a truthy object; or
+- `p` is a set, `property : f ∈ p`, and `{node_call_callee : f, node_call_with : p}` evaluates to a truthy object.
 
 ### Valid Objects
 
 The motivation behind valid objects is to check that all property constructions in that object are valid. Formally, an object `o` is _valid_ in knowledge `K` iff one of the following holds:
 
 - `o` is an atom;
-- `o` is a construction `c v`, `c` and `v` are valid objects, `c is property_constructor f ∈ K`, and `{node_call_callee {node_call_callee f, node_call_with o}, node_call_with v}` evaluates to a truthy object; or
+- `o` is a construction `c : v`, `c` and `v` are valid objects, `c is property_constructor : f ∈ K`, and `{node_call_callee : {node_call_callee : f, node_call_with : o}, node_call_with : v}` evaluates to a truthy object; or
 - `o` is a set and every object `e ∈ o` is valid.
 
 The constraint on property constructors used in sets and statements allows for validation, not only on the value, but on the subject as well.
@@ -42,11 +42,11 @@ born is property_constructor {{}}
 child_of is property_constructor subject |-> value |-> (subject is person and value is person)
 
 David is person
-David is born {date_time 10234823948}
-David is child_of Anna
+David is born {date_time : 10234823948}
+David is child_of : Anna
 
 Anna is person
-Anna is born {date_time 45385034985039}
+Anna is born {date_time : 45385034985039}
 ```
 
 ## Reasoning About Multiple Knowledges
@@ -75,4 +75,4 @@ There are workarounds for some cases.
 ### Workarounds
 
 - The statement you want to state may be computable by a function in the computation system. For example, there is no need to state `4 is even`, since you can compute evenness of integers.
-- NOT RECOMMENDED: if the statement involves an atom as the property, you can flip the statement: `a is b` could become `b is contained_in a`. This is not recommended since there would be two definitions of set inclusion.
+- NOT RECOMMENDED: if the statement involves an atom as the property, you can flip the statement: `a is b` could become `b is contained_in : a`. This is not recommended since there would be two definitions of set inclusion.

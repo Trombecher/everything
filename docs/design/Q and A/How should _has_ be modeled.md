@@ -2,8 +2,8 @@
 
 Consider the (natural language) statement "this plane has four wings". How could one model this? I propose
 
-- option A as `this_plane is having_wing_count 4` and
-- option B as `this_plane is having {wing_count 4}`.
+- option A as `this_plane is having_wing_count : 4` and
+- option B as `this_plane is having {wing_count : 4}`.
 
 ## Analysis of option B
 
@@ -11,7 +11,7 @@ Option B is semantically closer to the natural language statement (and may model
 
 Also, option may have poor query performance, as the associated value (4) is one object deeper than in option A.
 
-Also, we maybe should declare an additional property `having_constraint <constraint>` which can impose constraints on things that an object has (depending on what things the object has).
+Also, we maybe should declare an additional property `having_constraint : <constraint>` which can impose constraints on things that an object has (depending on what things the object has).
 
 ## Analysis of option A
 
@@ -31,7 +31,7 @@ So option A and option B differ structurally, but neither introduces a new "has"
 
 ### Analysis of the options
 
-#### Option A: `this_plane is having_wing_count 4`
+#### Option A: `this_plane is having_wing_count : 4`
 
 This is the model's native shape. `having_wing_count` is a `property_constructor`, and the subject is the actual plane when the property is checked (`Knowledge.md:15-19`).
 
@@ -39,7 +39,7 @@ Advantages:
 
 - The constraint receives the real subject and the real value: `subject |-> value |-> (subject is plane and value is integer)`.
 - No extra nesting; exact property lookup via `node_atoms_with_property` works directly.
-- No set-equality problem; `having_wing_count 4` is a single canonical construction.
+- No set-equality problem; `having_wing_count : 4` is a single canonical construction.
 - No new ontological category is needed.
 - This is consistent with the existing style in the docs: `born`, `child_of`, etc., are used directly, not wrapped in `has_`.
 
@@ -47,22 +47,22 @@ Cost:
 
 - Constructor proliferation. But constructors are just atoms declared in knowledge, so this is a naming/organization cost, not a schema-migration cost.
 
-#### Option B: `this_plane is having {wing_count 4}`
+#### Option B: `this_plane is having {wing_count : 4}`
 
 This looks like an association record, but it is still a unary property whose value happens to be a set. That creates several problems.
 
 **1. The inner role loses its subject.**
 
-Under `Knowledge.md:15-19`, a construction `wing_count 4` is a property only relative to a subject: the constraint is called with the external subject. Under `Knowledge.md:23-27`, however, a construction is valid only if its constraint is also satisfied when the construction is its own subject.
+Under `Knowledge.md:15-19`, a construction `wing_count : 4` is a property only relative to a subject: the constraint is called with the external subject. Under `Knowledge.md:23-27`, however, a construction is valid only if its constraint is also satisfied when the construction is its own subject.
 
 So for B to work, `wing_count` would have to be subject-agnostic, or validity would have to be redefined, or `having` would have to reach into the set and re-run each role constructor with `this_plane` as subject. In A, the subject is naturally in scope the whole time. This is the strongest technical objection to B.
 
-There is a related latent inconsistency in the current docs: under the literal validity rule, a property like `child_of Anna` would need `child_of Anna is person` to be true in `K`, which the chapter 2 example does not provide. This should be settled independently, but B makes it much more visible.
+There is a related latent inconsistency in the current docs: under the literal validity rule, a property like `child_of : Anna` would need `(child_of : Anna) is person` to be true in `K`, which the chapter 2 example does not provide. This should be settled independently, but B makes it much more visible.
 
 **2. B is ambiguous between two designs.**
 
-- *Singleton sets only*: `having {wing_count 4}` and a separate `having {manufacturer boing}`. Then B is just A with an extra wrapper and extra depth; it buys nothing and makes queries deeper.
-- *Aggregated sets*: `having {wing_count 4, manufacturer boing}`. Then exact-property lookup fails, because `having {wing_count 4}` is not structurally equal to the larger set. You would need `node_construction_values` (`docs/public/3 - Computation.md:186-195`, currently unimplemented) plus a filter, and the association becomes harder to query.
+- *Singleton sets only*: `having {wing_count : 4}` and a separate `having {manufacturer : boing}`. Then B is just A with an extra wrapper and extra depth; it buys nothing and makes queries deeper.
+- *Aggregated sets*: `having {wing_count : 4, manufacturer : boing}`. Then exact-property lookup fails, because `having {wing_count : 4}` is not structurally equal to the larger set. You would need `node_construction_values` (`docs/public/3 - Computation.md:186-195`, currently unimplemented) plus a filter, and the association becomes harder to query.
 
 So B has a "split personality": either redundant or inefficient.
 
@@ -72,7 +72,7 @@ If the set is open, extra roles change structural equality and break exact match
 
 **4. B's "reification" is only apparent.**
 
-The set `{wing_count 4}` cannot itself be the subject of a statement, because subjects must be atoms (`Knowledge.md:3`; see also `docs/design/old model/Disallowing Composite Subjects.md`). So you cannot attach metadata to the association itself, e.g. "the wing count was 4 in 2020" or "this count came from source X", unless you mint an atom for the association. If true reification is the goal, B does not achieve it.
+The set `{wing_count : 4}` cannot itself be the subject of a statement, because subjects must be atoms (`Knowledge.md:3`; see also `docs/design/old model/Disallowing Composite Subjects.md`). So you cannot attach metadata to the association itself, e.g. "the wing count was 4 in 2020" or "this count came from source X", unless you mint an atom for the association. If true reification is the goal, B does not achieve it.
 
 ### New issues to consider
 
@@ -95,10 +95,10 @@ The set `{wing_count 4}` cannot itself be the subject of a statement, because su
 **Option A, with better naming: use the role directly as the property constructor.**
 
 ```text
-this_plane is wing_count 4
+this_plane is wing_count : 4
 ```
 
-Use `having_wing_count 4` only if you specifically want the "possession" reading in the name; structurally it is the same option. Keep a generic `having` only for cases where you genuinely want an unstructured bag of roles, and in that case define it precisely as either a singleton wrapper or a separate role-constructor category with its own validation rules.
+Use `having_wing_count : 4` only if you specifically want the "possession" reading in the name; structurally it is the same option. Keep a generic `having` only for cases where you genuinely want an unstructured bag of roles, and in that case define it precisely as either a singleton wrapper or a separate role-constructor category with its own validation rules.
 
 Reason: A preserves the model's core invariant that properties are subject-relative, lets constraints see the real subject and value, avoids the extra depth, keeps exact queries and structural equality simple, and does not require a second kind of "property" hidden inside a set. Option B only becomes attractive if you actually need dynamically extensible role bags, and even then it needs a clearer design than the current sketch: subject-agnostic role constructors, a well-defined `having_constraint`, and query support for nested sets.
 

@@ -47,7 +47,7 @@ recover.
   [§11](#11-canonical-encoding).
 
 Examples throughout use the object notation of the public documentation. `@n`
-denotes the atom with id `n`; `a b` denotes a construction; `{a, b}` denotes a
+denotes the atom with id `n`; `a : b` denotes a construction; `{a, b}` denotes a
 set. Note that `@0` is an ordinary atom, whereas `@zero` is the distinguished
 zero atom with id `2148623498527692884679683682469014909` (see [§9.3](#93-the-zero-atom-tag-2)).
 
@@ -204,9 +204,9 @@ but a decoder MAY accept that encoding.
 
 Payload: the constructor object followed by the value object.
 
-Encodes the construction `constructor value`. Constructions associate to the
+Encodes the construction `constructor : value`. Constructions associate to the
 right at the level of concrete syntax, but the binary encoding is explicit:
-`a (b c)` is encoded as the construction of `a` with the construction of `b`
+`a : (b : c)` is encoded as the construction of `a` with the construction of `b`
 with `c`.
 
 ### 9.3. The zero atom (tag 2)
@@ -232,9 +232,9 @@ The empty set is encoded as tag 10 followed by a zero count.
 A set MUST use the most specific applicable representation:
 
 - the empty set uses tag 10 with count 0;
-- a set of the form `{successor_of k}` with an integer `k >= 0` uses tag 12;
-- a set of the form `{predecessor_of k}` with an integer `k <= 0` uses tag 13;
-- a set of the form `{code_point c}` uses tag 4 through 7;
+- a set of the form `{successor_of : k}` with an integer `k >= 0` uses tag 12;
+- a set of the form `{predecessor_of : k}` with an integer `k <= 0` uses tag 13;
+- a set of the form `{code_point : c}` uses tag 4 through 7;
 - a byte set (eight `bit_slot_i` members) uses tag 11;
 - a non-empty text set uses tag 8;
 - every other set uses tag 10, including a set whose sole member is a
@@ -261,15 +261,15 @@ has no integer encoding - it is the zero atom (§9.3). A decoder MUST reject a
 magnitude of zero and MUST reject a length of zero.
 
 An integer set with represented value `n > 0` is the set whose only member is
-the construction `successor_of k` with `k = n - 1`. For `n < 0` it is the set
-whose only member is `predecessor_of k` with `k = n + 1`. In other words, the tag
-stores the represented integer, not the construction argument. The argument is
-the zero atom when `k` is zero and an integer set otherwise. The reserved atoms
-used here are listed in [§10](#10-reserved-atoms).
+the construction `successor_of : k` with `k = n - 1`. For `n < 0` it is the
+set whose only member is `predecessor_of : k` with `k = n + 1`. In other
+words, the tag stores the represented integer, not the construction argument.
+The argument is the zero atom when `k` is zero and an integer set otherwise.
+The reserved atoms used here are listed in [§10](#10-reserved-atoms).
 
 For example, `1` is encoded as tag 12, length 1, magnitude `01`, and denotes the
-set `{successor_of @zero}`. `-1` is encoded as tag 13, length 1, magnitude
-`01`, and denotes `{predecessor_of @zero}`.
+set `{successor_of : @zero}`. `-1` is encoded as tag 13, length 1, magnitude
+`01`, and denotes `{predecessor_of : @zero}`.
 
 Canonical encodings use the shortest possible magnitude (no trailing zero byte)
 and the shortest LEB128 length. A decoder MAY accept padded magnitudes as long
@@ -285,7 +285,7 @@ The payload is the Unicode code point as a little-endian `u32`, truncated to the
 number of bytes selected by the tag. The value MUST be a Unicode scalar value:
 `0 <= code_point <= 0x10FFFF` and not in `0xD800..=0xDFFF`.
 
-A character set is the set `{code_point c}` where `c` is the character and
+A character set is the set `{code_point : c}` where `c` is the character and
 `code_point` is the reserved atom of §10.
 
 Canonical encodings use the shortest tag that can hold the code point: tag 4
@@ -301,9 +301,10 @@ so `U+1F600` is encoded as tag 6 with payload `00 F6 01`.
 
 Payload: one byte, the bit mask of the set.
 
-For each bit position `i` (least significant bit = position 0) the set contains
-the construction `bit_slot_i bit_on` if the bit is set and `bit_slot_i bit_off`
-if it is clear. The atoms involved are the reserved atoms of §10.
+For each bit position `i` (least significant bit = position 0) the set
+contains the construction `bit_slot_i : bit_on` if the bit is set and
+`bit_slot_i : bit_off` if it is clear. The atoms involved are the reserved
+atoms of §10.
 
 A byte set always has exactly eight members; every mask value is a valid byte
 set. There is no ambiguity between tag 11 and tag 10 because a byte set is never
@@ -322,8 +323,8 @@ not exist. The length is a byte count, not a character count.
 A text set is the virtual set whose members are the two list cell constructions:
 
 ```text
-text("c s") = {list_item c, list_tail text(s)}   ; s is non-empty
-text("c")   = {list_item c, list_tail {}}        ; the tail is the empty set
+text("c s") = {list_item : c, list_tail : text(s)}   ; s is non-empty
+text("c")   = {list_item : c, list_tail : {}}        ; the tail is the empty set
 ```
 
 where `list_item` and `list_tail` are the reserved atoms of §10 and `c` is the
@@ -601,8 +602,8 @@ reference, the complete empty file (64 bytes) is:
 | `@1 is "hi"` | `01000000000000000000000000000000 01 08 02 68 69` | 21 |
 | `@1 is x2A` | `01000000000000000000000000000000 01 0B 2A` | 19 |
 | `@1 is {@2}` | `01000000000000000000000000000000 01 0A 01 01 02000000000000000000000000000000` | 36 |
-| `@1 is {2 3}` | `01000000000000000000000000000000 01 0A 01 03 01 02000000000000000000000000000000 01 03000000000000000000000000000000` | 54 |
-| `@1 is {2 3, 4 5}` | `01000000000000000000000000000000 01 0A 02 03 01 02000000000000000000000000000000 01 03000000000000000000000000000000 03 01 04000000000000000000000000000000 01 05000000000000000000000000000000` | 89 |
+| `@1 is {2 : 3}` | `01000000000000000000000000000000 01 0A 01 03 01 02000000000000000000000000000000 01 03000000000000000000000000000000` | 54 |
+| `@1 is {2 : 3, 4 : 5}` | `01000000000000000000000000000000 01 0A 02 03 01 02000000000000000000000000000000 01 03000000000000000000000000000000 03 01 04000000000000000000000000000000 01 05000000000000000000000000000000` | 89 |
 
 Spaces inside the byte strings are only for readability. `x2A` denotes the byte
 set with mask `0x2A`; `U+1F600` denotes the character with that code point.
@@ -610,10 +611,10 @@ set with mask `0x2A`; `U+1F600` denotes the character with that code point.
 Notes on individual vectors:
 
 - `@1 is 1` demonstrates that integers are sets: tag 12 stores the represented
-  value `1`, from which the single member `{successor_of @zero}` follows.
+  value `1`, from which the single member `{successor_of : @zero}` follows.
 - `@1 is "hi"` encodes two characters. The set has the two members
-  `{list_item 'h'}` and `{list_tail "i"}`, the latter being another text set
-  with the members `{list_item 'i'}` and `{list_tail {}}`.
+  `{list_item : 'h'}` and `{list_tail : "i"}`, the latter being another text set
+  with the members `{list_item : 'i'}` and `{list_tail : {}}`.
 - `@1 is x2A` encodes the byte set with bits 1, 3, and 5 set.
 - `@1 is {@2}` is a generic set with one atom member; it cannot use a
   specialized tag.

@@ -7,7 +7,7 @@ use crate::{
 
 /// A pair of an atom and a construction value.
 ///
-/// It represents a statement `atom is constructor value` in the knowledge.
+/// It represents a statement `atom is constructor : value` in the knowledge.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AtomValuePair {
     pub atom: Atom,
@@ -15,7 +15,7 @@ pub struct AtomValuePair {
 }
 
 impl AtomValuePair {
-    /// Converts the pair into the object `{atom <atom>, value <value>}`.
+    /// Converts the pair into the object `{atom : <atom>, value : <value>}`.
     #[must_use]
     pub fn into_object(self) -> Object {
         Set::from([
@@ -27,7 +27,7 @@ impl AtomValuePair {
 }
 
 /// Queries the knowledge for all pairs of an atom and a value such that the
-/// atom has the construction `constructor value` in the knowledge.
+/// atom has the construction `constructor : value` in the knowledge.
 #[derive(Clone)]
 pub struct QueryConstructions {
     atoms: <OrdMap<Atom, Values> as IntoIterator>::IntoIter,

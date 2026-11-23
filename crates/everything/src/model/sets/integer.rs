@@ -7,7 +7,7 @@ use num_bigint::BigInt;
 
 use crate::model::{Atom, Construction, NonZeroBigInt, Object, SetApi, SetSpecialization};
 
-/// Specialization for sets `{successor_of <n>}` and `{predecessor_of <n>}`.
+/// Specialization for sets `{successor_of : <n>}` and `{predecessor_of : <n>}`.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IntegerSet {
     pub representing: NonZeroBigInt,

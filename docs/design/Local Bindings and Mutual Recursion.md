@@ -29,9 +29,9 @@ The important distinction is:
 
 The only binder in the computation model is the function:
 
-- `node_function <body>`,
-- `node_parameter <depth>` for the argument,
-- `node_function_self <depth>` for the function itself,
+- `node_function : <body>`,
+- `node_parameter : <depth>` for the argument,
+- `node_function_self : <depth>` for the function itself,
 - `node_call_callee` / `node_call_with` for application.
 
 Calls are non-strict: the argument is closed over the caller's context with
@@ -138,11 +138,11 @@ Two options:
 1. **Reuse `node_parameter` and treat the let as an implicit function.**
    Evaluation can push a `FunctionContext` with a synthetic
    `Function { body }`, exactly like a call. This is simple but leaks the
-   implicit function: `node_function_self 0` inside the let body would refer to
+   implicit function: `node_function_self : 0` inside the let body would refer to
    that synthetic function. That must either be documented or rejected. The
    object is also still structurally different from the call encoding.
 
-2. **Add a distinct local-reference node** (`node_local <depth>` or similar).
+2. **Add a distinct local-reference node** (`node_local : <depth>` or similar).
    This is cleaner conceptually but adds a *third* de Bruijn space next to
    parameters and function self-references. Capture, evaluation context, docs,
    tests, and the UI all need to understand it. This is a significant complexity
@@ -187,7 +187,7 @@ callee's own binder is therefore replaced by `undefined`.
 So self-recursion must be encoded as:
 
 ```text
-node_function_self 0
+node_function_self : 0
 ```
 
 inside the binding function, not as a reference to the let binding. This is
@@ -225,7 +225,7 @@ Caveats:
 A single recursive local function needs no `letrec`:
 
 ```text
-(λf. f(5)) (λx. ... (node_function_self 0)(x - 1) ...)
+(λf. f(5)) (λx. ... (node_function_self : 0)(x - 1) ...)
 ```
 
 The outer let binding provides the function value; the inner self-reference

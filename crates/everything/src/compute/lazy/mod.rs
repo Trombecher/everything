@@ -59,7 +59,7 @@ pub enum LazyObject {
     /// The pairs of an atom and a value such that the atom has a construction
     /// with the given constructor in the knowledge.
     ///
-    /// Each pair is yielded as the object `{atom <atom>, value <value>}`.
+    /// Each pair is yielded as the object `{atom : <atom>, value : <value>}`.
     Constructions { constructor: Object },
 
     /// Maps every value of a given set with a mapper function.
