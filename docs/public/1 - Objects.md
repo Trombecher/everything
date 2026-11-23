@@ -31,11 +31,11 @@ A _set_ is a collection of objects. It is written as a comma-separated collectio
 
 ### Constructions
 
-A _construction_ is a combination of two objects, written `a b`. Constructions construct properties from a "property constructor" object (here `a`) and a "value" object (here `b`).
+A _construction_ is a combination of two objects, written `a : b`. Constructions construct properties from a "property constructor" object (here `a`) and a "value" object (here `b`).
 
 The purpose of constructions is to give objects "roles" when used in larger structures. The object model itself cannot impose constraints on what objects can be used as property constructors but later, when describing knowledge, constraints will be laid out. Semantically, a construction may then be interpreted as the construction of a "property" (which an object then may have).
 
-Constructions associate to the right: `a b c == a (b c)`.
+Constructions associate to the right: `a : b : c == a : (b : c)`.
 
 ### Equality
 
@@ -50,14 +50,14 @@ You can use those definitions to construct objects as representatives of things.
 You can model the natural numbers recursively by following a similar approach to the Peano axioms:
 
 - `zero` is an atom and
-- `n + 1` is modelled by `{successor_of n}`.
+- `n + 1` is modelled by `{successor_of : n}`.
 
-Thus, 1 is `{successor_of zero}` and 2 is `{successor_of {successor_of zero}}`.
+Thus, 1 is `{successor_of : zero}` and 2 is `{successor_of : {successor_of : zero}}`.
 
 ### Model of itself
 
 You can model the Everything object model in itself.
 
-- Atoms can be modelled as `{atom <n>}` where `<n>` is a natural number.
-- Constructions can be modelled as `{constructor <c>, value <v>}` where `<c>` and `<v>` are both modelled objects.
-- Sets can be modelled as a set whose elements are `{contains <o>}` for each element `<o>` of the modelled set. The empty set is modelled as `{}`.
+- Atoms can be modelled as `{atom : <n>}` where `<n>` is a natural number.
+- Constructions can be modelled as `{constructor : <c>, value : <v>}` where `<c>` and `<v>` are both modelled objects.
+- Sets can be modelled as a set whose elements are `{contains : <o>}` for each element `<o>` of the modelled set. The empty set is modelled as `{}`.

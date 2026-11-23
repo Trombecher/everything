@@ -4,13 +4,13 @@ We define _knowledge_ as a set of statements. A statement is a combination of an
 
 ## Validation
 
-To prevent knowledge from reaching arbitrariness, Everything validates knowledge. Knowledge `K` is _valid_ iff for every statement `a is p ∈ K`, `p` is a valid object and `p` is a property in `K`. This ensures that all objects are valid and that only properties are being used as properties.
+To prevent knowledge from reaching arbitrariness, Everything can validate knowledge. Knowledge `K` is _valid_ iff for every statement `a is p ∈ K`, `p` is a valid object and `p` is a property in `K`. This ensures that all statements are valid and that only properties are being used as properties.
 
 Models can restrict themselves by imposing arbitrary constraints on values in property constructions and on sets where properties are used. These constraints are modelled directly in Everything with a functional computation system. This system can evaluate objects and is laid out in [the next chapter](./3%20-%20Computation.md).
 
 ### Properties
 
-In Everything, every property is either non-constructed or constructed. You can construct properties via constructions with property constructors. The atoms `property` and `property_constructor` are declared in the base knowledge: both are property constructors with the constraint `{{}}`, which accepts every subject and value.
+In Everything, every _property_ is either non-constructed or constructed. You can construct properties via constructions with property constructors. The atoms `property` and `property_constructor` are declared in the base knowledge: both are property constructors with the constraint `{node_literal : true}`, which accepts every subject and value.
 
 Formally, an object `p` is a property of `o` in knowledge `K` iff one of the following holds:
 
