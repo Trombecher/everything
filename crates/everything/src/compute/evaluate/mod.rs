@@ -2,14 +2,16 @@ mod context;
 #[cfg(test)]
 mod tests;
 
-pub use context::*;
+pub use context::{Argument, EvaluationContext, FunctionContext};
 
 use std::sync::Arc;
 
 use num_bigint::BigInt;
 
 use crate::{
-    compute::{LazyObject, LazyObjectIter, MaybeUndefined, Node, capture, operations},
+    compute::{
+        LazyObject, LazyObjectIter, MaybeUndefined, Node, capture, capture_argument, operations,
+    },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
     model::{Atom, Construction, Object, Set},
@@ -99,7 +101,9 @@ enum Task {
         then: Arc<Node>,
         otherwise: Arc<Node>,
     },
-    Call,
+    Call {
+        argument: Argument,
+    },
     PopContext,
     Unwrap,
     ConstructorOfConstruction,
@@ -193,9 +197,16 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(inner)));
         }
         Node::Call { callee, with } => {
-            tasks.push(Task::Call);
+            // The argument is not evaluated here. It is closed over the
+            // caller's context and evaluated only if the parameter is used.
+            tasks.push(Task::Call {
+                argument: Argument::Unevaluated(Arc::new(capture_argument(
+                    with,
+                    evaluation_context,
+                    knowledge,
+                ))),
+            });
             tasks.push(Task::Evaluate(Arc::clone(callee)));
-            tasks.push(Task::Evaluate(Arc::clone(with)));
         }
         Node::Multiply {
             first: left,
@@ -227,12 +238,13 @@ fn resolve_evaluate_node(
                 MaybeUndefined::Undefined => UNDEFINED,
             });
         }
-        Node::Parameter { depth } => {
-            evaluated.push(match evaluation_context.parameter_value(*depth as usize) {
-                MaybeUndefined::Defined(object) => object,
-                MaybeUndefined::Undefined => UNDEFINED,
-            });
-        }
+        Node::Parameter { depth } => match evaluation_context.parameter(*depth as usize) {
+            MaybeUndefined::Defined(Argument::Value(value)) => evaluated.push(value),
+            MaybeUndefined::Defined(Argument::Unevaluated(expression)) => {
+                tasks.push(Task::Evaluate(expression));
+            }
+            MaybeUndefined::Undefined => evaluated.push(UNDEFINED),
+        },
         Node::Count(object) => {
             tasks.push(Task::Count);
             tasks.push(Task::Evaluate(Arc::clone(object)));
@@ -371,9 +383,8 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     operations::value_of_construction(object).into(),
                 ));
             }
-            Task::Call => {
+            Task::Call { argument } => {
                 let callee_lazy_object = evaluated.pop().unwrap();
-                let parameter_value = evaluated.pop().unwrap();
 
                 if let Some(Node::Function { body, object }) = callee_lazy_object
                     .try_into_node(knowledge)
@@ -384,7 +395,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
 
                     evaluation_context.push(FunctionContext {
                         function: Node::Function { body, object },
-                        parameter: parameter_value,
+                        parameter: argument,
                     });
                 } else {
                     evaluated.push(UNDEFINED);
@@ -696,12 +707,9 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                         values,
                         predicate: predicate.clone(),
                     });
-                    tasks.push(Task::Call);
-
-                    // `Task::Call` pops the callee first and the parameter
-                    // second, so the element has to be pushed before the
-                    // callee.
-                    evaluated.push(LazyObject::Eager(element));
+                    tasks.push(Task::Call {
+                        argument: Argument::Value(LazyObject::Eager(element)),
+                    });
                     evaluated.push(LazyObject::Node(predicate));
                 } else {
                     evaluated.push(LazyObject::Eager(true.into()));
@@ -747,12 +755,9 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                         values,
                         predicate: predicate.clone(),
                     });
-                    tasks.push(Task::Call);
-
-                    // `Task::Call` pops the callee first and the parameter
-                    // second, so the element has to be pushed before the
-                    // callee.
-                    evaluated.push(LazyObject::Eager(element));
+                    tasks.push(Task::Call {
+                        argument: Argument::Value(LazyObject::Eager(element)),
+                    });
                     evaluated.push(LazyObject::Node(predicate));
                 } else {
                     evaluated.push(LazyObject::Eager(false.into()));
@@ -802,8 +807,9 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     });
                     tasks.push(Task::FoldApply { element });
 
-                    tasks.push(Task::Call);
-                    evaluated.push(accumulator);
+                    tasks.push(Task::Call {
+                        argument: Argument::Value(accumulator),
+                    });
                     evaluated.push(LazyObject::Node(folder));
                 } else {
                     evaluated.push(accumulator);
@@ -812,12 +818,10 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             Task::FoldApply { element } => {
                 let callee = evaluated.pop().unwrap();
 
-                // `Task::Call` pops the callee first and the parameter second,
-                // so the element has to be pushed before the callee.
-                evaluated.push(LazyObject::Eager(element));
+                tasks.push(Task::Call {
+                    argument: Argument::Value(LazyObject::Eager(element)),
+                });
                 evaluated.push(callee);
-
-                tasks.push(Task::Call);
             }
             Task::Less => {
                 let second = evaluated.pop().unwrap().try_into_object();

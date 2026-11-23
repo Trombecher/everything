@@ -42,6 +42,18 @@ pub fn identity_function() -> Node {
     Node::function(Node::Parameter { depth: 0 })
 }
 
+/// A term that does not terminate: `(x |-> self x) 9`.
+pub fn diverging_term() -> Node {
+    Node::Call {
+        callee: Node::function(Node::Call {
+            callee: Node::FunctionSelf { depth: 0 }.into(),
+            with: Node::Parameter { depth: 0 }.into(),
+        })
+        .into(),
+        with: Node::Literal(integer(9)).into(),
+    }
+}
+
 pub fn constant_predicate(value: Object) -> Node {
     Node::function(Node::Literal(value))
 }

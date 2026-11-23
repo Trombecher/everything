@@ -4,10 +4,21 @@ mod tests;
 use std::{collections::BTreeSet, sync::Arc};
 
 use crate::{
-    compute::{EvaluationContext, MaybeUndefined, Node, nodes::source_set},
+    compute::{Argument, EvaluationContext, MaybeUndefined, Node, nodes::source_set},
     knowledge::Knowledge,
     model::{Atom, Object, Set},
 };
+
+#[derive(Clone, Copy)]
+enum CaptureMode {
+    /// Capture a function body. References bound inside the function are
+    /// preserved, and an empty outer context leaves the body unchanged.
+    Function,
+    /// Close a call argument. References that are not bound inside the
+    /// expression are free and become `undefined`; they must not be rebound by
+    /// the callee after substitution.
+    Argument,
+}
 
 /// Rebuilds the source object of a captured node.
 ///
@@ -62,16 +73,60 @@ fn source_with_captured_properties(
 
 /// Captures the evaluation context in the node tree.
 #[must_use]
-#[allow(clippy::too_many_lines)]
 pub fn capture(
     node: &Node,
     additional_depth: usize,
     evaluation_context: &EvaluationContext,
     knowledge: &Knowledge,
 ) -> Node {
-    if evaluation_context.is_empty() {
+    capture_with_mode(
+        node,
+        additional_depth,
+        evaluation_context,
+        knowledge,
+        CaptureMode::Function,
+    )
+}
+
+/// Closes a call argument in the caller's context.
+///
+/// In contrast to [`capture`], this also turns free parameter and function
+/// self-references into `undefined`. A free reference in an argument must not
+/// be captured by the callee after the argument has been substituted into the
+/// callee's body.
+#[must_use]
+pub fn capture_argument(
+    node: &Node,
+    evaluation_context: &EvaluationContext,
+    knowledge: &Knowledge,
+) -> Node {
+    capture_with_mode(
+        node,
+        0,
+        evaluation_context,
+        knowledge,
+        CaptureMode::Argument,
+    )
+}
+
+#[must_use]
+#[allow(clippy::too_many_lines)]
+fn capture_with_mode(
+    node: &Node,
+    additional_depth: usize,
+    evaluation_context: &EvaluationContext,
+    knowledge: &Knowledge,
+    mode: CaptureMode,
+) -> Node {
+    if matches!(mode, CaptureMode::Function) && evaluation_context.is_empty() {
         // Nothing to capture.
         return node.clone();
+    }
+
+    macro_rules! recurse {
+        ($node:expr, $additional_depth:expr, $context:expr, $knowledge:expr $(,)?) => {
+            capture_with_mode($node, $additional_depth, $context, $knowledge, mode)
+        };
     }
 
     match node {
@@ -79,7 +134,7 @@ pub fn capture(
             node: inner,
             source,
         } => {
-            let captured = capture(inner, additional_depth, evaluation_context, knowledge);
+            let captured = recurse!(inner, additional_depth, evaluation_context, knowledge);
             let source = source_with_captured_properties(source, inner, &captured, knowledge);
 
             Node::WithSource {
@@ -93,14 +148,19 @@ pub fn capture(
                 // So when the parameter depth is 1 it will refer to
                 // captured parameters at an additional depth of 1.
 
-                // We also need to escape the parameter because it may contain
-                // a node (which is already evaluated because parameters
-                // are always evaluated before the function).
-
-                Node::Literal(match evaluation_context.parameter_value(offset_depth) {
-                    MaybeUndefined::Defined(value) => value.into_object(knowledge),
-                    MaybeUndefined::Undefined => Atom::UNDEFINED.into(),
-                })
+                match evaluation_context.parameter(offset_depth) {
+                    MaybeUndefined::Defined(Argument::Value(value)) => {
+                        // An evaluated value must not be reinterpreted as code.
+                        Node::Literal(value.into_object(knowledge))
+                    }
+                    MaybeUndefined::Defined(Argument::Unevaluated(expression)) => {
+                        // The argument is already closed in the caller's
+                        // context, so it can be substituted as it is. It is
+                        // evaluated only when the parameter is referenced.
+                        (*expression).clone()
+                    }
+                    MaybeUndefined::Undefined => Node::Literal(Atom::UNDEFINED.into()),
+                }
             } else {
                 // This parameter refers to some inner, bound function,
                 // so keep it.
@@ -130,36 +190,36 @@ pub fn capture(
             }
         }
         Node::Function { body, object } => Node::Function {
-            body: capture(body, additional_depth + 1, evaluation_context, knowledge).into(),
+            body: recurse!(body, additional_depth + 1, evaluation_context, knowledge).into(),
             object: object.clone(),
         },
         Node::Literal(object) => Node::Literal(object.clone()),
         Node::And { first, second } => Node::And {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Count(inner) => {
-            Node::Count(capture(inner, additional_depth, evaluation_context, knowledge).into())
+            Node::Count(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
         Node::ValuesOf(inner) => {
-            Node::ValuesOf(capture(inner, additional_depth, evaluation_context, knowledge).into())
+            Node::ValuesOf(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
         Node::HasValue(inner) => {
-            Node::HasValue(capture(inner, additional_depth, evaluation_context, knowledge).into())
+            Node::HasValue(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
         Node::QueryAtomsWithProperty { property } => Node::QueryAtomsWithProperty {
-            property: capture(property, additional_depth, evaluation_context, knowledge).into(),
+            property: recurse!(property, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::QueryAtomsWithConstructor { constructor } => Node::QueryAtomsWithConstructor {
-            constructor: capture(constructor, additional_depth, evaluation_context, knowledge)
+            constructor: recurse!(constructor, additional_depth, evaluation_context, knowledge)
                 .into(),
         },
         Node::QueryConstructionValues {
             object,
             property_constructor,
         } => Node::QueryConstructionValues {
-            object: capture(object, additional_depth, evaluation_context, knowledge).into(),
-            property_constructor: capture(
+            object: recurse!(object, additional_depth, evaluation_context, knowledge).into(),
+            property_constructor: recurse!(
                 property_constructor,
                 additional_depth,
                 evaluation_context,
@@ -168,50 +228,50 @@ pub fn capture(
             .into(),
         },
         Node::QueryConstructions { constructor } => Node::QueryConstructions {
-            constructor: capture(constructor, additional_depth, evaluation_context, knowledge)
+            constructor: recurse!(constructor, additional_depth, evaluation_context, knowledge)
                 .into(),
         },
         Node::Contains { element, set } => Node::Contains {
-            element: capture(element, additional_depth, evaluation_context, knowledge).into(),
-            set: capture(set, additional_depth, evaluation_context, knowledge).into(),
+            element: recurse!(element, additional_depth, evaluation_context, knowledge).into(),
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Equal { first, second } => Node::Equal {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Or { first, second } => Node::Or {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Xor { first, second } => Node::Xor {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Not(inner) => {
-            Node::Not(capture(inner, additional_depth, evaluation_context, knowledge).into())
+            Node::Not(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
         Node::Add { first, second } => Node::Add {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Union { first, second } => Node::Union {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Intersection { first, second } => Node::Intersection {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Difference { first, second } => Node::Difference {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Map {
             set,
             mapper_function,
         } => Node::Map {
-            set: capture(set, additional_depth, evaluation_context, knowledge).into(),
-            mapper_function: capture(
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
+            mapper_function: recurse!(
                 mapper_function,
                 additional_depth,
                 evaluation_context,
@@ -223,8 +283,8 @@ pub fn capture(
             set,
             filter_function,
         } => Node::Filter {
-            set: capture(set, additional_depth, evaluation_context, knowledge).into(),
-            filter_function: capture(
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
+            filter_function: recurse!(
                 filter_function,
                 additional_depth,
                 evaluation_context,
@@ -233,68 +293,70 @@ pub fn capture(
             .into(),
         },
         Node::Less { first, second } => Node::Less {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::If {
             condition,
             then,
             otherwise,
         } => Node::If {
-            condition: capture(condition, additional_depth, evaluation_context, knowledge).into(),
-            then: capture(then, additional_depth, evaluation_context, knowledge).into(),
-            otherwise: capture(otherwise, additional_depth, evaluation_context, knowledge).into(),
+            condition: recurse!(condition, additional_depth, evaluation_context, knowledge).into(),
+            then: recurse!(then, additional_depth, evaluation_context, knowledge).into(),
+            otherwise: recurse!(otherwise, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Unwrap(set) => {
-            Node::Unwrap(capture(set, additional_depth, evaluation_context, knowledge).into())
+            Node::Unwrap(recurse!(set, additional_depth, evaluation_context, knowledge).into())
         }
         Node::Multiply { first, second } => Node::Multiply {
-            first: capture(first, additional_depth, evaluation_context, knowledge).into(),
-            second: capture(second, additional_depth, evaluation_context, knowledge).into(),
+            first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
+            second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Call { callee, with } => Node::Call {
-            callee: capture(callee, additional_depth, evaluation_context, knowledge).into(),
-            with: capture(with, additional_depth, evaluation_context, knowledge).into(),
+            callee: recurse!(callee, additional_depth, evaluation_context, knowledge).into(),
+            with: recurse!(with, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::IsAtom(inner) => {
-            Node::IsAtom(capture(inner, additional_depth, evaluation_context, knowledge).into())
+            Node::IsAtom(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
         Node::IsConstruction(inner) => Node::IsConstruction(
-            capture(inner, additional_depth, evaluation_context, knowledge).into(),
+            recurse!(inner, additional_depth, evaluation_context, knowledge).into(),
         ),
         Node::IsSet(inner) => {
-            Node::IsSet(capture(inner, additional_depth, evaluation_context, knowledge).into())
+            Node::IsSet(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
         Node::Every { set, predicate } => Node::Every {
-            set: capture(set, additional_depth, evaluation_context, knowledge).into(),
-            predicate: capture(predicate, additional_depth, evaluation_context, knowledge).into(),
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
+            predicate: recurse!(predicate, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Any { set, predicate } => Node::Any {
-            set: capture(set, additional_depth, evaluation_context, knowledge).into(),
-            predicate: capture(predicate, additional_depth, evaluation_context, knowledge).into(),
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
+            predicate: recurse!(predicate, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Fold {
             set,
             folder,
             initial,
         } => Node::Fold {
-            set: capture(set, additional_depth, evaluation_context, knowledge).into(),
-            folder: capture(folder, additional_depth, evaluation_context, knowledge).into(),
-            initial: capture(initial, additional_depth, evaluation_context, knowledge).into(),
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
+            folder: recurse!(folder, additional_depth, evaluation_context, knowledge).into(),
+            initial: recurse!(initial, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::NewConstruction { constructor, value } => Node::NewConstruction {
-            constructor: capture(constructor, additional_depth, evaluation_context, knowledge)
+            constructor: recurse!(constructor, additional_depth, evaluation_context, knowledge)
                 .into(),
-            value: capture(value, additional_depth, evaluation_context, knowledge).into(),
+            value: recurse!(value, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::NewSet { values } => Node::NewSet {
             values: values
                 .iter()
-                .map(|value| capture(value, additional_depth, evaluation_context, knowledge).into())
+                .map(|value| {
+                    recurse!(value, additional_depth, evaluation_context, knowledge).into()
+                })
                 .collect(),
         },
         Node::ConstructionConstructor { construction } => Node::ConstructionConstructor {
-            construction: capture(
+            construction: recurse!(
                 construction,
                 additional_depth,
                 evaluation_context,
@@ -303,7 +365,7 @@ pub fn capture(
             .into(),
         },
         Node::ConstructionValue { construction } => Node::ConstructionValue {
-            construction: capture(
+            construction: recurse!(
                 construction,
                 additional_depth,
                 evaluation_context,
