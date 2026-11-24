@@ -1,5 +1,9 @@
 # Chapter 1 - Objects
 
+## Notation in this Documentation
+
+Metavariables in text-expressions begin with `<` and end with `>`.
+
 ## Things
 
 Living beings talk and think about things. These things are their domain of discourse.
@@ -21,21 +25,21 @@ An _atom_ is an object whose semantic meaning is atomic: it is inherently uncomp
 
 Atom ids are global identifiers and it is STRONGLY recommended to use some combination of time and randomness (like ULIDs) to generate them. This ensures globally unique ids.
 
-Throughout these docs, aliases are used to represent the atoms instead of the raw values. These encode the semantic meaning into text, making it easier to work with them. However, these are only (unique) text aliases local to the context they are used within. The real integer values of globally used atom aliases can be looked up in [`crates/everything_2/src/model/atoms.rs`](../../crates/everything/src/model/atoms.rs).
+Throughout these docs, aliases are used to represent the atoms instead of the raw values. These encode the semantic meaning into text, making it easier to work with them. However, these are only (unique) text aliases local to the context they are used within. The real integer values of globally used atom aliases can be looked up in [`crates/everything/src/model/atoms.rs`](../../crates/everything/src/model/atoms.rs).
 
 Under the model assumption, atoms with different ids (different atoms) represent different things (!).
 
 ### Sets
 
-A _set_ is a collection of objects. It is written as a comma-separated collection of objects enclosed in curly braces, for example `{a, b, c}`. The empty set is written `{}`. Sets are unordered: `{a, b}` and `{b, a}` denote the same object. Sets may only contain an object at most once, duplicates are removed: `{a, a} = {a}`.
+A _set_ is a collection of objects. It is written as a comma-separated collection of objects enclosed in curly braces, for example `{<a>, <b>, <c>}`. The empty set is written `{}`. Sets are unordered: `{<a>, <b>}` and `{<b>, <a>}` denote the same object. Sets may only contain an object at most once, duplicates are removed: `{<a>, <a>} = {<a>}`.
 
 ### Constructions
 
-A _construction_ is a combination of two objects, written `a : b`. Constructions construct properties from a "property constructor" object (here `a`) and a "value" object (here `b`).
+A _construction_ is a combination of two objects, written `<a> : <b>`. Constructions construct properties from a "property constructor" object (here `<a>`) and a "value" object (here `<b>`).
 
-The purpose of constructions is to give objects "roles" when used in larger structures. The object model itself cannot impose constraints on what objects can be used as property constructors but later, when describing knowledge, constraints will be laid out. Semantically, a construction may then be interpreted as the construction of a "property" (which an object then may have).
+The purpose of constructions is to give objects "roles" when used in larger structures. The object model itself cannot impose constraints on what objects can be used as property constructors but later constraints will be introduced in knowledge validation.
 
-Constructions associate to the right: `a : b : c == a : (b : c)`.
+Constructions associate to the right: `<a> : <b> : <c> == <a> : (<b> : <c>)`.
 
 ### Equality
 
@@ -50,7 +54,7 @@ You can use those definitions to construct objects as representatives of things.
 You can model the natural numbers recursively by following a similar approach to the Peano axioms:
 
 - `zero` is an atom and
-- `n + 1` is modelled by `{successor_of : n}`.
+- n + 1 is modelled by `{successor_of : <n>}`.
 
 Thus, 1 is `{successor_of : zero}` and 2 is `{successor_of : {successor_of : zero}}`.
 
