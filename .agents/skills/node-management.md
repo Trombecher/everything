@@ -1,6 +1,6 @@
 ---
 name: Node Management
-description: Keep Everything's computation nodes consistent when adding, changing, renaming, or removing a node kind. Covers atoms, recognition, evaluation, lazy composites, capture, tests, docs, and validation.
+description: Keep Everything's computation nodes consistent when adding, changing, renaming, or removing a node kind. Covers atoms, recognition, evaluation, deferred sets, capture, tests, docs, and validation.
 ---
 
 # Node Management
@@ -26,7 +26,9 @@ Read these first:
   explanations.
 - `crates/everything/src/compute/evaluate/mod.rs` — the evaluator.
 - `crates/everything/src/compute/capture/mod.rs` — closure capture.
-- `crates/everything/src/compute/lazy/mod.rs` — deferred composite results.
+- `crates/everything/src/compute/lazy/mod.rs` — deferred set results and `SetValue`.
+- `crates/everything/src/model/mod.rs` — `Object` and `AtomOrComposite`.
+- `crates/everything/src/knowledge/mod.rs` — property and item queries.
 - `docs/public/3 - Computation.md` — the public node specification.
 
 ## Mental Model
@@ -41,8 +43,13 @@ A node is not a separate type in the database. It is an object shape:
   structural `Node`, wrapped together with the original source object.
 - `Node::into_object` is the inverse of parsing. It must reproduce the
   canonical object encoding of the kind.
-- Evaluation is a demand-driven stack machine. Composite-valued results may be
-  deferred in `LazyObject` instead of being materialised.
+- Evaluation is a demand-driven stack machine. Set-valued results may be
+  deferred in `LazySet` instead of being materialised.
+- A construction is not a set and has no properties. Consequently,
+  `Knowledge` property/item queries take `AtomOrComposite`, and set operations
+  live on `SetValue`; no runtime "is a set" check is needed before using them.
+  When an operand can be a construction, convert it with
+  `LazyObject::into_set()` and treat `None` as `undefined`.
 
 ## Fast Path
 
@@ -58,7 +65,7 @@ For a new node kind, touch these in order. Code paths are relative to
    `composite_size`.
 6. `compute/capture/mod.rs` — capture arm.
 7. `compute/evaluate/mod.rs` — `Task` variant(s), scheduling, stack effect.
-8. `compute/lazy/mod.rs` — only if the node returns a deferred composite.
+8. `compute/lazy/mod.rs` — only if the node returns a deferred set.
 9. `compute/operations.rs` — pure helpers, if the node needs one.
 10. Tests: `compute/nodes/tests.rs`, a new
     `compute/evaluate/tests/<name>.rs`, plus `compute/lazy/tests.rs` and
@@ -69,7 +76,7 @@ For a new node kind, touch these in order. Code paths are relative to
 
 Let the compiler help: `cargo check` after adding the enum variants points at
 every non-exhaustive `match` in `Node`, `RawNode`, `NodeKind`, `NodeProperty`,
-`Task`, and `LazyObject`.
+`Task`, `LazyObject`, `SetValue`, `LazySet`, and `LazySetItems`.
 
 ## Step 1 — Specify the Semantics
 
@@ -79,7 +86,7 @@ Before writing code, write down:
 - Which properties are required, optional, or repeatable.
 - What each child evaluates to, and what happens when a child is not the
   expected object type (`undefined`).
-- Whether the result is eager or a deferred composite.
+- Whether the result is eager or a deferred set.
 - Short-circuiting and evaluation-order rules.
 - Interaction with functions, capture, and the evaluation context.
 
@@ -232,31 +239,49 @@ The evaluator is an explicit stack machine. Two places matter:
   last popped. Pair tasks follow `let right = pop(); let left = pop();`.
 - Push exactly one result for every consumed child, or return `UNDEFINED`
   without leaving stale values on the stack.
-- Use `LazyObject::Eager(...)` for materialised values. Build deferred composite
-  descriptions only for composite-valued lazy results.
+- For set-taking nodes, convert each operand once with `LazyObject::into_set()`
+  and match on the resulting `Option<SetValue>`. `None` means the operand is a
+  construction, so the node evaluates to `UNDEFINED`. Do not guard with
+  `is_set()` and do not call set operations on `LazyObject`.
+- Store set operands in `LazySet` fields as `Box<SetValue>`, never as
+  `Box<LazyObject>`.
+- Use `LazyObject::Eager(...)` for materialised values. Build deferred set
+  descriptions only for set-valued lazy results.
 - Use `operations::*` for reusable pure semantics instead of duplicating
   logic.
 - The final checks at the end of `evaluate` require the stack and evaluation
   context to be empty apart from the result.
 
-## Step 9 — Deferred Composites (`crates/everything/src/compute/lazy/mod.rs`)
+## Step 9 — Deferred Sets (`crates/everything/src/compute/lazy/mod.rs`)
 
-Only needed when the node evaluates to a composite that should not be materialised.
+Only needed when the node evaluates to a set that should not be materialised.
+The lazy layer uses two types:
+
+- `LazyObject` is the evaluator's result: `Eager(Object)`, `Node(Node)`, or
+  `Set(LazySet)`. An eager object may be a construction.
+- `SetValue` is a value that is a set: `Eager(AtomOrComposite)` or
+  `Set(LazySet)`. Property and item operations live here and are total.
+
 Additions:
 
-- `LazyObject` variant.
-- `is_composite` → include the variant.
-- `try_into_object` → `None` for deferred values; `into_object` then
-  materialises by iterating.
-- `size` → count distinct yielded values. A composite must not expose duplicates.
-- `has_at_least_one_element` → short-circuit where possible.
-- `has` → membership semantics consistent with iteration.
-- `iter` / `into_iter` → new `LazyObjectIter` variant, or wrap an existing
+- If the node returns a new kind of deferred set, add a `LazySet` variant.
+- `SetValue::item_count`, `has_at_least_one_item`, `has_item`, and
+  `has_property` → implement the new variant. These methods cannot fail,
+  because a construction is not a `SetValue`.
+- `SetValue::into_items` → add a `LazySetItems` variant, or wrap an existing
   iterator in `Deduplicated` when the operation may yield duplicates.
-- `LazyObjectIter::next` → implement iteration.
+- `LazySetItems::next` → implement iteration.
+- `SetValue::into_properties` → only if the result is consumed as properties
+  rather than items.
+- `LazyObject::into_set` already converts eager atoms/composites and deferred
+  sets, and returns `None` only for a construction. Keep it total: never add a
+  panic or `expect` for a construction.
 
-If the source composite is a function object (`LazyObject::Node`), note that
-`is_composite` already treats it as a composite. Do not break that convention.
+Store set operands inside `LazySet` and `LazySetItems` as `Box<SetValue>`, so a
+construction cannot reach the set algebra. A function value
+(`LazyObject::Node`) is a set too — its object encoding is an atom or composite
+— and is materialised by `into_set`; `LazyObject::is_set` reports it as one. Do
+not break that convention.
 
 ## Step 10 — Tests
 
@@ -285,11 +310,14 @@ the module already uses one).
   `tests/mod.rs`.
 - Use `crate::base::BASE` and the helpers in `tests/common.rs`
   (`integer`, `integer_composite`, `identity_function`, predicate helpers, etc.).
+- `evaluate` returns `LazyObject`. Use the `set(&result)` helper from
+  `tests/common.rs` to assert set semantics through `SetValue`; it panics in
+  the test if the result is a construction.
 - Cover:
-  - the normal result, including membership, size, and iteration order;
+  - the normal result, including membership, item count, and iteration order;
   - each operand type that must produce `Atom::UNDEFINED`;
-  - deferred/lazy results: size counts distinct values, iteration does not
-    duplicate, `has` agrees with iteration;
+  - deferred results: `item_count` counts distinct values, iteration does not
+    duplicate, `has_item` agrees with iteration;
   - short-circuit behaviour: use a second child that would produce
     `undefined` or diverge and assert it was not evaluated;
   - nested deferred operands and materialisation boundaries;
@@ -300,13 +328,17 @@ the module already uses one).
 
 ### Lazy operations — `crates/everything/src/compute/lazy/tests.rs`
 
-Add tests for the new `LazyObject` variant covering:
+Add tests for the new `LazySet` variant, constructing operands as `SetValue`
+(the `eager_set` helper returns one) and covering:
 
-- `size` deduplicates;
-- `into_iter` / `into_composite_iter` semantics;
-- `has` / `has_at_least_one_element`;
-- consistency between size, membership, and iteration;
+- `item_count` deduplicates;
+- `into_items` / `iter` semantics;
+- `has_item` / `has_at_least_one_item`;
+- consistency between item count, membership, and iteration;
 - snapshot behaviour if the operation reads the knowledge.
+
+Add a `LazyObject::into_set` test when the node can produce a construction:
+the conversion must return `None` rather than panic.
 
 ## Step 11 — Documentation
 
@@ -351,8 +383,9 @@ meaning.
   strings, but keep the atom id stable. `NodeProperty::Display` is the
   user-facing `node_*` name; diagnostics and docs must use the new name.
 - **Remove a node kind**: remove every variant and match arm across `Node`,
-  `RawNode`, `NodeKind`, `NodeProperty`, `Task`, and `LazyObject`; remove its
-  tests, docs section, status table row, and agent-DSL row.
+  `RawNode`, `NodeKind`, `NodeProperty`, `Task`, `LazyObject`, `SetValue`,
+  `LazySet`, and `LazySetItems`; remove its tests, docs section, status table
+  row, and agent-DSL row.
 - **Do not delete atom ids.** Old objects may still contain them. Reusing an
   id would silently change the meaning of persisted knowledge.
 - **Check for reinterpretation**: after removing a kind, objects that used it
@@ -418,13 +451,17 @@ cargo test -p everything --lib
 ## Review Checklist
 
 - [ ] New atoms have unique ids, `NODE_*` names, and stable values.
-- [ ] `NodeKind`, `NodeProperty`, `RawNode`, `Node`, `Task`, and `LazyObject`
-      are all updated (compiler-checked).
+- [ ] `NodeKind`, `NodeProperty`, `RawNode`, `Node`, `Task`, `LazyObject`,
+      `SetValue`, `LazySet`, and `LazySetItems` are all updated
+      (compiler-checked).
 - [ ] `diagnose.rs` mirrors `RawNode::new`.
 - [ ] `into_object` reproduces the canonical encoding; round-trip test passes.
 - [ ] Every child is parsed, captured, and evaluated in the right order.
 - [ ] `composite_size` matches the number of encoded properties.
-- [ ] Deferred composites obey composite semantics for size, iteration, and membership.
+- [ ] Set-taking tasks convert operands with `LazyObject::into_set()` and map
+      `None` to `UNDEFINED`; set algebra stores `SetValue`, not `LazyObject`.
+- [ ] Deferred sets obey set semantics for item count, iteration, and
+      membership.
 - [ ] Tests cover success, `undefined`, short-circuit, laziness, and capture.
 - [ ] `docs/public/3 - Computation.md` has the section, status row, and
       lazy/limitation notes.
