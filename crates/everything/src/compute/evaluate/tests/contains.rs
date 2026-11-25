@@ -83,7 +83,7 @@ fn contains_atom_values() {
         object: value.clone(),
     });
 
-    let values = Node::ValuesOf(Node::Literal(Object::Atom(atom)).into());
+    let values = Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into());
 
     assert_eq!(
         contains(Node::Literal(value), values.clone(), &knowledge),

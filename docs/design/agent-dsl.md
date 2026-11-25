@@ -176,7 +176,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `a \| b`                     | Union                                       |
 | `a in s`                     | Contains                                    |
 | `count(s)` / `unwrap(s)`     | Count / Unwrap                              |
-| `values_of(x)`               | ValuesOf                                    |
+| `properties_of(x)`           | PropertiesOf                                |
 | `has_value(x)`               | HasValue                                    |
 | `map(s, f)`                  | Map                                         |
 | `filter(s, f)`               | Filter                                      |
@@ -192,7 +192,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `x.p`                        | `unwrap(values(x, p))`                      |
 | `true` / `false` / `undefined` | atoms                                      |
 
-Set-taking builtins (`count`, `unwrap`, `map`, `filter`, …) require a set. Use `values_of(x)` to pass an atom's values as a set. `values(o, c)` is a query rather than a set operation: it accepts any object, resolving atoms through the knowledge and sets through their members.
+Set-taking builtins (`count`, `unwrap`, `map`, `filter`, …) require a set. Use `properties_of(x)` to pass an atom's properties as a set. `values(o, c)` is a query rather than a set operation: it accepts any object, resolving atoms through the knowledge and sets through their members.
 
 ### Samples
 

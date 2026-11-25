@@ -42,7 +42,7 @@ fn query_construction_values() {
 
     let result = evaluate(
         &Node::QueryConstructionValues {
-            object: Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()).into(),
+            object: Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()).into(),
             property_constructor: Node::Literal(property_constructor.into()).into(),
         },
         &knowledge,

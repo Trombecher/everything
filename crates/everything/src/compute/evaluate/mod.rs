@@ -31,7 +31,7 @@ enum Task {
     /// it transforms it to undefined.
     ForceToBoolean,
     Count,
-    ValuesOf,
+    PropertiesOf,
     HasValue,
     QueryAtomsWithProperty,
     QueryAtomsWithConstructor,
@@ -249,8 +249,8 @@ fn resolve_evaluate_node(
             tasks.push(Task::Count);
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
-        Node::ValuesOf(object) => {
-            tasks.push(Task::ValuesOf);
+        Node::PropertiesOf(object) => {
+            tasks.push(Task::PropertiesOf);
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
         Node::HasValue(object) => {
@@ -429,7 +429,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     UNDEFINED
                 });
             }
-            Task::ValuesOf => {
+            Task::PropertiesOf => {
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(match object {

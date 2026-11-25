@@ -200,19 +200,19 @@ Because the constraint of `contains` accepts every value for every subject, a se
 An object is a _count node_ iff it has the property `node_count ·· %inner%`. It evaluates `%inner%` and, if the result is a set, returns its number of items:
 
 - for a set, the number of items;
-- for the values of an atom, the number of values.
+- for the properties of an atom, the number of properties.
 
-If the result is an atom or a construction, the result is `undefined`. Use [Values Of](#values-of) to count the values of an atom: `⟨node_count ·· ⟨node_values_of ·· %atom%⟩⟩`.
+If the result is an atom or a construction, the result is `undefined`. Use [Properties Of](#properties-of) to count the properties of an atom: `⟨node_count ·· ⟨node_properties_of ·· %atom%⟩⟩`.
 
-## Values Of
+## Properties Of
 
-An object is a _values-of node_ iff it has the property `node_values_of ·· %inner%`. It evaluates `%inner%` and converts the result to the set of its values:
+An object is a _properties-of node_ iff it has the property `node_properties_of ·· %inner%`. It evaluates `%inner%` and converts the result to the set of its properties:
 
 - for a set, the result itself;
-- for an atom, the set of values (properties) the atom has in the knowledge;
+- for an atom, the set of properties the atom has in the knowledge;
 - for a construction, `undefined`.
 
-An atom without statements evaluates to the empty set. In contrast to [Set Count](#set-count), the conversion from an object to its values is explicit, so counting the values of an atom is written as `⟨node_count ·· ⟨node_values_of ·· %atom%⟩⟩`.
+An atom without statements evaluates to the empty set. In contrast to [Set Count](#set-count), the conversion from an object to its properties is explicit, so counting the properties of an atom is written as `⟨node_count ·· ⟨node_properties_of ·· %atom%⟩⟩`.
 
 ## Has Value
 
@@ -222,7 +222,7 @@ An object is a _has-value node_ iff it has the property `node_has_value ·· %in
 - for an atom, whether it has at least one value in the knowledge;
 - for a construction, `undefined`.
 
-This is the existential counterpart of [Set Count](#set-count). It is equivalent to `⟨node_count ·· ⟨node_values_of ·· %inner%⟩⟩ > ⟨node_literal ·· 0⟩`.
+This is the existential counterpart of [Set Count](#set-count). It is equivalent to `⟨node_count ·· ⟨node_properties_of ·· %inner%⟩⟩ > ⟨node_literal ·· 0⟩`.
 
 ## Set Union
 
@@ -606,7 +606,7 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 | Add                          | `node_add_first`, `node_add_second`                                                | implemented for integers             |
 | Multiply                     | `node_multiply_first`, `node_multiply_second`                                      | implemented for integers             |
 | Count                        | `node_count`                                                                       | implemented for sets                 |
-| Values of                    | `node_values_of`                                                                   | implemented                          |
+| Properties of                | `node_properties_of`                                                               | implemented                          |
 | Has value                    | `node_has_value`                                                                   | implemented                          |
 | Union                        | `node_union_first`, `node_union_second`                                            | implemented; set operands only       |
 | Intersection                 | `node_intersection_first`, `node_intersection_second`                              | implemented; set operands only       |
@@ -634,4 +634,4 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 ## Current Limitations
 
 - Well-formedness is not checked by the evaluator. Termination, independence from iteration order, and validity of the materialised objects are semantic preconditions, so a program that is not well-formed may appear to observe laziness, iteration order, or missing validation.
-- Set-taking nodes require a set (see [Sets](#sets)). Atoms, constructions, and composites that are not sets are rejected with `undefined`; use `node_values_of` to pass an atom's values.
+- Set-taking nodes require a set (see [Sets](#sets)). Atoms, constructions, and composites that are not sets are rejected with `undefined`; use `node_properties_of` to pass an atom's properties.

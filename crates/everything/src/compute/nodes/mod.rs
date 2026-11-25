@@ -65,10 +65,10 @@ pub enum Node {
     /// undefined if the inner result is not a composite.
     Count(Arc<Node>),
 
-    /// Converts the inner result to a composite of its values: composites are
-    /// returned unchanged, atoms evaluate to the composite of their values
-    /// in the knowledge, and constructions evaluate to undefined.
-    ValuesOf(Arc<Node>),
+    /// Converts the inner result to a composite of its properties: composites
+    /// are returned unchanged, atoms evaluate to the composite of their
+    /// properties in the knowledge, and constructions evaluate to undefined.
+    PropertiesOf(Arc<Node>),
 
     /// Evaluates to `true` iff the inner result has at least one value.
     /// Composites are tested directly, atoms are tested against their values
@@ -282,7 +282,9 @@ impl Node {
             RawNode::FunctionSelf { depth } => Self::FunctionSelf { depth },
             RawNode::Parameter { depth } => Self::Parameter { depth },
             RawNode::Count(object) => Self::Count(child!(NodeProperty::Count, &object)),
-            RawNode::ValuesOf(object) => Self::ValuesOf(child!(NodeProperty::ValuesOf, &object)),
+            RawNode::PropertiesOf(object) => {
+                Self::PropertiesOf(child!(NodeProperty::PropertiesOf, &object))
+            }
             RawNode::HasValue(object) => Self::HasValue(child!(NodeProperty::HasValue, &object)),
             RawNode::QueryAtomsWithProperty { property } => Self::QueryAtomsWithProperty {
                 property: child!(NodeProperty::AtomsWithProperty, &property),
@@ -595,8 +597,8 @@ impl Node {
                 ])
                 .into()
             }
-            Self::ValuesOf(object) => Composite::from([Construction::new(
-                Atom::NODE_VALUES_OF.into(),
+            Self::PropertiesOf(object) => Composite::from([Construction::new(
+                Atom::NODE_PROPERTIES_OF.into(),
                 object.into_object(),
             )
             .into()])
@@ -753,7 +755,7 @@ impl Node {
             Self::Literal(_)
             | Self::FunctionSelf { .. }
             | Self::Count(_)
-            | Self::ValuesOf(_)
+            | Self::PropertiesOf(_)
             | Self::HasValue(_)
             | Self::QueryAtomsWithProperty { .. }
             | Self::QueryAtomsWithConstructor { .. }

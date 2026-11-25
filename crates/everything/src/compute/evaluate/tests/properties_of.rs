@@ -12,7 +12,7 @@ use super::super::*;
 use super::common::*;
 
 #[test]
-fn values_of() {
+fn properties_of() {
     let atom = Atom(42);
     let value = Object::new_integer(BigInt::from(1));
 
@@ -26,7 +26,7 @@ fn values_of() {
 
     assert_eq!(
         evaluate(
-            &Node::ValuesOf(Node::Literal(composite.clone().into()).into()),
+            &Node::PropertiesOf(Node::Literal(composite.clone().into()).into()),
             &knowledge,
         )
         .into_object(&knowledge),
@@ -34,13 +34,13 @@ fn values_of() {
     );
 
     assert_matches!(
-        evaluate(&Node::ValuesOf(identity_function().into()), &knowledge),
+        evaluate(&Node::PropertiesOf(identity_function().into()), &knowledge),
         LazyObject::Node(node) if node == identity_function()
     );
 
     assert_eq!(
         evaluate(
-            &Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()),
+            &Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()),
             &knowledge,
         )
         .into_object(&knowledge),
@@ -49,7 +49,7 @@ fn values_of() {
 
     assert_matches!(
         evaluate(
-            &Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()),
+            &Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()),
             &knowledge,
         ),
         LazyObject::AtomProperties(properties) if properties.size() == 1
@@ -57,7 +57,7 @@ fn values_of() {
 
     assert_eq!(
         evaluate(
-            &Node::Count(Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()).into()),
+            &Node::Count(Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()).into()),
             &knowledge,
         )
         .into_object(&knowledge),
@@ -66,7 +66,7 @@ fn values_of() {
 
     assert_eq!(
         evaluate(
-            &Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()),
+            &Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()),
             &knowledge,
         )
         .iter(&knowledge)
@@ -78,7 +78,7 @@ fn values_of() {
 
     assert_eq!(
         evaluate(
-            &Node::ValuesOf(Node::Literal(construction.into()).into()),
+            &Node::PropertiesOf(Node::Literal(construction.into()).into()),
             &knowledge,
         )
         .into_object(&knowledge),
@@ -87,7 +87,7 @@ fn values_of() {
 
     assert_eq!(
         evaluate(
-            &Node::ValuesOf(Node::Literal(Atom::UNDEFINED.into()).into()),
+            &Node::PropertiesOf(Node::Literal(Atom::UNDEFINED.into()).into()),
             &knowledge
         )
         .into_object(&knowledge),
@@ -103,7 +103,7 @@ fn values_of() {
 
     assert_eq!(
         evaluate(
-            &Node::ValuesOf(Node::Literal(Atom::UNDEFINED.into()).into()),
+            &Node::PropertiesOf(Node::Literal(Atom::UNDEFINED.into()).into()),
             &knowledge
         )
         .into_object(&knowledge),

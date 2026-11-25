@@ -201,9 +201,9 @@ fn capture_with_mode(
         Node::Count(inner) => {
             Node::Count(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
-        Node::ValuesOf(inner) => {
-            Node::ValuesOf(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
-        }
+        Node::PropertiesOf(inner) => Node::PropertiesOf(
+            recurse!(inner, additional_depth, evaluation_context, knowledge).into(),
+        ),
         Node::HasValue(inner) => {
             Node::HasValue(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
