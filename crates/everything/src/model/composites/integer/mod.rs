@@ -9,6 +9,9 @@ use crate::model::{
     Atom, CompositeApi, CompositeSpecialization, Construction, NonZeroBigInt, Object,
 };
 
+#[cfg(test)]
+mod tests;
+
 /// Specialization for composites `{successor_of : <n>}` and `{predecessor_of : <n>}`.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IntegerComposite {

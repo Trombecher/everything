@@ -2,6 +2,9 @@ use std::{fmt::Debug, mem};
 
 use crate::model::{CompositeApi, Construction, Object};
 
+#[cfg(test)]
+mod tests;
+
 /// Specialization for composites that only contain one construction.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OneConstructionComposite {

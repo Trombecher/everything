@@ -4,6 +4,9 @@ use num_bigint::BigInt;
 
 use crate::model::{Atom, CompositeApi, CompositeSpecialization, Construction, Object};
 
+#[cfg(test)]
+mod tests;
+
 /// Specialization for `{code_point : i}`.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CharacterComposite {

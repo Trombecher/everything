@@ -2,6 +2,9 @@ use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
 use crate::model::{CompositeApi, Object};
 
+#[cfg(test)]
+mod tests;
+
 /// A composite that is no specialization.
 #[derive(Clone)]
 pub struct AnyComposite {
