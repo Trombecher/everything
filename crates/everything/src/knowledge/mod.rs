@@ -84,13 +84,13 @@ impl Knowledge {
     ///   of that atom;
     /// * if the given object is a composite, then the properties are the members
     ///   of that composite;
-    /// * otherwise the iterator is empty.
+    /// * a construction has no properties, so `None` is returned.
     #[must_use]
-    pub fn properties_of(&self, object: &Object) -> ObjectProperties {
+    pub fn properties_of(&self, object: &Object) -> Option<ObjectProperties> {
         match object {
-            Object::Atom(atom) => ObjectProperties::properties(self.properties_of_atom(atom)),
-            Object::Construction(_) => ObjectProperties::empty(),
-            Object::Composite(composite) => ObjectProperties::members(composite.clone()),
+            Object::Atom(atom) => Some(ObjectProperties::properties(self.properties_of_atom(atom))),
+            Object::Construction(_) => None,
+            Object::Composite(composite) => Some(ObjectProperties::members(composite.clone())),
         }
     }
 
@@ -113,7 +113,9 @@ impl Knowledge {
         property_constructor: Object,
     ) -> QueryConstructionValues {
         QueryConstructionValues {
-            properties: self.properties_of(target),
+            properties: self
+                .properties_of(target)
+                .unwrap_or_else(ObjectProperties::empty),
             property_constructor,
         }
     }

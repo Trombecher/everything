@@ -300,12 +300,19 @@ impl LazyObject {
     pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
         match self {
             Self::Eager(object) => {
-                LazyObjectIter::ObjectProperties(knowledge.properties_of(object))
+                let properties = knowledge
+                    .properties_of(object)
+                    .unwrap_or_else(ObjectProperties::empty);
+
+                LazyObjectIter::ObjectProperties(properties)
             }
             Self::Node(node) => {
                 let object = node.into_object();
+                let properties = knowledge
+                    .properties_of(&object)
+                    .unwrap_or_else(ObjectProperties::empty);
 
-                LazyObjectIter::ObjectProperties(knowledge.properties_of(&object))
+                LazyObjectIter::ObjectProperties(properties)
             }
             lazy_object => lazy_object.clone().into_iter(knowledge),
         }
@@ -320,11 +327,18 @@ impl LazyObject {
         match self {
             Self::Node(node) => {
                 let object = node.into_object();
+                let properties = knowledge
+                    .properties_of(&object)
+                    .unwrap_or_else(ObjectProperties::empty);
 
-                LazyObjectIter::ObjectProperties(knowledge.properties_of(&object))
+                LazyObjectIter::ObjectProperties(properties)
             }
             Self::Eager(object) => {
-                LazyObjectIter::ObjectProperties(knowledge.properties_of(&object))
+                let properties = knowledge
+                    .properties_of(&object)
+                    .unwrap_or_else(ObjectProperties::empty);
+
+                LazyObjectIter::ObjectProperties(properties)
             }
             Self::AtomProperties(properties) => {
                 LazyObjectIter::ObjectProperties(ObjectProperties::properties(properties))
