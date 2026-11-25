@@ -79,6 +79,45 @@ fn into_items_of_a_plain_composite_is_empty() {
 }
 
 #[test]
+fn into_properties_of_a_construction_is_none() {
+    assert!(
+        LazyObject::Eager(contains(integer(1)))
+            .into_properties(&Knowledge::empty())
+            .is_none()
+    );
+}
+
+#[test]
+fn into_properties_of_an_atom_yields_its_statements() {
+    let atom = Atom(42);
+
+    let mut knowledge = Knowledge::empty();
+    knowledge.add_statement(Statement {
+        atom,
+        object: integer(1),
+    });
+
+    let properties = LazyObject::Eager(Object::Atom(atom))
+        .into_properties(&knowledge)
+        .expect("an atom has properties")
+        .collect::<Vec<_>>();
+
+    assert_eq!(properties, vec![integer(1)]);
+}
+
+#[test]
+fn into_properties_of_a_deferred_set_yields_contains_constructions() {
+    let lazy = LazyObject::Set(LazySet::AtomProperties(Properties::from([integer(1)])));
+
+    let properties = lazy
+        .into_properties(&Knowledge::empty())
+        .expect("a deferred set has properties")
+        .collect::<Vec<_>>();
+
+    assert_eq!(properties, vec![contains(integer(1))]);
+}
+
+#[test]
 fn into_items_of_an_atom_yields_contains_values() {
     let atom = Atom(42);
     let mut knowledge = Knowledge::empty();

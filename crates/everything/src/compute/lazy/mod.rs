@@ -253,18 +253,22 @@ impl LazyObject {
     /// For atoms these are the statements in the knowledge, for composites the
     /// members. A deferred set is a composite whose members are `contains`
     /// constructions.
+    ///
+    /// Returns `None` iff `self` is a construction: constructions have no
+    /// properties, so asking for them is rejected instead of yielding an empty
+    /// iterator.
     #[must_use]
-    pub fn into_properties(self, knowledge: &Knowledge) -> LazyObjectProperties {
+    pub fn into_properties(self, knowledge: &Knowledge) -> Option<LazyObjectProperties> {
         match self {
             Self::Eager(object) => knowledge
                 .properties_of(&object)
-                .map_or(LazyObjectProperties::Empty, LazyObjectProperties::Object),
+                .map(LazyObjectProperties::Object),
             Self::Node(node) => knowledge
                 .properties_of(&node.into_object())
-                .map_or(LazyObjectProperties::Empty, LazyObjectProperties::Object),
-            Self::Set(set) => {
-                LazyObjectProperties::ContainsItems(Box::new(set.into_items(knowledge)))
-            }
+                .map(LazyObjectProperties::Object),
+            Self::Set(set) => Some(LazyObjectProperties::ContainsItems(Box::new(
+                set.into_items(knowledge),
+            ))),
         }
     }
 }
@@ -363,6 +367,12 @@ impl LazySet {
     }
 
     /// Consumes the set and returns an iterator over its distinct items.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a `ConstructionValues` set targets a construction. The
+    /// evaluator rejects constructions before building that set, since asking
+    /// for the properties of a construction is not allowed.
     #[must_use]
     pub fn into_items(self, knowledge: &Knowledge) -> LazySetItems {
         match self {
@@ -379,7 +389,9 @@ impl LazySet {
                 target,
                 property_constructor,
             } => LazySetItems::ConstructionValues {
-                properties: target.into_properties(knowledge),
+                properties: target.into_properties(knowledge).expect(
+                    "constructions have no properties; querying them is rejected in the evaluator",
+                ),
                 property_constructor,
             },
             Self::Constructions { constructor } => {
@@ -436,7 +448,6 @@ impl LazySet {
 pub enum LazyObjectProperties {
     Object(ObjectProperties),
     ContainsItems(Box<LazySetItems>),
-    Empty,
 }
 
 impl Iterator for LazyObjectProperties {
@@ -448,7 +459,6 @@ impl Iterator for LazyObjectProperties {
             Self::ContainsItems(items) => items
                 .next()
                 .map(|item| Construction::new(Atom::CONTAINS.into(), item).into()),
-            Self::Empty => None,
         }
     }
 }
