@@ -1,9 +1,5 @@
 # Chapter 1 - Objects
 
-## Notation in this Documentation
-
-Metavariables in text-expressions begin with `<` and end with `>`.
-
 ## Things
 
 Living beings talk and think about things. These things are their domain of discourse.
@@ -12,9 +8,13 @@ The Everything object model is a meta-model that allows the user to quantify thi
 
 It is the user's responsibility to ensure that models are well-founded (i.e. are true bijections). All that the Everything object model sees are objects. The Everything object model therefore assumes that the model is well-founded. The user has an incentive to provide good models because they are the ones using the Everything object model.
 
+## Notation in this Documentation
+
+Metavariables in text-expressions begin with `%` and end with `%`. Line comments are denoted with `# ...`. Object-specific syntax is introduced in the following sections.
+
 ## Objects
 
-**An _object_ is either an atom, a set of objects, or a construction.**
+**An _object_ is either an atom, a composite, or a construction.**
 
 ### Atoms
 
@@ -27,19 +27,21 @@ Atom ids are global identifiers and it is STRONGLY recommended to use some combi
 
 Throughout these docs, aliases are used to represent the atoms instead of the raw values. These encode the semantic meaning into text, making it easier to work with them. However, these are only (unique) text aliases local to the context they are used within. The real integer values of globally used atom aliases can be looked up in [`crates/everything/src/model/atoms.rs`](../../crates/everything/src/model/atoms.rs).
 
-Under the model assumption, atoms with different ids (different atoms) represent different things (!).
+Under the model assumption, atoms with different ids (different atoms) model different things (!).
 
-### Sets
+### Composites
 
-A _set_ is a collection of objects. It is written as a comma-separated collection of objects enclosed in curly braces, for example `{<a>, <b>, <c>}`. The empty set is written `{}`. Sets are unordered: `{<a>, <b>}` and `{<b>, <a>}` denote the same object. Sets may only contain an object at most once, duplicates are removed: `{<a>, <a>} = {<a>}`.
+A _composite_ is a collection of objects. It is written as a comma-separated collection enclosed in mathematical angle brackets, for example `⟨%a%, %b%, %c%⟩`. The empty composite is written `⟨⟩`. Composites are unordered: `⟨%a%, %b%⟩` and `⟨%b%, %a%⟩` denote the same object. Composites may only contain an object at most once, duplicates are removed: `⟨%a%, %a%⟩ == ⟨%a%⟩`.
+
+Composites behave identically to mathematical sets but have different syntax to distinguish them from sets that are data. This distinction will become helpful when modelling and using sets.
 
 ### Constructions
 
-A _construction_ is a combination of two objects, written `<a> : <b>`. Constructions construct properties from a "property constructor" object (here `<a>`) and a "value" object (here `<b>`).
+A _construction_ is a combination of two objects, written `%a% ·· %b%`. Constructions construct properties from a "property constructor" object (here `%a%`) and a "value" object (here `%b%`).
 
 The purpose of constructions is to give objects "roles" when used in larger structures. The object model itself cannot impose constraints on what objects can be used as property constructors but later constraints will be introduced in knowledge validation.
 
-Constructions associate to the right: `<a> : <b> : <c> == <a> : (<b> : <c>)`.
+Constructions associate to the right: `%a% ·· %b% ·· %c% == %a% ·· (%b% ·· %c%)`.
 
 ### Equality
 
@@ -53,15 +55,21 @@ You can use those definitions to construct objects as representatives of things.
 
 You can model the natural numbers recursively by following a similar approach to the Peano axioms:
 
-- `zero` is an atom and
-- n + 1 is modelled by `{successor_of : <n>}`.
+- 0 is the atom `zero` and
+- n + 1 is modeled by `⟨successor_of ·· %n%⟩`.
 
-Thus, 1 is `{successor_of : zero}` and 2 is `{successor_of : {successor_of : zero}}`.
+Thus, 1 is `⟨successor_of ·· zero⟩` and 2 is `⟨successor_of ·· ⟨successor_of ·· zero⟩⟩`.
 
 ### Model of itself
 
 You can model the Everything object model in itself.
 
-- Atoms can be modelled as `{atom : <n>}` where `<n>` is a natural number.
-- Constructions can be modelled as `{constructor : <c>, value : <v>}` where `<c>` and `<v>` are both modelled objects.
-- Sets can be modelled as a set whose elements are `{contains : <o>}` for each element `<o>` of the modelled set. The empty set is modelled as `{}`.
+- Atoms can be modeled as `⟨atom ·· %n%⟩` where `%n%` is a natural number.
+- Constructions can be modeled as `⟨constructor ·· %c%, value ·· %v%⟩` where `%c%` and `%v%` are both modeled objects.
+- Sets can be modeled as a set whose elements are `⟨contains ·· %o%⟩` for each element `%o%` of the modeled set. The empty set is modeled as `⟨⟩`.
+
+## Say Hi to our Maskot!
+
+`⟨··⟩`
+
+Isn't it cute?
