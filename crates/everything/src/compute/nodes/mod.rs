@@ -12,7 +12,7 @@ use std::sync::Arc;
 use num_bigint::BigInt;
 
 use crate::{
-    compute::nodes::raw::RawNode,
+    compute::{evaluate::Thunk, nodes::raw::RawNode},
     knowledge::Knowledge,
     model::{Atom, Composite, Construction, Object},
 };
@@ -43,6 +43,14 @@ pub enum Node {
 
     /// A literal node. Evaluates to the inner object.
     Literal(Object),
+
+    /// An internal node that evaluates a shared argument thunk.
+    ///
+    /// This node is not parsed from an object. Capture inserts it instead of
+    /// copying an unevaluated argument expression, so that several references
+    /// to a captured parameter share one evaluation (call-by-need). It
+    /// materialises as the thunk's expression object.
+    Thunk(Arc<Thunk>),
 
     /// A boolean conjunction.
     And {
@@ -562,6 +570,7 @@ impl Node {
                 ])
                 .into()
             }
+            Self::Thunk(thunk) => thunk.expression().into_object(),
             Self::And { first, second } => Composite::from([
                 Construction::new(Atom::NODE_AND_FIRST.into(), first.into_object()).into(),
                 Construction::new(Atom::NODE_AND_SECOND.into(), second.into_object()).into(),

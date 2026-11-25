@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     base::BASE,
-    compute::{Argument, EvaluationContext, FunctionContext, LazyObject},
+    compute::{Argument, EvaluationContext, FunctionContext, LazyObject, Thunk},
     model::{Atom, Composite, Construction, Object},
 };
 
@@ -96,16 +96,17 @@ fn capture_preserves_annotations_of_transformed_nodes() {
 }
 
 #[test]
-fn capture_substitutes_an_unevaluated_argument_as_its_expression() {
+fn capture_substitutes_an_unevaluated_argument_as_a_shared_thunk() {
     let expression = Node::Add {
         first: Node::Literal(Atom(1).into()).into(),
         second: Node::Literal(Atom(2).into()).into(),
     };
+    let thunk = Arc::new(Thunk::new(expression.clone()));
 
     let mut context = EvaluationContext::default();
     context.push(FunctionContext {
         function: Node::function(Node::Literal(Atom(1).into())),
-        parameter: Argument::Unevaluated(Arc::new(expression.clone())),
+        parameter: Argument::Unevaluated(Arc::clone(&thunk)),
     });
 
     let inner = Node::function(Node::Parameter { depth: 1 });
@@ -115,7 +116,37 @@ fn capture_substitutes_an_unevaluated_argument_as_its_expression() {
         panic!("expected a function");
     };
 
-    assert_eq!(body.as_ref(), &expression);
+    let Node::Thunk(captured_thunk) = body.as_ref() else {
+        panic!("expected a shared thunk");
+    };
+
+    assert!(Arc::ptr_eq(captured_thunk, &thunk));
+    assert_eq!(body.into_object(), expression.into_object());
+}
+
+#[test]
+fn capture_substitutes_an_evaluated_thunk_as_its_value() {
+    let expression = Node::Add {
+        first: Node::Literal(Atom(1).into()).into(),
+        second: Node::Literal(Atom(2).into()).into(),
+    };
+    let thunk = Arc::new(Thunk::new(expression));
+    thunk.cache(LazyObject::Eager(Atom(3).into()));
+
+    let mut context = EvaluationContext::default();
+    context.push(FunctionContext {
+        function: Node::function(Node::Literal(Atom(1).into())),
+        parameter: Argument::Unevaluated(thunk),
+    });
+
+    let inner = Node::function(Node::Parameter { depth: 1 });
+    let captured = capture(&inner, 0, &context, &BASE);
+
+    let Node::Function { body, .. } = captured else {
+        panic!("expected a function");
+    };
+
+    assert_eq!(body.as_ref(), &Node::Literal(Atom(3).into()));
 }
 
 #[test]

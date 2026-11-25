@@ -37,7 +37,7 @@ Node recognition is not itself an evaluator operation. The evaluator takes an al
 
 ## Reference Evaluation
 
-The meaning of a node is defined by a _reference evaluation_. It is strict in data: when a canonical set is evaluated, all of its items are evaluated. Function application is non-strict: a call binds its argument as an unevaluated expression, and the argument is evaluated only when the parameter is referenced. Control nodes follow their short-circuiting rules. A program (a node together with a knowledge) is _well-formed_ if:
+The meaning of a node is defined by a _reference evaluation_. It is strict in data: when a canonical set is evaluated, all of its items are evaluated. Function application is non-strict: a call binds its argument as an unevaluated thunk, and the argument is evaluated only when the parameter is referenced. Control nodes follow their short-circuiting rules. A program (a node together with a knowledge) is _well-formed_ if:
 
 - the reference evaluation terminates for every iteration order,
 - its result is the same for every iteration order, and
@@ -80,7 +80,7 @@ An object is a _parameter reference_ iff it has the property `node_parameter ·�
 - `0` is the innermost enclosing function,
 - `1` is the next enclosing function, and so on.
 
-If the bound argument is an already evaluated value, the parameter reference evaluates to that value. Otherwise it evaluates the bound argument expression. If the depth does not identify an enclosing function at evaluation time, the parameter reference evaluates to `undefined`.
+If the bound argument is an already evaluated value, the parameter reference evaluates to that value. Otherwise it evaluates the bound argument expression. The result of that evaluation is cached in the binding and reused by later references to the same parameter. If the depth does not identify an enclosing function at evaluation time, the parameter reference evaluates to `undefined`.
 
 ## Function Self-References
 
@@ -92,7 +92,7 @@ A self-reference evaluates to the enclosing function object itself, not to the r
 
 Functions are closures. When a function is evaluated inside an enclosing function call, every free parameter reference and free function self-reference in its body is replaced by the binding from the enclosing call. References to functions and parameters bound inside the function remain unchanged.
 
-A parameter binding that is an already evaluated value is escaped into a literal, so a value that happens to look like a node is not reinterpreted as code when the function is later called. A parameter binding that is an unevaluated argument is substituted as its closed expression; it is still not evaluated at capture time. This is also why functions can escape the call that created them. Capturing a function transforms the original body object: substituted references are replaced in place, while annotations and unknown properties of the body and its nested nodes are preserved. Capturing an atom-defined function produces a set, because the captured body replaces the atom's `node_function` value.
+A parameter binding that is an already evaluated value is escaped into a literal, so a value that happens to look like a node is not reinterpreted as code when the function is later called. A parameter binding that is an unevaluated argument is substituted as a shared thunk; it is still not evaluated at capture time, and several references to the captured parameter share one evaluation. An already evaluated thunk is escaped into a literal just like an evaluated value. This is also why functions can escape the call that created them. Capturing a function transforms the original body object: substituted references are replaced in place, while annotations and unknown properties of the body and its nested nodes are preserved. Capturing an atom-defined function produces a set, because the captured body replaces the atom's `node_function` value.
 
 Evaluation of a function does not capture runtime parameter values from functions that have not been called yet; capture happens when the function object is produced. Nested functions therefore capture the environment of the call in which they are evaluated.
 
@@ -103,12 +103,12 @@ An object is a _function application/call_ iff
 - it has the property `node_call_callee ·· %callee%` and
 - it has the property `node_call_with ·· %argument%`.
 
-A call evaluates `%callee%`. It does not evaluate `%argument%`. The argument is closed over the caller's context and bound to the function's parameter as an unevaluated expression. The callee result is interpreted as a function:
+A call evaluates `%callee%`. It does not evaluate `%argument%`. The argument is closed over the caller's context and bound to the function's parameter as an unevaluated thunk. The callee result is interpreted as a function:
 
 - the callee result is parsed as a node in the current knowledge, and it must be a `node_function` node;
 - if the callee is not a function, or the callee object is not a valid node, the call evaluates to `undefined` and the argument is not evaluated.
 
-The body is evaluated with the function context pushed. The context is popped when the body finishes. A parameter reference evaluates the bound argument. The argument may therefore be evaluated zero, one, or several times, depending on how often the parameter is referenced.
+The body is evaluated with the function context pushed. The context is popped when the body finishes. A parameter reference evaluates the bound argument. The argument is evaluated at most once, when the parameter is first referenced, and the result is cached for later references.
 
 ## Literals
 
@@ -574,12 +574,12 @@ This section describes implementation choices. They do not affect the result of 
 The implementation is demand-driven:
 
 - [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#set-map), [filter](#set-filter), and the query nodes build a description of a set without iterating their operands. The items are computed when an operation needs them: by [count](#set-count), [unwrap](#set-unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the items, such as [fold](#set-fold), [every](#set-every), [any](#set-any), [map](#set-map), or [filter](#set-filter).
-- A call does not evaluate its argument. The argument is closed over the caller's context and kept as an unevaluated expression. It is evaluated when the parameter is referenced. Items that are already evaluated when a function is called internally, such as the items passed by [map](#set-map), [filter](#set-filter), [every](#set-every), [any](#set-any), and [fold](#set-fold), are kept as values instead of being wrapped as expressions.
-- Because arguments are pure, an implementation may share the result of an argument evaluation between several parameter references (call-by-need) instead of evaluating the expression each time (call-by-name). This only changes how much work is done.
+- A call does not evaluate its argument. The argument is closed over the caller's context and kept as an unevaluated thunk. It is evaluated when the parameter is first referenced, and the result is cached for later references (call-by-need) and for code that captured the parameter. Items that are already evaluated when a function is called internally, such as the items passed by [map](#set-map), [filter](#set-filter), [every](#set-every), [any](#set-any), and [fold](#set-fold), are kept as values instead of being wrapped as thunks.
+- Because arguments are pure, sharing the result of an argument evaluation does not change the result, only how much work is done.
 - [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#set-map) only depends on whether the source set has an item, so the mapper is not called.
 - A [new set](#new-set) evaluates all of its children and materialises the resulting set. Its items are therefore not represented lazily.
 - Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call. Parsed nodes retain the object they were parsed from, so materialising a captured function reproduces its body exactly, including annotations and unknown properties. Atom-defined functions materialise into composites; see [Functions](#functions).
-- Capturing an unevaluated argument substitutes its closed expression into the function body instead of evaluating it or storing a runtime thunk. Function objects therefore remain finite objects even when they capture divergent code.
+- Capturing an unevaluated argument shares its thunk in the function body instead of evaluating it or copying its closed expression. A thunk contains a finite closed expression and an optional cached result, so function objects remain finite even when they capture divergent code. Capturing an argument that is already evaluated escapes its value into a literal.
 
 Because evaluation is demand-driven, a program that is not well-formed may still terminate here, for example when testing whether a mapped set is non-empty without applying a divergent mapper. This is not guaranteed.
 

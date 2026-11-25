@@ -1,6 +1,52 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use crate::compute::{LazyObject, MaybeUndefined, Node};
+
+/// An unevaluated argument together with the result of its evaluation.
+///
+/// The argument expression is closed over the caller's context, so evaluating
+/// it does not depend on the context of the function that references it. Since
+/// computation is pure, the first result can be reused for every further
+/// reference to the parameter (call-by-need).
+#[derive(Debug)]
+pub struct Thunk {
+    expression: Node,
+    value: OnceLock<LazyObject>,
+}
+
+impl PartialEq for Thunk {
+    fn eq(&self, other: &Self) -> bool {
+        self.expression == other.expression
+    }
+}
+
+impl Thunk {
+    #[must_use]
+    pub fn new(expression: Node) -> Self {
+        Self {
+            expression,
+            value: OnceLock::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn expression(&self) -> &Node {
+        &self.expression
+    }
+
+    /// Returns the cached result, if the thunk has already been evaluated.
+    #[must_use]
+    pub fn value(&self) -> Option<&LazyObject> {
+        self.value.get()
+    }
+
+    /// Stores the result of evaluating this thunk.
+    ///
+    /// If the thunk was already evaluated, the existing result is kept.
+    pub fn cache(&self, value: LazyObject) {
+        let _ = self.value.set(value);
+    }
+}
 
 /// The argument bound to a function parameter.
 ///
@@ -13,7 +59,9 @@ pub enum Argument {
     /// An already evaluated value.
     Value(LazyObject),
     /// A closed expression that is evaluated when the parameter is referenced.
-    Unevaluated(Arc<Node>),
+    ///
+    /// Clones share the cached result of the expression.
+    Unevaluated(Arc<Thunk>),
 }
 
 /// An evaluation context is a stack of function contexts,

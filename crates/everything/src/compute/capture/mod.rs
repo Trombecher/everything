@@ -153,11 +153,19 @@ fn capture_with_mode(
                         // An evaluated value must not be reinterpreted as code.
                         Node::Literal(value.into_object(knowledge))
                     }
-                    MaybeUndefined::Defined(Argument::Unevaluated(expression)) => {
-                        // The argument is already closed in the caller's
-                        // context, so it can be substituted as it is. It is
-                        // evaluated only when the parameter is referenced.
-                        (*expression).clone()
+                    MaybeUndefined::Defined(Argument::Unevaluated(thunk)) => {
+                        if let Some(value) = thunk.value() {
+                            // Reuse the cached result instead of copying the
+                            // expression. The value must not be reinterpreted
+                            // as code.
+                            Node::Literal(value.clone().into_object(knowledge))
+                        } else {
+                            // The argument is already closed in the caller's
+                            // context. Share the thunk instead of copying its
+                            // expression, so that every reference in the
+                            // captured code shares one evaluation.
+                            Node::Thunk(Arc::clone(&thunk))
+                        }
                     }
                     MaybeUndefined::Undefined => Node::Literal(Atom::UNDEFINED.into()),
                 }
@@ -194,6 +202,14 @@ fn capture_with_mode(
             object: object.clone(),
         },
         Node::Literal(object) => Node::Literal(object.clone()),
+        Node::Thunk(thunk) => {
+            if let Some(value) = thunk.value() {
+                Node::Literal(value.clone().into_object(knowledge))
+            } else {
+                // The thunk is already closed, so capturing does not change it.
+                Node::Thunk(Arc::clone(thunk))
+            }
+        }
         Node::And { first, second } => Node::And {
             first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
             second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),

@@ -1,9 +1,6 @@
 use num_bigint::BigInt;
 
-use crate::{
-    base::BASE,
-    model::{Atom, Object},
-};
+use crate::{base::BASE, model::Object};
 
 use super::super::*;
 use super::common::*;
@@ -31,11 +28,10 @@ fn reference(m: u32, n: u32) -> u32 {
 /// There is no subtraction node, but predecessor is only needed for positive
 /// numbers, so it is expressed as addition of `-1`.
 ///
-/// Call arguments are lazy but not shared, so referencing `n` several times
-/// would recompute `ackermann m (n - 1)` several times and make the evaluation
-/// exponentially slow. The `otherwise` branch therefore forces `n` once by
-/// folding over the singleton set `%n%`: fold elements are already evaluated
-/// values and can be referenced for free.
+/// The parameters are referenced several times, so this also exercises
+/// call-by-need: without sharing, evaluating `n` again in the `otherwise` branch
+/// would recompute `ackermann m (n - 1)` and make the evaluation exponentially
+/// slow.
 fn ackermann() -> Node {
     let predecessor = |value: Node| Node::Add {
         first: value.into(),
@@ -52,36 +48,11 @@ fn ackermann() -> Node {
     };
 
     // Inside the body of `n -> ...`, `n` is the parameter at depth 0 and `m`
-    // is the parameter at depth 1.
+    // is the parameter at depth 1. The Ackermann function itself is the
+    // function at depth 1.
     let m = || Node::Parameter { depth: 1 };
     let n = || Node::Parameter { depth: 0 };
-
-    // Inside the body of the folder `acc -> element -> ...`, `element` is the
-    // parameter at depth 0 and `m` is the parameter at depth 3: the two folder
-    // functions are nested inside the two Ackermann functions.
-    let element = || Node::Parameter { depth: 0 };
-    let outer_m = || Node::Parameter { depth: 3 };
-    let outer_self_reference = || Node::FunctionSelf { depth: 3 };
-
-    let folder_body = Node::If {
-        condition: Node::Equal {
-            first: element().into(),
-            second: Node::Literal(integer(0)).into(),
-        }
-        .into(),
-        then: call_ackermann(
-            outer_self_reference(),
-            predecessor(outer_m()),
-            Node::Literal(integer(1)),
-        )
-        .into(),
-        otherwise: call_ackermann(
-            outer_self_reference(),
-            predecessor(outer_m()),
-            call_ackermann(outer_self_reference(), outer_m(), predecessor(element())),
-        )
-        .into(),
-    };
+    let self_reference = || Node::FunctionSelf { depth: 1 };
 
     let body = Node::If {
         condition: Node::Equal {
@@ -94,13 +65,24 @@ fn ackermann() -> Node {
             second: Node::Literal(integer(1)).into(),
         }
         .into(),
-        otherwise: Node::SetFold {
-            set: Node::NewSet {
-                items: vec![n().into()],
+        otherwise: Node::If {
+            condition: Node::Equal {
+                first: n().into(),
+                second: Node::Literal(integer(0)).into(),
             }
             .into(),
-            folder: Node::function(Node::function(folder_body)).into(),
-            initial: Node::Literal(Atom::UNDEFINED.into()).into(),
+            then: call_ackermann(
+                self_reference(),
+                predecessor(m()),
+                Node::Literal(integer(1)),
+            )
+            .into(),
+            otherwise: call_ackermann(
+                self_reference(),
+                predecessor(m()),
+                call_ackermann(self_reference(), m(), predecessor(n())),
+            )
+            .into(),
         }
         .into(),
     };

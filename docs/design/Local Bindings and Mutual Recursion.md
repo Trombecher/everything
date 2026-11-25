@@ -36,8 +36,9 @@ The only binder in the computation model is the function:
 
 Calls are non-strict: the argument is closed over the caller's context with
 `capture_argument` and evaluated only when the parameter is referenced
-(`Argument::Unevaluated` in `compute/evaluate/context.rs`). That is already
-call-by-name `let`:
+(`Argument::Unevaluated` in `compute/evaluate/context.rs`). The result is cached
+in the argument thunk and shared by later references. That is already
+call-by-need `let`:
 
 ```text
 (λcubed. cubed + 1 / cubed) (x * x * x)
@@ -200,12 +201,13 @@ interesting cases are precisely the ones the call encoding cannot see.
 
 ### 3.5 Caching is orthogonal
 
-If the evaluator later caches parameter computation, the call encoding and a
-`let` node become equivalent. That is an argument **against** adding a node just
+Because the evaluator caches parameter computation, the call encoding and a
+`let` node are equivalent. That is an argument **against** adding a node just
 for caching. The natural place to add sharing is `Argument` / `FunctionContext`
-in the evaluator (call-by-need memoization). The existing call lowering then
-gets sharing automatically for every binding. A `let` node would only be a
-marker saying "please cache here"; the cache would still have to be implemented.
+in the evaluator (call-by-need memoization), which is where it is implemented.
+The existing call lowering then gets sharing automatically for every binding. A
+`let` node would only be a marker saying "please cache here"; the cache would
+still have to be implemented.
 
 Caveats:
 

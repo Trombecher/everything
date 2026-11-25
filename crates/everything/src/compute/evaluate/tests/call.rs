@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use num_bigint::BigInt;
 
 use crate::{
@@ -122,6 +124,38 @@ fn captured_argument_is_evaluated_when_the_closure_is_called() {
     };
 
     assert_eq!(evaluate(&call, &BASE).into_object(&BASE), integer(1));
+}
+
+#[test]
+fn captured_argument_is_shared_between_parameter_references() {
+    let expression = Node::Add {
+        first: Node::Literal(integer(1)).into(),
+        second: Node::Literal(integer(2)).into(),
+    };
+    let thunk = Arc::new(Thunk::new(expression));
+
+    let mut context = EvaluationContext::default();
+    context.push(FunctionContext {
+        function: Node::function(Node::Literal(integer(0))),
+        parameter: Argument::Unevaluated(Arc::clone(&thunk)),
+    });
+
+    // `x |-> x + x`, where `x` is bound by the surrounding context.
+    let function = Node::function(Node::Add {
+        first: Node::Parameter { depth: 1 }.into(),
+        second: Node::Parameter { depth: 1 }.into(),
+    });
+    let captured = capture(&function, 0, &context, &BASE);
+    let call = Node::Call {
+        callee: captured.into(),
+        with: Node::Literal(integer(0)).into(),
+    };
+
+    assert_eq!(evaluate(&call, &BASE).into_object(&BASE), integer(6));
+    assert!(
+        thunk.value().is_some(),
+        "the shared argument thunk was not evaluated"
+    );
 }
 
 #[test]

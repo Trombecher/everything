@@ -2,7 +2,7 @@ mod context;
 #[cfg(test)]
 mod tests;
 
-pub use context::{Argument, EvaluationContext, FunctionContext};
+pub use context::{Argument, EvaluationContext, FunctionContext, Thunk};
 
 use std::sync::Arc;
 
@@ -105,6 +105,10 @@ enum Task {
     Call {
         argument: Argument,
     },
+    /// Caches the result of an evaluated thunk.
+    CacheThunk {
+        thunk: Arc<Thunk>,
+    },
     PopContext,
     SetUnwrap,
     ConstructorOfConstruction,
@@ -112,6 +116,19 @@ enum Task {
     IsAtom,
     IsConstruction,
     IsComposite,
+}
+
+/// Pushes a thunk's cached value, or schedules its expression and the task
+/// that caches the result.
+fn evaluate_thunk(thunk: &Arc<Thunk>, tasks: &mut Vec<Task>, evaluated: &mut Vec<LazyObject>) {
+    if let Some(value) = thunk.value() {
+        evaluated.push(value.clone());
+    } else {
+        tasks.push(Task::CacheThunk {
+            thunk: Arc::clone(thunk),
+        });
+        tasks.push(Task::Evaluate(Arc::new(thunk.expression().clone())));
+    }
 }
 
 #[allow(clippy::too_many_lines)]
@@ -199,11 +216,11 @@ fn resolve_evaluate_node(
             // The argument is not evaluated here. It is closed over the
             // caller's context and evaluated only if the parameter is used.
             tasks.push(Task::Call {
-                argument: Argument::Unevaluated(Arc::new(capture_argument(
+                argument: Argument::Unevaluated(Arc::new(Thunk::new(capture_argument(
                     with,
                     evaluation_context,
                     knowledge,
-                ))),
+                )))),
             });
             tasks.push(Task::Evaluate(Arc::clone(callee)));
         }
@@ -225,6 +242,9 @@ fn resolve_evaluate_node(
         Node::Literal(object) => {
             evaluated.push(object.clone().into());
         }
+        Node::Thunk(thunk) => {
+            evaluate_thunk(thunk, tasks, evaluated);
+        }
         Node::And { first, second } => {
             tasks.push(Task::PartialAnd {
                 second: Arc::clone(second),
@@ -239,8 +259,8 @@ fn resolve_evaluate_node(
         }
         Node::Parameter { depth } => match evaluation_context.parameter(*depth as usize) {
             MaybeUndefined::Defined(Argument::Value(value)) => evaluated.push(value),
-            MaybeUndefined::Defined(Argument::Unevaluated(expression)) => {
-                tasks.push(Task::Evaluate(expression));
+            MaybeUndefined::Defined(Argument::Unevaluated(thunk)) => {
+                evaluate_thunk(&thunk, tasks, evaluated);
             }
             MaybeUndefined::Undefined => evaluated.push(UNDEFINED),
         },
@@ -399,6 +419,12 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 } else {
                     evaluated.push(UNDEFINED);
                 }
+            }
+            Task::CacheThunk { thunk } => {
+                let value = evaluated.pop().unwrap();
+
+                thunk.cache(value.clone());
+                evaluated.push(value);
             }
             Task::PartialAnd { second } => {
                 let first = evaluated.pop().unwrap();
