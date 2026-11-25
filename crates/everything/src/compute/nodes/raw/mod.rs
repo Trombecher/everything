@@ -10,10 +10,20 @@ use crate::{
 };
 use diagnose::diagnose;
 
-pub(crate) fn node_function_body(object: &Object, knowledge: &Knowledge) -> Option<Object> {
+/// Returns the value of the single construction of `object` with the given
+/// `property_constructor`, if there is exactly one.
+fn construction_value(
+    object: &Object,
+    knowledge: &Knowledge,
+    property_constructor: Object,
+) -> Option<Object> {
     knowledge
-        .query_construction_values(object, Atom::NODE_FUNCTION.into())
+        .query_construction_values(object, property_constructor)?
         .next_and_last()
+}
+
+pub(crate) fn node_function_body(object: &Object, knowledge: &Knowledge) -> Option<Object> {
+    construction_value(object, knowledge, Atom::NODE_FUNCTION.into())
 }
 
 fn pair_values(
@@ -22,13 +32,9 @@ fn pair_values(
     first_property_constructor: Object,
     second_property_constructor: Object,
 ) -> Option<(Object, Object)> {
-    let first = knowledge
-        .query_construction_values(object, first_property_constructor)
-        .next_and_last()?;
+    let first = construction_value(object, knowledge, first_property_constructor)?;
 
-    let second = knowledge
-        .query_construction_values(object, second_property_constructor)
-        .next_and_last()?;
+    let second = construction_value(object, knowledge, second_property_constructor)?;
 
     Some((first, second))
 }
@@ -40,17 +46,11 @@ fn triple_values(
     second_property_constructor: Object,
     third_property_constructor: Object,
 ) -> Option<(Object, Object, Object)> {
-    let first = knowledge
-        .query_construction_values(object, first_property_constructor)
-        .next_and_last()?;
+    let first = construction_value(object, knowledge, first_property_constructor)?;
 
-    let second = knowledge
-        .query_construction_values(object, second_property_constructor)
-        .next_and_last()?;
+    let second = construction_value(object, knowledge, second_property_constructor)?;
 
-    let third = knowledge
-        .query_construction_values(object, third_property_constructor)
-        .next_and_last()?;
+    let third = construction_value(object, knowledge, third_property_constructor)?;
 
     Some((first, second, third))
 }
@@ -63,17 +63,15 @@ fn many_values(
     property_constructor: Object,
 ) -> Option<Vec<Object>> {
     let values = knowledge
-        .query_construction_values(object, property_constructor)
+        .query_construction_values(object, property_constructor)?
         .collect::<Vec<_>>();
 
     (!values.is_empty()).then_some(values)
 }
 
 fn node_function_self(object: &Object, knowledge: &Knowledge) -> Option<RawNode> {
-    let depth_i128 = knowledge
-        .query_construction_values(object, Atom::NODE_FUNCTION_SELF.into())
-        .next_and_last()?
-        .integer()?;
+    let depth_i128 =
+        construction_value(object, knowledge, Atom::NODE_FUNCTION_SELF.into())?.integer()?;
 
     u32::try_from(depth_i128)
         .ok()
@@ -81,10 +79,7 @@ fn node_function_self(object: &Object, knowledge: &Knowledge) -> Option<RawNode>
 }
 
 fn node_parameter_depth(object: &Object, knowledge: &Knowledge) -> Option<RawNode> {
-    let depth = knowledge
-        .query_construction_values(object, Atom::NODE_PARAMETER.into())
-        .next_and_last()?
-        .integer()?;
+    let depth = construction_value(object, knowledge, Atom::NODE_PARAMETER.into())?.integer()?;
 
     u32::try_from(depth)
         .ok()
@@ -244,10 +239,7 @@ impl RawNode {
 
         xor_with!(
             NodeKind::Literal,
-            knowledge
-                .query_construction_values(object, Atom::NODE_LITERAL.into())
-                .next_and_last()
-                .map(Self::Literal)
+            construction_value(object, knowledge, Atom::NODE_LITERAL.into()).map(Self::Literal)
         );
 
         xor_with!(
@@ -270,34 +262,23 @@ impl RawNode {
 
         xor_with!(
             NodeKind::SetCount,
-            knowledge
-                .query_construction_values(object, Atom::NODE_SET_COUNT.into())
-                .next_and_last()
-                .map(Self::SetCount)
+            construction_value(object, knowledge, Atom::NODE_SET_COUNT.into()).map(Self::SetCount)
         );
 
         xor_with!(
             NodeKind::PropertiesOf,
-            knowledge
-                .query_construction_values(object, Atom::NODE_PROPERTIES_OF.into())
-                .next_and_last()
+            construction_value(object, knowledge, Atom::NODE_PROPERTIES_OF.into())
                 .map(Self::PropertiesOf)
         );
 
         xor_with!(
             NodeKind::HasValue,
-            knowledge
-                .query_construction_values(object, Atom::NODE_HAS_VALUE.into())
-                .next_and_last()
-                .map(Self::HasValue)
+            construction_value(object, knowledge, Atom::NODE_HAS_VALUE.into()).map(Self::HasValue)
         );
 
         xor_with!(
             NodeKind::Not,
-            knowledge
-                .query_construction_values(object, Atom::NODE_NOT.into())
-                .next_and_last()
-                .map(Self::Not)
+            construction_value(object, knowledge, Atom::NODE_NOT.into()).map(Self::Not)
         );
 
         xor_with!(
@@ -445,9 +426,7 @@ impl RawNode {
 
         xor_with!(
             NodeKind::SetUnwrap,
-            knowledge
-                .query_construction_values(object, Atom::NODE_SET_UNWRAP_SET.into())
-                .next_and_last()
+            construction_value(object, knowledge, Atom::NODE_SET_UNWRAP_SET.into())
                 .map(Self::SetUnwrap)
         );
 
@@ -464,10 +443,7 @@ impl RawNode {
 
         xor_with!(
             NodeKind::IsAtom,
-            knowledge
-                .query_construction_values(object, Atom::NODE_IS_ATOM.into())
-                .next_and_last()
-                .map(Self::IsAtom)
+            construction_value(object, knowledge, Atom::NODE_IS_ATOM.into()).map(Self::IsAtom)
         );
 
         xor_with!(
@@ -494,17 +470,13 @@ impl RawNode {
 
         xor_with!(
             NodeKind::QueryAtomsWithProperty,
-            knowledge
-                .query_construction_values(object, Atom::NODE_ATOMS_WITH_PROPERTY.into())
-                .next_and_last()
+            construction_value(object, knowledge, Atom::NODE_ATOMS_WITH_PROPERTY.into())
                 .map(|property| Self::QueryAtomsWithProperty { property })
         );
 
         xor_with!(
             NodeKind::QueryAtomsWithConstructor,
-            knowledge
-                .query_construction_values(object, Atom::NODE_ATOMS_WITH_CONSTRUCTOR.into())
-                .next_and_last()
+            construction_value(object, knowledge, Atom::NODE_ATOMS_WITH_CONSTRUCTOR.into())
                 .map(|constructor| Self::QueryAtomsWithConstructor { constructor })
         );
 
@@ -526,9 +498,7 @@ impl RawNode {
 
         xor_with!(
             NodeKind::QueryConstructions,
-            knowledge
-                .query_construction_values(object, Atom::NODE_QUERY_CONSTRUCTIONS.into())
-                .next_and_last()
+            construction_value(object, knowledge, Atom::NODE_QUERY_CONSTRUCTIONS.into())
                 .map(|constructor| Self::QueryConstructions { constructor })
         );
 
@@ -545,17 +515,13 @@ impl RawNode {
 
         xor_with!(
             NodeKind::IsConstruction,
-            knowledge
-                .query_construction_values(object, Atom::NODE_IS_CONSTRUCTION.into())
-                .next_and_last()
+            construction_value(object, knowledge, Atom::NODE_IS_CONSTRUCTION.into())
                 .map(Self::IsConstruction)
         );
 
         xor_with!(
             NodeKind::IsComposite,
-            knowledge
-                .query_construction_values(object, Atom::NODE_IS_COMPOSITE.into())
-                .next_and_last()
+            construction_value(object, knowledge, Atom::NODE_IS_COMPOSITE.into())
                 .map(Self::IsComposite)
         );
 
@@ -594,17 +560,17 @@ impl RawNode {
 
         xor_with!(
             NodeKind::ConstructionConstructor,
-            knowledge
-                .query_construction_values(object, Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION.into())
-                .next_and_last()
-                .map(|construction| Self::ConstructionConstructor { construction })
+            construction_value(
+                object,
+                knowledge,
+                Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION.into()
+            )
+            .map(|construction| Self::ConstructionConstructor { construction })
         );
 
         xor_with!(
             NodeKind::ConstructionValue,
-            knowledge
-                .query_construction_values(object, Atom::NODE_VALUE_OF_CONSTRUCTION.into())
-                .next_and_last()
+            construction_value(object, knowledge, Atom::NODE_VALUE_OF_CONSTRUCTION.into())
                 .map(|construction| Self::ConstructionValue { construction })
         );
 

@@ -1,5 +1,7 @@
 mod properties;
 mod query;
+#[cfg(test)]
+mod tests;
 
 pub use properties::*;
 pub use query::*;
@@ -147,18 +149,21 @@ impl Knowledge {
         }
     }
 
+    /// Queries the values of the constructions of `target` with the given
+    /// `property_constructor`.
+    ///
+    /// Returns `None` iff `target` has no properties, i.e. iff it is a
+    /// construction.
     #[must_use]
     pub fn query_construction_values(
         &self,
         target: &Object,
         property_constructor: Object,
-    ) -> QueryConstructionValues {
-        QueryConstructionValues {
-            properties: self
-                .properties_of(target)
-                .unwrap_or_else(ObjectProperties::empty),
+    ) -> Option<QueryConstructionValues> {
+        Some(QueryConstructionValues {
+            properties: self.properties_of(target)?,
             property_constructor,
-        }
+        })
     }
 
     /// Queries the knowledge for all atoms that have a property that is a
@@ -196,7 +201,7 @@ impl Knowledge {
             Object::Atom(_) | Object::Composite(_) => {
                 let f = self
                     .query_construction_values(object, Atom::PROPERTY.into())
-                    .next_and_last();
+                    .and_then(|mut values| values.next_and_last());
 
                 if let Some(constraint_function) = f {
                 } else {

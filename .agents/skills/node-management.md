@@ -143,7 +143,8 @@ error text in `compute/nodes/error.rs`.
 
 1. Add the `RawNode` variant holding the raw `Object` child values.
 2. Add a recognition block in `RawNode::new` using the existing helpers:
-   - single value: `query_construction_values(...).next_and_last()`;
+   - single value: `construction_value(object, knowledge, atom)`, which wraps
+     `Knowledge::query_construction_values` (itself `None` for constructions);
    - fixed pair/triple: `pair_values` / `triple_values`;
    - repeatable property: `many_values` (returns `None` for zero values);
    - depth property: convert to `u32` as in `node_parameter_depth`.

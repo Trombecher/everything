@@ -172,7 +172,10 @@ pub(super) fn diagnose(object: &Object, knowledge: &Knowledge) -> InvalidNodeErr
         let mut error = None;
 
         for property in spec.properties {
-            let mut values = knowledge.query_construction_values(object, property.atom().into());
+            let mut values = knowledge
+                .query_construction_values(object, property.atom().into())
+                .into_iter()
+                .flatten();
 
             let Some(value) = values.next() else {
                 error.get_or_insert(InvalidNodeError::MissingProperty {

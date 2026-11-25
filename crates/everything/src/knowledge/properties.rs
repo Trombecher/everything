@@ -118,10 +118,6 @@ impl ObjectProperties {
     pub(crate) fn members(composite: Composite) -> Self {
         Self(ObjectPropertiesSource::Members(composite.into_iter()))
     }
-
-    pub(crate) fn empty() -> Self {
-        Self::properties(Properties::empty())
-    }
 }
 
 impl Iterator for ObjectProperties {
