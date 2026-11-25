@@ -439,7 +439,11 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 evaluated.push(match object {
                     LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
                     LazyObject::Eager(Object::Atom(atom)) => LazyObject::Eager(
-                        (knowledge.size_of_object(&Object::Atom(atom)) != 0).into(),
+                        (knowledge
+                            .size_of_object(&Object::Atom(atom))
+                            .expect("an atom has properties")
+                            != 0)
+                            .into(),
                     ),
                     object => LazyObject::Eager(object.has_at_least_one_item(knowledge).into()),
                 });

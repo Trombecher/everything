@@ -163,31 +163,62 @@ impl LazyObject {
     }
 
     /// The number of items of the set view of `self`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is a construction, which is not a set. Check
+    /// [`Self::is_set`] first.
     #[must_use]
     pub fn item_count(&self, knowledge: &Knowledge) -> u64 {
         match self {
-            Self::Eager(object) => knowledge.item_count_of(object),
-            Self::Node(node) => knowledge.item_count_of(&node.into_object()),
+            Self::Eager(object) => knowledge
+                .item_count_of(object)
+                .expect("a construction has no items"),
+            Self::Node(node) => knowledge
+                .item_count_of(&node.into_object())
+                .expect("a construction has no items"),
             Self::Set(set) => set.item_count(knowledge),
         }
     }
 
     /// Returns `true` iff the set view of `self` has at least one item.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is a construction, which is not a set. Check
+    /// [`Self::is_set`] first.
     #[must_use]
     pub fn has_at_least_one_item(&self, knowledge: &Knowledge) -> bool {
         match self {
-            Self::Eager(object) => knowledge.items_of(object).next().is_some(),
-            Self::Node(node) => knowledge.items_of(&node.into_object()).next().is_some(),
+            Self::Eager(object) => knowledge
+                .items_of(object)
+                .expect("a construction has no items")
+                .next()
+                .is_some(),
+            Self::Node(node) => knowledge
+                .items_of(&node.into_object())
+                .expect("a construction has no items")
+                .next()
+                .is_some(),
             Self::Set(set) => set.has_at_least_one_item(knowledge),
         }
     }
 
     /// Returns `true` iff `item` is an item of the set view of `self`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is a construction, which is not a set. Check
+    /// [`Self::is_set`] first.
     #[must_use]
     pub fn has_item(&self, item: &Object, knowledge: &Knowledge) -> bool {
         match self {
-            Self::Eager(object) => knowledge.object_has_item(object, item),
-            Self::Node(node) => knowledge.object_has_item(&node.into_object(), item),
+            Self::Eager(object) => knowledge
+                .object_has_item(object, item)
+                .expect("a construction has no items"),
+            Self::Node(node) => knowledge
+                .object_has_item(&node.into_object(), item)
+                .expect("a construction has no items"),
             Self::Set(set) => set.has_item(item, knowledge),
         }
     }
@@ -198,11 +229,19 @@ impl LazyObject {
     /// Deferred sets are represented by composites whose members are
     /// `contains` constructions, so a property of such a set is a
     /// `contains ·· %item%` construction.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is a construction, which has no properties.
     #[must_use]
     pub fn has_property(&self, property: &Object, knowledge: &Knowledge) -> bool {
         match self {
-            Self::Eager(object) => knowledge.object_has(object, property),
-            Self::Node(node) => knowledge.object_has(&node.into_object(), property),
+            Self::Eager(object) => knowledge
+                .object_has_property(object, property)
+                .expect("a construction has no properties"),
+            Self::Node(node) => knowledge
+                .object_has_property(&node.into_object(), property)
+                .expect("a construction has no properties"),
             Self::Set(set) => match property {
                 Object::Construction(Construction { constructor, value })
                     if matches!(&**constructor, Object::Atom(Atom::CONTAINS)) =>
@@ -232,6 +271,11 @@ impl LazyObject {
     ///
     /// The returned iterator owns a snapshot of everything it needs, so it
     /// stays valid if the knowledge changes after this call.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is a construction, which is not a set. Check
+    /// [`Self::is_set`] first.
     #[must_use]
     pub fn iter(&self, knowledge: &Knowledge) -> LazySetItems {
         self.clone().into_items(knowledge)
@@ -239,11 +283,24 @@ impl LazyObject {
 
     /// Consumes the lazy object and returns an iterator over the items of its
     /// set view.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` is a construction, which is not a set. Check
+    /// [`Self::is_set`] first.
     #[must_use]
     pub fn into_items(self, knowledge: &Knowledge) -> LazySetItems {
         match self {
-            Self::Eager(object) => LazySetItems::ObjectItems(knowledge.items_of(&object)),
-            Self::Node(node) => LazySetItems::ObjectItems(knowledge.items_of(&node.into_object())),
+            Self::Eager(object) => LazySetItems::ObjectItems(
+                knowledge
+                    .items_of(&object)
+                    .expect("a construction has no items"),
+            ),
+            Self::Node(node) => LazySetItems::ObjectItems(
+                knowledge
+                    .items_of(&node.into_object())
+                    .expect("a construction has no items"),
+            ),
             Self::Set(set) => set.into_items(knowledge),
         }
     }
@@ -322,7 +379,8 @@ impl LazySet {
         match self {
             Self::AtomProperties(properties) => properties.has(item),
             Self::AtomsWithProperty { property } => {
-                matches!(item, Object::Atom(_)) && knowledge.object_has(item, property)
+                matches!(item, Object::Atom(_))
+                    && knowledge.object_has_property(item, property) == Some(true)
             }
             Self::AtomsWithConstructor { .. } | Self::Constructions { .. } | Self::Map { .. } => {
                 self.clone()

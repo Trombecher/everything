@@ -96,56 +96,70 @@ impl Knowledge {
         }
     }
 
+    /// Returns `true` iff `object` has `property` as one of its properties.
+    ///
+    /// Returns `None` iff `object` is a construction, which has no properties.
     #[must_use]
-    pub fn object_has(&self, object: &Object, element: &Object) -> bool {
+    pub fn object_has_property(&self, object: &Object, property: &Object) -> Option<bool> {
         match object {
-            Object::Atom(atom) => self
-                .map
-                .get(atom)
-                .is_some_and(|properties| properties.has(element)),
-            Object::Construction(_) => false,
-            Object::Composite(composite) => composite.has(element),
+            Object::Atom(atom) => Some(
+                self.map
+                    .get(atom)
+                    .is_some_and(|properties| properties.has(property)),
+            ),
+            Object::Construction(_) => None,
+            Object::Composite(composite) => Some(composite.has(property)),
         }
     }
 
     /// Returns `true` iff `item` is an item of `object`'s set view: iff
     /// `object` has the property `contains ·· item`.
+    ///
+    /// Returns `None` iff `object` is a construction, which is not a set.
     #[must_use]
-    pub fn object_has_item(&self, object: &Object, item: &Object) -> bool {
+    pub fn object_has_item(&self, object: &Object, item: &Object) -> Option<bool> {
         match object {
-            Object::Atom(_) => self.object_has(
+            Object::Atom(_) => self.object_has_property(
                 object,
                 &Construction::new(Atom::CONTAINS.into(), item.clone()).into(),
             ),
-            Object::Composite(composite) => composite.has_item(item),
-            Object::Construction(_) => false,
+            Object::Composite(composite) => Some(composite.has_item(item)),
+            Object::Construction(_) => None,
         }
     }
 
     /// Iterates over the items of `object`'s set view.
     ///
     /// Atoms contribute the values of their `contains` statements, composites
-    /// the values of their `contains` members. Constructions have no items.
+    /// the values of their `contains` members.
+    ///
+    /// Returns `None` iff `object` is a construction, which is not a set.
     #[must_use]
-    pub fn items_of(&self, object: &Object) -> ObjectItems {
+    pub fn items_of(&self, object: &Object) -> Option<ObjectItems> {
         match object {
-            Object::Atom(atom) => ObjectItems::Atom(
+            Object::Atom(atom) => Some(ObjectItems::Atom(
                 self.properties_of_atom(atom)
                     .into_iter()
                     .filter_map(item_of_property),
-            ),
-            Object::Composite(composite) => ObjectItems::Composite(composite.clone().into_items()),
-            Object::Construction(_) => ObjectItems::Empty,
+            )),
+            Object::Composite(composite) => {
+                Some(ObjectItems::Composite(composite.clone().into_items()))
+            }
+            Object::Construction(_) => None,
         }
     }
 
     /// The number of items of `object`'s set view.
+    ///
+    /// Returns `None` iff `object` is a construction, which is not a set.
     #[must_use]
-    pub fn item_count_of(&self, object: &Object) -> u64 {
+    pub fn item_count_of(&self, object: &Object) -> Option<u64> {
         match object {
-            Object::Atom(_) => u64::try_from(self.items_of(object).count()).unwrap_or(u64::MAX),
-            Object::Composite(composite) => composite.item_count(),
-            Object::Construction(_) => 0,
+            Object::Atom(_) => {
+                Some(u64::try_from(self.items_of(object)?.count()).unwrap_or(u64::MAX))
+            }
+            Object::Composite(composite) => Some(composite.item_count()),
+            Object::Construction(_) => None,
         }
     }
 
@@ -184,14 +198,15 @@ impl Knowledge {
     }
 
     /// Determines the size of the object in this knowledge, i.e.
-    /// the number of properties it has. Constructions
-    /// have no properties.
+    /// the number of properties it has.
+    ///
+    /// Returns `None` iff `object` is a construction, which has no properties.
     #[must_use]
-    pub fn size_of_object(&self, object: &Object) -> u64 {
+    pub fn size_of_object(&self, object: &Object) -> Option<u64> {
         match object {
-            Object::Atom(atom) => self.map.get(atom).map_or(0, Properties::size),
-            Object::Construction(_) => 0,
-            Object::Composite(composite) => composite.size(),
+            Object::Atom(atom) => Some(self.map.get(atom).map_or(0, Properties::size)),
+            Object::Construction(_) => None,
+            Object::Composite(composite) => Some(composite.size()),
         }
     }
 
@@ -258,7 +273,6 @@ fn item_of_property(property: Object) -> Option<Object> {
 pub enum ObjectItems {
     Atom(std::iter::FilterMap<PropertiesIter, fn(Object) -> Option<Object>>),
     Composite(CompositeItems),
-    Empty,
 }
 
 impl Iterator for ObjectItems {
@@ -268,7 +282,6 @@ impl Iterator for ObjectItems {
         match self {
             Self::Atom(items) => items.next(),
             Self::Composite(items) => items.next(),
-            Self::Empty => None,
         }
     }
 }
