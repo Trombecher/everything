@@ -2,14 +2,38 @@
 
 Everything gives you the freedom to model anything. However, some models are stored optimally in memory, which may be desirable. This chapter presents common models that are used throughout Everything or that are useful as a starting point.
 
+## Sets
+
+The atom `contains` is introduced by this model and is not predefined in `atoms.rs`. It is a property constructor whose constraint accepts every value for every subject.
+
+An object is a _set_ iff it is a composite whose members are all constructions of the form `contains ·· %item%`. The objects `%item%` are the _items_ of the set. The empty set is the empty composite.
+
+Sets inherit their structure from composites: they are unordered and contain each item at most once, `⟨contains ·· %a%, contains ·· %b%⟩ == ⟨contains ·· %b%, contains ·· %a%⟩` and `⟨contains ·· %a%, contains ·· %a%⟩ == ⟨contains ·· %a%⟩`.
+
+`{...}` is syntactic sugar for sets: `{%a%, %b%, %c%}` stands for `⟨contains ·· %a%, contains ·· %b%, contains ·· %c%⟩`, and `{}` stands for the empty set. Braces therefore always denote sets, never composites with arbitrary members.
+
+Because the constraint of `contains` accepts every value for every subject, a set places no demands on its items beyond their own validity: a set is valid whenever its items are. This is what makes sets data: computed collections, such as query results or the output of map and filter, never run the constraints of the objects they collect.
+
+Sets are stored optimally in memory.
+
+### Example
+
+```
+# {1, 2} is the composite
+⟨contains ·· 1, contains ·· 2⟩
+
+# {} is the empty composite
+⟨⟩
+```
+
 ## Integers
 
 Integers are constructed recursively through object nesting. An object is an _integer_ iff
 
 - it is equal to the atom `zero`, or
-- it is a set with a single property whose tag is `successor_of` or `predecessor_of` and whose value is an integer.
+- it is a composite with a single property whose constructor is `successor_of` or `predecessor_of` and whose value is an integer.
 
-An integer is _positive_ iff it has the tag `successor_of` and _negative_ iff it has the tag `predecessor_of`. The atom `zero` is neither positive nor negative. For the canonical representation, the value of a `successor_of` property must be non-negative and the value of a `predecessor_of` property must be non-positive.
+An integer is _positive_ iff it has a `successor_of` property and _negative_ iff it has a `predecessor_of` property. The atom `zero` is neither positive nor negative. For the canonical representation, the value of a `successor_of` property must be non-negative and the value of a `predecessor_of` property must be non-positive.
 
 This approach of constructing integers is similar to the Peano axioms definition of natural numbers.
 
@@ -38,8 +62,8 @@ Integers are stored optimally in memory.
 
 An object is a _list_ iff either
 
-- it is the empty set `⟨⟩`, or
-- it has exactly one property with the tag `list_item`, exactly one property with the tag `list_tail`, and the value of the `list_tail` property is a list.
+- it is the empty set `{}`, or
+- it has exactly one property with the constructor `list_item`, exactly one property with the constructor `list_tail`, and the value of the `list_tail` property is a list.
 
 The value of the `list_item` property is the first element of the list and the value of the `list_tail` property is the rest of the list.
 
@@ -53,7 +77,7 @@ The value of the `list_item` property is the first element of the list and the v
         list_item ·· ⟨successor_of ·· ⟨successor_of ·· zero⟩⟩,
         list_tail ·· ⟨
             list_item ·· ⟨successor_of ·· ⟨successor_of ·· ⟨successor_of ·· zero⟩⟩⟩,
-            list_tail ·· ⟨⟩
+            list_tail ·· {}
         ⟩
     ⟩
 ⟩

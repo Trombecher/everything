@@ -12,7 +12,7 @@ Models can restrict themselves by imposing arbitrary constraints on values in pr
 
 The properties (set) of an atom or composite `%o%` in (knowledge) `%K%` is defined to be
 
-- `⟨%p% | %o% is %p% ∈ %K%⟩` if `%o%` is an atom; or
+- `{%p% | %o% is %p% ∈ %K%}` if `%o%` is an atom; or
 - `%o%` if `%o%` is a composite.
 
 An object `%p%` is a property of an atom or a composite `%o%` in (knowledge) `%K%` iff
@@ -37,30 +37,17 @@ An object `%p%` is a **valid** property of an atom or a composite `%o%` in (know
 
 ### Valid Objects
 
----
-
-THIS SECTION NEEDS WORK! Here is a short description of the problem I am facing:
-
-What should validity mean for objects? What I want to have is the following:
-
-- For a set `%s%`, every construction `%p% = %c% ·· %v%` in `%s%` should have the same condition as bullet point 1 of the definition of valid properties (`%c%` is a property constructor with constraint `%f%` and applying `%f%` to `%s%` and then `%v%` must yield true). And this deep, for nested constructions in sets.
-- For a construction, both constructor and value must be valid objects with the same condition as bullet point 1 of the definition of valid properties.
-
-**The question is:** consider a set `%s%` that has a property/element `%p%`. Is `%p%` required to be valid for `%s%` in `%K%`? What does `%s%` really represent?: the model says it is _having the property_ `%p%` so we must validate `%p%`'s constraint (!). On the other hand, what if we query the knowledge and want to collect all atom properties in `%K%` into a set. If the user has defined atom property `first` and atom property `last`, each checking for mutual exclusion on the subject (if applied), the collected set would be **invalid** (since we have to run the constraint for `first` and it fails because it sees `last` on the collected set).
-
-One solution would be to just not check constraints for properties, that are not constructed, on sets. But this would yield a serious limitation in our system.
-
-The other solution (that I am hesitant to propose but might be the only acceptable solution) would be to model sets. Read more in [../design/Set Models.md](../design/Set%20Models.md).
-
----
-
 The motivation behind valid objects is to check that all property constructions in that object are valid. Formally, an object `%o%` is _valid_ in knowledge `%K%` iff one of the following holds:
 
 - `%o%` is an atom;
-- `%o%` is a construction `%c% ·· %v%`, `%c%` and `%v%` are valid objects, `%c% is property_constructor ·· %f% ∈ %K%`, and `⟨node_call_callee ·· ⟨node_call_callee ·· %f%, node_call_with ·· %o%⟩, node_call_with ·· %v%⟩` evaluates to a truthy object; or
-- `%o%` is a composite and every object `%e% ∈ %o%` is valid.
+- `%o%` is a construction `%c% ·· %v%`, `%c%` and `%v%` are valid objects, and `%c%` is a property constructor in `%K%` (that is, `%c% is property_constructor ·· %f% ∈ %K%` for some object `%f%`); or
+- `%o%` is a composite and every member `%m%` of `%o%` is a valid property of `%o%` in `%K%`.
+
+The composite case makes validity deep: every construction in a valid composite has its constraint applied with that composite as the subject, and nested composites are checked the same way with themselves as the subject. A construction that is only used as a value is checked structurally: its constructor must be a property constructor and its value must be valid. Its constraint runs where a subject exists, namely in statements and in the composites that contain it as a member.
 
 The constraint on property constructors used in composites and statements allows for validation, not only on the value, but on the subject as well.
+
+Composites are therefore strong: a composite must be able to bear all of its members as properties. Data does not run into this requirement because data collections are sets (see [Chapter 4](./4%20-%20Common%20Models.md#sets)): a set is a composite whose members are all `contains ·· %item%` constructions, and the constraint of `contains` accepts every value for every subject. A set is valid whenever its items are, so query results and other computed collections are valid objects.
 
 ## Examples
 

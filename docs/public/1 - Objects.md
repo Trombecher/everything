@@ -33,7 +33,7 @@ Under the model assumption, atoms with different ids (different atoms) model dif
 
 A _composite_ is a collection of objects. It is written as a comma-separated collection enclosed in mathematical angle brackets `⟨` (U+27E8) and `⟩` (U+27E9), for example `⟨%a%, %b%, %c%⟩`. The empty composite is written `⟨⟩`. Composites are unordered: `⟨%a%, %b%⟩` and `⟨%b%, %a%⟩` denote the same object. Composites may only contain an object at most once, duplicates are removed: `⟨%a%, %a%⟩ == ⟨%a%⟩`.
 
-Composites behave identically to mathematical sets but have different syntax to distinguish them from sets that are data. This distinction will become helpful when modelling and using sets.
+Composites behave identically to mathematical sets but have different syntax to distinguish them from sets, which are data. The common model for sets is described in [Chapter 4](./4%20-%20Common%20Models.md#sets).
 
 ### Constructions
 
@@ -66,7 +66,7 @@ You can model the Everything object model in itself.
 
 - Atoms can be modeled as `⟨atom ·· %n%⟩` where `%n%` is a natural number.
 - Constructions can be modeled as `⟨constructor ·· %c%, value ·· %v%⟩` where `%c%` and `%v%` are both modeled objects.
-- Composites can be modeled as a composite whose elements are `⟨contains ·· %o%⟩` for each element `%o%` of the modeled composite. The empty composite is modeled as `⟨⟩`.
+- Composites can be modeled as a composite whose members are `⟨contains ·· %o%⟩` for each member `%o%` of the modeled composite. The empty composite is modeled as `⟨⟩`.
 
 ## Say Hi to our Mascot!
 
