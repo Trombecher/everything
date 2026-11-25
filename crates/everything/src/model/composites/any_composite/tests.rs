@@ -50,6 +50,18 @@ fn has_rejects_absent_objects() {
 }
 
 #[test]
+fn items_are_detected_without_building_a_contains_construction() {
+    let item = atom(20);
+    let contains = Object::Construction(Construction::new(Atom::CONTAINS.into(), item.clone()));
+    let composite = AnyComposite::from_sorted([atom(10), contains]);
+
+    assert_eq!(composite.item_count(), 1);
+    assert!(composite.has_item(&item));
+    assert!(!composite.has_item(&atom(10)));
+    assert!(!composite.has_item(&atom(30)));
+}
+
+#[test]
 fn iteration_yields_all_objects_in_order() {
     let objects = objects();
     let mut properties = AnyComposite::from_sorted(objects.clone()).into_iter();

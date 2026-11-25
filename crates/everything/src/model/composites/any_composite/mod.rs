@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
-use crate::model::{CompositeApi, Object};
+use crate::model::{Atom, CompositeApi, Construction, Object};
 
 use super::fmt_composite;
 
@@ -21,6 +21,43 @@ impl CompositeApi for AnyComposite {
     fn has(&self, object: &Object) -> bool {
         self.objects.binary_search(object).is_ok()
     }
+
+    fn has_item(&self, item: &Object) -> bool {
+        self.objects
+            .binary_search_by(|object| compare_to_contains(object, item))
+            .is_ok()
+    }
+
+    fn item_count(&self) -> u64 {
+        u64::try_from(
+            self.objects
+                .iter()
+                .filter(|object| is_contains(object))
+                .count(),
+        )
+        .unwrap_or(u64::MAX)
+    }
+}
+
+/// Compares `object` with the virtual construction `contains ·· item`.
+fn compare_to_contains(object: &Object, item: &Object) -> std::cmp::Ordering {
+    match object {
+        Object::Construction(construction) => construction
+            .constructor
+            .as_ref()
+            .cmp(&Object::Atom(Atom::CONTAINS))
+            .then_with(|| construction.value.as_ref().cmp(item)),
+        Object::Atom(_) => std::cmp::Ordering::Less,
+        Object::Composite(_) => std::cmp::Ordering::Greater,
+    }
+}
+
+fn is_contains(object: &Object) -> bool {
+    matches!(
+        object,
+        Object::Construction(Construction { constructor, .. })
+            if matches!(&**constructor, Object::Atom(Atom::CONTAINS))
+    )
 }
 
 impl AnyComposite {

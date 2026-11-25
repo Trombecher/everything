@@ -1,6 +1,6 @@
 use std::{fmt::Debug, mem};
 
-use crate::model::{CompositeApi, Construction, Object};
+use crate::model::{Atom, CompositeApi, Construction, Object};
 
 use super::fmt_composite;
 
@@ -59,6 +59,18 @@ impl CompositeApi for OneConstructionComposite {
 
     fn has(&self, object: &Object) -> bool {
         matches!(object, Object::Construction(construction2) if construction2 == &self.construction)
+    }
+
+    fn has_item(&self, item: &Object) -> bool {
+        self.construction.constructor.as_ref() == &Object::Atom(Atom::CONTAINS)
+            && self.construction.value.as_ref() == item
+    }
+
+    fn item_count(&self) -> u64 {
+        u64::from(matches!(
+            self.construction.constructor.as_ref(),
+            Object::Atom(Atom::CONTAINS)
+        ))
     }
 }
 

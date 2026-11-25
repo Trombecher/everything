@@ -54,6 +54,13 @@ impl CompositeApi for CharacterComposite {
     fn has(&self, object: &Object) -> bool {
         matches!(Self::parse_char(object), Some(character) if self.representing == character)
     }
+    fn has_item(&self, _item: &Object) -> bool {
+        false
+    }
+
+    fn item_count(&self) -> u64 {
+        0
+    }
 }
 
 impl IntoIterator for CharacterComposite {

@@ -94,6 +94,13 @@ impl CompositeApi for IntegerComposite {
             false
         }
     }
+    fn has_item(&self, _item: &Object) -> bool {
+        false
+    }
+
+    fn item_count(&self) -> u64 {
+        0
+    }
 }
 
 #[derive(Clone)]

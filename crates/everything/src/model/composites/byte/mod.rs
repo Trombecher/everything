@@ -72,6 +72,13 @@ impl CompositeApi for ByteComposite {
             false
         }
     }
+    fn has_item(&self, _item: &Object) -> bool {
+        false
+    }
+
+    fn item_count(&self) -> u64 {
+        0
+    }
 }
 
 impl IntoIterator for ByteComposite {

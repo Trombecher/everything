@@ -36,6 +36,16 @@ where
 
     fn has(&self, object: &Object) -> bool;
 
+    /// Returns `true` iff this composite has `item` as a set item, i.e. iff it
+    /// has the member `contains ·· item`.
+    fn has_item(&self, item: &Object) -> bool;
+
+    /// The number of set items of this composite.
+    ///
+    /// Only members of the form `contains ·· %item%` contribute an item; all
+    /// other members are ignored, as the set model is open.
+    fn item_count(&self) -> u64;
+
     #[doc(alias = "into_iter")]
     fn properties(self) -> Self::IntoIter {
         self.into_iter()
@@ -85,6 +95,30 @@ impl CompositeApi for Composite {
             Self::Any(x) => x.has(object),
             Self::Text(x) => x.has(object),
             Self::Set(x) => x.has(object),
+        }
+    }
+
+    fn has_item(&self, item: &Object) -> bool {
+        match self {
+            Self::Integer(x) => x.has_item(item),
+            Self::Character(x) => x.has_item(item),
+            Self::Byte(x) => x.has_item(item),
+            Self::OneConstruction(x) => x.has_item(item),
+            Self::Any(x) => x.has_item(item),
+            Self::Text(x) => x.has_item(item),
+            Self::Set(x) => x.has_item(item),
+        }
+    }
+
+    fn item_count(&self) -> u64 {
+        match self {
+            Self::Integer(x) => x.item_count(),
+            Self::Character(x) => x.item_count(),
+            Self::Byte(x) => x.item_count(),
+            Self::OneConstruction(x) => x.item_count(),
+            Self::Any(x) => x.item_count(),
+            Self::Text(x) => x.item_count(),
+            Self::Set(x) => x.item_count(),
         }
     }
 }
@@ -143,28 +177,6 @@ impl Composite {
                     .expect("the set has exactly one item"),
             ))),
             _ => Self::Set(SetComposite::from_sorted_items(items)),
-        }
-    }
-
-    /// Returns `true` iff the composite has `item` as a set item, i.e. iff it
-    /// has the member `contains ·· item`.
-    #[must_use]
-    pub fn has_item(&self, item: &Object) -> bool {
-        match self {
-            Self::Set(set) => set.has_item(item),
-            _ => self.has(&contains_member(item.clone()).into()),
-        }
-    }
-
-    /// The number of set items of this composite.
-    ///
-    /// Only members of the form `contains ·· %item%` contribute an item; all
-    /// other members are ignored, as the set model is open.
-    #[must_use]
-    pub fn item_count(&self) -> u64 {
-        match self {
-            Self::Set(set) => set.item_count(),
-            _ => u64::try_from(self.clone().into_items().count()).unwrap_or(u64::MAX),
         }
     }
 

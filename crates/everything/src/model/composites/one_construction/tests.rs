@@ -33,6 +33,22 @@ fn has_matches_only_the_contained_construction() {
 }
 
 #[test]
+fn contains_constructions_are_items() {
+    let item = Object::Atom(Atom(20));
+    let composite =
+        OneConstructionComposite::new(construction(Atom::CONTAINS.into(), item.clone()));
+
+    assert_eq!(composite.item_count(), 1);
+    assert!(composite.has_item(&item));
+    assert!(!composite.has_item(&Object::Atom(Atom(21))));
+
+    let ordinary = OneConstructionComposite::new(construction(Atom(10).into(), item));
+
+    assert_eq!(ordinary.item_count(), 0);
+    assert!(!ordinary.has_item(&Object::Atom(Atom(20))));
+}
+
+#[test]
 fn iteration_yields_exactly_the_construction() {
     let object = object(Atom(10).into(), Atom(20).into());
     let mut properties = OneConstructionComposite::new(
