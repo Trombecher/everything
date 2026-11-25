@@ -2,7 +2,7 @@ use num_bigint::BigInt;
 
 use crate::{
     knowledge::{Knowledge, Statement, Values},
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::*;
@@ -21,11 +21,11 @@ fn undefined_is_not_a_node() {
 
 #[test]
 fn is_lazy_distinguishes_materialized_results() {
-    let eager_set = LazyObject::Eager(Object::Set(Set::from([integer(1)])));
+    let eager_composite = LazyObject::Eager(Object::Composite(Composite::from([integer(1)])));
     let eager_atom = LazyObject::Eager(Atom(42).into());
     let lazy_values = LazyObject::AtomValues(Values::from([integer(1)]));
 
-    assert!(!eager_set.is_lazy());
+    assert!(!eager_composite.is_lazy());
     assert!(!eager_atom.is_lazy());
     assert!(lazy_values.is_lazy());
 
@@ -39,11 +39,11 @@ fn is_lazy_distinguishes_materialized_results() {
 }
 
 #[test]
-fn into_iter_of_an_eager_set_yields_its_members() {
-    let set = Set::from([integer(1), integer(2)]);
+fn into_iter_of_an_eager_composite_yields_its_members() {
+    let composite = Composite::from([integer(1), integer(2)]);
 
     assert_eq!(
-        LazyObject::Eager(Object::Set(set))
+        LazyObject::Eager(Object::Composite(composite))
             .into_iter(&Knowledge::empty())
             .collect::<Vec<_>>(),
         vec![integer(1), integer(2)]
@@ -51,9 +51,9 @@ fn into_iter_of_an_eager_set_yields_its_members() {
 }
 
 #[test]
-fn into_set_iter_yields_each_value_at_most_once() {
-    let first = LazyObject::Eager(Object::Set(Set::from([integer(1), integer(2)])));
-    let second = LazyObject::Eager(Object::Set(Set::from([integer(2), integer(3)])));
+fn into_composite_iter_yields_each_value_at_most_once() {
+    let first = LazyObject::Eager(Object::Composite(Composite::from([integer(1), integer(2)])));
+    let second = LazyObject::Eager(Object::Composite(Composite::from([integer(2), integer(3)])));
 
     let union = LazyObject::Union {
         first: Box::new(first),
@@ -61,15 +61,17 @@ fn into_set_iter_yields_each_value_at_most_once() {
     };
 
     assert_eq!(
-        union.into_set_iter(&Knowledge::empty()).collect::<Vec<_>>(),
+        union
+            .into_composite_iter(&Knowledge::empty())
+            .collect::<Vec<_>>(),
         vec![integer(1), integer(2), integer(3)]
     );
 }
 
 #[test]
 fn into_iter_of_a_union_yields_each_value_at_most_once() {
-    let first = LazyObject::Eager(Object::Set(Set::from([integer(1), integer(2)])));
-    let second = LazyObject::Eager(Object::Set(Set::from([integer(2), integer(3)])));
+    let first = LazyObject::Eager(Object::Composite(Composite::from([integer(1), integer(2)])));
+    let second = LazyObject::Eager(Object::Composite(Composite::from([integer(2), integer(3)])));
 
     let union = LazyObject::Union {
         first: Box::new(first),
@@ -130,7 +132,7 @@ fn into_iter_yields_constructions_as_atom_value_objects() {
     assert_eq!(
         iterator.collect::<Vec<_>>(),
         vec![
-            Set::from([
+            Composite::from([
                 Construction::new(Atom::ATOM.into(), atom.into()).into(),
                 Construction::new(Atom::VALUE.into(), value).into(),
             ])
@@ -185,27 +187,27 @@ fn into_iter_captures_atoms_with_property() {
     assert_eq!(iterator.collect::<Vec<_>>(), vec![Object::Atom(atom)]);
 }
 
-fn eager_set(values: impl IntoIterator<Item = Object>) -> LazyObject {
+fn eager_composite(values: impl IntoIterator<Item = Object>) -> LazyObject {
     let mut values = values.into_iter().collect::<Vec<_>>();
 
-    LazyObject::Eager(Object::Set(Set::from(values.as_mut_slice())))
+    LazyObject::Eager(Object::Composite(Composite::from(values.as_mut_slice())))
 }
 
 #[test]
-fn size_of_deferred_set_operations_is_deduplicated() {
+fn size_of_deferred_composite_operations_is_deduplicated() {
     let knowledge = Knowledge::empty();
 
     let union = LazyObject::Union {
-        first: Box::new(eager_set([integer(1), integer(2)])),
-        second: Box::new(eager_set([integer(2), integer(3)])),
+        first: Box::new(eager_composite([integer(1), integer(2)])),
+        second: Box::new(eager_composite([integer(2), integer(3)])),
     };
     let intersection = LazyObject::Intersection {
-        first: Box::new(eager_set([integer(1), integer(2)])),
-        second: Box::new(eager_set([integer(2), integer(3)])),
+        first: Box::new(eager_composite([integer(1), integer(2)])),
+        second: Box::new(eager_composite([integer(2), integer(3)])),
     };
     let difference = LazyObject::Difference {
-        source: Box::new(eager_set([integer(1), integer(2), integer(3)])),
-        without: Box::new(eager_set([integer(2)])),
+        source: Box::new(eager_composite([integer(1), integer(2), integer(3)])),
+        without: Box::new(eager_composite([integer(2)])),
     };
 
     assert_eq!(union.size(&knowledge), 3);
@@ -218,7 +220,7 @@ fn size_of_map_counts_distinct_values() {
     // `_ |-> 1` maps every element to the same value.
     let mapper = Node::function(Node::Literal(integer(1)));
     let map = LazyObject::Map {
-        target: Box::new(eager_set([integer(1), integer(2)])),
+        target: Box::new(eager_composite([integer(1), integer(2)])),
         mapper_function: mapper,
     };
 
@@ -230,7 +232,7 @@ fn into_iter_of_map_deduplicates() {
     // `_ |-> 1` maps every element to the same value.
     let mapper = Node::function(Node::Literal(integer(1)));
     let map = LazyObject::Map {
-        target: Box::new(eager_set([integer(1), integer(2)])),
+        target: Box::new(eager_composite([integer(1), integer(2)])),
         mapper_function: mapper,
     };
 
@@ -249,8 +251,8 @@ fn size_of_filter_counts_distinct_retained_values() {
     });
     let filter = LazyObject::Filter {
         target: Box::new(LazyObject::Union {
-            first: Box::new(eager_set([integer(1), integer(2)])),
-            second: Box::new(eager_set([integer(1), integer(2)])),
+            first: Box::new(eager_composite([integer(1), integer(2)])),
+            second: Box::new(eager_composite([integer(1), integer(2)])),
         }),
         filter_function: predicate,
     };
@@ -259,10 +261,10 @@ fn size_of_filter_counts_distinct_retained_values() {
 }
 
 #[test]
-fn into_iter_of_intersection_yields_only_members_of_both_sets() {
+fn into_iter_of_intersection_yields_only_members_of_both_composites() {
     let intersection = LazyObject::Intersection {
-        first: Box::new(eager_set([integer(1), integer(2)])),
-        second: Box::new(eager_set([integer(2), integer(3)])),
+        first: Box::new(eager_composite([integer(1), integer(2)])),
+        second: Box::new(eager_composite([integer(2), integer(3)])),
     };
 
     assert_eq!(
@@ -274,10 +276,10 @@ fn into_iter_of_intersection_yields_only_members_of_both_sets() {
 }
 
 #[test]
-fn into_iter_of_difference_excludes_members_of_the_other_set() {
+fn into_iter_of_difference_excludes_members_of_the_other_composite() {
     let difference = LazyObject::Difference {
-        source: Box::new(eager_set([integer(1), integer(2), integer(3)])),
-        without: Box::new(eager_set([integer(2)])),
+        source: Box::new(eager_composite([integer(1), integer(2), integer(3)])),
+        without: Box::new(eager_composite([integer(2)])),
     };
 
     assert_eq!(
@@ -291,17 +293,17 @@ fn into_iter_of_difference_excludes_members_of_the_other_set() {
 #[test]
 fn into_iter_of_intersection_and_difference_deduplicates() {
     let colliding_map = || LazyObject::Map {
-        target: Box::new(eager_set([integer(1), integer(2)])),
+        target: Box::new(eager_composite([integer(1), integer(2)])),
         mapper_function: Node::function(Node::Literal(integer(1))),
     };
 
     let intersection = LazyObject::Intersection {
         first: Box::new(colliding_map()),
-        second: Box::new(eager_set([integer(1)])),
+        second: Box::new(eager_composite([integer(1)])),
     };
     let difference = LazyObject::Difference {
         source: Box::new(colliding_map()),
-        without: Box::new(eager_set([])),
+        without: Box::new(eager_composite([])),
     };
 
     assert_eq!(

@@ -1,6 +1,6 @@
 use everything::{
     knowledge::Values,
-    model::{Atom, ByteSet, Construction, Object, Set},
+    model::{Atom, ByteComposite, Composite, Construction, Object},
     num_bigint::BigUint,
 };
 use scursor::ReadCursor;
@@ -203,7 +203,7 @@ fn parses_constructions() {
 fn v1_payload_with_object(object_bytes: &[u8]) -> Vec<u8> {
     let mut base = Vec::new();
     base.extend_from_slice(&1_u128.to_le_bytes());
-    base.push(1); // The atom's set has one value.
+    base.push(1); // The atom's composite has one value.
     base.extend_from_slice(object_bytes);
 
     let mut payload = Vec::new();
@@ -234,7 +234,9 @@ fn parses_bytes() {
 
     assert_eq!(
         knowledge.map.get(&Atom(1)),
-        Some(&Values::from([Object::Set(Set::Byte(ByteSet(0x2A)))]))
+        Some(&Values::from([Object::Composite(Composite::Byte(
+            ByteComposite(0x2A)
+        ))]))
     );
 }
 

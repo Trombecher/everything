@@ -11,7 +11,7 @@ use super::common::*;
 #[test]
 fn map() {
     let node = Node::Map {
-        set: Node::Literal(integer_set().into()).into(),
+        composite: Node::Literal(integer_composite().into()).into(),
         mapper_function: identity_function().into(),
     };
 
@@ -30,7 +30,7 @@ fn map() {
 #[test]
 fn map_deduplicates() {
     let node = Node::Map {
-        set: Node::Literal(integer_set().into()).into(),
+        composite: Node::Literal(integer_composite().into()).into(),
         // Maps every element to `1`.
         mapper_function: constant_predicate(integer(1)).into(),
     };
@@ -42,7 +42,7 @@ fn map_deduplicates() {
 }
 
 #[test]
-fn map_requires_sets() {
+fn map_requires_composites() {
     let atom = Node::Literal(Object::Atom(Atom(42)));
     let construction = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());
     let identity = identity_function();
@@ -50,7 +50,7 @@ fn map_requires_sets() {
     assert_eq!(
         evaluate(
             &Node::Map {
-                set: atom.into(),
+                composite: atom.into(),
                 mapper_function: identity.clone().into(),
             },
             &BASE,
@@ -61,7 +61,7 @@ fn map_requires_sets() {
     assert_eq!(
         evaluate(
             &Node::Map {
-                set: construction.into(),
+                composite: construction.into(),
                 mapper_function: identity.clone().into(),
             },
             &BASE,
@@ -70,10 +70,10 @@ fn map_requires_sets() {
         Atom::UNDEFINED.into()
     );
 
-    // A function object is a set, so mapping over it yields its property.
+    // A function object is a composite, so mapping over it yields its property.
     let values = evaluate(
         &Node::Map {
-            set: identity_function().into(),
+            composite: identity_function().into(),
             mapper_function: identity_function().into(),
         },
         &BASE,

@@ -2,7 +2,7 @@ use num_bigint::BigInt;
 
 use crate::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::*;
@@ -126,7 +126,7 @@ fn atom_value_pair_into_object() {
 
     assert_eq!(
         pair.into_object(),
-        Set::from([
+        Composite::from([
             Construction::new(Atom::ATOM.into(), Atom(42).into()).into(),
             Construction::new(Atom::VALUE.into(), integer(7)).into(),
         ])

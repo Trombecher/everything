@@ -1,6 +1,6 @@
 use crate::{
     base::BASE,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
@@ -80,15 +80,15 @@ fn undefined_is_not_special() {
 #[test]
 fn deferred_children_are_materialized() {
     let union = Node::Union {
-        first: Node::Literal(Object::Set(Set::from([integer(1)]))).into(),
-        second: Node::Literal(Object::Set(Set::from([integer(2)]))).into(),
+        first: Node::Literal(Object::Composite(Composite::from([integer(1)]))).into(),
+        second: Node::Literal(Object::Composite(Composite::from([integer(2)]))).into(),
     };
 
     assert_eq!(
         construct(Node::Literal(Atom(1).into()), union),
         Construction::new(
             Atom(1).into(),
-            Object::Set(Set::from([integer(1), integer(2)]))
+            Object::Composite(Composite::from([integer(1), integer(2)]))
         )
         .into()
     );

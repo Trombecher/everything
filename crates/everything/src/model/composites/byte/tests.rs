@@ -4,7 +4,7 @@ mod Byte {
 
     #[test]
     fn bit() {
-        let byte = ByteSet(0b1011_0111);
+        let byte = ByteComposite(0b1011_0111);
 
         assert_eq!(byte.bit(BitSlot::Slot0), Bit::One);
         assert_eq!(byte.bit(BitSlot::Slot1), Bit::One);
@@ -18,10 +18,16 @@ mod Byte {
 
     #[test]
     fn from_bits() {
-        assert_eq!(ByteSet::from_bits([Bit::Zero; 8]), ByteSet(0b0000_0000));
-        assert_eq!(ByteSet::from_bits([Bit::One; 8]), ByteSet(0b1111_1111));
         assert_eq!(
-            ByteSet::from_bits([
+            ByteComposite::from_bits([Bit::Zero; 8]),
+            ByteComposite(0b0000_0000)
+        );
+        assert_eq!(
+            ByteComposite::from_bits([Bit::One; 8]),
+            ByteComposite(0b1111_1111)
+        );
+        assert_eq!(
+            ByteComposite::from_bits([
                 Bit::One,
                 Bit::Zero,
                 Bit::One,
@@ -31,7 +37,7 @@ mod Byte {
                 Bit::Zero,
                 Bit::One,
             ]),
-            ByteSet(0b1010_0101)
+            ByteComposite(0b1010_0101)
         );
 
         for slot in [
@@ -48,8 +54,8 @@ mod Byte {
             bits[usize::from(u8::from(slot))] = Bit::One;
 
             assert_eq!(
-                ByteSet::from_bits(bits),
-                ByteSet(1 << u8::from(slot)),
+                ByteComposite::from_bits(bits),
+                ByteComposite(1 << u8::from(slot)),
                 "slot {slot:?}"
             );
         }
@@ -101,10 +107,10 @@ mod Byte {
 
     #[test]
     fn debug_fmt() {
-        assert_eq!(format!("{:?}", ByteSet(0)), "x00");
-        assert_eq!(format!("{:?}", ByteSet(0x10)), "x10");
-        assert_eq!(format!("{:?}", ByteSet(0xA4)), "xA4");
-        assert_eq!(format!("{:?}", ByteSet(0xFF)), "xFF");
+        assert_eq!(format!("{:?}", ByteComposite(0)), "x00");
+        assert_eq!(format!("{:?}", ByteComposite(0x10)), "x10");
+        assert_eq!(format!("{:?}", ByteComposite(0xA4)), "xA4");
+        assert_eq!(format!("{:?}", ByteComposite(0xFF)), "xFF");
     }
 }
 
@@ -114,8 +120,8 @@ mod ByteValues {
 
     #[test]
     fn next() {
-        let mut values = ByteSetValues {
-            byte: ByteSet(0b1010_0101),
+        let mut values = ByteCompositeValues {
+            byte: ByteComposite(0b1010_0101),
             next_slot: Some(BitSlot::Slot0),
         };
 

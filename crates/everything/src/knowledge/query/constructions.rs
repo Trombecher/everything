@@ -2,7 +2,7 @@ use imbl::OrdMap;
 
 use crate::{
     knowledge::{Values, ValuesValues},
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 /// A pair of an atom and a construction value.
@@ -18,7 +18,7 @@ impl AtomValuePair {
     /// Converts the pair into the object `{atom : <atom>, value : <value>}`.
     #[must_use]
     pub fn into_object(self) -> Object {
-        Set::from([
+        Composite::from([
             Construction::new(Atom::ATOM.into(), self.atom.into()).into(),
             Construction::new(Atom::VALUE.into(), self.value).into(),
         ])

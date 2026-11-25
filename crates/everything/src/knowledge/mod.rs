@@ -6,7 +6,7 @@ pub use values::*;
 
 use imbl::OrdMap;
 
-use crate::model::{Atom, Object, SetApi};
+use crate::model::{Atom, CompositeApi, Object};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Statement {
@@ -82,15 +82,15 @@ impl Knowledge {
     ///
     /// * If the given object is an atom, then the values are all properties of
     ///   that atom;
-    /// * if the given object is a set, then the values are the members of that
-    ///   set;
+    /// * if the given object is a composite, then the values are the members of that
+    ///   composite;
     /// * otherwise the iterator is empty.
     #[must_use]
     pub fn values_of(&self, object: &Object) -> ObjectValues {
         match object {
             Object::Atom(atom) => ObjectValues::properties(self.values_of_atom(atom)),
             Object::Construction(_) => ObjectValues::empty(),
-            Object::Set(set) => ObjectValues::members(set.clone()),
+            Object::Composite(composite) => ObjectValues::members(composite.clone()),
         }
     }
 
@@ -99,7 +99,7 @@ impl Knowledge {
         match object {
             Object::Atom(atom) => self.map.get(atom).is_some_and(|values| values.has(element)),
             Object::Construction(_) => false,
-            Object::Set(set) => set.has(element),
+            Object::Composite(composite) => composite.has(element),
         }
     }
 
@@ -140,14 +140,14 @@ impl Knowledge {
         match object {
             Object::Atom(atom) => self.map.get(atom).map_or(0, Values::size),
             Object::Construction(_) => 0,
-            Object::Set(set) => set.size(),
+            Object::Composite(composite) => composite.size(),
         }
     }
 
     /*
-    fn object_is_property_in(&self, object: &Object, containing_set: &Set) -> bool {
+    fn object_is_property_in(&self, object: &Object, containing_composite: &Composite) -> bool {
         match object {
-            Object::Atom(_) | Object::Set(_) => {
+            Object::Atom(_) | Object::Composite(_) => {
                 let f = self
                     .query_construction_values(object, Atom::PROPERTY.into())
                     .next_and_last();
@@ -162,14 +162,14 @@ impl Knowledge {
     }
 
     #[must_use]
-    fn set_is_valid(&self, set: &Set) -> bool {
-        set.values().all(|value| self.object_is_valid())
+    fn composite_is_valid(&self, composite: &Composite) -> bool {
+        composite.values().all(|value| self.object_is_valid())
     }
 
     #[must_use]
     pub fn is_valid(&self) -> bool {
-        self.map.iter().all(|(_, set)| {
-            set.clone()
+        self.map.iter().all(|(_, composite)| {
+            composite.clone()
                 .values()
                 .all(|value| self.object_is_property(&value))
         })

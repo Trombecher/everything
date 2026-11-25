@@ -28,8 +28,8 @@ pub enum ParseError {
     InvalidObjectType { found: u8 },
     #[error("invalid character code point, found {found:02X}")]
     InvalidCharacter { found: u32 },
-    #[error("invalid set value count")]
-    InvalidSetValueCount,
+    #[error("invalid composite value count")]
+    InvalidCompositeValueCount,
     #[error("invalid text length")]
     InvalidTextLength,
     #[error("content is too short for parsing text")]

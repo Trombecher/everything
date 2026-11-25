@@ -2,30 +2,33 @@ use std::{fmt::Debug, ops::RangeBounds, slice::SliceIndex};
 
 use arcstr::Substr;
 
-use crate::model::{Atom, CharacterSet, Construction, Object, Set, SetApi, SetSpecialization};
+use crate::model::{
+    Atom, CharacterComposite, Composite, CompositeApi, CompositeSpecialization, Construction,
+    Object,
+};
 
 #[cfg(test)]
 mod tests;
 
-/// A set object specialization for a non-empty string
-/// of text. Virtual set form:
+/// A composite object specialization for a non-empty string
+/// of text. Virtual composite form:
 ///
 /// ```plain
-/// {list_item : <char>, list_rest : <text or empty set>}
+/// {list_item : <char>, list_rest : <text or empty composite>}
 /// ```
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TextSet {
+pub struct TextComposite {
     string: Substr,
 }
 
-impl Debug for TextSet {
+impl Debug for TextComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&self.string, f)
     }
 }
 
-impl TextSet {
-    /// Tries to create a new text set from a string.
+impl TextComposite {
+    /// Tries to create a new text composite from a string.
     /// Returns `None` if the string is empty.
     #[must_use]
     pub fn new(string: Substr) -> Option<Self> {
@@ -47,12 +50,12 @@ impl TextSet {
         self.as_str()
             .chars()
             .next()
-            .expect("text set invariant invalid")
+            .expect("text composite invariant invalid")
     }
 
     #[must_use]
     pub fn list_item_as_object(&self) -> Object {
-        Object::Set(Set::Character(CharacterSet {
+        Object::Composite(Composite::Character(CharacterComposite {
             representing: self.list_item(),
         }))
     }
@@ -64,7 +67,9 @@ impl TextSet {
 
     #[must_use]
     pub fn list_tail_as_object(&self) -> Object {
-        self.list_tail().map_or(Set::empty(), Set::Text).into()
+        self.list_tail()
+            .map_or(Composite::empty(), Composite::Text)
+            .into()
     }
 
     pub fn substring(
@@ -72,7 +77,7 @@ impl TextSet {
         range: impl SliceIndex<str> + Clone + RangeBounds<usize>,
     ) -> Option<Self> {
         if self.string.get(range.clone()).is_some() {
-            // An empty substring is not a valid text set (see `Self::new`).
+            // An empty substring is not a valid text composite (see `Self::new`).
             Self::new(self.string.substr(range))
         } else {
             None
@@ -80,7 +85,7 @@ impl TextSet {
     }
 }
 
-impl SetSpecialization for TextSet {
+impl CompositeSpecialization for TextComposite {
     fn specialize_from(objects: &[Object]) -> Option<Self> {
         let [first, second] = objects else {
             return None;
@@ -108,15 +113,17 @@ impl SetSpecialization for TextSet {
 
         // The item must be a (specialized) character object. Accepting
         // any other representation would break canonicalization, as
-        // iterating this set always yields the specialized form.
-        let Object::Set(Set::Character(CharacterSet { representing: item })) = list_item? else {
+        // iterating this composite always yields the specialized form.
+        let Object::Composite(Composite::Character(CharacterComposite { representing: item })) =
+            list_item?
+        else {
             return None;
         };
 
-        // The tail must be text or the empty set (the base case of text).
+        // The tail must be text or the empty composite (the base case of text).
         let tail = match list_tail? {
-            Object::Set(Set::Text(tail)) => tail.as_str(),
-            Object::Set(tail) if tail.size() == 0 => "",
+            Object::Composite(Composite::Text(tail)) => tail.as_str(),
+            Object::Composite(tail) if tail.size() == 0 => "",
             _ => return None,
         };
 
@@ -128,7 +135,7 @@ impl SetSpecialization for TextSet {
     }
 }
 
-impl SetApi for TextSet {
+impl CompositeApi for TextComposite {
     fn size(&self) -> u64 {
         2
     }
@@ -150,56 +157,56 @@ impl SetApi for TextSet {
     }
 }
 
-impl IntoIterator for TextSet {
+impl IntoIterator for TextComposite {
     type Item = Object;
-    type IntoIter = TextSetValues;
+    type IntoIter = TextCompositeValues;
 
     fn into_iter(self) -> Self::IntoIter {
-        TextSetValues {
-            text_set: self,
-            step: TextSetIteratorStep::YieldItem,
+        TextCompositeValues {
+            text_composite: self,
+            step: TextCompositeIteratorStep::YieldItem,
         }
     }
 }
 
 #[derive(Clone)]
-enum TextSetIteratorStep {
+enum TextCompositeIteratorStep {
     YieldItem,
     YieldRest,
     Stop,
 }
 
 #[derive(Clone)]
-pub struct TextSetValues {
-    text_set: TextSet,
-    step: TextSetIteratorStep,
+pub struct TextCompositeValues {
+    text_composite: TextComposite,
+    step: TextCompositeIteratorStep,
 }
 
-impl Iterator for TextSetValues {
+impl Iterator for TextCompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.step {
-            TextSetIteratorStep::YieldItem => {
-                self.step = TextSetIteratorStep::YieldRest;
+            TextCompositeIteratorStep::YieldItem => {
+                self.step = TextCompositeIteratorStep::YieldRest;
 
                 Some(Object::Construction(Construction::new(
                     Atom::LIST_ITEM.into(),
-                    self.text_set.list_item_as_object(),
+                    self.text_composite.list_item_as_object(),
                 )))
             }
-            TextSetIteratorStep::YieldRest => {
-                self.step = TextSetIteratorStep::Stop;
+            TextCompositeIteratorStep::YieldRest => {
+                self.step = TextCompositeIteratorStep::Stop;
 
                 Some(Object::Construction(Construction::new(
                     Atom::LIST_TAIL.into(),
-                    self.text_set
+                    self.text_composite
                         .list_tail()
-                        .map_or(Set::empty(), Set::Text)
+                        .map_or(Composite::empty(), Composite::Text)
                         .into(),
                 )))
             }
-            TextSetIteratorStep::Stop => None,
+            TextCompositeIteratorStep::Stop => None,
         }
     }
 }

@@ -2,22 +2,22 @@ use std::fmt::Debug;
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::model::{Atom, Construction, Object, SetApi, SetSpecialization};
+use crate::model::{Atom, CompositeApi, CompositeSpecialization, Construction, Object};
 
 #[cfg(test)]
 mod tests;
 
 /// A byte. Specialization for `{bit_0 : on|off, ..., bit_7 : on|off}`
-/// (set of objects).
+/// (composite of objects).
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ByteSet(pub u8);
+pub struct ByteComposite(pub u8);
 
-impl SetSpecialization for ByteSet {
+impl CompositeSpecialization for ByteComposite {
     fn specialize_from(objects: &[Object]) -> Option<Self> {
         if objects.len() == 8
             && let Some((_seen_slots, result)) = objects.iter().try_fold(
-                (ByteSet(0), ByteSet(0)),
-                |(seen_slots, resulting_byte_set), object| {
+                (ByteComposite(0), ByteComposite(0)),
+                |(seen_slots, resulting_byte_composite), object| {
                     let Object::Construction(Construction { constructor, value }) = object else {
                         return None;
                     };
@@ -41,9 +41,9 @@ impl SetSpecialization for ByteSet {
 
                     Some((
                         // Add this slot to seen slots.
-                        seen_slots.set_slot_to(bit_slot, Bit::One),
-                        // Add bit to set.
-                        resulting_byte_set.set_slot_to(bit_slot, bit),
+                        seen_slots.with_bit(bit_slot, Bit::One),
+                        // Add bit to composite.
+                        resulting_byte_composite.with_bit(bit_slot, bit),
                     ))
                 },
             )
@@ -55,7 +55,7 @@ impl SetSpecialization for ByteSet {
     }
 }
 
-impl SetApi for ByteSet {
+impl CompositeApi for ByteComposite {
     fn size(&self) -> u64 {
         8
     }
@@ -74,19 +74,19 @@ impl SetApi for ByteSet {
     }
 }
 
-impl IntoIterator for ByteSet {
+impl IntoIterator for ByteComposite {
     type Item = Object;
-    type IntoIter = ByteSetValues;
+    type IntoIter = ByteCompositeValues;
 
     fn into_iter(self) -> Self::IntoIter {
-        ByteSetValues {
+        ByteCompositeValues {
             byte: self,
             next_slot: Some(BitSlot::Slot0),
         }
     }
 }
 
-impl ByteSet {
+impl ByteComposite {
     #[must_use]
     pub fn from_bits(bits: [Bit; 8]) -> Self {
         Self(
@@ -99,10 +99,10 @@ impl ByteSet {
     }
 
     #[must_use]
-    pub fn set_slot_to(self, slot: BitSlot, bit: Bit) -> Self {
-        let set_with_bit_cleared = self.0 & !(1 << u8::from(slot));
+    pub fn with_bit(self, slot: BitSlot, bit: Bit) -> Self {
+        let with_bit_cleared = self.0 & !(1 << u8::from(slot));
 
-        Self(set_with_bit_cleared | (u8::from(bit) << u8::from(slot)))
+        Self(with_bit_cleared | (u8::from(bit) << u8::from(slot)))
     }
 
     #[inline]
@@ -112,7 +112,7 @@ impl ByteSet {
     }
 }
 
-impl Debug for ByteSet {
+impl Debug for ByteComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "x{:02X}", self.0)
     }
@@ -225,12 +225,12 @@ impl From<BitSlot> for Atom {
 }
 
 #[derive(Clone)]
-pub struct ByteSetValues {
-    byte: ByteSet,
+pub struct ByteCompositeValues {
+    byte: ByteComposite,
     next_slot: Option<BitSlot>,
 }
 
-impl Iterator for ByteSetValues {
+impl Iterator for ByteCompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

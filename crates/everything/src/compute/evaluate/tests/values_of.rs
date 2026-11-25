@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 use crate::{
     base::BASE,
     knowledge::Statement,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
@@ -22,15 +22,15 @@ fn values_of() {
         object: value.clone(),
     });
 
-    let set = Set::from([Object::Atom(atom)]);
+    let composite = Composite::from([Object::Atom(atom)]);
 
     assert_eq!(
         evaluate(
-            &Node::ValuesOf(Node::Literal(set.clone().into()).into()),
+            &Node::ValuesOf(Node::Literal(composite.clone().into()).into()),
             &knowledge,
         )
         .into_object(&knowledge),
-        Object::Set(set)
+        Object::Composite(composite)
     );
 
     assert_matches!(
@@ -44,7 +44,7 @@ fn values_of() {
             &knowledge,
         )
         .into_object(&knowledge),
-        Object::Set(Set::from([value.clone()]))
+        Object::Composite(Composite::from([value.clone()]))
     );
 
     assert_matches!(
@@ -91,7 +91,7 @@ fn values_of() {
             &knowledge
         )
         .into_object(&knowledge),
-        Object::Set(Set::empty())
+        Object::Composite(Composite::empty())
     );
 
     let undefined_value = Object::new_integer(BigInt::from(2));
@@ -107,6 +107,6 @@ fn values_of() {
             &knowledge
         )
         .into_object(&knowledge),
-        Object::Set(Set::from([undefined_value]))
+        Object::Composite(Composite::from([undefined_value]))
     );
 }

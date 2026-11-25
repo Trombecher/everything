@@ -1,7 +1,7 @@
 use crate::{
     base::BASE,
     knowledge::Statement,
-    model::{Atom, Object, Set},
+    model::{Atom, Composite, Object},
 };
 
 use super::super::*;
@@ -33,7 +33,7 @@ fn query_atoms_with_property() {
         &knowledge,
     );
 
-    assert!(result.is_set());
+    assert!(result.is_composite());
     assert_eq!(result.size(&knowledge), 2);
     assert!(result.has(&matching[0].into(), &knowledge));
     assert!(result.has(&matching[1].into(), &knowledge));
@@ -47,7 +47,7 @@ fn query_atoms_with_property() {
 #[test]
 fn query_atoms_with_deferred_property_is_materialised() {
     let atom = Atom(42);
-    let property = Object::Set(Set::empty());
+    let property = Object::Composite(Composite::empty());
 
     let mut knowledge = BASE.clone();
     knowledge.add_statement(Statement {
@@ -55,20 +55,20 @@ fn query_atoms_with_deferred_property_is_materialised() {
         object: property,
     });
 
-    let empty_set = Node::Literal(Object::Set(Set::empty()));
+    let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
 
     let result = evaluate(
         &Node::QueryAtomsWithProperty {
             property: Node::Union {
-                first: empty_set.clone().into(),
-                second: empty_set.into(),
+                first: empty_composite.clone().into(),
+                second: empty_composite.into(),
             }
             .into(),
         },
         &knowledge,
     );
 
-    assert!(result.is_set());
+    assert!(result.is_composite());
     assert_eq!(
         result.iter(&knowledge).collect::<Vec<_>>(),
         vec![atom.into()]

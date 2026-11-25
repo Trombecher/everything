@@ -2,15 +2,15 @@ use std::fmt::Debug;
 
 use num_bigint::BigInt;
 
-use crate::model::{Atom, Construction, Object, SetApi, SetSpecialization};
+use crate::model::{Atom, CompositeApi, CompositeSpecialization, Construction, Object};
 
 /// Specialization for `{code_point : i}`.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CharacterSet {
+pub struct CharacterComposite {
     pub representing: char,
 }
 
-impl CharacterSet {
+impl CharacterComposite {
     fn parse_char(object: &Object) -> Option<char> {
         if let Object::Construction(Construction { constructor, value }) = object
             && matches!(constructor.as_ref(), Object::Atom(Atom::CODE_POINT))
@@ -26,13 +26,13 @@ impl CharacterSet {
     }
 }
 
-impl Debug for CharacterSet {
+impl Debug for CharacterComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "'{}'", self.representing)
     }
 }
 
-impl SetSpecialization for CharacterSet {
+impl CompositeSpecialization for CharacterComposite {
     fn specialize_from(objects: &[Object]) -> Option<Self> {
         match objects {
             [object] if let Some(character) = Self::parse_char(object) => Some(Self {
@@ -43,7 +43,7 @@ impl SetSpecialization for CharacterSet {
     }
 }
 
-impl SetApi for CharacterSet {
+impl CompositeApi for CharacterComposite {
     fn size(&self) -> u64 {
         1
     }
@@ -53,23 +53,23 @@ impl SetApi for CharacterSet {
     }
 }
 
-impl IntoIterator for CharacterSet {
+impl IntoIterator for CharacterComposite {
     type Item = Object;
-    type IntoIter = CharacterSetValues;
+    type IntoIter = CharacterCompositeValues;
 
     fn into_iter(self) -> Self::IntoIter {
-        CharacterSetValues {
+        CharacterCompositeValues {
             to_yield: Some(self.representing),
         }
     }
 }
 
 #[derive(Clone)]
-pub struct CharacterSetValues {
+pub struct CharacterCompositeValues {
     pub to_yield: Option<char>,
 }
 
-impl Iterator for CharacterSetValues {
+impl Iterator for CharacterCompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

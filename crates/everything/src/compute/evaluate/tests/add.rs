@@ -4,7 +4,7 @@ use num_bigint::BigInt;
 
 use crate::{
     base::BASE,
-    model::{Atom, Object, Set},
+    model::{Atom, Composite, Object},
 };
 
 use super::super::*;
@@ -30,10 +30,10 @@ fn add() {
 }
 
 #[test]
-fn add_rejects_sets() {
+fn add_rejects_composites() {
     let union = Node::Union {
-        first: Node::Literal(Object::Set(Set::empty())).into(),
-        second: Node::Literal(Object::Set(Set::empty())).into(),
+        first: Node::Literal(Object::Composite(Composite::empty())).into(),
+        second: Node::Literal(Object::Composite(Composite::empty())).into(),
     };
 
     assert_eq!(

@@ -1,6 +1,8 @@
 use everything::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, ByteSet, CharacterSet, Construction, Object, Set, TextSet},
+    model::{
+        Atom, ByteComposite, CharacterComposite, Composite, Construction, Object, TextComposite,
+    },
     num_bigint::BigInt,
 };
 
@@ -43,7 +45,7 @@ fn first_object_bytes(knowledge: &Knowledge) -> Vec<u8> {
 
     // The version 1 payload consists of the base length and 24 reserved bytes,
     // followed by the base. The base starts with the statement's atom (16
-    // bytes) and the set's value count (one LEB128 byte for a single value).
+    // bytes) and the composite's value count (one LEB128 byte for a single value).
     bytes[32 + 16 + 1..].to_vec()
 }
 
@@ -145,13 +147,13 @@ fn round_trips_empty_knowledge() {
 }
 
 #[test]
-fn round_trips_nested_character_sets() {
+fn round_trips_nested_character_composites() {
     for character in ['A', '\u{DF}', '\u{20AC}', '\u{800}', '\u{1F600}'] {
         let mut knowledge = Knowledge::empty();
 
         knowledge.add_statement(statement(
             1,
-            Object::Set(Set::Character(CharacterSet {
+            Object::Composite(Composite::Character(CharacterComposite {
                 representing: character,
             })),
         ));
@@ -163,7 +165,7 @@ fn round_trips_nested_character_sets() {
 }
 
 #[test]
-fn round_trips_nested_text_sets() {
+fn round_trips_nested_text_composites() {
     for text in [
         "a",
         "hello",
@@ -177,8 +179,8 @@ fn round_trips_nested_text_sets() {
 
         knowledge.add_statement(statement(
             1,
-            Object::Set(Set::Text(
-                TextSet::new(text.into()).expect("the text is not empty"),
+            Object::Composite(Composite::Text(
+                TextComposite::new(text.into()).expect("the text is not empty"),
             )),
         ));
 
@@ -189,11 +191,14 @@ fn round_trips_nested_text_sets() {
 }
 
 #[test]
-fn round_trips_nested_byte_sets() {
+fn round_trips_nested_byte_composites() {
     for byte in [0x00, 0x2A, 0xFF] {
         let mut knowledge = Knowledge::empty();
 
-        knowledge.add_statement(statement(1, Object::Set(Set::Byte(ByteSet(byte)))));
+        knowledge.add_statement(statement(
+            1,
+            Object::Composite(Composite::Byte(ByteComposite(byte))),
+        ));
 
         let parsed = write_and_read(&knowledge);
 
@@ -234,16 +239,22 @@ fn round_trips_nested_constructions() {
 }
 
 #[test]
-fn round_trips_sets_of_constructions() {
+fn round_trips_composites_of_constructions() {
     let mut knowledge = Knowledge::empty();
 
     let one = construction(Object::Atom(Atom(2)), Object::Atom(Atom(3)));
     let another = construction(Object::Atom(Atom(4)), Object::Atom(Atom(5)));
 
-    // A single construction is specialized to a one-construction set, while
-    // two different constructions end up in an arbitrary set.
-    knowledge.add_statement(statement(1, Object::Set(Set::from([one.clone()]))));
-    knowledge.add_statement(statement(6, Object::Set(Set::from([one, another]))));
+    // A single construction is specialized to a one-construction composite, while
+    // two different constructions end up in an arbitrary composite.
+    knowledge.add_statement(statement(
+        1,
+        Object::Composite(Composite::from([one.clone()])),
+    ));
+    knowledge.add_statement(statement(
+        6,
+        Object::Composite(Composite::from([one, another])),
+    ));
 
     let parsed = write_and_read(&knowledge);
 

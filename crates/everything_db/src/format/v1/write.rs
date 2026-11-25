@@ -1,6 +1,6 @@
 use everything::{
     knowledge::{Knowledge, Statement, Values},
-    model::{Atom, NonZeroBigInt, Object, Set, SetApi, TextSet},
+    model::{Atom, Composite, CompositeApi, NonZeroBigInt, Object, TextComposite},
     num_bigint::Sign,
 };
 
@@ -10,8 +10,8 @@ use crate::{
         leb128,
         v1::{
             OBJECT_TYPE_ATOM, OBJECT_TYPE_BYTE, OBJECT_TYPE_CHARACTER_1, OBJECT_TYPE_CHARACTER_2,
-            OBJECT_TYPE_CHARACTER_3, OBJECT_TYPE_CHARACTER_4, OBJECT_TYPE_CONSTRUCTION,
-            OBJECT_TYPE_NEGATIVE_INTEGER, OBJECT_TYPE_POSITIVE_INTEGER, OBJECT_TYPE_SET,
+            OBJECT_TYPE_CHARACTER_3, OBJECT_TYPE_CHARACTER_4, OBJECT_TYPE_COMPOSITE,
+            OBJECT_TYPE_CONSTRUCTION, OBJECT_TYPE_NEGATIVE_INTEGER, OBJECT_TYPE_POSITIVE_INTEGER,
             OBJECT_TYPE_TEXT, OBJECT_TYPE_ZERO, STATEMENT_CHANGE_ADD, STATEMENT_CHANGE_REMOVE,
         },
     },
@@ -83,31 +83,31 @@ fn write_object(object: &Object, out: &mut Vec<u8>) {
             write_object(&construction.constructor, out);
             write_object(&construction.value, out);
         }
-        Object::Set(set) => write_set_object(set, out),
+        Object::Composite(composite) => write_composite_object(composite, out),
     }
 }
 
-/// Writes a set that occurs as an object (a nested set).
-fn write_set_object(set: &Set, out: &mut Vec<u8>) {
-    match set {
-        Set::Integer(integer) => write_integer(&integer.representing, out),
-        Set::Character(character) => write_character(character.representing, out),
-        Set::Byte(byte) => {
+/// Writes a composite that occurs as an object (a nested composite).
+fn write_composite_object(composite: &Composite, out: &mut Vec<u8>) {
+    match composite {
+        Composite::Integer(integer) => write_integer(&integer.representing, out),
+        Composite::Character(character) => write_character(character.representing, out),
+        Composite::Byte(byte) => {
             out.push(OBJECT_TYPE_BYTE);
             out.push(byte.0);
         }
-        Set::Text(text) => {
+        Composite::Text(text) => {
             out.push(OBJECT_TYPE_TEXT);
             write_text(text, out);
         }
-        Set::OneConstruction(_) | Set::Any(_) => {
-            out.push(OBJECT_TYPE_SET);
-            write_set_values(set, out);
+        Composite::OneConstruction(_) | Composite::Any(_) => {
+            out.push(OBJECT_TYPE_COMPOSITE);
+            write_composite_values(composite, out);
         }
     }
 }
 
-/// Writes an integer set: its sign and the magnitude of the represented
+/// Writes an integer composite: its sign and the magnitude of the represented
 /// integer as an unsigned non-zero integer.
 fn write_integer(integer: &NonZeroBigInt, out: &mut Vec<u8>) {
     let (sign, magnitude) = integer.get_as_ref().to_bytes_le();
@@ -115,7 +115,7 @@ fn write_integer(integer: &NonZeroBigInt, out: &mut Vec<u8>) {
     match sign {
         Sign::Plus => out.push(OBJECT_TYPE_POSITIVE_INTEGER),
         Sign::Minus => out.push(OBJECT_TYPE_NEGATIVE_INTEGER),
-        Sign::NoSign => unreachable!("an integer set never represents zero"),
+        Sign::NoSign => unreachable!("an integer composite never represents zero"),
     }
 
     write_unsigned_non_zero_integer(&magnitude, out);
@@ -131,9 +131,9 @@ fn write_unsigned_non_zero_integer(magnitude: &[u8], out: &mut Vec<u8>) {
     out.extend_from_slice(magnitude);
 }
 
-/// Writes a text set: its length in bytes (LEB128) followed by its UTF-8
+/// Writes a text composite: its length in bytes (LEB128) followed by its UTF-8
 /// content.
-fn write_text(text: &TextSet, out: &mut Vec<u8>) {
+fn write_text(text: &TextComposite, out: &mut Vec<u8>) {
     let content = text.as_str();
 
     leb128::write_leb128_u64(
@@ -143,11 +143,11 @@ fn write_text(text: &TextSet, out: &mut Vec<u8>) {
     out.extend_from_slice(content.as_bytes());
 }
 
-/// Writes the values of a set, prefixed by their count.
-fn write_set_values(set: &Set, out: &mut Vec<u8>) {
-    leb128::write_leb128_u64(set.size(), out);
+/// Writes the values of a composite, prefixed by their count.
+fn write_composite_values(composite: &Composite, out: &mut Vec<u8>) {
+    leb128::write_leb128_u64(composite.size(), out);
 
-    for value in set.clone() {
+    for value in composite.clone() {
         write_object(&value, out);
     }
 }

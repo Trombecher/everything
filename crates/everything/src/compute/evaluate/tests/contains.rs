@@ -1,17 +1,17 @@
 use crate::{
     base::BASE,
     knowledge::Statement,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
 use super::common::*;
 
-fn contains(element: Node, set: Node, knowledge: &Knowledge) -> Object {
+fn contains(element: Node, composite: Node, knowledge: &Knowledge) -> Object {
     evaluate(
         &Node::Contains {
             element: element.into(),
-            set: set.into(),
+            composite: composite.into(),
         },
         knowledge,
     )
@@ -19,21 +19,21 @@ fn contains(element: Node, set: Node, knowledge: &Knowledge) -> Object {
 }
 
 #[test]
-fn contains_evaluated_sets() {
-    let set = Node::Literal(Object::Set(integer_set()));
+fn contains_evaluated_composites() {
+    let composite = Node::Literal(Object::Composite(integer_composite()));
 
     assert_eq!(
-        contains(Node::Literal(integer(2)), set.clone(), &BASE),
+        contains(Node::Literal(integer(2)), composite.clone(), &BASE),
         Atom::TRUE.into()
     );
     assert_eq!(
-        contains(Node::Literal(integer(4)), set, &BASE),
+        contains(Node::Literal(integer(4)), composite, &BASE),
         Atom::FALSE.into()
     );
     assert_eq!(
         contains(
             Node::Literal(integer(1)),
-            Node::Literal(Object::Set(Set::empty())),
+            Node::Literal(Object::Composite(Composite::empty())),
             &BASE
         ),
         Atom::FALSE.into()
@@ -41,10 +41,10 @@ fn contains_evaluated_sets() {
 }
 
 #[test]
-fn contains_deferred_sets() {
+fn contains_deferred_composites() {
     let union = Node::Union {
-        first: Node::Literal(Object::Set(Set::from([integer(1)]))).into(),
-        second: Node::Literal(Object::Set(Set::from([integer(2), integer(3)]))).into(),
+        first: Node::Literal(Object::Composite(Composite::from([integer(1)]))).into(),
+        second: Node::Literal(Object::Composite(Composite::from([integer(2), integer(3)]))).into(),
     };
 
     assert_eq!(
@@ -57,7 +57,7 @@ fn contains_deferred_sets() {
     );
 
     let filter = Node::Filter {
-        set: Node::Literal(Object::Set(integer_set())).into(),
+        composite: Node::Literal(Object::Composite(integer_composite())).into(),
         filter_function: equals_two_predicate().into(),
     };
 
@@ -98,16 +98,16 @@ fn contains_atom_values() {
 #[test]
 fn contains_materializes_deferred_elements() {
     let element = Node::Union {
-        first: Node::Literal(Object::Set(Set::from([integer(2)]))).into(),
-        second: Node::Literal(Object::Set(Set::from([integer(3)]))).into(),
+        first: Node::Literal(Object::Composite(Composite::from([integer(2)]))).into(),
+        second: Node::Literal(Object::Composite(Composite::from([integer(3)]))).into(),
     };
 
     // The deferred element is materialized to `{2, 3}`; it is not a member of
-    // the integers set, but it is a member of a set that contains it as a whole.
+    // the integers composite, but it is a member of a composite that contains it as a whole.
     assert_eq!(
         contains(
             element.clone(),
-            Node::Literal(Object::Set(integer_set())),
+            Node::Literal(Object::Composite(integer_composite())),
             &BASE
         ),
         Atom::FALSE.into()
@@ -115,10 +115,9 @@ fn contains_materializes_deferred_elements() {
     assert_eq!(
         contains(
             element,
-            Node::Literal(Object::Set(Set::from([Object::Set(Set::from([
-                integer(2),
-                integer(3),
-            ]))]))),
+            Node::Literal(Object::Composite(Composite::from([Object::Composite(
+                Composite::from([integer(2), integer(3),])
+            )]))),
             &BASE
         ),
         Atom::TRUE.into()
@@ -126,7 +125,7 @@ fn contains_materializes_deferred_elements() {
 }
 
 #[test]
-fn function_values_are_sets() {
+fn function_values_are_composites() {
     let node_function = Construction::new(
         Atom::NODE_FUNCTION.into(),
         Node::Parameter { depth: 0 }.into_object(),
@@ -143,7 +142,7 @@ fn function_values_are_sets() {
 }
 
 #[test]
-fn contains_requires_a_set() {
+fn contains_requires_a_composite() {
     let atom = Node::Literal(Object::Atom(Atom(42)));
     let construction = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());
 
@@ -160,7 +159,7 @@ fn undefined_is_a_first_class_value() {
     assert_eq!(
         contains(
             Node::Literal(Atom::UNDEFINED.into()),
-            Node::Literal(Object::Set(Set::from([Atom::UNDEFINED.into()]))),
+            Node::Literal(Object::Composite(Composite::from([Atom::UNDEFINED.into()]))),
             &BASE
         ),
         Atom::TRUE.into()
@@ -168,7 +167,7 @@ fn undefined_is_a_first_class_value() {
     assert_eq!(
         contains(
             Node::Literal(Atom::UNDEFINED.into()),
-            Node::Literal(Object::Set(integer_set())),
+            Node::Literal(Object::Composite(integer_composite())),
             &BASE
         ),
         Atom::FALSE.into()

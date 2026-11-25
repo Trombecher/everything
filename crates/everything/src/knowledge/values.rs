@@ -1,10 +1,10 @@
 use imbl::{OrdSet, ordset::ConsumingIter, shared_ptr::DefaultSharedPtr};
 
-use crate::model::{Object, Set, SetValues};
+use crate::model::{Composite, CompositeValues, Object};
 
 /// The values of a subject, i.e. the objects that the subject has.
 ///
-/// Unlike [`Set`], this is not a model object: it is not canonicalized or
+/// Unlike [`Composite`], this is not a model object: it is not canonicalized or
 /// specialized and it is not itself a value. It is the working container for
 /// the statements about a subject, so it can be inserted into and removed from
 /// in logarithmic time.
@@ -99,7 +99,7 @@ impl Iterator for ValuesValues {
 /// Iterates over the values of an object.
 ///
 /// Whether the values come from the statements about an atom or from the
-/// members of a set is an implementation detail: callers only observe the
+/// members of a composite is an implementation detail: callers only observe the
 /// values, as both kinds of object are queried identically at runtime.
 #[derive(Clone)]
 pub struct ObjectValues(ObjectValuesSource);
@@ -107,7 +107,7 @@ pub struct ObjectValues(ObjectValuesSource);
 #[derive(Clone)]
 enum ObjectValuesSource {
     Properties(ValuesValues),
-    Members(SetValues),
+    Members(CompositeValues),
 }
 
 impl ObjectValues {
@@ -115,8 +115,8 @@ impl ObjectValues {
         Self(ObjectValuesSource::Properties(values.into_iter()))
     }
 
-    pub(crate) fn members(set: Set) -> Self {
-        Self(ObjectValuesSource::Members(set.into_iter()))
+    pub(crate) fn members(composite: Composite) -> Self {
+        Self(ObjectValuesSource::Members(composite.into_iter()))
     }
 
     pub(crate) fn empty() -> Self {

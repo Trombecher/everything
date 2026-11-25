@@ -2,7 +2,7 @@ use std::assert_matches;
 
 use crate::{
     base::BASE,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
@@ -11,13 +11,19 @@ use super::common::*;
 #[test]
 fn unwrap() {
     let cases = [
-        (Object::Set(Set::from([])), Object::Atom(Atom::UNDEFINED)),
         (
-            Object::Set(Set::from([Object::Atom(Atom(42))])),
+            Object::Composite(Composite::from([])),
+            Object::Atom(Atom::UNDEFINED),
+        ),
+        (
+            Object::Composite(Composite::from([Object::Atom(Atom(42))])),
             Object::Atom(Atom(42)),
         ),
         (
-            Object::Set(Set::from([Object::Atom(Atom(42)), Object::Atom(Atom(56))])),
+            Object::Composite(Composite::from([
+                Object::Atom(Atom(42)),
+                Object::Atom(Atom(56)),
+            ])),
             Object::Atom(Atom::UNDEFINED),
         ),
     ];
@@ -31,7 +37,7 @@ fn unwrap() {
 }
 
 #[test]
-fn unwrap_requires_sets() {
+fn unwrap_requires_composites() {
     let atom = Atom(42);
     let construction = Object::Construction(Construction::new(Atom(1).into(), Atom(2).into()));
 
@@ -43,7 +49,7 @@ fn unwrap_requires_sets() {
     );
     assert_eq!(unwrap(Node::Literal(construction)), Atom::UNDEFINED.into());
 
-    // A function object is a set of its properties.
+    // A function object is a composite of its properties.
     assert_eq!(
         unwrap(identity_function()),
         Construction::new(

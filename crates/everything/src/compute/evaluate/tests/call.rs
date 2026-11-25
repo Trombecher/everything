@@ -2,7 +2,7 @@ use num_bigint::BigInt;
 
 use crate::{
     base::BASE,
-    model::{Atom, Object, Set},
+    model::{Atom, Composite, Object},
 };
 
 use super::super::*;
@@ -41,10 +41,10 @@ fn curried_add_function() {
 #[test]
 fn call_parses_deferred_callee_as_a_node() {
     let function = identity_function().into_object();
-    let empty_set = Node::Literal(Object::Set(Set::empty()));
+    let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
     let callee = Node::Union {
         first: Node::Literal(function).into(),
-        second: empty_set.into(),
+        second: empty_composite.into(),
     };
 
     assert_eq!(
@@ -76,10 +76,10 @@ fn call_with_undefined_callee_is_undefined() {
 }
 
 #[test]
-fn call_rejects_sets() {
+fn call_rejects_composites() {
     let union = Node::Union {
-        first: Node::Literal(Object::Set(Set::empty())).into(),
-        second: Node::Literal(Object::Set(Set::empty())).into(),
+        first: Node::Literal(Object::Composite(Composite::empty())).into(),
+        second: Node::Literal(Object::Composite(Composite::empty())).into(),
     };
 
     assert_eq!(

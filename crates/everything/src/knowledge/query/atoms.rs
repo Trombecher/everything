@@ -15,8 +15,8 @@ impl Iterator for QueryAtomsWithProperty {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.atoms.find_map(|(atom, set)| {
-            if set.has(&self.property) {
+        self.atoms.find_map(|(atom, composite)| {
+            if composite.has(&self.property) {
                 Some(atom)
             } else {
                 None

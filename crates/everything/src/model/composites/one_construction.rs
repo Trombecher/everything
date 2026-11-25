@@ -1,30 +1,30 @@
 use std::{fmt::Debug, mem};
 
-use crate::model::{Construction, Object, SetApi};
+use crate::model::{CompositeApi, Construction, Object};
 
-/// Specialization for sets that only contain one construction.
+/// Specialization for composites that only contain one construction.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct OneConstructionSet {
+pub struct OneConstructionComposite {
     construction: Construction,
 }
 
-impl Debug for OneConstructionSet {
+impl Debug for OneConstructionComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set().entry(&self.construction).finish()
     }
 }
 
-impl OneConstructionSet {
-    /// Tries to create a new [`OneConstructionSet`] from the given
+impl OneConstructionComposite {
+    /// Tries to create a new [`OneConstructionComposite`] from the given
     /// slice of objects.
     ///
     /// If it succeeded, then `objects` is arbitrary.
     ///
     /// This must only be called during specialization, after all more
     /// specific one-construction specializations (e.g. integer and
-    /// character sets) have been tried. Otherwise it would hoist
+    /// character composites) have been tried. Otherwise it would hoist
     /// constructions that are represented more optimally by those
-    /// specializations and thus create a non-canonical set.
+    /// specializations and thus create a non-canonical composite.
     ///
     /// DO NOT EXPOSE THIS!
     #[must_use]
@@ -41,7 +41,7 @@ impl OneConstructionSet {
     }
 }
 
-impl SetApi for OneConstructionSet {
+impl CompositeApi for OneConstructionComposite {
     fn size(&self) -> u64 {
         1
     }
@@ -51,23 +51,23 @@ impl SetApi for OneConstructionSet {
     }
 }
 
-impl IntoIterator for OneConstructionSet {
+impl IntoIterator for OneConstructionComposite {
     type Item = Object;
-    type IntoIter = OneConstructionSetValues;
+    type IntoIter = OneConstructionCompositeValues;
 
     fn into_iter(self) -> Self::IntoIter {
-        OneConstructionSetValues {
+        OneConstructionCompositeValues {
             to_yield: Some(self.construction),
         }
     }
 }
 
 #[derive(Clone)]
-pub struct OneConstructionSetValues {
+pub struct OneConstructionCompositeValues {
     to_yield: Option<Construction>,
 }
 
-impl Iterator for OneConstructionSetValues {
+impl Iterator for OneConstructionCompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

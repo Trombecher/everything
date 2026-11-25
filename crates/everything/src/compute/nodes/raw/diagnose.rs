@@ -75,11 +75,11 @@ const KINDS: &[KindSpec] = &[
     ),
     kind!(
         NodeKind::Map,
-        [NodeProperty::MapSet, NodeProperty::MapMapper]
+        [NodeProperty::MapComposite, NodeProperty::MapMapper]
     ),
     kind!(
         NodeKind::Filter,
-        [NodeProperty::FilterSet, NodeProperty::FilterFilter]
+        [NodeProperty::FilterComposite, NodeProperty::FilterFilter]
     ),
     kind!(
         NodeKind::Less,
@@ -93,7 +93,7 @@ const KINDS: &[KindSpec] = &[
             NodeProperty::IfElse,
         ]
     ),
-    kind!(NodeKind::Unwrap, [NodeProperty::UnwrapSet]),
+    kind!(NodeKind::Unwrap, [NodeProperty::UnwrapComposite]),
     kind!(
         NodeKind::Multiply,
         [NodeProperty::MultiplyFirst, NodeProperty::MultiplySecond]
@@ -101,11 +101,11 @@ const KINDS: &[KindSpec] = &[
     kind!(NodeKind::IsAtom, [NodeProperty::IsAtom]),
     kind!(
         NodeKind::Every,
-        [NodeProperty::EverySet, NodeProperty::EveryPredicate]
+        [NodeProperty::EveryComposite, NodeProperty::EveryPredicate]
     ),
     kind!(
         NodeKind::Any,
-        [NodeProperty::AnySet, NodeProperty::AnyPredicate]
+        [NodeProperty::AnyComposite, NodeProperty::AnyPredicate]
     ),
     kind!(
         NodeKind::QueryAtomsWithProperty,
@@ -128,14 +128,17 @@ const KINDS: &[KindSpec] = &[
     ),
     kind!(
         NodeKind::Contains,
-        [NodeProperty::ContainsElement, NodeProperty::ContainsSet]
+        [
+            NodeProperty::ContainsElement,
+            NodeProperty::ContainsComposite
+        ]
     ),
     kind!(NodeKind::IsConstruction, [NodeProperty::IsConstruction]),
-    kind!(NodeKind::IsSet, [NodeProperty::IsSet]),
+    kind!(NodeKind::IsComposite, [NodeProperty::IsComposite]),
     kind!(
         NodeKind::Fold,
         [
-            NodeProperty::FoldSet,
+            NodeProperty::FoldComposite,
             NodeProperty::FoldFolder,
             NodeProperty::FoldInitial,
         ]
@@ -147,7 +150,7 @@ const KINDS: &[KindSpec] = &[
             NodeProperty::NewConstructionValue,
         ]
     ),
-    kind!(NodeKind::NewSet, [NodeProperty::NewSetValue]),
+    kind!(NodeKind::NewComposite, [NodeProperty::NewCompositeValue]),
     kind!(
         NodeKind::ConstructionConstructor,
         [NodeProperty::ConstructorOfConstruction]

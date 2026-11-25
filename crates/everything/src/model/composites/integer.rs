@@ -5,32 +5,34 @@ use std::{
 
 use num_bigint::BigInt;
 
-use crate::model::{Atom, Construction, NonZeroBigInt, Object, SetApi, SetSpecialization};
+use crate::model::{
+    Atom, CompositeApi, CompositeSpecialization, Construction, NonZeroBigInt, Object,
+};
 
-/// Specialization for sets `{successor_of : <n>}` and `{predecessor_of : <n>}`.
+/// Specialization for composites `{successor_of : <n>}` and `{predecessor_of : <n>}`.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct IntegerSet {
+pub struct IntegerComposite {
     pub representing: NonZeroBigInt,
 }
 
-impl Debug for IntegerSet {
+impl Debug for IntegerComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&self.representing, f)
     }
 }
 
-impl IntoIterator for IntegerSet {
+impl IntoIterator for IntegerComposite {
     type Item = Object;
-    type IntoIter = IntegerSetValues;
+    type IntoIter = IntegerCompositeValues;
 
     fn into_iter(self) -> Self::IntoIter {
-        IntegerSetValues {
+        IntegerCompositeValues {
             to_yield: Some(self.representing),
         }
     }
 }
 
-impl IntegerSet {
+impl IntegerComposite {
     fn parse_representation_successor(object: &Object) -> Option<NonZeroBigInt> {
         if let Object::Construction(Construction { constructor, value }) = object
             && matches!(constructor.as_ref(), Object::Atom(Atom::SUCCESSOR_OF))
@@ -57,7 +59,7 @@ impl IntegerSet {
     }
 }
 
-impl SetSpecialization for IntegerSet {
+impl CompositeSpecialization for IntegerComposite {
     fn specialize_from(objects: &[Object]) -> Option<Self> {
         match objects {
             [object] if let Some(value) = Self::parse_representation_successor(object) => {
@@ -75,7 +77,7 @@ impl SetSpecialization for IntegerSet {
     }
 }
 
-impl SetApi for IntegerSet {
+impl CompositeApi for IntegerComposite {
     fn size(&self) -> u64 {
         1
     }
@@ -92,11 +94,11 @@ impl SetApi for IntegerSet {
 }
 
 #[derive(Clone)]
-pub struct IntegerSetValues {
+pub struct IntegerCompositeValues {
     to_yield: Option<NonZeroBigInt>,
 }
 
-impl Iterator for IntegerSetValues {
+impl Iterator for IntegerCompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

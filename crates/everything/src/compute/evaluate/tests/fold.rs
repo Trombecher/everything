@@ -1,15 +1,15 @@
 use crate::{
     base::BASE,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
 use super::common::*;
 
 #[test]
-fn fold_sums_the_set() {
+fn fold_sums_the_composite() {
     let node = Node::Fold {
-        set: Node::Literal(integer_set().into()).into(),
+        composite: Node::Literal(integer_composite().into()).into(),
         folder: add_folder().into(),
         initial: Node::Literal(integer(0)).into(),
     };
@@ -23,12 +23,12 @@ fn fold_sums_the_set() {
 #[test]
 fn fold_of_a_union_iterates_each_element_once() {
     let union = Node::Union {
-        first: Node::Literal(Object::Set(integer_set())).into(),
-        second: Node::Literal(Object::Set(integer_set())).into(),
+        first: Node::Literal(Object::Composite(integer_composite())).into(),
+        second: Node::Literal(Object::Composite(integer_composite())).into(),
     };
 
     let node = Node::Fold {
-        set: union.into(),
+        composite: union.into(),
         folder: add_folder().into(),
         initial: Node::Literal(integer(0)).into(),
     };
@@ -40,11 +40,11 @@ fn fold_of_a_union_iterates_each_element_once() {
 }
 
 #[test]
-fn fold_of_an_empty_set_returns_the_initial_value() {
+fn fold_of_an_empty_composite_returns_the_initial_value() {
     let initial = integer(42);
 
     let node = Node::Fold {
-        set: Node::Literal(Object::Set(Set::empty())).into(),
+        composite: Node::Literal(Object::Composite(Composite::empty())).into(),
         // The folder is never called, so it may even be undefined.
         folder: Node::Literal(Atom::UNDEFINED.into()).into(),
         initial: Node::Literal(initial.clone()).into(),
@@ -54,16 +54,16 @@ fn fold_of_an_empty_set_returns_the_initial_value() {
 }
 
 #[test]
-fn fold_of_an_empty_deferred_set_returns_the_initial_value() {
+fn fold_of_an_empty_deferred_composite_returns_the_initial_value() {
     let drop_everything = Node::function(Node::Literal(Atom::FALSE.into()));
-    let empty_set = Node::Filter {
-        set: Node::Literal(integer_set().into()).into(),
+    let empty_composite = Node::Filter {
+        composite: Node::Literal(integer_composite().into()).into(),
         filter_function: drop_everything.into(),
     };
     let initial = integer(42);
 
     let node = Node::Fold {
-        set: empty_set.into(),
+        composite: empty_composite.into(),
         // The folder is never called, so it may even be undefined.
         folder: Node::Literal(Atom::UNDEFINED.into()).into(),
         initial: Node::Literal(initial.clone()).into(),
@@ -73,18 +73,18 @@ fn fold_of_an_empty_deferred_set_returns_the_initial_value() {
 }
 
 #[test]
-fn fold_requires_a_set() {
-    let invalid_sets = [
+fn fold_requires_a_composite() {
+    let invalid_composites = [
         Node::Literal(Object::Atom(Atom(42))),
         Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into()),
         Node::Literal(Atom::UNDEFINED.into()),
     ];
 
-    for set in invalid_sets {
+    for composite in invalid_composites {
         assert_eq!(
             evaluate(
                 &Node::Fold {
-                    set: set.into(),
+                    composite: composite.into(),
                     folder: add_folder().into(),
                     initial: Node::Literal(integer(0)).into(),
                 },
@@ -98,14 +98,14 @@ fn fold_requires_a_set() {
 
 #[test]
 fn fold_requires_a_function_folder() {
-    let empty_set = Node::Literal(Object::Set(Set::empty()));
+    let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
     let invalid_folders = [
         Node::Literal(Object::Atom(Atom(42))),
         Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into()),
         Node::Literal(Atom::UNDEFINED.into()),
         Node::Union {
-            first: empty_set.clone().into(),
-            second: empty_set.into(),
+            first: empty_composite.clone().into(),
+            second: empty_composite.into(),
         },
     ];
 
@@ -113,7 +113,7 @@ fn fold_requires_a_function_folder() {
         assert_eq!(
             evaluate(
                 &Node::Fold {
-                    set: Node::Literal(integer_set().into()).into(),
+                    composite: Node::Literal(integer_composite().into()).into(),
                     folder: folder.into(),
                     initial: Node::Literal(integer(0)).into(),
                 },
@@ -131,7 +131,7 @@ fn fold_yields_undefined_when_the_folder_result_is_not_callable() {
     let folder = Node::function(Node::Parameter { depth: 0 });
 
     let node = Node::Fold {
-        set: Node::Literal(integer_set().into()).into(),
+        composite: Node::Literal(integer_composite().into()).into(),
         folder: folder.into(),
         initial: Node::Literal(integer(0)).into(),
     };
@@ -147,7 +147,7 @@ fn fold_yields_undefined_when_the_folder_returns_undefined() {
     let folder = Node::function(Node::Literal(Atom::UNDEFINED.into()));
 
     let node = Node::Fold {
-        set: Node::Literal(integer_set().into()).into(),
+        composite: Node::Literal(integer_composite().into()).into(),
         folder: folder.into(),
         initial: Node::Literal(integer(0)).into(),
     };
@@ -159,9 +159,9 @@ fn fold_yields_undefined_when_the_folder_returns_undefined() {
 }
 
 #[test]
-fn fold_iterates_deferred_sets() {
+fn fold_iterates_deferred_composites() {
     let doubled = Node::Map {
-        set: Node::Literal(integer_set().into()).into(),
+        composite: Node::Literal(integer_composite().into()).into(),
         mapper_function: Node::function(Node::Add {
             first: Node::Parameter { depth: 0 }.into(),
             second: Node::Parameter { depth: 0 }.into(),
@@ -170,7 +170,7 @@ fn fold_iterates_deferred_sets() {
     };
 
     let node = Node::Fold {
-        set: doubled.into(),
+        composite: doubled.into(),
         folder: add_folder().into(),
         initial: Node::Literal(integer(0)).into(),
     };
@@ -182,10 +182,10 @@ fn fold_iterates_deferred_sets() {
 }
 
 #[test]
-fn fold_can_accumulate_deferred_sets() {
-    let set = Set::from([
-        Object::Set(Set::from([integer(1)])),
-        Object::Set(Set::from([integer(2)])),
+fn fold_can_accumulate_deferred_composites() {
+    let composite = Composite::from([
+        Object::Composite(Composite::from([integer(1)])),
+        Object::Composite(Composite::from([integer(2)])),
     ]);
 
     // The curried function `acc |-> element |-> acc | element`.
@@ -195,14 +195,14 @@ fn fold_can_accumulate_deferred_sets() {
     }));
 
     let node = Node::Fold {
-        set: Node::Literal(set.into()).into(),
+        composite: Node::Literal(composite.into()).into(),
         folder: folder.into(),
-        initial: Node::Literal(Object::Set(Set::empty())).into(),
+        initial: Node::Literal(Object::Composite(Composite::empty())).into(),
     };
 
     let result = evaluate(&node, &BASE);
 
-    assert!(result.is_set());
+    assert!(result.is_composite());
     assert_eq!(
         result.iter(&BASE).collect::<Vec<_>>(),
         vec![integer(1), integer(2)]
@@ -224,7 +224,7 @@ fn fold_captures_the_evaluation_context() {
     }));
 
     let outer_function = Node::function(Node::Fold {
-        set: Node::Literal(integer_set().into()).into(),
+        composite: Node::Literal(integer_composite().into()).into(),
         folder: folder.into(),
         initial: Node::Literal(integer(0)).into(),
     });

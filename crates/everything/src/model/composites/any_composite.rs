@@ -1,14 +1,14 @@
 use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
-use crate::model::{Object, SetApi};
+use crate::model::{CompositeApi, Object};
 
-/// A set that is no specialization.
+/// A composite that is no specialization.
 #[derive(Clone)]
-pub struct AnySet {
+pub struct AnyComposite {
     objects: Arc<[Object]>,
 }
 
-impl SetApi for AnySet {
+impl CompositeApi for AnyComposite {
     fn size(&self) -> u64 {
         self.as_slice().len() as u64
     }
@@ -18,8 +18,8 @@ impl SetApi for AnySet {
     }
 }
 
-impl AnySet {
-    /// Creates an [`AnySet`] from objects that are already sorted and
+impl AnyComposite {
+    /// Creates an [`AnyComposite`] from objects that are already sorted and
     /// deduplicated.
     ///
     /// DO NOT EXPOSE THIS!
@@ -38,27 +38,27 @@ impl AnySet {
     }
 }
 
-impl Debug for AnySet {
+impl Debug for AnyComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set().entries(self.objects.iter()).finish()
     }
 }
 
-impl PartialEq for AnySet {
+impl PartialEq for AnyComposite {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.objects, &other.objects) || self.objects == other.objects
     }
 }
 
-impl Eq for AnySet {}
+impl Eq for AnyComposite {}
 
-impl PartialOrd for AnySet {
+impl PartialOrd for AnyComposite {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for AnySet {
+impl Ord for AnyComposite {
     fn cmp(&self, other: &Self) -> Ordering {
         if Arc::ptr_eq(&self.objects, &other.objects) {
             Ordering::Equal
@@ -68,29 +68,29 @@ impl Ord for AnySet {
     }
 }
 
-impl IntoIterator for AnySet {
+impl IntoIterator for AnyComposite {
     type Item = Object;
-    type IntoIter = AnySetValues;
+    type IntoIter = AnyCompositeValues;
 
     fn into_iter(self) -> Self::IntoIter {
-        AnySetValues {
-            set: self,
+        AnyCompositeValues {
+            composite: self,
             next_index: 0,
         }
     }
 }
 
 #[derive(Clone)]
-pub struct AnySetValues {
-    set: AnySet,
+pub struct AnyCompositeValues {
+    composite: AnyComposite,
     next_index: usize,
 }
 
-impl Iterator for AnySetValues {
+impl Iterator for AnyCompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.set
+        self.composite
             .as_slice()
             .get(self.next_index)
             .cloned()

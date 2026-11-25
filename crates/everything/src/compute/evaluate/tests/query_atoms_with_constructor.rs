@@ -3,7 +3,7 @@ use num_bigint::BigInt;
 use crate::{
     base::BASE,
     knowledge::Statement,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
@@ -46,7 +46,7 @@ fn query_atoms_with_constructor() {
         &knowledge,
     );
 
-    assert!(result.is_set());
+    assert!(result.is_composite());
     assert_eq!(result.size(&knowledge), 2);
     assert!(result.has(&first_atom.into(), &knowledge));
     assert!(result.has(&second_atom.into(), &knowledge));
@@ -60,7 +60,7 @@ fn query_atoms_with_constructor() {
 #[test]
 fn query_atoms_with_constructor_materializes_deferred_constructor() {
     let atom = Atom(42);
-    let constructor = Object::Set(Set::from([Atom(1).into(), Atom(2).into()]));
+    let constructor = Object::Composite(Composite::from([Atom(1).into(), Atom(2).into()]));
 
     let mut knowledge = BASE.clone();
     knowledge.add_statement(Statement {
@@ -71,8 +71,8 @@ fn query_atoms_with_constructor_materializes_deferred_constructor() {
     let result = evaluate(
         &Node::QueryAtomsWithConstructor {
             constructor: Node::Union {
-                first: Node::Literal(Object::Set(Set::from([Atom(1).into()]))).into(),
-                second: Node::Literal(Object::Set(Set::from([Atom(2).into()]))).into(),
+                first: Node::Literal(Object::Composite(Composite::from([Atom(1).into()]))).into(),
+                second: Node::Literal(Object::Composite(Composite::from([Atom(2).into()]))).into(),
             }
             .into(),
         },

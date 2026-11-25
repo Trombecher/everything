@@ -1,6 +1,6 @@
 ---
 name: Node Management
-description: Keep Everything's computation nodes consistent when adding, changing, renaming, or removing a node kind. Covers atoms, recognition, evaluation, lazy sets, capture, tests, docs, and validation.
+description: Keep Everything's computation nodes consistent when adding, changing, renaming, or removing a node kind. Covers atoms, recognition, evaluation, lazy composites, capture, tests, docs, and validation.
 ---
 
 # Node Management
@@ -26,14 +26,14 @@ Read these first:
   explanations.
 - `crates/everything/src/compute/evaluate/mod.rs` — the evaluator.
 - `crates/everything/src/compute/capture/mod.rs` — closure capture.
-- `crates/everything/src/compute/lazy/mod.rs` — deferred set results.
+- `crates/everything/src/compute/lazy/mod.rs` — deferred composite results.
 - `docs/public/3 - Computation.md` — the public node specification.
 
 ## Mental Model
 
 A node is not a separate type in the database. It is an object shape:
 
-- A set or atom is a node iff its properties match exactly one node kind.
+- A composite or atom is a node iff its properties match exactly one node kind.
 - Required properties are read with `Knowledge::query_construction_values`.
 - Children are themselves nodes; plain data must be wrapped in `node_literal`.
 - Parsing is layered: `RawNode` recognises the kind and extracts top-level
@@ -41,7 +41,7 @@ A node is not a separate type in the database. It is an object shape:
   structural `Node`, wrapped together with the original source object.
 - `Node::into_object` is the inverse of parsing. It must reproduce the
   canonical object encoding of the kind.
-- Evaluation is a demand-driven stack machine. Set-valued results may be
+- Evaluation is a demand-driven stack machine. Composite-valued results may be
   deferred in `LazyObject` instead of being materialised.
 
 ## Fast Path
@@ -55,10 +55,10 @@ For a new node kind, touch these in order. Code paths are relative to
 3. `compute/nodes/raw/mod.rs` — `RawNode` variant and recognition.
 4. `compute/nodes/raw/diagnose.rs` — add the kind's `kind!(...)` spec.
 5. `compute/nodes/mod.rs` — `Node` variant, child parsing, `into_object`,
-   `set_size`.
+   `composite_size`.
 6. `compute/capture/mod.rs` — capture arm.
 7. `compute/evaluate/mod.rs` — `Task` variant(s), scheduling, stack effect.
-8. `compute/lazy/mod.rs` — only if the node returns a deferred set.
+8. `compute/lazy/mod.rs` — only if the node returns a deferred composite.
 9. `compute/operations.rs` — pure helpers, if the node needs one.
 10. Tests: `compute/nodes/tests.rs`, a new
     `compute/evaluate/tests/<name>.rs`, plus `compute/lazy/tests.rs` and
@@ -79,7 +79,7 @@ Before writing code, write down:
 - Which properties are required, optional, or repeatable.
 - What each child evaluates to, and what happens when a child is not the
   expected object type (`undefined`).
-- Whether the result is eager or a deferred set.
+- Whether the result is eager or a deferred composite.
 - Short-circuiting and evaluation-order rules.
 - Interaction with functions, capture, and the evaluation context.
 
@@ -127,11 +127,11 @@ Add the kind and each property to all relevant places:
   - `requirement()` → `PropertyRequirement::Value` normally,
     `PropertyRequirement::Depth` for a non-negative `u32` depth;
   - `allows_multiple()` → `true` only for a repeatable property
-    (currently only `NewSetValue`);
+    (currently only `NewCompositeValue`);
   - `Display` → the exact `node_*` atom name.
 
 Use names that describe the property role, following existing pairs such as
-`AndFirst`/`AndSecond`, `MapSet`/`MapMapper`, and
+`AndFirst`/`AndSecond`, `MapComposite`/`MapMapper`, and
 `ConstructionValuesPropertyConstructor`. There is no automatic derivation, so
 be consistent with neighbouring kinds.
 
@@ -182,11 +182,11 @@ Add a `Node` variant:
 - In `Node::new`, map the `RawNode` variant to the `Node` variant and parse
   every child with `child!(NodeProperty::..., &value)`. Do not parse opaque
   data such as literal payloads or depth integers.
-- In `Node::into_object`, encode the node as a set of constructions using the
-  same property atoms. Use `Set::from([...]).into()` for a single value,
+- In `Node::into_object`, encode the node as a composite of constructions using the
+  same property atoms. Use `Composite::from([...]).into()` for a single value,
   follow the pair/triple patterns for multiple values, and handle variadic
   properties explicitly.
-- In `Node::set_size`, return the number of properties in the object
+- In `Node::composite_size`, return the number of properties in the object
   encoding: 1 for single-property nodes, 2 for pairs, 3 for triples,
   `values.len()` for variadic nodes.
 - `WithSource` preserves the object a node was parsed from, so `into_object`
@@ -217,8 +217,8 @@ The evaluator is an explicit stack machine. Two places matter:
 - Add a `Node::<Kind>` arm.
 - Push the task that consumes the children first, then push child evaluations.
   The task stack is LIFO, so push children in reverse operand order to have
-  them pop in source order. `NewSet` shows the variadic pattern: push the
-  `NewSet { count }` task, then iterate `values.rev()` pushing
+  them pop in source order. `NewComposite` shows the variadic pattern: push the
+  `NewComposite { count }` task, then iterate `values.rev()` pushing
   `Task::Evaluate`.
 - For short-circuiting nodes, push a partial task such as `PartialAnd`,
   `PartialOr`, `PartialIf`, or `PartialDifference`, and schedule the second
@@ -231,31 +231,31 @@ The evaluator is an explicit stack machine. Two places matter:
   last popped. Pair tasks follow `let right = pop(); let left = pop();`.
 - Push exactly one result for every consumed child, or return `UNDEFINED`
   without leaving stale values on the stack.
-- Use `LazyObject::Eager(...)` for materialised values. Build deferred set
-  descriptions only for set-valued lazy results.
+- Use `LazyObject::Eager(...)` for materialised values. Build deferred composite
+  descriptions only for composite-valued lazy results.
 - Use `operations::*` for reusable pure semantics instead of duplicating
   logic.
 - The final checks at the end of `evaluate` require the stack and evaluation
   context to be empty apart from the result.
 
-## Step 9 — Deferred Sets (`crates/everything/src/compute/lazy/mod.rs`)
+## Step 9 — Deferred Composites (`crates/everything/src/compute/lazy/mod.rs`)
 
-Only needed when the node evaluates to a set that should not be materialised.
+Only needed when the node evaluates to a composite that should not be materialised.
 Additions:
 
 - `LazyObject` variant.
-- `is_set` → include the variant.
+- `is_composite` → include the variant.
 - `try_into_object` → `None` for deferred values; `into_object` then
   materialises by iterating.
-- `size` → count distinct yielded values. A set must not expose duplicates.
+- `size` → count distinct yielded values. A composite must not expose duplicates.
 - `has_at_least_one_element` → short-circuit where possible.
 - `has` → membership semantics consistent with iteration.
 - `iter` / `into_iter` → new `LazyObjectIter` variant, or wrap an existing
   iterator in `Deduplicated` when the operation may yield duplicates.
 - `LazyObjectIter::next` → implement iteration.
 
-If the source set is a function object (`LazyObject::Node`), note that
-`is_set` already treats it as a set. Do not break that convention.
+If the source composite is a function object (`LazyObject::Node`), note that
+`is_composite` already treats it as a composite. Do not break that convention.
 
 ## Step 10 — Tests
 
@@ -283,7 +283,7 @@ the module already uses one).
 - Create `tests/<kind_snake_case>.rs` and register it alphabetically in
   `tests/mod.rs`.
 - Use `crate::base::BASE` and the helpers in `tests/common.rs`
-  (`integer`, `integer_set`, `identity_function`, predicate helpers, etc.).
+  (`integer`, `integer_composite`, `identity_function`, predicate helpers, etc.).
 - Cover:
   - the normal result, including membership, size, and iteration order;
   - each operand type that must produce `Atom::UNDEFINED`;
@@ -302,7 +302,7 @@ the module already uses one).
 Add tests for the new `LazyObject` variant covering:
 
 - `size` deduplicates;
-- `into_iter` / `into_set_iter` semantics;
+- `into_iter` / `into_composite_iter` semantics;
 - `has` / `has_at_least_one_element`;
 - consistency between size, membership, and iteration;
 - snapshot behaviour if the operation reads the knowledge.
@@ -320,7 +320,7 @@ change:
 - Add an example under “Examples” when it clarifies the encoding.
 - Update “Node Objects and Recognition” if the recognition rules change
   (for example, a new repeatable property changes the sentence that names
-  `node_new_set_value` as the only repeatable one).
+  `node_new_composite_value` as the only repeatable one).
 - Update “Evaluation Strategy” if the node is deferred, short-circuits, or
   materialises values.
 - Update the “Implementation Status” table with the encoding and any
@@ -422,8 +422,8 @@ cargo test -p everything --lib
 - [ ] `diagnose.rs` mirrors `RawNode::new`.
 - [ ] `into_object` reproduces the canonical encoding; round-trip test passes.
 - [ ] Every child is parsed, captured, and evaluated in the right order.
-- [ ] `set_size` matches the number of encoded properties.
-- [ ] Deferred sets obey set semantics for size, iteration, and membership.
+- [ ] `composite_size` matches the number of encoded properties.
+- [ ] Deferred composites obey composite semantics for size, iteration, and membership.
 - [ ] Tests cover success, `undefined`, short-circuit, laziness, and capture.
 - [ ] `docs/public/3 - Computation.md` has the section, status row, and
       lazy/limitation notes.

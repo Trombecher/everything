@@ -1,4 +1,4 @@
-mod any_set;
+mod any_composite;
 mod byte;
 mod character;
 mod integer;
@@ -8,7 +8,7 @@ mod one_construction;
 mod tests;
 mod text;
 
-pub use any_set::*;
+pub use any_composite::*;
 pub use byte::*;
 pub use character::*;
 pub use integer::*;
@@ -20,11 +20,11 @@ use std::{fmt::Debug, mem};
 use crate::model::Object;
 
 /// A helper trait.
-pub trait SetApi: IntoIterator<Item = Object> + Sized + Debug + Clone + Ord
+pub trait CompositeApi: IntoIterator<Item = Object> + Sized + Debug + Clone + Ord
 where
     Self::IntoIter: Clone,
 {
-    /// The number of objects in this set.
+    /// The number of objects in this composite.
     fn size(&self) -> u64;
 
     fn has(&self, object: &Object) -> bool;
@@ -35,27 +35,27 @@ where
     }
 }
 
-pub trait SetSpecialization:
-    SetApi + IntoIterator<Item = Object> + Sized + Debug + Clone + Ord
+pub trait CompositeSpecialization:
+    CompositeApi + IntoIterator<Item = Object> + Sized + Debug + Clone + Ord
 where
     Self::IntoIter: Clone,
 {
     fn specialize_from(objects: &[Object]) -> Option<Self>;
 }
 
-/// A set of objects. Contains specializations for certain sets
+/// A composite of objects. Contains specializations for certain composites
 /// which are represented optimally in memory.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Set {
-    Integer(IntegerSet),
-    Character(CharacterSet),
-    Byte(ByteSet),
-    OneConstruction(OneConstructionSet),
-    Text(TextSet),
-    Any(AnySet),
+pub enum Composite {
+    Integer(IntegerComposite),
+    Character(CharacterComposite),
+    Byte(ByteComposite),
+    OneConstruction(OneConstructionComposite),
+    Text(TextComposite),
+    Any(AnyComposite),
 }
 
-impl SetApi for Set {
+impl CompositeApi for Composite {
     fn size(&self) -> u64 {
         match self {
             Self::Integer(x) => x.size(),
@@ -79,23 +79,23 @@ impl SetApi for Set {
     }
 }
 
-impl Set {
-    /// Returns the empty [`Set`].
+impl Composite {
+    /// Returns the empty [`Composite`].
     #[must_use]
     pub fn empty() -> Self {
         Self::from([])
     }
 
-    /// Tries to create a new [`Set`] primitive specialization variant from the given list of objects.
+    /// Tries to create a new [`Composite`] primitive specialization variant from the given list of objects.
     /// If no specialization matches, then this function returns [`None`].
     fn try_new_primitive_specialization(objects: &[Object]) -> Option<Self> {
-        IntegerSet::specialize_from(objects)
+        IntegerComposite::specialize_from(objects)
             .map(Self::Integer)
-            .or_else(|| CharacterSet::specialize_from(objects).map(Self::Character))
-            .or_else(|| ByteSet::specialize_from(objects).map(Self::Byte))
+            .or_else(|| CharacterComposite::specialize_from(objects).map(Self::Character))
+            .or_else(|| ByteComposite::specialize_from(objects).map(Self::Byte))
     }
 
-    /// Creates a set from objects that are already sorted and deduplicated.
+    /// Creates a composite from objects that are already sorted and deduplicated.
     #[must_use]
     fn from_sorted(objects: &mut [Object]) -> Self {
         debug_assert!(
@@ -103,19 +103,19 @@ impl Set {
             "the values must be sorted and deduplicated"
         );
 
-        if let Some(set) = Self::try_new_primitive_specialization(objects) {
-            return set;
+        if let Some(composite) = Self::try_new_primitive_specialization(objects) {
+            return composite;
         }
 
-        if let Some(set) = TextSet::specialize_from(objects) {
-            return Self::Text(set);
+        if let Some(composite) = TextComposite::specialize_from(objects) {
+            return Self::Text(composite);
         }
 
-        if let Some(set) = OneConstructionSet::specialize_from_moving(objects) {
-            return Self::OneConstruction(set);
+        if let Some(composite) = OneConstructionComposite::specialize_from_moving(objects) {
+            return Self::OneConstruction(composite);
         }
 
-        Self::Any(AnySet::from_sorted(objects.iter_mut().map(mem::take)))
+        Self::Any(AnyComposite::from_sorted(objects.iter_mut().map(mem::take)))
     }
 
     #[must_use]
@@ -149,13 +149,13 @@ impl Set {
     }
 }
 
-impl<const N: usize> From<[Object; N]> for Set {
+impl<const N: usize> From<[Object; N]> for Composite {
     fn from(mut objects: [Object; N]) -> Self {
         Self::from(objects.as_mut_slice())
     }
 }
 
-impl<'a> From<&'a mut [Object]> for Set {
+impl<'a> From<&'a mut [Object]> for Composite {
     fn from(objects: &'a mut [Object]) -> Self {
         objects.sort_unstable();
 
@@ -165,7 +165,7 @@ impl<'a> From<&'a mut [Object]> for Set {
     }
 }
 
-impl Debug for Set {
+impl Debug for Composite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Integer(x) => Debug::fmt(x, f),
@@ -178,34 +178,34 @@ impl Debug for Set {
     }
 }
 
-impl IntoIterator for Set {
+impl IntoIterator for Composite {
     type Item = Object;
-    type IntoIter = SetValues;
+    type IntoIter = CompositeValues;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Self::Integer(x) => SetValues::Integer(x.into_iter()),
-            Self::Any(x) => SetValues::Any(x.into_iter()),
-            Self::Character(x) => SetValues::Character(x.into_iter()),
-            Self::Byte(x) => SetValues::Byte(x.into_iter()),
-            Self::OneConstruction(x) => SetValues::OneConstruction(x.into_iter()),
-            Self::Text(x) => SetValues::Text(x.into_iter()),
+            Self::Integer(x) => CompositeValues::Integer(x.into_iter()),
+            Self::Any(x) => CompositeValues::Any(x.into_iter()),
+            Self::Character(x) => CompositeValues::Character(x.into_iter()),
+            Self::Byte(x) => CompositeValues::Byte(x.into_iter()),
+            Self::OneConstruction(x) => CompositeValues::OneConstruction(x.into_iter()),
+            Self::Text(x) => CompositeValues::Text(x.into_iter()),
         }
     }
 }
 
-/// An iterator over objects ("values") of a set object.
+/// An iterator over objects ("values") of a composite object.
 #[derive(Clone)]
-pub enum SetValues {
-    Integer(IntegerSetValues),
-    Character(CharacterSetValues),
-    Byte(ByteSetValues),
-    OneConstruction(OneConstructionSetValues),
-    Any(AnySetValues),
-    Text(TextSetValues),
+pub enum CompositeValues {
+    Integer(IntegerCompositeValues),
+    Character(CharacterCompositeValues),
+    Byte(ByteCompositeValues),
+    OneConstruction(OneConstructionCompositeValues),
+    Any(AnyCompositeValues),
+    Text(TextCompositeValues),
 }
 
-impl Iterator for SetValues {
+impl Iterator for CompositeValues {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

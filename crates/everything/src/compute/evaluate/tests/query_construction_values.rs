@@ -3,7 +3,7 @@ use num_bigint::BigInt;
 use crate::{
     base::BASE,
     knowledge::Statement,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
@@ -48,7 +48,7 @@ fn query_construction_values() {
         &knowledge,
     );
 
-    assert!(result.is_set());
+    assert!(result.is_composite());
     assert_eq!(result.size(&knowledge), 2);
     assert!(result.has(&matching_values[0], &knowledge));
     assert!(result.has(&matching_values[1], &knowledge));
@@ -75,10 +75,10 @@ fn query_construction_values() {
 }
 
 #[test]
-fn query_construction_values_of_literal_set() {
+fn query_construction_values_of_literal_composite() {
     let constructor = Atom(1);
 
-    let set = Set::from([
+    let composite = Composite::from([
         Construction::new(constructor.into(), Object::new_integer(BigInt::from(1))).into(),
         Construction::new(Atom(2).into(), Object::new_integer(BigInt::from(2))).into(),
         Construction::new(constructor.into(), Object::new_integer(BigInt::from(3))).into(),
@@ -86,7 +86,7 @@ fn query_construction_values_of_literal_set() {
 
     let result = evaluate(
         &Node::QueryConstructionValues {
-            object: Node::Literal(set.into()).into(),
+            object: Node::Literal(composite.into()).into(),
             property_constructor: Node::Literal(constructor.into()).into(),
         },
         &BASE,
@@ -103,7 +103,7 @@ fn query_construction_values_of_literal_set() {
 
 #[test]
 fn query_construction_values_materialises_deferred_constructor() {
-    let constructor = Object::Set(Set::empty());
+    let constructor = Object::Composite(Composite::empty());
     let value = Object::new_integer(BigInt::from(7));
     let atom = Atom(42);
 
@@ -113,10 +113,10 @@ fn query_construction_values_materialises_deferred_constructor() {
         object: Construction::new(constructor, value.clone()).into(),
     });
 
-    let empty_set = Node::Literal(Object::Set(Set::empty()));
+    let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
     let deferred_constructor = Node::Union {
-        first: empty_set.clone().into(),
-        second: empty_set.into(),
+        first: empty_composite.clone().into(),
+        second: empty_composite.into(),
     };
 
     let result = evaluate(
@@ -127,7 +127,7 @@ fn query_construction_values_materialises_deferred_constructor() {
         &knowledge,
     );
 
-    assert!(result.is_set());
+    assert!(result.is_composite());
     assert_eq!(result.iter(&knowledge).collect::<Vec<_>>(), vec![value]);
 }
 
@@ -154,12 +154,12 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
     );
 
     // Atoms are resolved through the knowledge. Atoms without values yield an
-    // empty deferred set.
+    // empty deferred composite.
     let atom_result = evaluate_query(
         Node::Literal(Object::Atom(Atom(42))),
         property_constructor.clone(),
     );
-    assert!(atom_result.is_set());
+    assert!(atom_result.is_composite());
     assert_eq!(atom_result.size(&BASE), 0);
     assert_eq!(atom_result.iter(&BASE).count(), 0);
 
@@ -168,30 +168,30 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
         Node::Literal(Atom::UNDEFINED.into()),
         property_constructor.clone(),
     );
-    assert!(undefined_result.is_set());
+    assert!(undefined_result.is_composite());
     assert_eq!(undefined_result.size(&BASE), 0);
     assert_eq!(undefined_result.iter(&BASE).count(), 0);
 
     // A deferred constructor is materialised and accepted like an eager one.
-    let empty_set = Node::Literal(Object::Set(Set::empty()));
-    let deferred_set = Node::Union {
-        first: empty_set.clone().into(),
-        second: empty_set.clone().into(),
+    let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
+    let deferred_composite = Node::Union {
+        first: empty_composite.clone().into(),
+        second: empty_composite.clone().into(),
     };
 
     let from_deferred = evaluate_query(
-        Node::Literal(Object::Set(Set::empty())),
-        deferred_set.clone(),
+        Node::Literal(Object::Composite(Composite::empty())),
+        deferred_composite.clone(),
     );
 
-    assert!(from_deferred.is_set());
+    assert!(from_deferred.is_composite());
     assert_eq!(from_deferred.size(&BASE), 0);
     assert_eq!(from_deferred.iter(&BASE).count(), 0);
 
-    // A deferred set target yields a deferred result.
-    let result = evaluate_query(deferred_set, Node::Literal(Atom(1).into()));
+    // A deferred composite target yields a deferred result.
+    let result = evaluate_query(deferred_composite, Node::Literal(Atom(1).into()));
 
-    assert!(result.is_set());
+    assert!(result.is_composite());
     assert_eq!(result.size(&BASE), 0);
     assert_eq!(result.iter(&BASE).count(), 0);
 }

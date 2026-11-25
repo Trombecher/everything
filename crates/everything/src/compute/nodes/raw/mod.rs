@@ -124,7 +124,7 @@ pub enum RawNode {
     },
     Contains {
         element: Object,
-        set: Object,
+        composite: Object,
     },
     Equal {
         first: Object,
@@ -156,11 +156,11 @@ pub enum RawNode {
         second: Object,
     },
     Map {
-        set: Object,
+        composite: Object,
         mapper_function: Object,
     },
     Filter {
-        set: Object,
+        composite: Object,
         filter_function: Object,
     },
     Less {
@@ -183,17 +183,17 @@ pub enum RawNode {
     },
     IsAtom(Object),
     IsConstruction(Object),
-    IsSet(Object),
+    IsComposite(Object),
     Every {
-        set: Object,
+        composite: Object,
         predicate: Object,
     },
     Any {
-        set: Object,
+        composite: Object,
         predicate: Object,
     },
     Fold {
-        set: Object,
+        composite: Object,
         folder: Object,
         initial: Object,
     },
@@ -201,7 +201,7 @@ pub enum RawNode {
         constructor: Object,
         value: Object,
     },
-    NewSet {
+    NewComposite {
         values: Vec<Object>,
     },
     ConstructionConstructor {
@@ -393,11 +393,11 @@ impl RawNode {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_MAP_SET.into(),
+                Atom::NODE_MAP_COMPOSITE.into(),
                 Atom::NODE_MAP_MAPPER.into(),
             )
-            .map(|(set, mapper_function)| Self::Map {
-                set,
+            .map(|(composite, mapper_function)| Self::Map {
+                composite,
                 mapper_function,
             })
         );
@@ -407,11 +407,11 @@ impl RawNode {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_FILTER_SET.into(),
+                Atom::NODE_FILTER_COMPOSITE.into(),
                 Atom::NODE_FILTER_FILTER.into(),
             )
-            .map(|(set, filter_function)| Self::Filter {
-                set,
+            .map(|(composite, filter_function)| Self::Filter {
+                composite,
                 filter_function,
             })
         );
@@ -446,7 +446,7 @@ impl RawNode {
         xor_with!(
             NodeKind::Unwrap,
             knowledge
-                .query_construction_values(object, Atom::NODE_UNWRAP_SET.into())
+                .query_construction_values(object, Atom::NODE_UNWRAP_COMPOSITE.into())
                 .next_and_last()
                 .map(Self::Unwrap)
         );
@@ -475,10 +475,13 @@ impl RawNode {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_EVERY_SET.into(),
+                Atom::NODE_EVERY_COMPOSITE.into(),
                 Atom::NODE_EVERY_PREDICATE.into(),
             )
-            .map(|(set, predicate)| Self::Every { set, predicate })
+            .map(|(composite, predicate)| Self::Every {
+                composite,
+                predicate
+            })
         );
 
         xor_with!(
@@ -486,10 +489,13 @@ impl RawNode {
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_ANY_SET.into(),
+                Atom::NODE_ANY_COMPOSITE.into(),
                 Atom::NODE_ANY_PREDICATE.into(),
             )
-            .map(|(set, predicate)| Self::Any { set, predicate })
+            .map(|(composite, predicate)| Self::Any {
+                composite,
+                predicate
+            })
         );
 
         xor_with!(
@@ -538,9 +544,9 @@ impl RawNode {
                 object,
                 knowledge,
                 Atom::NODE_CONTAINS_ELEMENT.into(),
-                Atom::NODE_CONTAINS_SET.into(),
+                Atom::NODE_CONTAINS_COMPOSITE.into(),
             )
-            .map(|(element, set)| Self::Contains { element, set })
+            .map(|(element, composite)| Self::Contains { element, composite })
         );
 
         xor_with!(
@@ -552,11 +558,11 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::IsSet,
+            NodeKind::IsComposite,
             knowledge
-                .query_construction_values(object, Atom::NODE_IS_SET.into())
+                .query_construction_values(object, Atom::NODE_IS_COMPOSITE.into())
                 .next_and_last()
-                .map(Self::IsSet)
+                .map(Self::IsComposite)
         );
 
         xor_with!(
@@ -564,12 +570,12 @@ impl RawNode {
             triple_values(
                 object,
                 knowledge,
-                Atom::NODE_FOLD_SET.into(),
+                Atom::NODE_FOLD_COMPOSITE.into(),
                 Atom::NODE_FOLD_FOLDER.into(),
                 Atom::NODE_FOLD_INITIAL.into(),
             )
-            .map(|(set, folder, initial)| Self::Fold {
-                set,
+            .map(|(composite, folder, initial)| Self::Fold {
+                composite,
                 folder,
                 initial,
             })
@@ -587,9 +593,9 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::NewSet,
-            many_values(object, knowledge, Atom::NODE_NEW_SET_VALUE.into())
-                .map(|values| Self::NewSet { values })
+            NodeKind::NewComposite,
+            many_values(object, knowledge, Atom::NODE_NEW_COMPOSITE_VALUE.into())
+                .map(|values| Self::NewComposite { values })
         );
 
         xor_with!(

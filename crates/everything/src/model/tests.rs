@@ -13,7 +13,7 @@ mod Object {
 
         assert_eq!(
             Object::new_integer(BigInt::ONE),
-            Object::Set(Set::from([Construction::new(
+            Object::Composite(Composite::from([Construction::new(
                 Atom::SUCCESSOR_OF.into(),
                 Atom::ZERO.into()
             )
@@ -22,7 +22,7 @@ mod Object {
 
         assert_eq!(
             Object::new_integer(BigInt::NEG_ONE),
-            Object::Set(Set::from([Construction::new(
+            Object::Composite(Composite::from([Construction::new(
                 Atom::PREDECESSOR_OF.into(),
                 Atom::ZERO.into()
             )
@@ -44,6 +44,6 @@ mod Object {
             );
         }
 
-        assert_eq!(Object::Set(Set::empty()).integer(), None);
+        assert_eq!(Object::Composite(Composite::empty()).integer(), None);
     }
 }

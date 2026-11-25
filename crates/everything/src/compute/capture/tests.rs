@@ -3,13 +3,13 @@ use std::sync::Arc;
 use crate::{
     base::BASE,
     compute::{Argument, EvaluationContext, FunctionContext, LazyObject},
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::*;
 
 fn annotated_function() -> (Object, Node) {
-    let object = Set::from([
+    let object = Composite::from([
         Construction::new(
             Atom::NODE_FUNCTION.into(),
             Node::Literal(Atom(1).into()).into_object(),
@@ -52,7 +52,7 @@ fn captured_function_property_preserves_extra_properties() {
 fn capture_preserves_annotations_of_transformed_nodes() {
     let annotation: Object = Construction::new(Atom(42).into(), Atom(7).into()).into();
 
-    let object = Set::from([
+    let object = Composite::from([
         Construction::new(
             Atom::NODE_ADD_FIRST.into(),
             Node::Parameter { depth: 0 }.into_object(),
@@ -77,7 +77,7 @@ fn capture_preserves_annotations_of_transformed_nodes() {
 
     let captured = capture(&node, 0, &context, &BASE);
 
-    let expected = Set::from([
+    let expected = Composite::from([
         Construction::new(
             Atom::NODE_ADD_FIRST.into(),
             Node::Literal(Atom(2).into()).into_object(),

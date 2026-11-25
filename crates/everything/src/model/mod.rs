@@ -1,17 +1,17 @@
 use std::fmt::Debug;
 
 mod atoms;
+mod composites;
 mod constructions;
 mod non_zero_bigint;
-mod sets;
 #[cfg(test)]
 mod tests;
 
 pub use atoms::*;
+pub use composites::*;
 pub use constructions::*;
 pub use non_zero_bigint::*;
 use num_bigint::BigInt;
-pub use sets::*;
 
 use crate::compute::Node;
 
@@ -20,7 +20,7 @@ use crate::compute::Node;
 pub enum Object {
     Atom(Atom),
     Construction(Construction),
-    Set(Set),
+    Composite(Composite),
 }
 
 impl Default for Object {
@@ -41,7 +41,7 @@ impl Object {
     #[must_use]
     pub fn new_integer(integer: BigInt) -> Self {
         if let Some(non_zero_integer) = NonZeroBigInt::new(integer) {
-            Self::Set(Set::Integer(IntegerSet {
+            Self::Composite(Composite::Integer(IntegerComposite {
                 representing: non_zero_integer,
             }))
         } else {
@@ -53,7 +53,9 @@ impl Object {
     pub fn integer(&self) -> Option<BigInt> {
         match self {
             Self::Atom(Atom::ZERO) => Some(BigInt::ZERO),
-            Self::Set(Set::Integer(integer)) => Some(integer.representing.get_as_ref().clone()),
+            Self::Composite(Composite::Integer(integer)) => {
+                Some(integer.representing.get_as_ref().clone())
+            }
             _ => None,
         }
     }
@@ -87,7 +89,7 @@ impl Debug for Object {
         match self {
             Self::Atom(atom) => Debug::fmt(&atom, f),
             Self::Construction(construction) => Debug::fmt(&construction, f),
-            Self::Set(set) => Debug::fmt(&set, f),
+            Self::Composite(composite) => Debug::fmt(&composite, f),
         }
     }
 }
@@ -104,9 +106,9 @@ impl From<Construction> for Object {
     }
 }
 
-impl From<Set> for Object {
-    fn from(value: Set) -> Self {
-        Self::Set(value)
+impl From<Composite> for Object {
+    fn from(value: Composite) -> Self {
+        Self::Composite(value)
     }
 }
 

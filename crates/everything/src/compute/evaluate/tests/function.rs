@@ -1,14 +1,14 @@
 use crate::{
     base::BASE,
     knowledge::Statement,
-    model::{Atom, Construction, Object, Set},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
 use super::common::*;
 
 fn annotated_function(body: &Node, annotation: Object) -> Object {
-    Set::from([
+    Composite::from([
         Construction::new(Atom::NODE_FUNCTION.into(), body.into_object()).into(),
         annotation,
     ])
@@ -37,7 +37,7 @@ fn function_can_inspect_annotations_in_its_own_body() {
     // `false`.
     let annotation: Object = Construction::new(Atom(42).into(), Atom(7).into()).into();
 
-    let query = Set::from([
+    let query = Composite::from([
         Construction::new(
             Atom::NODE_CONSTRUCTION_VALUES_OBJECT.into(),
             Node::FunctionSelf { depth: 0 }.into_object(),
@@ -52,21 +52,23 @@ fn function_can_inspect_annotations_in_its_own_body() {
     .into();
 
     // The query yields the body as its only value; unwrap selects it.
-    let body_set =
-        Set::from([Construction::new(Atom::NODE_UNWRAP_SET.into(), query).into()]).into();
+    let body_composite =
+        Composite::from([Construction::new(Atom::NODE_UNWRAP_COMPOSITE.into(), query).into()])
+            .into();
 
-    let body = Set::from([
+    let body = Composite::from([
         Construction::new(
             Atom::NODE_CONTAINS_ELEMENT.into(),
             Node::Literal(annotation.clone()).into_object(),
         )
         .into(),
-        Construction::new(Atom::NODE_CONTAINS_SET.into(), body_set).into(),
+        Construction::new(Atom::NODE_CONTAINS_COMPOSITE.into(), body_composite).into(),
         annotation,
     ])
     .into();
 
-    let function = Set::from([Construction::new(Atom::NODE_FUNCTION.into(), body).into()]).into();
+    let function =
+        Composite::from([Construction::new(Atom::NODE_FUNCTION.into(), body).into()]).into();
     let function = Node::new(&function, &BASE).unwrap();
     let call = Node::Call {
         callee: function.into(),
@@ -77,7 +79,7 @@ fn function_can_inspect_annotations_in_its_own_body() {
 }
 
 #[test]
-fn atom_defined_function_materialises_into_a_set() {
+fn atom_defined_function_materialises_into_a_composite() {
     let atom = Atom(99);
     let body = Node::Literal(integer(1));
     let annotation = Construction::new(Atom(42).into(), Atom(7).into()).into();
@@ -95,10 +97,10 @@ fn atom_defined_function_materialises_into_a_set() {
     let node = Node::new(&Object::Atom(atom), &knowledge).unwrap();
     let result = evaluate(&node, &knowledge);
 
-    assert!(result.is_set());
+    assert!(result.is_composite());
     assert_eq!(
         result.into_object(&knowledge),
-        Set::from([
+        Composite::from([
             Construction::new(Atom::NODE_FUNCTION.into(), body.into_object()).into(),
             Construction::new(Atom(42).into(), Atom(7).into()).into(),
         ])

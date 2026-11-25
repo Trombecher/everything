@@ -1,6 +1,6 @@
 use crate::{
     base::BASE,
-    model::{Atom, Object, Set},
+    model::{Atom, Composite, Object},
 };
 
 use super::super::*;
@@ -9,7 +9,7 @@ use super::common::*;
 #[test]
 fn and() {
     let cases = [
-        Object::Set(Set::empty()),
+        Object::Composite(Composite::empty()),
         Atom::TRUE.into(),
         Atom::FALSE.into(),
     ];

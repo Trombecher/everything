@@ -1,6 +1,8 @@
 use everything::{
     knowledge::{Knowledge, Statement, Values},
-    model::{Atom, ByteSet, CharacterSet, Construction, Object, Set, TextSet},
+    model::{
+        Atom, ByteComposite, CharacterComposite, Composite, Construction, Object, TextComposite,
+    },
     num_bigint::{BigInt, BigUint, Sign},
 };
 use scursor::ReadCursor;
@@ -77,9 +79,11 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
                     found: u32::from(byte),
                 })?;
 
-            Ok(Object::Set(Set::Character(CharacterSet {
-                representing: character,
-            })))
+            Ok(Object::Composite(Composite::Character(
+                CharacterComposite {
+                    representing: character,
+                },
+            )))
         }
         ObjectType::Character2 => {
             let read_bytes: [u8; 2] = cursor
@@ -91,9 +95,11 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
             let character = char::try_from(code_point)
                 .map_err(|_| ParseError::InvalidCharacter { found: code_point })?;
 
-            Ok(Object::Set(Set::Character(CharacterSet {
-                representing: character,
-            })))
+            Ok(Object::Composite(Composite::Character(
+                CharacterComposite {
+                    representing: character,
+                },
+            )))
         }
         ObjectType::Character3 => {
             let read_bytes: [u8; 3] = cursor
@@ -105,9 +111,11 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
             let character = char::try_from(code_point)
                 .map_err(|_| ParseError::InvalidCharacter { found: code_point })?;
 
-            Ok(Object::Set(Set::Character(CharacterSet {
-                representing: character,
-            })))
+            Ok(Object::Composite(Composite::Character(
+                CharacterComposite {
+                    representing: character,
+                },
+            )))
         }
         ObjectType::Character4 => {
             let read_bytes: [u8; 4] = cursor
@@ -119,14 +127,16 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
             let character = char::try_from(code_point)
                 .map_err(|_| ParseError::InvalidCharacter { found: code_point })?;
 
-            Ok(Object::Set(Set::Character(CharacterSet {
-                representing: character,
-            })))
+            Ok(Object::Composite(Composite::Character(
+                CharacterComposite {
+                    representing: character,
+                },
+            )))
         }
-        ObjectType::Text => Ok(Object::Set(Set::Text(parse_text(cursor)?))),
+        ObjectType::Text => Ok(Object::Composite(Composite::Text(parse_text(cursor)?))),
         ObjectType::Binary => todo!(),
-        ObjectType::Set => Ok(Object::Set(parse_set(cursor)?)),
-        ObjectType::Byte => Ok(Object::Set(Set::Byte(parse_byte(cursor)?))),
+        ObjectType::Composite => Ok(Object::Composite(parse_composite(cursor)?)),
+        ObjectType::Byte => Ok(Object::Composite(Composite::Byte(parse_byte(cursor)?))),
     }
 }
 
@@ -166,10 +176,10 @@ fn parse_statement(cursor: &mut ReadCursor) -> Result<Statement, ParseError> {
     })
 }
 
-fn parse_set(cursor: &mut ReadCursor) -> Result<Set, ParseError> {
+fn parse_composite(cursor: &mut ReadCursor) -> Result<Composite, ParseError> {
     let value_count = cursor
         .read_leb128_u64()
-        .map_err(|_| ParseError::InvalidSetValueCount)?;
+        .map_err(|_| ParseError::InvalidCompositeValueCount)?;
 
     let mut properties = Vec::new();
 
@@ -177,14 +187,14 @@ fn parse_set(cursor: &mut ReadCursor) -> Result<Set, ParseError> {
         properties.push(parse_object(cursor)?);
     }
 
-    Ok(Set::from(properties.as_mut_slice()))
+    Ok(Composite::from(properties.as_mut_slice()))
 }
 
 /// Parses the values of a subject: a LEB128 count followed by that many objects.
 fn parse_values(cursor: &mut ReadCursor) -> Result<Values, ParseError> {
     let value_count = cursor
         .read_leb128_u64()
-        .map_err(|_| ParseError::InvalidSetValueCount)?;
+        .map_err(|_| ParseError::InvalidCompositeValueCount)?;
 
     let mut values = Values::empty();
 
@@ -195,9 +205,9 @@ fn parse_values(cursor: &mut ReadCursor) -> Result<Values, ParseError> {
     Ok(values)
 }
 
-/// Parses a text set: a LEB128 length in bytes followed by that many bytes
+/// Parses a text composite: a LEB128 length in bytes followed by that many bytes
 /// of UTF-8 text.
-fn parse_text(cursor: &mut ReadCursor) -> Result<TextSet, ParseError> {
+fn parse_text(cursor: &mut ReadCursor) -> Result<TextComposite, ParseError> {
     let length_in_bytes = cursor
         .read_leb128_u64()
         .map_err(|_| ParseError::InvalidTextLength)?;
@@ -208,17 +218,17 @@ fn parse_text(cursor: &mut ReadCursor) -> Result<TextSet, ParseError> {
 
     let string = std::str::from_utf8(bytes).map_err(|_| ParseError::InvalidText)?;
 
-    // A text set is never empty (see `TextSet::new`).
-    TextSet::new(string.into()).ok_or(ParseError::EmptyText)
+    // A text composite is never empty (see `TextComposite::new`).
+    TextComposite::new(string.into()).ok_or(ParseError::EmptyText)
 }
 
-/// Parses a byte set: a single byte holding the eight bits of the set.
-fn parse_byte(cursor: &mut ReadCursor) -> Result<ByteSet, ParseError> {
+/// Parses a byte composite: a single byte holding the eight bits of the composite.
+fn parse_byte(cursor: &mut ReadCursor) -> Result<ByteComposite, ParseError> {
     let byte = cursor
         .read_u8()
         .map_err(|_| ParseError::ContentIsTooShortForObject)?;
 
-    Ok(ByteSet(byte))
+    Ok(ByteComposite(byte))
 }
 
 fn collect_base(base: &[u8], knowledge: &mut Knowledge) -> Result<(), ParseError> {

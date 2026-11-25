@@ -9,7 +9,7 @@ use crate::{
         AtomValuePair, Knowledge, ObjectValues, QueryAtomsWithConstructor, QueryAtomsWithProperty,
         QueryConstructions, Values,
     },
-    model::{Construction, Object, Set},
+    model::{Composite, Construction, Object},
 };
 
 #[derive(Clone, Debug)]
@@ -20,28 +20,28 @@ pub enum LazyObject {
     /// A node.
     Node(Node),
 
-    /// The set of values of an atom in the knowledge.
+    /// The composite of values of an atom in the knowledge.
     ///
     /// The values are kept in their knowledge container, so iterating
-    /// them does not require materialising a model [`Set`].
+    /// them does not require materialising a model [`Composite`].
     AtomValues(Values),
 
-    /// Represents the set that is the union of two [`LazyObject`]s.
+    /// Represents the composite that is the union of two [`LazyObject`]s.
     Union { first: Box<Self>, second: Box<Self> },
 
-    /// Represents the set that is the intersection of two [`LazyObject`]s.
+    /// Represents the composite that is the intersection of two [`LazyObject`]s.
     Intersection { first: Box<Self>, second: Box<Self> },
 
-    /// Represents the set that is the difference of two [`LazyObject`]s.
+    /// Represents the composite that is the difference of two [`LazyObject`]s.
     Difference {
         source: Box<Self>,
         without: Box<Self>,
     },
 
-    /// The set of atoms with the given property.
+    /// The composite of atoms with the given property.
     AtomsWithProperty { property: Object },
 
-    /// The set of atoms that have a property that is a construction with the
+    /// The composite of atoms that have a property that is a construction with the
     /// given constructor.
     AtomsWithConstructor { constructor: Object },
 
@@ -50,7 +50,7 @@ pub enum LazyObject {
     ///
     /// The target is iterated lazily and only constructions whose constructor
     /// equals `property_constructor` contribute their value. Atoms are resolved
-    /// through the knowledge and sets through their members.
+    /// through the knowledge and composites through their members.
     ConstructionValues {
         target: Box<Self>,
         property_constructor: Object,
@@ -62,7 +62,7 @@ pub enum LazyObject {
     /// Each pair is yielded as the object `{atom : <atom>, value : <value>}`.
     Constructions { constructor: Object },
 
-    /// Maps every value of a given set with a mapper function.
+    /// Maps every value of a given composite with a mapper function.
     Map {
         target: Box<Self>,
         /// This function is captured.
@@ -90,12 +90,12 @@ impl From<Node> for LazyObject {
 }
 
 impl LazyObject {
-    /// Returns `true` iff `self` is a set result: an evaluated set, atom
-    /// values, a function object, or a deferred set operation.
+    /// Returns `true` iff `self` is a composite result: an evaluated composite, atom
+    /// values, a function object, or a deferred composite operation.
     #[must_use]
-    pub fn is_set(&self) -> bool {
+    pub fn is_composite(&self) -> bool {
         match self {
-            Self::Eager(Object::Set(_))
+            Self::Eager(Object::Composite(_))
             | Self::AtomValues(_)
             | Self::Node(_)
             | Self::Union { .. }
@@ -142,17 +142,19 @@ impl LazyObject {
     }
 
     /// Converts the lazy object into an evaluated object, materializing a
-    /// deferred set by iterating it.
+    /// deferred composite by iterating it.
     #[must_use]
     pub fn into_object(self, knowledge: &Knowledge) -> Object {
         match self {
             Self::Eager(object) => object,
             Self::Node(node) => node.into_object(),
             Self::AtomValues(values) => atom_values_into_object(values),
-            lazy_set => {
-                let mut values = lazy_set.into_set_iter(knowledge).collect::<Vec<_>>();
+            lazy_composite => {
+                let mut values = lazy_composite
+                    .into_composite_iter(knowledge)
+                    .collect::<Vec<_>>();
 
-                Set::from(values.as_mut_slice()).into()
+                Composite::from(values.as_mut_slice()).into()
             }
         }
     }
@@ -160,7 +162,7 @@ impl LazyObject {
     #[must_use]
     pub fn size(&self, knowledge: &Knowledge) -> u64 {
         match self {
-            Self::Node(node) => node.set_size(),
+            Self::Node(node) => node.composite_size(),
             Self::Eager(object) => knowledge.size_of_object(object),
             Self::AtomValues(values) => values.size(),
             Self::Union { .. }
@@ -168,9 +170,9 @@ impl LazyObject {
             | Self::Difference { .. }
             | Self::Map { .. }
             | Self::Filter { .. } => {
-                // Deferred sets may yield an element more than once, so the
+                // Deferred composites may yield an element more than once, so the
                 // values are deduplicated while counting.
-                self.clone().into_set_iter(knowledge).count() as u64
+                self.clone().into_composite_iter(knowledge).count() as u64
             }
             Self::AtomsWithProperty { property } => knowledge
                 .query_atoms_with_property(property.clone())
@@ -188,7 +190,7 @@ impl LazyObject {
     #[must_use]
     pub fn has_at_least_one_element(&self, knowledge: &Knowledge) -> bool {
         match self {
-            Self::Node(node) => node.set_size() != 0,
+            Self::Node(node) => node.composite_size() != 0,
             Self::Eager(object) => knowledge.size_of_object(object) != 0,
             Self::AtomValues(values) => !values.is_empty(),
             Self::Union { first, second } => {
@@ -253,8 +255,8 @@ impl LazyObject {
                 target,
                 filter_function,
             } => {
-                // `element` is member of the set which all elements satisfy the constraint
-                // iff it is in that set and matches the constraint.
+                // `element` is member of the composite which all elements satisfy the constraint
+                // iff it is in that composite and matches the constraint.
 
                 if !target.has(element, knowledge) {
                     return false;
@@ -278,15 +280,15 @@ impl LazyObject {
         }
     }
 
-    /// Returns `true` iff `self` is a set that is computed lazily.
+    /// Returns `true` iff `self` is a composite that is computed lazily.
     ///
     /// Eagerly represented objects and nodes that can be converted into a model
-    /// object without further computation are not lazy. Lazy set results should
-    /// be iterated with [`Self::into_set_iter`] instead of being materialized
-    /// into a [`Set`].
+    /// object without further computation are not lazy. Lazy composite results should
+    /// be iterated with [`Self::into_composite_iter`] instead of being materialized
+    /// into a [`Composite`].
     #[must_use]
     pub fn is_lazy(&self) -> bool {
-        self.is_set() && !matches!(self, Self::Eager(_) | Self::Node(_))
+        self.is_composite() && !matches!(self, Self::Eager(_) | Self::Node(_))
     }
 
     /// Iterate over the lazy object.
@@ -385,13 +387,13 @@ impl LazyObject {
     }
 
     /// Consumes the lazy object and returns an iterator over its values that
-    /// respects set semantics, i.e. yields every value at most once.
+    /// respects composite semantics, i.e. yields every value at most once.
     ///
     /// Like [`Self::into_iter`], the returned iterator captures the parts of the
     /// knowledge it needs.
     #[must_use]
-    pub fn into_set_iter(self, knowledge: &Knowledge) -> LazySetIterator {
-        LazySetIterator::new(self.into_iter(knowledge))
+    pub fn into_composite_iter(self, knowledge: &Knowledge) -> LazyCompositeIterator {
+        LazyCompositeIterator::new(self.into_iter(knowledge))
     }
 }
 
@@ -399,7 +401,7 @@ impl LazyObject {
 fn atom_values_into_object(values: Values) -> Object {
     let mut values = values.into_iter().collect::<Vec<_>>();
 
-    Set::from(values.as_mut_slice()).into()
+    Composite::from(values.as_mut_slice()).into()
 }
 
 #[derive(Clone)]
@@ -456,7 +458,7 @@ impl Iterator for LazyObjectIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Self::ObjectValues(set_values) => set_values.next(),
+            Self::ObjectValues(composite_values) => composite_values.next(),
             Self::AtomsWithProperty(atoms) => atoms.next().map(Object::Atom),
             Self::AtomsWithConstructor(atoms) => atoms.next().map(Object::Atom),
             Self::ConstructionValues {
@@ -522,16 +524,16 @@ impl Iterator for LazyObjectIter {
     }
 }
 
-/// Iterates over the values of a lazy set, yielding every value at most once.
+/// Iterates over the values of a lazy composite, yielding every value at most once.
 ///
-/// The values seen so far are remembered, so this does not materialize the set
+/// The values seen so far are remembered, so this does not materialize the composite
 /// in advance but uses memory proportional to the number of yielded values.
-pub struct LazySetIterator {
+pub struct LazyCompositeIterator {
     values: LazyObjectIter,
     yielded: BTreeSet<Object>,
 }
 
-impl LazySetIterator {
+impl LazyCompositeIterator {
     #[must_use]
     pub fn new(values: LazyObjectIter) -> Self {
         Self {
@@ -541,7 +543,7 @@ impl LazySetIterator {
     }
 }
 
-impl Iterator for LazySetIterator {
+impl Iterator for LazyCompositeIterator {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

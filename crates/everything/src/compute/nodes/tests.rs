@@ -38,7 +38,7 @@ fn node_round_trip() {
         },
         Node::Contains {
             element: Node::Literal(a.clone()).into(),
-            set: Node::Literal(b.clone()).into(),
+            composite: Node::Literal(b.clone()).into(),
         },
         Node::Equal {
             first: Node::Literal(a.clone()).into(),
@@ -70,11 +70,11 @@ fn node_round_trip() {
             second: Node::Literal(b.clone()).into(),
         },
         Node::Map {
-            set: Node::Literal(a.clone()).into(),
+            composite: Node::Literal(a.clone()).into(),
             mapper_function: Node::Literal(b.clone()).into(),
         },
         Node::Filter {
-            set: Node::Literal(a.clone()).into(),
+            composite: Node::Literal(a.clone()).into(),
             filter_function: Node::Literal(b.clone()).into(),
         },
         Node::Less {
@@ -97,17 +97,17 @@ fn node_round_trip() {
         },
         Node::IsAtom(Node::Literal(a.clone()).into()),
         Node::IsConstruction(Node::Literal(a.clone()).into()),
-        Node::IsSet(Node::Literal(a.clone()).into()),
+        Node::IsComposite(Node::Literal(a.clone()).into()),
         Node::Every {
-            set: Node::Literal(a.clone()).into(),
+            composite: Node::Literal(a.clone()).into(),
             predicate: Node::Literal(b.clone()).into(),
         },
         Node::Any {
-            set: Node::Literal(a.clone()).into(),
+            composite: Node::Literal(a.clone()).into(),
             predicate: Node::Literal(b.clone()).into(),
         },
         Node::Fold {
-            set: Node::Literal(a.clone()).into(),
+            composite: Node::Literal(a.clone()).into(),
             folder: Node::Literal(b.clone()).into(),
             initial: Node::Literal(c.clone()).into(),
         },
@@ -115,7 +115,7 @@ fn node_round_trip() {
             constructor: Node::Literal(a.clone()).into(),
             value: Node::Literal(b.clone()).into(),
         },
-        Node::NewSet {
+        Node::NewComposite {
             values: vec![
                 Node::Literal(a.clone()).into(),
                 Node::Literal(b.clone()).into(),
@@ -143,7 +143,7 @@ fn node_round_trip_preserves_extra_properties() {
     let value = Object::new_integer(BigInt::from(1));
     let annotation = Construction::new(Atom(42).into(), Atom(7).into()).into();
 
-    let object = Set::from([
+    let object = Composite::from([
         Construction::new(
             Atom::NODE_ADD_FIRST.into(),
             Node::Literal(value.clone()).into_object(),
@@ -167,7 +167,7 @@ fn node_round_trip_preserves_extra_properties() {
 #[test]
 fn node_parse_rejects_empty_object() {
     let knowledge = Knowledge { map: OrdMap::new() };
-    let object = Object::Set(Set::empty());
+    let object = Object::Composite(Composite::empty());
 
     assert_eq!(
         Node::new(&object, &knowledge),
@@ -180,7 +180,7 @@ fn node_parse_rejects_ambiguous_kind() {
     let knowledge = Knowledge { map: OrdMap::new() };
     let value = Object::new_integer(BigInt::from(1));
 
-    let object = Object::Set(Set::from([
+    let object = Object::Composite(Composite::from([
         Construction::new(Atom::NODE_LITERAL.into(), value.clone()).into(),
         Construction::new(Atom::NODE_COUNT.into(), value).into(),
     ]));
@@ -199,7 +199,7 @@ fn node_parse_reports_partial_kind() {
     let knowledge = Knowledge { map: OrdMap::new() };
     let value = Object::new_integer(BigInt::from(1));
 
-    let object = Object::Set(Set::from([Construction::new(
+    let object = Object::Composite(Composite::from([Construction::new(
         Atom::NODE_AND_FIRST.into(),
         value,
     )
@@ -219,7 +219,7 @@ fn node_parse_prefers_a_complete_kind_over_a_partial_one() {
     let knowledge = Knowledge { map: OrdMap::new() };
     let value = Object::new_integer(BigInt::from(1));
 
-    let object = Object::Set(Set::from([
+    let object = Object::Composite(Composite::from([
         Construction::new(Atom::NODE_LITERAL.into(), value.clone()).into(),
         Construction::new(Atom::NODE_AND_FIRST.into(), value).into(),
     ]));
@@ -237,7 +237,7 @@ fn node_parse_prefers_a_complete_kind_over_a_partial_one() {
 fn node_parse_reports_duplicate_property() {
     let knowledge = Knowledge { map: OrdMap::new() };
 
-    let object = Object::Set(Set::from([
+    let object = Object::Composite(Composite::from([
         Construction::new(
             Atom::NODE_LITERAL.into(),
             Object::new_integer(BigInt::from(1)),
@@ -264,7 +264,7 @@ fn node_parse_reports_invalid_depth() {
     let knowledge = Knowledge { map: OrdMap::new() };
     let depth = Object::new_integer(BigInt::from(-1));
 
-    let object = Object::Set(Set::from([Construction::new(
+    let object = Object::Composite(Composite::from([Construction::new(
         Atom::NODE_PARAMETER.into(),
         depth,
     )
@@ -301,9 +301,9 @@ fn node_parse_error_display_uses_node_names() {
 #[test]
 fn node_parse_wraps_child_errors() {
     let knowledge = Knowledge { map: OrdMap::new() };
-    let invalid_child = Object::Set(Set::empty());
+    let invalid_child = Object::Composite(Composite::empty());
 
-    let object = Object::Set(Set::from([Construction::new(
+    let object = Object::Composite(Composite::from([Construction::new(
         Atom::NODE_COUNT.into(),
         invalid_child,
     )
