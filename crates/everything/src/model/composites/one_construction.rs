@@ -15,6 +15,12 @@ impl Debug for OneConstructionComposite {
 }
 
 impl OneConstructionComposite {
+    /// Creates a composite that consists of exactly the given construction.
+    #[must_use]
+    pub(super) fn new(construction: Construction) -> Self {
+        Self { construction }
+    }
+
     /// Tries to create a new [`OneConstructionComposite`] from the given
     /// slice of objects.
     ///

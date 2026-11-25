@@ -33,6 +33,19 @@ impl SetComposite {
         }))
     }
 
+    /// Creates a set without other members from `items`, which must be sorted
+    /// and deduplicated.
+    ///
+    /// This bypasses the `contains` constructions and the general
+    /// specialization chain.
+    #[must_use]
+    pub(super) fn from_sorted_items(items: impl IntoIterator<Item = Object>) -> Self {
+        Self(Arc::new(SetCompositeInner {
+            items: AnyComposite::from_sorted(items),
+            rest: AnyComposite::from_sorted([]),
+        }))
+    }
+
     /// The items of the set, sorted.
     #[must_use]
     pub fn items(&self) -> &[Object] {
@@ -53,8 +66,13 @@ fn sorted_deduplicated(mut objects: Vec<Object>) -> Vec<Object> {
     objects
 }
 
+/// The `contains` construction that makes `item` an item of a set.
+pub(super) fn contains_member(item: Object) -> Construction {
+    Construction::new(Atom::CONTAINS.into(), item)
+}
+
 fn contains_construction(item: Object) -> Object {
-    Construction::new(Atom::CONTAINS.into(), item).into()
+    contains_member(item).into()
 }
 
 impl Debug for SetComposite {

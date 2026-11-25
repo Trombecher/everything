@@ -166,6 +166,79 @@ fn every_variant_iterates_in_ascending_order() {
 }
 
 #[test]
+fn set_items_become_contains_constructions() {
+    let a = Object::Atom(Atom(10));
+    let b = Object::Atom(Atom(20));
+
+    let expected = Composite::from([
+        construction(Atom::CONTAINS.into(), a.clone()),
+        construction(Atom::CONTAINS.into(), b.clone()),
+    ]);
+
+    assert_eq!(Composite::from_set_items(&[a.clone(), b.clone()]), expected);
+    assert_eq!(Composite::from_set_items_array([a, b]), expected);
+}
+
+#[test]
+fn set_items_are_canonical_regardless_of_order_and_duplicates() {
+    let a = Object::Atom(Atom(10));
+    let b = Object::Atom(Atom(20));
+
+    let expected = Composite::from_set_items(&[a.clone(), b.clone()]);
+
+    assert_eq!(
+        Composite::from_set_items(&[b.clone(), a.clone(), b.clone(), a.clone()]),
+        expected
+    );
+    assert_eq!(
+        Composite::from_set_items_array([b, a.clone(), a.clone(), a]),
+        expected
+    );
+}
+
+#[test]
+fn empty_set_items_are_the_empty_set() {
+    let from_slice = Composite::from_set_items(&[]);
+    let from_array = Composite::from_set_items_array([]);
+
+    assert_eq!(from_slice, Composite::empty());
+    assert_eq!(from_array, Composite::empty());
+}
+
+#[test]
+fn set_items_specialize_without_creating_constructions_first() {
+    let a = Object::Atom(Atom(10));
+    let b = Object::Atom(Atom(20));
+
+    assert!(matches!(Composite::from_set_items(&[]), Composite::Set(_)));
+    assert!(matches!(
+        Composite::from_set_items(std::slice::from_ref(&a)),
+        Composite::OneConstruction(_)
+    ));
+    assert!(matches!(
+        Composite::from_set_items(&[a.clone(), b.clone()]),
+        Composite::Set(_)
+    ));
+    assert!(matches!(
+        Composite::from_set_items_array([a.clone(), a.clone()]),
+        Composite::OneConstruction(_)
+    ));
+    assert!(matches!(
+        Composite::from_set_items_array([b.clone(), a, b]),
+        Composite::Set(_)
+    ));
+}
+
+#[test]
+fn a_single_set_item_is_still_a_set() {
+    let item = Object::Atom(Atom(10));
+    let composite = Composite::from_set_items_array([item.clone()]);
+
+    assert!(composite.has(&construction(Atom::CONTAINS.into(), item)));
+    assert_eq!(composite.size(), 1);
+}
+
+#[test]
 fn add_object_keeps_the_canonical_form() {
     let composite = Composite::empty().add_object(successor_of_zero());
 

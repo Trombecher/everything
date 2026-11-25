@@ -21,6 +21,8 @@ use std::{fmt::Debug, mem};
 
 use crate::model::Object;
 
+use self::set::contains_member;
+
 /// A helper trait.
 pub trait CompositeApi: IntoIterator<Item = Object> + Sized + Debug + Clone + Ord
 where
@@ -89,6 +91,56 @@ impl Composite {
     #[must_use]
     pub fn empty() -> Self {
         Self::from([])
+    }
+
+    /// Creates a composite that is the set with the given `items`, as defined
+    /// in chapter 4 of the common models.
+    ///
+    /// Every item becomes a `contains ·· %item%` member (see [`SetComposite`]),
+    /// so the result has set semantics regardless of which specialization
+    /// represents it. The items are cloned; use
+    /// [`Self::from_set_items_array`] to move them instead.
+    #[must_use]
+    pub fn from_set_items(items: &[Object]) -> Self {
+        let mut items = items.to_vec();
+
+        items.sort_unstable();
+        items.dedup();
+
+        let size = items.len();
+
+        Self::from_sorted_set_items(items, size)
+    }
+
+    /// Creates a composite that is the set with the given `items`, moving them.
+    ///
+    /// This is the moving counterpart of [`Self::from_set_items`] for a number
+    /// of items that is known at compile time.
+    #[must_use]
+    pub fn from_set_items_array<const N: usize>(mut items: [Object; N]) -> Self {
+        items.sort_unstable();
+
+        let size = items.partition_dedup().0.len();
+
+        Self::from_sorted_set_items(items.into_iter().take(size), size)
+    }
+
+    /// Creates the canonical composite for `size` sorted and deduplicated set
+    /// items.
+    ///
+    /// This specializes directly instead of building intermediate `contains`
+    /// constructions and running the general specialization chain.
+    fn from_sorted_set_items(items: impl IntoIterator<Item = Object>, size: usize) -> Self {
+        match size {
+            0 => Self::empty(),
+            1 => Self::OneConstruction(OneConstructionComposite::new(contains_member(
+                items
+                    .into_iter()
+                    .next()
+                    .expect("the set has exactly one item"),
+            ))),
+            _ => Self::Set(SetComposite::from_sorted_items(items)),
+        }
     }
 
     /// Tries to create a new [`Composite`] primitive specialization variant from the given list of objects.
