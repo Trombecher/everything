@@ -147,6 +147,41 @@ fn input_order_does_not_change_the_set() {
 }
 
 #[test]
+fn debug_fmt_uses_set_sugar() {
+    assert_eq!(format!("{:?}", Composite::empty()), "{}");
+
+    let composite = Composite::from([
+        contains(Object::Atom(Atom(10))),
+        contains(Object::Atom(Atom(20))),
+    ]);
+
+    assert_eq!(format!("{composite:?}"), "{@10, @20}");
+}
+
+#[test]
+fn debug_fmt_pretty_prints_set_sugar_one_item_per_line() {
+    let composite = Composite::from([
+        contains(Object::Atom(Atom(10))),
+        contains(Object::Atom(Atom(20))),
+    ]);
+
+    assert_eq!(format!("{composite:#?}"), "{\n    @10,\n    @20,\n}");
+}
+
+#[test]
+fn debug_fmt_of_open_sets_uses_composite_syntax() {
+    let item = Object::Atom(Atom(10));
+    let other = Object::Atom(Atom(20));
+
+    let composite = Composite::from([contains(item.clone()), other]);
+
+    assert_eq!(
+        format!("{composite:?}"),
+        format!("⟨@20, {:?} ·· {item:?}⟩", Atom::CONTAINS)
+    );
+}
+
+#[test]
 fn adding_and_removing_objects_keeps_the_canonical_set() {
     let item = Object::Atom(Atom(10));
     let other = Object::Atom(Atom(20));

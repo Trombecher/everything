@@ -96,9 +96,9 @@ fn specialize_from_moving_rejects_other_shapes() {
 }
 
 #[test]
-fn debug_fmt_renders_a_set_with_one_entry() {
+fn debug_fmt_renders_a_composite_with_one_entry() {
     let construction = construction(Atom(10).into(), Atom(20).into());
     let composite = OneConstructionComposite::new(construction.clone());
 
-    assert_eq!(format!("{composite:?}"), format!("{{{construction:?}}}"));
+    assert_eq!(format!("{composite:?}"), format!("⟨{construction:?}⟩"));
 }

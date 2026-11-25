@@ -17,7 +17,10 @@ pub use one_construction::*;
 pub use set::*;
 pub use text::*;
 
-use std::{fmt::Debug, mem};
+use std::{
+    fmt::{Debug, Write as _},
+    mem,
+};
 
 use crate::model::Object;
 
@@ -238,6 +241,74 @@ impl Debug for Composite {
             Self::Set(x) => Debug::fmt(x, f),
         }
     }
+}
+
+/// Writes `objects` using the composite syntax from the object model
+/// documentation: `⟨a, b, c⟩`.
+pub(super) fn fmt_composite<I>(f: &mut std::fmt::Formatter<'_>, objects: I) -> std::fmt::Result
+where
+    I: IntoIterator,
+    I::Item: Debug,
+{
+    fmt_delimited(f, '⟨', '⟩', objects)
+}
+
+/// Writes `objects` between `open` and `close`, using one line normally and
+/// one indented entry per line in alternate mode (`{:#?}`).
+pub(super) fn fmt_delimited<I>(
+    f: &mut std::fmt::Formatter<'_>,
+    open: char,
+    close: char,
+    objects: I,
+) -> std::fmt::Result
+where
+    I: IntoIterator,
+    I::Item: Debug,
+{
+    f.write_char(open)?;
+
+    let mut objects = objects.into_iter();
+
+    if f.alternate() {
+        let mut is_first = true;
+
+        for object in objects {
+            if is_first {
+                f.write_char('\n')?;
+                is_first = false;
+            }
+
+            fmt_indented(f, &format!("{object:#?}"))?;
+            f.write_str(",\n")?;
+        }
+    } else if let Some(object) = objects.next() {
+        Debug::fmt(&object, f)?;
+
+        for object in objects {
+            f.write_str(", ")?;
+            Debug::fmt(&object, f)?;
+        }
+    }
+
+    f.write_char(close)
+}
+
+/// Writes each line of `value` prefixed with the indentation used by the
+/// standard debug builders.
+fn fmt_indented(f: &mut std::fmt::Formatter<'_>, value: &str) -> std::fmt::Result {
+    let mut lines = value.split('\n');
+
+    if let Some(line) = lines.next() {
+        f.write_str("    ")?;
+        f.write_str(line)?;
+
+        for line in lines {
+            f.write_str("\n    ")?;
+            f.write_str(line)?;
+        }
+    }
+
+    Ok(())
 }
 
 impl IntoIterator for Composite {

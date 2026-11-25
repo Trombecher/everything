@@ -5,6 +5,8 @@ use crate::model::{
     Construction, Object,
 };
 
+use super::{fmt_composite, fmt_delimited};
+
 #[cfg(test)]
 mod tests;
 
@@ -77,7 +79,14 @@ fn contains_construction(item: Object) -> Object {
 
 impl Debug for SetComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set().entries(self.clone()).finish()
+        // Braces are the documentation's sugar for sets, so they may only be
+        // used when the whole composite consists of `contains` members. An
+        // open set also has other members and is printed as a composite.
+        if !self.rest().is_empty() {
+            return fmt_composite(f, self.clone());
+        }
+
+        fmt_delimited(f, '{', '}', self.0.items.as_slice().iter())
     }
 }
 

@@ -2,7 +2,10 @@ use std::fmt::Debug;
 
 use crate::model::Object;
 
-/// A construction `<constructor> <value>`.
+#[cfg(test)]
+mod tests;
+
+/// A construction `<constructor> ·· <value>`.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Construction {
     pub constructor: Box<Object>,
@@ -22,9 +25,8 @@ impl Construction {
 
 impl Debug for Construction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(&self.constructor)
-            .field(&self.value)
-            .finish()
+        Debug::fmt(&self.constructor, f)?;
+        f.write_str(" ·· ")?;
+        Debug::fmt(&self.value, f)
     }
 }

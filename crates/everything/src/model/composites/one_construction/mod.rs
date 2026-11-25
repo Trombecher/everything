@@ -2,6 +2,8 @@ use std::{fmt::Debug, mem};
 
 use crate::model::{CompositeApi, Construction, Object};
 
+use super::fmt_composite;
+
 #[cfg(test)]
 mod tests;
 
@@ -13,7 +15,7 @@ pub struct OneConstructionComposite {
 
 impl Debug for OneConstructionComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set().entry(&self.construction).finish()
+        fmt_composite(f, [&self.construction])
     }
 }
 

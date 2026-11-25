@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::model::{Atom, CompositeApi, Object};
+use crate::model::{Atom, Composite, CompositeApi, Construction, Object};
 
 use super::*;
 
@@ -63,18 +63,42 @@ fn iteration_yields_all_objects_in_order() {
 }
 
 #[test]
-fn debug_fmt_renders_a_set() {
+fn debug_fmt_renders_a_composite() {
     let objects = objects();
     let composite = AnyComposite::from_sorted(objects.clone());
 
     assert_eq!(
         format!("{composite:?}"),
         format!(
-            "{{{}, {}, {}}}",
+            "⟨{}, {}, {}⟩",
             format!("{:?}", objects[0]),
             format!("{:?}", objects[1]),
             format!("{:?}", objects[2])
         )
+    );
+}
+
+#[test]
+fn debug_fmt_pretty_prints_one_entry_per_line() {
+    let composite = AnyComposite::from_sorted(objects());
+
+    assert_eq!(
+        format!("{composite:#?}"),
+        "⟨\n    @10,\n    @20,\n    @30,\n⟩"
+    );
+}
+
+#[test]
+fn debug_fmt_pretty_prints_nested_composites_with_indentation() {
+    let construction = Construction::new(
+        Atom(10).into(),
+        Object::Composite(Composite::from([Atom(20).into(), Atom(30).into()])),
+    );
+    let composite = AnyComposite::from_sorted([Object::Construction(construction)]);
+
+    assert_eq!(
+        format!("{composite:#?}"),
+        "⟨\n    @10 ·· ⟨\n        @20,\n        @30,\n    ⟩,\n⟩"
     );
 }
 

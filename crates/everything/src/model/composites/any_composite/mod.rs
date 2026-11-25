@@ -2,6 +2,8 @@ use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
 use crate::model::{CompositeApi, Object};
 
+use super::fmt_composite;
+
 #[cfg(test)]
 mod tests;
 
@@ -43,7 +45,7 @@ impl AnyComposite {
 
 impl Debug for AnyComposite {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set().entries(self.objects.iter()).finish()
+        fmt_composite(f, self.objects.iter())
     }
 }
 
