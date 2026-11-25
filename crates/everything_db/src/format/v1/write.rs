@@ -100,7 +100,7 @@ fn write_composite_object(composite: &Composite, out: &mut Vec<u8>) {
             out.push(OBJECT_TYPE_TEXT);
             write_text(text, out);
         }
-        Composite::OneConstruction(_) | Composite::Any(_) => {
+        Composite::OneConstruction(_) | Composite::Set(_) | Composite::Any(_) => {
             out.push(OBJECT_TYPE_COMPOSITE);
             write_composite_values(composite, out);
         }

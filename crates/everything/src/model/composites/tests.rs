@@ -149,6 +149,10 @@ fn every_variant_iterates_in_ascending_order() {
             Object::Atom(Atom(10)),
             Object::Atom(Atom(20)),
         ]),
+        Composite::from([
+            construction(Atom::CONTAINS.into(), Object::Atom(Atom(10))),
+            Object::Atom(Atom(20)),
+        ]),
     ];
 
     for composite in composites {

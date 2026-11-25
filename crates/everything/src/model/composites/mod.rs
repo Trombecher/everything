@@ -3,6 +3,7 @@ mod byte;
 mod character;
 mod integer;
 mod one_construction;
+mod set;
 
 #[cfg(test)]
 mod tests;
@@ -13,6 +14,7 @@ pub use byte::*;
 pub use character::*;
 pub use integer::*;
 pub use one_construction::*;
+pub use set::*;
 pub use text::*;
 
 use std::{fmt::Debug, mem};
@@ -52,6 +54,7 @@ pub enum Composite {
     Byte(ByteComposite),
     OneConstruction(OneConstructionComposite),
     Text(TextComposite),
+    Set(SetComposite),
     Any(AnyComposite),
 }
 
@@ -64,6 +67,7 @@ impl CompositeApi for Composite {
             Self::OneConstruction(x) => x.size(),
             Self::Any(x) => x.size(),
             Self::Text(x) => x.size(),
+            Self::Set(x) => x.size(),
         }
     }
 
@@ -75,6 +79,7 @@ impl CompositeApi for Composite {
             Self::OneConstruction(x) => x.has(object),
             Self::Any(x) => x.has(object),
             Self::Text(x) => x.has(object),
+            Self::Set(x) => x.has(object),
         }
     }
 }
@@ -113,6 +118,10 @@ impl Composite {
 
         if let Some(composite) = OneConstructionComposite::specialize_from_moving(objects) {
             return Self::OneConstruction(composite);
+        }
+
+        if let Some(composite) = SetComposite::specialize_from(objects) {
+            return Self::Set(composite);
         }
 
         Self::Any(AnyComposite::from_sorted(objects.iter_mut().map(mem::take)))
@@ -174,6 +183,7 @@ impl Debug for Composite {
             Self::Byte(x) => Debug::fmt(x, f),
             Self::OneConstruction(x) => Debug::fmt(x, f),
             Self::Text(x) => Debug::fmt(x, f),
+            Self::Set(x) => Debug::fmt(x, f),
         }
     }
 }
@@ -190,6 +200,7 @@ impl IntoIterator for Composite {
             Self::Byte(x) => CompositeValues::Byte(x.into_iter()),
             Self::OneConstruction(x) => CompositeValues::OneConstruction(x.into_iter()),
             Self::Text(x) => CompositeValues::Text(x.into_iter()),
+            Self::Set(x) => CompositeValues::Set(x.into_iter()),
         }
     }
 }
@@ -203,6 +214,7 @@ pub enum CompositeValues {
     OneConstruction(OneConstructionCompositeValues),
     Any(AnyCompositeValues),
     Text(TextCompositeValues),
+    Set(SetCompositeValues),
 }
 
 impl Iterator for CompositeValues {
@@ -216,6 +228,7 @@ impl Iterator for CompositeValues {
             Self::Byte(x) => x.next(),
             Self::OneConstruction(x) => x.next(),
             Self::Text(x) => x.next(),
+            Self::Set(x) => x.next(),
         }
     }
 }

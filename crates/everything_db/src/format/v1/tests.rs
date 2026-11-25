@@ -262,6 +262,29 @@ fn round_trips_composites_of_constructions() {
 }
 
 #[test]
+fn round_trips_nested_sets() {
+    let mut knowledge = Knowledge::empty();
+
+    // A set with two items and an unrelated member, which is preserved as
+    // the set's rest.
+    knowledge.add_statement(statement(
+        1,
+        Object::Composite(Composite::from([
+            construction(Atom::CONTAINS.into(), Object::Atom(Atom(2))),
+            construction(Atom::CONTAINS.into(), Object::Atom(Atom(3))),
+            construction(Object::Atom(Atom(4)), Object::Atom(Atom(5))),
+        ])),
+    ));
+
+    // The empty composite is the empty set.
+    knowledge.add_statement(statement(6, Object::Composite(Composite::empty())));
+
+    let parsed = write_and_read(&knowledge);
+
+    assert_eq!(parsed.map, knowledge.map);
+}
+
+#[test]
 fn applies_incremental_changes_after_a_full_write() {
     let mut knowledge = Knowledge::empty();
     knowledge.add_statement(statement(1, Object::Atom(Atom(2))));
