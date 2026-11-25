@@ -239,6 +239,44 @@ fn a_single_set_item_is_still_a_set() {
 }
 
 #[test]
+fn plain_composites_have_no_items() {
+    let composite = Composite::from([Object::Atom(Atom(10)), Object::Atom(Atom(20))]);
+
+    assert_eq!(composite.item_count(), 0);
+    assert_eq!(composite.clone().into_items().count(), 0);
+}
+
+#[test]
+fn contains_members_are_the_items_of_a_composite() {
+    let first = Object::Atom(Atom(10));
+    let second = Object::Atom(Atom(20));
+    let ordinary = Object::Atom(Atom(30));
+
+    let composite = Composite::from([
+        construction(Atom::CONTAINS.into(), first.clone()),
+        construction(Atom::CONTAINS.into(), second.clone()),
+        ordinary,
+    ]);
+
+    assert_eq!(composite.item_count(), 2);
+    assert!(composite.has_item(&first));
+    assert!(composite.has_item(&second));
+    assert!(!composite.has_item(&Object::Atom(Atom(30))));
+
+    let items = composite.into_items().collect::<Vec<_>>();
+
+    assert_eq!(items, vec![first, second]);
+}
+
+#[test]
+fn atom_defined_member_does_not_become_an_item() {
+    let composite = Composite::from([successor_of_zero()]);
+
+    assert_eq!(composite.item_count(), 0);
+    assert!(!composite.has_item(&Object::Atom(Atom::ZERO)));
+}
+
+#[test]
 fn add_object_keeps_the_canonical_form() {
     let composite = Composite::empty().add_object(successor_of_zero());
 

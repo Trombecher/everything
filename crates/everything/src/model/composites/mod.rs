@@ -22,7 +22,7 @@ use std::{
     mem,
 };
 
-use crate::model::Object;
+use crate::model::{Atom, Construction, Object};
 
 use self::set::contains_member;
 
@@ -144,6 +144,40 @@ impl Composite {
             ))),
             _ => Self::Set(SetComposite::from_sorted_items(items)),
         }
+    }
+
+    /// Returns `true` iff the composite has `item` as a set item, i.e. iff it
+    /// has the member `contains ·· item`.
+    #[must_use]
+    pub fn has_item(&self, item: &Object) -> bool {
+        match self {
+            Self::Set(set) => set.has_item(item),
+            _ => self.has(&contains_member(item.clone()).into()),
+        }
+    }
+
+    /// The number of set items of this composite.
+    ///
+    /// Only members of the form `contains ·· %item%` contribute an item; all
+    /// other members are ignored, as the set model is open.
+    #[must_use]
+    pub fn item_count(&self) -> u64 {
+        match self {
+            Self::Set(set) => set.item_count(),
+            _ => u64::try_from(self.clone().into_items().count()).unwrap_or(u64::MAX),
+        }
+    }
+
+    /// Iterates over the set items of this composite.
+    #[must_use]
+    pub fn items(&self) -> CompositeItems {
+        self.clone().into_items()
+    }
+
+    /// Consumes the composite and iterates over its set items.
+    #[must_use]
+    pub fn into_items(self) -> CompositeItems {
+        CompositeItems::new(self)
     }
 
     /// Tries to create a new [`Composite`] primitive specialization variant from the given list of objects.
@@ -352,6 +386,40 @@ impl Iterator for CompositeProperties {
             Self::OneConstruction(x) => x.next(),
             Self::Text(x) => x.next(),
             Self::Set(x) => x.next(),
+        }
+    }
+}
+
+/// Iterates the set items of a composite.
+///
+/// A member contributes an item iff it is a construction `contains ·· %item%`.
+/// The other members of an open set are skipped.
+#[derive(Clone)]
+pub struct CompositeItems {
+    members: CompositeProperties,
+}
+
+impl CompositeItems {
+    fn new(composite: Composite) -> Self {
+        Self {
+            members: composite.into_iter(),
+        }
+    }
+}
+
+impl Iterator for CompositeItems {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.members.next()? {
+                Object::Construction(Construction { constructor, value })
+                    if matches!(&*constructor, Object::Atom(Atom::CONTAINS)) =>
+                {
+                    return Some(*value);
+                }
+                _ => {}
+            }
         }
     }
 }

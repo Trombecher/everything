@@ -6,72 +6,84 @@ use std::collections::BTreeSet;
 use crate::{
     compute::{self, MaybeUndefined, Node},
     knowledge::{
-        AtomValuePair, Knowledge, ObjectProperties, Properties, QueryAtomsWithConstructor,
-        QueryAtomsWithProperty, QueryConstructions,
+        AtomValuePair, Knowledge, ObjectItems, ObjectProperties, Properties, PropertiesIter,
+        QueryAtomsWithConstructor, QueryAtomsWithProperty, QueryConstructions,
     },
-    model::{Composite, Construction, Object},
+    model::{Atom, Composite, Construction, Object},
 };
 
+/// A result of evaluation.
+///
+/// A deferred [`LazySet`] describes a set without iterating its items. Every
+/// atom and every composite is a set in the open set model; its items are the
+/// values of its `contains` properties.
 #[derive(Clone, Debug)]
 pub enum LazyObject {
-    /// Just an object.
+    /// An evaluated object.
     Eager(Object),
 
-    /// A node.
+    /// A function value that is kept as code.
     Node(Node),
 
-    /// The composite of properties of an atom in the knowledge.
-    ///
-    /// The properties are kept in their knowledge container, so iterating
-    /// them does not require materialising a model [`Composite`].
+    /// A deferred set item sequence.
+    Set(LazySet),
+}
+
+/// A deferred sequence of set items.
+///
+/// Iteration yields items, never the `contains` constructions that encode them
+/// in an object. Materialising the set wraps every item with `contains`.
+#[derive(Clone, Debug)]
+pub enum LazySet {
+    /// The set whose items are the properties of an atom in the knowledge.
     AtomProperties(Properties),
 
-    /// Represents the composite that is the union of two [`LazyObject`]s.
-    Union { first: Box<Self>, second: Box<Self> },
-
-    /// Represents the composite that is the intersection of two [`LazyObject`]s.
-    Intersection { first: Box<Self>, second: Box<Self> },
-
-    /// Represents the composite that is the difference of two [`LazyObject`]s.
-    Difference {
-        source: Box<Self>,
-        without: Box<Self>,
-    },
-
-    /// The composite of atoms with the given property.
+    /// The set of atoms with the given property.
     AtomsWithProperty { property: Object },
 
-    /// The composite of atoms that have a property that is a construction with the
+    /// The set of atoms that have a property that is a construction with the
     /// given constructor.
     AtomsWithConstructor { constructor: Object },
 
-    /// The values of constructions with the given constructor among the values
-    /// of a given object.
-    ///
-    /// The target is iterated lazily and only constructions whose constructor
-    /// equals `property_constructor` contribute their value. Atoms are resolved
-    /// through the knowledge and composites through their members.
+    /// The values of constructions with the given constructor among the
+    /// properties of a given object.
     ConstructionValues {
-        target: Box<Self>,
+        target: Box<LazyObject>,
         property_constructor: Object,
     },
 
     /// The pairs of an atom and a value such that the atom has a construction
     /// with the given constructor in the knowledge.
-    ///
-    /// Each pair is yielded as the object `{atom : <atom>, value : <value>}`.
     Constructions { constructor: Object },
 
-    /// Maps every value of a given composite with a mapper function.
+    /// The union of the items of two sets.
+    Union {
+        first: Box<LazyObject>,
+        second: Box<LazyObject>,
+    },
+
+    /// The items of the first set that are also items of the second set.
+    Intersection {
+        first: Box<LazyObject>,
+        second: Box<LazyObject>,
+    },
+
+    /// The items of the source set that are not items of the other set.
+    Difference {
+        source: Box<LazyObject>,
+        without: Box<LazyObject>,
+    },
+
+    /// The results of mapping a function over the items of a set.
     Map {
-        target: Box<Self>,
+        target: Box<LazyObject>,
         /// This function is captured.
         mapper_function: Node,
     },
 
-    /// Retains all values for that the filter function returns a truthy value.
+    /// The items of a set for which the filter function returns exactly `true`.
     Filter {
-        target: Box<Self>,
+        target: Box<LazyObject>,
         /// This function is captured.
         filter_function: Node,
     },
@@ -84,31 +96,34 @@ impl From<Object> for LazyObject {
 }
 
 impl From<Node> for LazyObject {
-    fn from(value: Node) -> Self {
-        Self::Node(value)
+    fn from(node: Node) -> Self {
+        Self::Node(node)
+    }
+}
+
+impl From<LazySet> for LazyObject {
+    fn from(set: LazySet) -> Self {
+        Self::Set(set)
     }
 }
 
 impl LazyObject {
-    /// Returns `true` iff `self` is a composite result: an evaluated composite, atom
-    /// values, a function object, or a deferred composite operation.
+    /// Returns `true` iff `self` is a composite: an evaluated composite, a
+    /// function value, or a deferred set.
     #[must_use]
     pub fn is_composite(&self) -> bool {
-        match self {
-            Self::Eager(Object::Composite(_))
-            | Self::AtomProperties(_)
-            | Self::Node(_)
-            | Self::Union { .. }
-            | Self::Intersection { .. }
-            | Self::Difference { .. }
-            | Self::AtomsWithProperty { .. }
-            | Self::AtomsWithConstructor { .. }
-            | Self::ConstructionValues { .. }
-            | Self::Constructions { .. }
-            | Self::Map { .. }
-            | Self::Filter { .. } => true,
-            Self::Eager(Object::Atom(_) | Object::Construction(_)) => false,
-        }
+        matches!(
+            self,
+            Self::Eager(Object::Composite(_)) | Self::Node(_) | Self::Set(_)
+        )
+    }
+
+    /// Returns `true` iff `self` is a set in the open set model.
+    ///
+    /// Every atom and every composite is a set; constructions are not.
+    #[must_use]
+    pub fn is_set(&self) -> bool {
+        !matches!(self, Self::Eager(Object::Construction(_)))
     }
 
     /// Tries to convert `self` into a node, returning `None` if the value
@@ -122,272 +137,283 @@ impl LazyObject {
     }
 
     /// Tries to convert `self` into an evaluated object, returning `None`
-    /// for deferred values that cannot be materialised yet.
+    /// for deferred sets that cannot be materialised yet.
     #[must_use]
     pub fn try_into_object(self) -> Option<Object> {
         match self {
             Self::Eager(object) => Some(object),
             Self::Node(node) => Some(node.into_object()),
-            Self::AtomProperties(properties) => Some(atom_properties_into_object(properties)),
-            Self::Union { .. }
-            | Self::Intersection { .. }
-            | Self::Difference { .. }
-            | Self::AtomsWithProperty { .. }
-            | Self::AtomsWithConstructor { .. }
-            | Self::ConstructionValues { .. }
-            | Self::Constructions { .. }
-            | Self::Map { .. }
-            | Self::Filter { .. } => None,
+            Self::Set(_) => None,
         }
     }
 
     /// Converts the lazy object into an evaluated object, materializing a
-    /// deferred composite by iterating it.
+    /// deferred set by iterating its items.
     #[must_use]
     pub fn into_object(self, knowledge: &Knowledge) -> Object {
         match self {
             Self::Eager(object) => object,
             Self::Node(node) => node.into_object(),
-            Self::AtomProperties(properties) => atom_properties_into_object(properties),
-            lazy_composite => {
-                let mut values = lazy_composite
-                    .into_composite_iter(knowledge)
-                    .collect::<Vec<_>>();
+            Self::Set(set) => {
+                let items = set.into_items(knowledge).collect::<Vec<_>>();
 
-                Composite::from(values.as_mut_slice()).into()
+                Composite::from_set_items(&items).into()
             }
         }
     }
 
+    /// The number of items of the set view of `self`.
     #[must_use]
-    pub fn size(&self, knowledge: &Knowledge) -> u64 {
+    pub fn item_count(&self, knowledge: &Knowledge) -> u64 {
         match self {
-            Self::Node(node) => node.composite_size(),
-            Self::Eager(object) => knowledge.size_of_object(object),
-            Self::AtomProperties(properties) => properties.size(),
-            Self::Union { .. }
-            | Self::Intersection { .. }
-            | Self::Difference { .. }
-            | Self::Map { .. }
-            | Self::Filter { .. } => {
-                // Deferred composites may yield an element more than once, so the
-                // values are deduplicated while counting.
-                self.clone().into_composite_iter(knowledge).count() as u64
-            }
-            Self::AtomsWithProperty { property } => knowledge
-                .query_atoms_with_property(property.clone())
-                .count() as u64,
-            Self::AtomsWithConstructor { constructor } => knowledge
-                .query_atoms_with_constructor(constructor.clone())
-                .count() as u64,
-            Self::ConstructionValues { .. } | Self::Constructions { .. } => {
-                self.iter(knowledge).count() as u64
-            }
+            Self::Eager(object) => knowledge.item_count_of(object),
+            Self::Node(node) => knowledge.item_count_of(&node.into_object()),
+            Self::Set(set) => set.item_count(knowledge),
         }
     }
 
-    /// Returns `true` iff `self` has at least one element; `false` otherwise.
+    /// Returns `true` iff the set view of `self` has at least one item.
     #[must_use]
-    pub fn has_at_least_one_element(&self, knowledge: &Knowledge) -> bool {
+    pub fn has_at_least_one_item(&self, knowledge: &Knowledge) -> bool {
         match self {
-            Self::Node(node) => node.composite_size() != 0,
-            Self::Eager(object) => knowledge.size_of_object(object) != 0,
-            Self::AtomProperties(properties) => !properties.is_empty(),
-            Self::Union { first, second } => {
-                first.has_at_least_one_element(knowledge)
-                    || second.has_at_least_one_element(knowledge)
-            }
-            Self::Map { target, .. } => target.has_at_least_one_element(knowledge),
-            Self::AtomsWithProperty { property } => knowledge
-                .query_atoms_with_property(property.clone())
-                .next()
-                .is_some(),
-            Self::AtomsWithConstructor { constructor } => knowledge
-                .query_atoms_with_constructor(constructor.clone())
-                .next()
-                .is_some(),
-            Self::Intersection { .. }
-            | Self::Difference { .. }
-            | Self::ConstructionValues { .. }
-            | Self::Constructions { .. }
-            | Self::Filter { .. } => self.iter(knowledge).next().is_some(),
+            Self::Eager(object) => knowledge.items_of(object).next().is_some(),
+            Self::Node(node) => knowledge.items_of(&node.into_object()).next().is_some(),
+            Self::Set(set) => set.has_at_least_one_item(knowledge),
+        }
+    }
+
+    /// Returns `true` iff `item` is an item of the set view of `self`.
+    #[must_use]
+    pub fn has_item(&self, item: &Object, knowledge: &Knowledge) -> bool {
+        match self {
+            Self::Eager(object) => knowledge.object_has_item(object, item),
+            Self::Node(node) => knowledge.object_has_item(&node.into_object(), item),
+            Self::Set(set) => set.has_item(item, knowledge),
+        }
+    }
+
+    /// Returns `true` iff `property` is a property of the object represented
+    /// by `self`.
+    ///
+    /// Deferred sets are represented by composites whose members are
+    /// `contains` constructions, so a property of such a set is a
+    /// `contains ·· %item%` construction.
+    #[must_use]
+    pub fn has_property(&self, property: &Object, knowledge: &Knowledge) -> bool {
+        match self {
+            Self::Eager(object) => knowledge.object_has(object, property),
+            Self::Node(node) => knowledge.object_has(&node.into_object(), property),
+            Self::Set(set) => match property {
+                Object::Construction(Construction { constructor, value })
+                    if matches!(&**constructor, Object::Atom(Atom::CONTAINS)) =>
+                {
+                    set.has_item(value, knowledge)
+                }
+                _ => false,
+            },
         }
     }
 
     #[must_use]
     pub fn truthy(&self) -> MaybeUndefined<bool> {
         match self {
-            LazyObject::Eager(object) => object.truthy().into(),
+            Self::Eager(object) => object.truthy().into(),
             _ => MaybeUndefined::Undefined,
         }
     }
 
+    /// Returns `true` iff `self` is a set that is computed lazily.
     #[must_use]
-    pub fn has(&self, element: &Object, knowledge: &Knowledge) -> bool {
+    pub fn is_lazy(&self) -> bool {
+        matches!(self, Self::Set(_))
+    }
+
+    /// Iterate over the items of the set view of `self`.
+    ///
+    /// The returned iterator owns a snapshot of everything it needs, so it
+    /// stays valid if the knowledge changes after this call.
+    #[must_use]
+    pub fn iter(&self, knowledge: &Knowledge) -> LazySetItems {
+        self.clone().into_items(knowledge)
+    }
+
+    /// Consumes the lazy object and returns an iterator over the items of its
+    /// set view.
+    #[must_use]
+    pub fn into_items(self, knowledge: &Knowledge) -> LazySetItems {
         match self {
-            Self::Node(node) => knowledge.object_has(&node.into_object(), element),
-            Self::Eager(object) => knowledge.object_has(object, element),
-            Self::AtomProperties(properties) => properties.has(element),
+            Self::Eager(object) => LazySetItems::ObjectItems(knowledge.items_of(&object)),
+            Self::Node(node) => LazySetItems::ObjectItems(knowledge.items_of(&node.into_object())),
+            Self::Set(set) => set.into_items(knowledge),
+        }
+    }
+
+    /// Consumes the lazy object and returns an iterator over its properties.
+    ///
+    /// For atoms these are the statements in the knowledge, for composites the
+    /// members. A deferred set is a composite whose members are `contains`
+    /// constructions.
+    #[must_use]
+    pub fn into_properties(self, knowledge: &Knowledge) -> LazyObjectProperties {
+        match self {
+            Self::Eager(object) => knowledge
+                .properties_of(&object)
+                .map_or(LazyObjectProperties::Empty, LazyObjectProperties::Object),
+            Self::Node(node) => knowledge
+                .properties_of(&node.into_object())
+                .map_or(LazyObjectProperties::Empty, LazyObjectProperties::Object),
+            Self::Set(set) => {
+                LazyObjectProperties::ContainsItems(Box::new(set.into_items(knowledge)))
+            }
+        }
+    }
+}
+
+impl LazySet {
+    /// The number of distinct items of this set.
+    #[must_use]
+    pub fn item_count(&self, knowledge: &Knowledge) -> u64 {
+        match self {
+            Self::AtomProperties(properties) => properties.size(),
+            Self::AtomsWithProperty { property } => u64::try_from(
+                knowledge
+                    .query_atoms_with_property(property.clone())
+                    .count(),
+            )
+            .unwrap_or(u64::MAX),
+            Self::AtomsWithConstructor { constructor } => u64::try_from(
+                knowledge
+                    .query_atoms_with_constructor(constructor.clone())
+                    .count(),
+            )
+            .unwrap_or(u64::MAX),
+            _ => u64::try_from(self.clone().into_items(knowledge).count()).unwrap_or(u64::MAX),
+        }
+    }
+
+    /// Returns `true` iff this set has at least one item.
+    #[must_use]
+    pub fn has_at_least_one_item(&self, knowledge: &Knowledge) -> bool {
+        match self {
+            Self::AtomProperties(properties) => !properties.is_empty(),
+            Self::AtomsWithProperty { property } => knowledge
+                .query_atoms_with_property(property.clone())
+                .next()
+                .is_some(),
+            Self::AtomsWithConstructor { constructor } => knowledge
+                .query_atoms_with_constructor(constructor.clone())
+                .next()
+                .is_some(),
             Self::Union { first, second } => {
-                first.has(element, knowledge) || second.has(element, knowledge)
+                first.has_at_least_one_item(knowledge) || second.has_at_least_one_item(knowledge)
             }
-            Self::Difference { source, without } => {
-                source.has(element, knowledge) && !without.has(element, knowledge)
-            }
-            Self::Intersection { first, second } => {
-                first.has(element, knowledge) && second.has(element, knowledge)
-            }
+            Self::Map { target, .. } => target.has_at_least_one_item(knowledge),
+            _ => self.clone().into_items(knowledge).next().is_some(),
+        }
+    }
+
+    /// Returns `true` iff `item` is an item of this set.
+    #[must_use]
+    pub fn has_item(&self, item: &Object, knowledge: &Knowledge) -> bool {
+        match self {
+            Self::AtomProperties(properties) => properties.has(item),
             Self::AtomsWithProperty { property } => {
-                if let Object::Atom(_) = element {
-                    knowledge.object_has(element, property)
-                } else {
-                    false
-                }
+                matches!(item, Object::Atom(_)) && knowledge.object_has(item, property)
+            }
+            Self::AtomsWithConstructor { .. } | Self::Constructions { .. } | Self::Map { .. } => {
+                self.clone()
+                    .into_items(knowledge)
+                    .any(|object| item == &object)
             }
             Self::ConstructionValues {
                 target,
                 property_constructor,
-            } => target.has(
-                &Construction::new(property_constructor.clone(), element.clone()).into(),
+            } => target.has_property(
+                &Construction::new(property_constructor.clone(), item.clone()).into(),
                 knowledge,
             ),
+            Self::Union { first, second } => {
+                first.has_item(item, knowledge) || second.has_item(item, knowledge)
+            }
+            Self::Intersection { first, second } => {
+                first.has_item(item, knowledge) && second.has_item(item, knowledge)
+            }
+            Self::Difference { source, without } => {
+                source.has_item(item, knowledge) && !without.has_item(item, knowledge)
+            }
             Self::Filter {
                 target,
                 filter_function,
             } => {
-                // `element` is member of the composite which all elements satisfy the constraint
-                // iff it is in that composite and matches the constraint.
-
-                if !target.has(element, knowledge) {
+                if !target.has_item(item, knowledge) {
                     return false;
                 }
 
                 compute::evaluate(
                     &Node::Call {
                         callee: filter_function.clone().into(),
-                        with: Node::Literal(element.clone()).into(),
+                        with: Node::Literal(item.clone()).into(),
                     },
                     knowledge,
                 )
                 .truthy()
                     == MaybeUndefined::Defined(true)
             }
-            LazyObject::AtomsWithConstructor { .. }
-            | LazyObject::Map { .. }
-            | LazyObject::Constructions { .. } => {
-                self.iter(knowledge).any(|object| element == &object)
-            }
         }
     }
 
-    /// Returns `true` iff `self` is a composite that is computed lazily.
-    ///
-    /// Eagerly represented objects and nodes that can be converted into a model
-    /// object without further computation are not lazy. Lazy composite results should
-    /// be iterated with [`Self::into_composite_iter`] instead of being materialized
-    /// into a [`Composite`].
+    /// Consumes the set and returns an iterator over its distinct items.
     #[must_use]
-    pub fn is_lazy(&self) -> bool {
-        self.is_composite() && !matches!(self, Self::Eager(_) | Self::Node(_))
-    }
-
-    /// Iterate over the lazy object.
-    ///
-    /// The returned iterator owns a snapshot of everything it needs, so it
-    /// stays valid if the knowledge changes after this call. Use
-    /// [`Self::into_iter`] to avoid cloning the lazy object.
-    #[must_use]
-    pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
+    pub fn into_items(self, knowledge: &Knowledge) -> LazySetItems {
         match self {
-            Self::Eager(object) => {
-                let properties = knowledge
-                    .properties_of(object)
-                    .unwrap_or_else(ObjectProperties::empty);
-
-                LazyObjectIter::ObjectProperties(properties)
-            }
-            Self::Node(node) => {
-                let object = node.into_object();
-                let properties = knowledge
-                    .properties_of(&object)
-                    .unwrap_or_else(ObjectProperties::empty);
-
-                LazyObjectIter::ObjectProperties(properties)
-            }
-            lazy_object => lazy_object.clone().into_iter(knowledge),
-        }
-    }
-
-    /// Consumes the lazy object and returns an iterator over its values.
-    ///
-    /// The iterator captures the parts of the knowledge it needs. Changing the
-    /// knowledge after this call therefore does not affect the iteration.
-    #[must_use]
-    pub fn into_iter(self, knowledge: &Knowledge) -> LazyObjectIter {
-        match self {
-            Self::Node(node) => {
-                let object = node.into_object();
-                let properties = knowledge
-                    .properties_of(&object)
-                    .unwrap_or_else(ObjectProperties::empty);
-
-                LazyObjectIter::ObjectProperties(properties)
-            }
-            Self::Eager(object) => {
-                let properties = knowledge
-                    .properties_of(&object)
-                    .unwrap_or_else(ObjectProperties::empty);
-
-                LazyObjectIter::ObjectProperties(properties)
-            }
             Self::AtomProperties(properties) => {
-                LazyObjectIter::ObjectProperties(ObjectProperties::properties(properties))
+                LazySetItems::AtomProperties(properties.into_iter())
             }
-            Self::Union { first, second } => LazyObjectIter::Deduplicated {
-                values: Box::new(LazyObjectIter::Union {
-                    first: Box::new(first.into_iter(knowledge)),
-                    second: Box::new(second.into_iter(knowledge)),
-                }),
-                yielded: BTreeSet::new(),
-            },
-            Self::Intersection { first, second } => LazyObjectIter::Deduplicated {
-                values: Box::new(LazyObjectIter::Intersection {
-                    first: Box::new(first.into_iter(knowledge)),
-                    second,
-                    knowledge: knowledge.clone(),
-                }),
-                yielded: BTreeSet::new(),
-            },
-            Self::Difference { source, without } => LazyObjectIter::Deduplicated {
-                values: Box::new(LazyObjectIter::Difference {
-                    source: Box::new(source.into_iter(knowledge)),
-                    without,
-                    knowledge: knowledge.clone(),
-                }),
-                yielded: BTreeSet::new(),
-            },
             Self::AtomsWithProperty { property } => {
-                LazyObjectIter::AtomsWithProperty(knowledge.query_atoms_with_property(property))
+                LazySetItems::AtomsWithProperty(knowledge.query_atoms_with_property(property))
             }
-            Self::AtomsWithConstructor { constructor } => LazyObjectIter::AtomsWithConstructor(
+            Self::AtomsWithConstructor { constructor } => LazySetItems::AtomsWithConstructor(
                 knowledge.query_atoms_with_constructor(constructor),
             ),
             Self::ConstructionValues {
                 target,
                 property_constructor,
-            } => LazyObjectIter::ConstructionValues {
-                target: Box::new(target.into_iter(knowledge)),
+            } => LazySetItems::ConstructionValues {
+                properties: target.into_properties(knowledge),
                 property_constructor,
             },
             Self::Constructions { constructor } => {
-                LazyObjectIter::Constructions(knowledge.query_constructions(constructor))
+                LazySetItems::Constructions(knowledge.query_constructions(constructor))
             }
+            Self::Union { first, second } => LazySetItems::Deduplicated {
+                items: Box::new(LazySetItems::Union {
+                    first: Box::new(first.into_items(knowledge)),
+                    second: Box::new(second.into_items(knowledge)),
+                }),
+                yielded: BTreeSet::new(),
+            },
+            Self::Intersection { first, second } => LazySetItems::Deduplicated {
+                items: Box::new(LazySetItems::Intersection {
+                    first: Box::new(first.into_items(knowledge)),
+                    second,
+                    knowledge: knowledge.clone(),
+                }),
+                yielded: BTreeSet::new(),
+            },
+            Self::Difference { source, without } => LazySetItems::Deduplicated {
+                items: Box::new(LazySetItems::Difference {
+                    source: Box::new(source.into_items(knowledge)),
+                    without,
+                    knowledge: knowledge.clone(),
+                }),
+                yielded: BTreeSet::new(),
+            },
             Self::Map {
                 target,
                 mapper_function,
-            } => LazyObjectIter::Deduplicated {
-                values: Box::new(LazyObjectIter::Map {
-                    target: Box::new(target.into_iter(knowledge)),
+            } => LazySetItems::Deduplicated {
+                items: Box::new(LazySetItems::Map {
+                    target: Box::new(target.into_items(knowledge)),
                     mapper_function,
                     knowledge: knowledge.clone(),
                 }),
@@ -396,39 +422,46 @@ impl LazyObject {
             Self::Filter {
                 target,
                 filter_function,
-            } => LazyObjectIter::Filter {
-                target: Box::new(target.into_iter(knowledge)),
+            } => LazySetItems::Filter {
+                target: Box::new(target.into_items(knowledge)),
                 filter_function,
                 knowledge: knowledge.clone(),
             },
         }
     }
+}
 
-    /// Consumes the lazy object and returns an iterator over its values that
-    /// respects composite semantics, i.e. yields every value at most once.
-    ///
-    /// Like [`Self::into_iter`], the returned iterator captures the parts of the
-    /// knowledge it needs.
-    #[must_use]
-    pub fn into_composite_iter(self, knowledge: &Knowledge) -> LazyCompositeIterator {
-        LazyCompositeIterator::new(self.into_iter(knowledge))
+/// Iterates over the properties of a lazy object.
+#[derive(Clone)]
+pub enum LazyObjectProperties {
+    Object(ObjectProperties),
+    ContainsItems(Box<LazySetItems>),
+    Empty,
+}
+
+impl Iterator for LazyObjectProperties {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Object(properties) => properties.next(),
+            Self::ContainsItems(items) => items
+                .next()
+                .map(|item| Construction::new(Atom::CONTAINS.into(), item).into()),
+            Self::Empty => None,
+        }
     }
 }
 
-#[must_use]
-fn atom_properties_into_object(properties: Properties) -> Object {
-    let mut properties = properties.into_iter().collect::<Vec<_>>();
-
-    Composite::from(properties.as_mut_slice()).into()
-}
-
+/// Iterates over the distinct items of a set.
 #[derive(Clone)]
-pub enum LazyObjectIter {
-    ObjectProperties(ObjectProperties),
+pub enum LazySetItems {
+    ObjectItems(ObjectItems),
+    AtomProperties(PropertiesIter),
     AtomsWithProperty(QueryAtomsWithProperty),
     AtomsWithConstructor(QueryAtomsWithConstructor),
     ConstructionValues {
-        target: Box<Self>,
+        properties: LazyObjectProperties,
         property_constructor: Object,
     },
     Constructions(QueryConstructions),
@@ -436,18 +469,18 @@ pub enum LazyObjectIter {
         first: Box<Self>,
         second: Box<Self>,
     },
-    /// Yields the values of `values` that have not been yielded before.
+    /// Yields the items of `items` that have not been yielded before.
     Deduplicated {
-        values: Box<Self>,
+        items: Box<Self>,
         yielded: BTreeSet<Object>,
     },
-    /// Yields the values of `first` that are members of `second`.
+    /// Yields the items of `first` that are items of `second`.
     Intersection {
         first: Box<Self>,
         second: Box<LazyObject>,
         knowledge: Knowledge,
     },
-    /// Yields the values of `source` that are not members of `without`.
+    /// Yields the items of `source` that are not items of `without`.
     Difference {
         source: Box<Self>,
         without: Box<LazyObject>,
@@ -465,24 +498,25 @@ pub enum LazyObjectIter {
     },
 }
 
-impl std::fmt::Debug for LazyObjectIter {
+impl std::fmt::Debug for LazySetItems {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set().entries(self.clone()).finish()
     }
 }
 
-impl Iterator for LazyObjectIter {
+impl Iterator for LazySetItems {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Self::ObjectProperties(properties) => properties.next(),
+            Self::ObjectItems(items) => items.next(),
+            Self::AtomProperties(properties) => properties.next(),
             Self::AtomsWithProperty(atoms) => atoms.next().map(Object::Atom),
             Self::AtomsWithConstructor(atoms) => atoms.next().map(Object::Atom),
             Self::ConstructionValues {
-                target,
+                properties,
                 property_constructor,
-            } => target.find_map(|object| match object {
+            } => properties.find_map(|object| match object {
                 Object::Construction(Construction { constructor, value })
                     if constructor.as_ref() == property_constructor =>
                 {
@@ -492,8 +526,8 @@ impl Iterator for LazyObjectIter {
             }),
             Self::Constructions(pairs) => pairs.next().map(AtomValuePair::into_object),
             Self::Union { first, second } => first.next().or_else(|| second.next()),
-            Self::Deduplicated { values, yielded } => loop {
-                let object = values.next()?;
+            Self::Deduplicated { items, yielded } => loop {
+                let object = items.next()?;
 
                 if yielded.insert(object.clone()) {
                     return Some(object);
@@ -503,12 +537,12 @@ impl Iterator for LazyObjectIter {
                 first,
                 second,
                 knowledge,
-            } => first.find(|object| second.has(object, knowledge)),
+            } => first.find(|object| second.has_item(object, knowledge)),
             Self::Difference {
                 source,
                 without,
                 knowledge,
-            } => source.find(|object| !without.has(object, knowledge)),
+            } => source.find(|object| !without.has_item(object, knowledge)),
             Self::Filter {
                 target,
                 filter_function,
@@ -538,39 +572,6 @@ impl Iterator for LazyObjectIter {
                 )
                 .into_object(knowledge)
             }),
-        }
-    }
-}
-
-/// Iterates over the values of a lazy composite, yielding every value at most once.
-///
-/// The values seen so far are remembered, so this does not materialize the composite
-/// in advance but uses memory proportional to the number of yielded values.
-pub struct LazyCompositeIterator {
-    values: LazyObjectIter,
-    yielded: BTreeSet<Object>,
-}
-
-impl LazyCompositeIterator {
-    #[must_use]
-    pub fn new(values: LazyObjectIter) -> Self {
-        Self {
-            values,
-            yielded: BTreeSet::new(),
-        }
-    }
-}
-
-impl Iterator for LazyCompositeIterator {
-    type Item = Object;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let object = self.values.next()?;
-
-            if self.yielded.insert(object.clone()) {
-                return Some(object);
-            }
         }
     }
 }

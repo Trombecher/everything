@@ -42,18 +42,18 @@ fn query_construction_values() {
 
     let result = evaluate(
         &Node::QueryConstructionValues {
-            object: Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()).into(),
+            object: Node::Literal(Object::Atom(atom)).into(),
             property_constructor: Node::Literal(property_constructor.into()).into(),
         },
         &knowledge,
     );
 
     assert!(result.is_composite());
-    assert_eq!(result.size(&knowledge), 2);
-    assert!(result.has(&matching_values[0], &knowledge));
-    assert!(result.has(&matching_values[1], &knowledge));
-    assert!(!result.has(&Object::new_integer(BigInt::from(3)), &knowledge));
-    assert!(!result.has(&Object::new_integer(BigInt::from(4)), &knowledge));
+    assert_eq!(result.item_count(&knowledge), 2);
+    assert!(result.has_item(&matching_values[0], &knowledge));
+    assert!(result.has_item(&matching_values[1], &knowledge));
+    assert!(!result.has_item(&Object::new_integer(BigInt::from(3)), &knowledge));
+    assert!(!result.has_item(&Object::new_integer(BigInt::from(4)), &knowledge));
     assert_eq!(
         result.iter(&knowledge).collect::<Vec<_>>(),
         matching_values.to_vec()
@@ -114,7 +114,7 @@ fn query_construction_values_materialises_deferred_constructor() {
     });
 
     let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
-    let deferred_constructor = Node::Union {
+    let deferred_constructor = Node::SetUnion {
         first: empty_composite.clone().into(),
         second: empty_composite.into(),
     };
@@ -160,7 +160,7 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
         property_constructor.clone(),
     );
     assert!(atom_result.is_composite());
-    assert_eq!(atom_result.size(&BASE), 0);
+    assert_eq!(atom_result.item_count(&BASE), 0);
     assert_eq!(atom_result.iter(&BASE).count(), 0);
 
     // `undefined` is an atom and is queried like any other atom.
@@ -169,12 +169,12 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
         property_constructor.clone(),
     );
     assert!(undefined_result.is_composite());
-    assert_eq!(undefined_result.size(&BASE), 0);
+    assert_eq!(undefined_result.item_count(&BASE), 0);
     assert_eq!(undefined_result.iter(&BASE).count(), 0);
 
     // A deferred constructor is materialised and accepted like an eager one.
     let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
-    let deferred_composite = Node::Union {
+    let deferred_composite = Node::SetUnion {
         first: empty_composite.clone().into(),
         second: empty_composite.clone().into(),
     };
@@ -185,14 +185,14 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
     );
 
     assert!(from_deferred.is_composite());
-    assert_eq!(from_deferred.size(&BASE), 0);
+    assert_eq!(from_deferred.item_count(&BASE), 0);
     assert_eq!(from_deferred.iter(&BASE).count(), 0);
 
     // A deferred composite target yields a deferred result.
     let result = evaluate_query(deferred_composite, Node::Literal(Atom(1).into()));
 
     assert!(result.is_composite());
-    assert_eq!(result.size(&BASE), 0);
+    assert_eq!(result.item_count(&BASE), 0);
     assert_eq!(result.iter(&BASE).count(), 0);
 }
 

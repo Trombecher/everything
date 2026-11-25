@@ -14,7 +14,7 @@ use num_bigint::BigInt;
 use crate::{
     compute::nodes::raw::RawNode,
     knowledge::Knowledge,
-    model::{Atom, Composite, CompositeApi, Construction, Object},
+    model::{Atom, Composite, Construction, Object},
 };
 
 /// A node / expression in the computation system.
@@ -61,12 +61,12 @@ pub enum Node {
         depth: u32,
     },
 
-    /// Counts the number of elements of the inner composite. Evaluates to
-    /// undefined if the inner result is not a composite.
-    Count(Arc<Node>),
+    /// Counts the number of items of the inner set. Atoms and composites are
+    /// sets in the open set model; constructions evaluate to undefined.
+    SetCount(Arc<Node>),
 
-    /// Converts the inner result to a composite of its properties: composites
-    /// are returned unchanged, atoms evaluate to the composite of their
+    /// Converts the inner result to a set of its properties: composites
+    /// are returned unchanged, atoms evaluate to the set of their
     /// properties in the knowledge, and constructions evaluate to undefined.
     PropertiesOf(Arc<Node>),
 
@@ -95,9 +95,9 @@ pub enum Node {
     QueryConstructions {
         constructor: Arc<Node>,
     },
-    Contains {
+    SetContains {
         element: Arc<Node>,
-        composite: Arc<Node>,
+        set: Arc<Node>,
     },
     Equal {
         first: Arc<Node>,
@@ -116,32 +116,33 @@ pub enum Node {
         first: Arc<Node>,
         second: Arc<Node>,
     },
-    Union {
+    SetUnion {
         first: Arc<Node>,
         second: Arc<Node>,
     },
-    /// A composite intersection. Evaluates to a deferred composite containing the values
-    /// that are members of both results. If either result is not a composite, the
+    /// A set intersection. Evaluates to a deferred set containing the items
+    /// that are items of both results. If either result is a construction, the
     /// result is undefined.
-    Intersection {
+    SetIntersection {
         first: Arc<Node>,
         second: Arc<Node>,
     },
-    /// A composite difference. Evaluates to a deferred composite containing the values of
-    /// the first result without the values of the second result. If the first
-    /// result is not a composite, the result is undefined. If the first result is
-    /// empty, the second result is not evaluated and the empty composite is returned.
-    /// Otherwise, if the second result is not a composite, the result is undefined.
-    Difference {
+    /// A set difference. Evaluates to a deferred set containing the items of
+    /// the first result without the items of the second result. If the first
+    /// result is a construction, the result is undefined. If the first result
+    /// has no items, the second result is not evaluated and the empty set is
+    /// returned. Otherwise, if the second result is a construction, the result
+    /// is undefined.
+    SetDifference {
         first: Arc<Node>,
         second: Arc<Node>,
     },
-    Map {
-        composite: Arc<Node>,
+    SetMap {
+        set: Arc<Node>,
         mapper_function: Arc<Node>,
     },
-    Filter {
-        composite: Arc<Node>,
+    SetFilter {
+        set: Arc<Node>,
         filter_function: Arc<Node>,
     },
     Less {
@@ -154,11 +155,10 @@ pub enum Node {
         otherwise: Arc<Node>,
     },
 
-    /// Evaluates to the only composite element of the result
-    /// of the evaluation of the inner node, if the result
-    /// has exactly one element; otherwise it evaluates to
-    /// undefined.
-    Unwrap(Arc<Node>),
+    /// Evaluates to the only item of the result of the evaluation of the
+    /// inner node, if the result has exactly one item; otherwise it evaluates
+    /// to undefined.
+    SetUnwrap(Arc<Node>),
     Multiply {
         first: Arc<Node>,
         second: Arc<Node>,
@@ -170,16 +170,16 @@ pub enum Node {
     IsAtom(Arc<Node>),
     IsConstruction(Arc<Node>),
     IsComposite(Arc<Node>),
-    Every {
-        composite: Arc<Node>,
+    SetEvery {
+        set: Arc<Node>,
         predicate: Arc<Node>,
     },
-    Any {
-        composite: Arc<Node>,
+    SetAny {
+        set: Arc<Node>,
         predicate: Arc<Node>,
     },
-    Fold {
-        composite: Arc<Node>,
+    SetFold {
+        set: Arc<Node>,
         folder: Arc<Node>,
         initial: Arc<Node>,
     },
@@ -187,13 +187,13 @@ pub enum Node {
         constructor: Arc<Node>,
         value: Arc<Node>,
     },
-    /// Constructs a composite from the results of the given child nodes.
+    /// Constructs a set from the results of the given child nodes.
     ///
     /// There is always at least one child. The children are evaluated in an
     /// unspecified order; see the computation documentation for the resulting
     /// well-formedness requirement.
-    NewComposite {
-        values: Vec<Arc<Node>>,
+    NewSet {
+        items: Vec<Arc<Node>>,
     },
     ConstructionConstructor {
         construction: Arc<Node>,
@@ -203,12 +203,12 @@ pub enum Node {
     },
 }
 
-/// Materialises the source object into a composite so that its properties can be
-/// transformed. Composites are returned unchanged; atoms are expanded through the
-/// knowledge; constructions have no properties.
+/// Materialises the source object into a composite so that its properties can
+/// be transformed. Composites are returned unchanged; atoms are expanded through
+/// the knowledge; constructions have no properties.
 pub(crate) fn source_composite(object: &Object, knowledge: &Knowledge) -> Composite {
     match object {
-        Object::Composite(composite) => composite.clone(),
+        Object::Composite(set) => set.clone(),
         Object::Atom(atom) => {
             let mut values = knowledge
                 .properties_of_atom(atom)
@@ -281,7 +281,7 @@ impl Node {
             },
             RawNode::FunctionSelf { depth } => Self::FunctionSelf { depth },
             RawNode::Parameter { depth } => Self::Parameter { depth },
-            RawNode::Count(object) => Self::Count(child!(NodeProperty::Count, &object)),
+            RawNode::SetCount(object) => Self::SetCount(child!(NodeProperty::SetCount, &object)),
             RawNode::PropertiesOf(object) => {
                 Self::PropertiesOf(child!(NodeProperty::PropertiesOf, &object))
             }
@@ -305,9 +305,9 @@ impl Node {
             RawNode::QueryConstructions { constructor } => Self::QueryConstructions {
                 constructor: child!(NodeProperty::QueryConstructions, &constructor),
             },
-            RawNode::Contains { element, composite } => Self::Contains {
-                element: child!(NodeProperty::ContainsElement, &element),
-                composite: child!(NodeProperty::ContainsComposite, &composite),
+            RawNode::SetContains { element, set } => Self::SetContains {
+                element: child!(NodeProperty::SetContainsElement, &element),
+                set: child!(NodeProperty::SetContainsSet, &set),
             },
             RawNode::Equal { first, second } => Self::Equal {
                 first: child!(NodeProperty::EqualFirst, &first),
@@ -326,31 +326,31 @@ impl Node {
                 first: child!(NodeProperty::AddFirst, &first),
                 second: child!(NodeProperty::AddSecond, &second),
             },
-            RawNode::Union { first, second } => Self::Union {
-                first: child!(NodeProperty::UnionFirst, &first),
-                second: child!(NodeProperty::UnionSecond, &second),
+            RawNode::SetUnion { first, second } => Self::SetUnion {
+                first: child!(NodeProperty::SetUnionFirst, &first),
+                second: child!(NodeProperty::SetUnionSecond, &second),
             },
-            RawNode::Intersection { first, second } => Self::Intersection {
-                first: child!(NodeProperty::IntersectionFirst, &first),
-                second: child!(NodeProperty::IntersectionSecond, &second),
+            RawNode::SetIntersection { first, second } => Self::SetIntersection {
+                first: child!(NodeProperty::SetIntersectionFirst, &first),
+                second: child!(NodeProperty::SetIntersectionSecond, &second),
             },
-            RawNode::Difference { first, second } => Self::Difference {
-                first: child!(NodeProperty::DifferenceFirst, &first),
-                second: child!(NodeProperty::DifferenceSecond, &second),
+            RawNode::SetDifference { first, second } => Self::SetDifference {
+                first: child!(NodeProperty::SetDifferenceFirst, &first),
+                second: child!(NodeProperty::SetDifferenceSecond, &second),
             },
-            RawNode::Map {
-                composite,
+            RawNode::SetMap {
+                set,
                 mapper_function,
-            } => Self::Map {
-                composite: child!(NodeProperty::MapComposite, &composite),
-                mapper_function: child!(NodeProperty::MapMapper, &mapper_function),
+            } => Self::SetMap {
+                set: child!(NodeProperty::SetMapSet, &set),
+                mapper_function: child!(NodeProperty::SetMapMapper, &mapper_function),
             },
-            RawNode::Filter {
-                composite,
+            RawNode::SetFilter {
+                set,
                 filter_function,
-            } => Self::Filter {
-                composite: child!(NodeProperty::FilterComposite, &composite),
-                filter_function: child!(NodeProperty::FilterFilter, &filter_function),
+            } => Self::SetFilter {
+                set: child!(NodeProperty::SetFilterSet, &set),
+                filter_function: child!(NodeProperty::SetFilterFilter, &filter_function),
             },
             RawNode::Less { first, second } => Self::Less {
                 first: child!(NodeProperty::LessFirst, &first),
@@ -365,9 +365,7 @@ impl Node {
                 then: child!(NodeProperty::IfThen, &then),
                 otherwise: child!(NodeProperty::IfElse, &otherwise),
             },
-            RawNode::Unwrap(composite) => {
-                Self::Unwrap(child!(NodeProperty::UnwrapComposite, &composite))
-            }
+            RawNode::SetUnwrap(set) => Self::SetUnwrap(child!(NodeProperty::SetUnwrapSet, &set)),
             RawNode::Multiply { first, second } => Self::Multiply {
                 first: child!(NodeProperty::MultiplyFirst, &first),
                 second: child!(NodeProperty::MultiplySecond, &second),
@@ -383,37 +381,31 @@ impl Node {
             RawNode::IsComposite(object) => {
                 Self::IsComposite(child!(NodeProperty::IsComposite, &object))
             }
-            RawNode::Every {
-                composite,
-                predicate,
-            } => Self::Every {
-                composite: child!(NodeProperty::EveryComposite, &composite),
-                predicate: child!(NodeProperty::EveryPredicate, &predicate),
+            RawNode::SetEvery { set, predicate } => Self::SetEvery {
+                set: child!(NodeProperty::SetEverySet, &set),
+                predicate: child!(NodeProperty::SetEveryPredicate, &predicate),
             },
-            RawNode::Any {
-                composite,
-                predicate,
-            } => Self::Any {
-                composite: child!(NodeProperty::AnyComposite, &composite),
-                predicate: child!(NodeProperty::AnyPredicate, &predicate),
+            RawNode::SetAny { set, predicate } => Self::SetAny {
+                set: child!(NodeProperty::SetAnySet, &set),
+                predicate: child!(NodeProperty::SetAnyPredicate, &predicate),
             },
-            RawNode::Fold {
-                composite,
+            RawNode::SetFold {
+                set,
                 folder,
                 initial,
-            } => Self::Fold {
-                composite: child!(NodeProperty::FoldComposite, &composite),
-                folder: child!(NodeProperty::FoldFolder, &folder),
-                initial: child!(NodeProperty::FoldInitial, &initial),
+            } => Self::SetFold {
+                set: child!(NodeProperty::SetFoldSet, &set),
+                folder: child!(NodeProperty::SetFoldFolder, &folder),
+                initial: child!(NodeProperty::SetFoldInitial, &initial),
             },
             RawNode::NewConstruction { constructor, value } => Self::NewConstruction {
                 constructor: child!(NodeProperty::NewConstructionConstructor, &constructor),
                 value: child!(NodeProperty::NewConstructionValue, &value),
             },
-            RawNode::NewComposite { values } => Self::NewComposite {
-                values: values
+            RawNode::NewSet { items } => Self::NewSet {
+                items: items
                     .iter()
-                    .map(|value| Self::child(value, knowledge, NodeProperty::NewCompositeValue))
+                    .map(|item| Self::child(item, knowledge, NodeProperty::NewSetItem))
                     .collect::<Result<Vec<_>, _>>()?,
             },
             RawNode::ConstructionConstructor { construction } => Self::ConstructionConstructor {
@@ -488,14 +480,14 @@ impl Node {
             )
             .into()])
             .into(),
-            Self::Fold {
-                composite,
+            Self::SetFold {
+                set,
                 folder,
                 initial,
             } => Composite::from([
-                Construction::new(Atom::NODE_FOLD_COMPOSITE.into(), composite.into_object()).into(),
-                Construction::new(Atom::NODE_FOLD_FOLDER.into(), folder.into_object()).into(),
-                Construction::new(Atom::NODE_FOLD_INITIAL.into(), initial.into_object()).into(),
+                Construction::new(Atom::NODE_SET_FOLD_SET.into(), set.into_object()).into(),
+                Construction::new(Atom::NODE_SET_FOLD_FOLDER.into(), folder.into_object()).into(),
+                Construction::new(Atom::NODE_SET_FOLD_INITIAL.into(), initial.into_object()).into(),
             ])
             .into(),
             Self::NewConstruction { constructor, value } => Composite::from([
@@ -511,27 +503,23 @@ impl Node {
                 .into(),
             ])
             .into(),
-            Self::NewComposite { values } => {
-                let mut properties = values
+            Self::NewSet { items } => {
+                let mut members = items
                     .iter()
-                    .map(|value| {
-                        Construction::new(
-                            Atom::NODE_NEW_COMPOSITE_VALUE.into(),
-                            value.into_object(),
-                        )
-                        .into()
+                    .map(|item| {
+                        Construction::new(Atom::NODE_NEW_SET_ITEM.into(), item.into_object()).into()
                     })
                     .collect::<Vec<Object>>();
 
-                Composite::from(properties.as_mut_slice()).into()
+                Composite::from(members.as_mut_slice()).into()
             }
-            Self::Contains { element, composite } => Composite::from([
-                Construction::new(Atom::NODE_CONTAINS_ELEMENT.into(), element.into_object()).into(),
+            Self::SetContains { element, set } => Composite::from([
                 Construction::new(
-                    Atom::NODE_CONTAINS_COMPOSITE.into(),
-                    composite.into_object(),
+                    Atom::NODE_SET_CONTAINS_ELEMENT.into(),
+                    element.into_object(),
                 )
                 .into(),
+                Construction::new(Atom::NODE_SET_CONTAINS_SET.into(), set.into_object()).into(),
             ])
             .into(),
             Self::ConstructionValue { construction } => Composite::from([Construction::new(
@@ -591,12 +579,12 @@ impl Node {
             )
             .into()])
             .into(),
-            Self::Count(object) => {
-                Composite::from([
-                    Construction::new(Atom::NODE_COUNT.into(), object.into_object()).into(),
-                ])
-                .into()
-            }
+            Self::SetCount(object) => Composite::from([Construction::new(
+                Atom::NODE_SET_COUNT.into(),
+                object.into_object(),
+            )
+            .into()])
+            .into(),
             Self::PropertiesOf(object) => Composite::from([Construction::new(
                 Atom::NODE_PROPERTIES_OF.into(),
                 object.into_object(),
@@ -649,20 +637,32 @@ impl Node {
                 Construction::new(Atom::NODE_ADD_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
-            Self::Union { first, second } => Composite::from([
-                Construction::new(Atom::NODE_UNION_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_UNION_SECOND.into(), second.into_object()).into(),
+            Self::SetUnion { first, second } => Composite::from([
+                Construction::new(Atom::NODE_SET_UNION_FIRST.into(), first.into_object()).into(),
+                Construction::new(Atom::NODE_SET_UNION_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
-            Self::Intersection { first, second } => Composite::from([
-                Construction::new(Atom::NODE_INTERSECTION_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_INTERSECTION_SECOND.into(), second.into_object())
+            Self::SetIntersection { first, second } => Composite::from([
+                Construction::new(
+                    Atom::NODE_SET_INTERSECTION_FIRST.into(),
+                    first.into_object(),
+                )
+                .into(),
+                Construction::new(
+                    Atom::NODE_SET_INTERSECTION_SECOND.into(),
+                    second.into_object(),
+                )
+                .into(),
+            ])
+            .into(),
+            Self::SetDifference { first, second } => Composite::from([
+                Construction::new(Atom::NODE_SET_DIFFERENCE_FIRST.into(), first.into_object())
                     .into(),
-            ])
-            .into(),
-            Self::Difference { first, second } => Composite::from([
-                Construction::new(Atom::NODE_DIFFERENCE_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_DIFFERENCE_SECOND.into(), second.into_object()).into(),
+                Construction::new(
+                    Atom::NODE_SET_DIFFERENCE_SECOND.into(),
+                    second.into_object(),
+                )
+                .into(),
             ])
             .into(),
             Self::QueryConstructions { constructor } => Composite::from([Construction::new(
@@ -671,44 +671,43 @@ impl Node {
             )
             .into()])
             .into(),
-            Self::Map {
-                composite,
+            Self::SetMap {
+                set,
                 mapper_function,
             } => Composite::from([
-                Construction::new(Atom::NODE_MAP_COMPOSITE.into(), composite.into_object()).into(),
-                Construction::new(Atom::NODE_MAP_MAPPER.into(), mapper_function.into_object())
-                    .into(),
+                Construction::new(Atom::NODE_SET_MAP_SET.into(), set.into_object()).into(),
+                Construction::new(
+                    Atom::NODE_SET_MAP_MAPPER.into(),
+                    mapper_function.into_object(),
+                )
+                .into(),
             ])
             .into(),
-            Self::Filter {
-                composite,
+            Self::SetFilter {
+                set,
                 filter_function,
             } => Composite::from([
-                Construction::new(Atom::NODE_FILTER_COMPOSITE.into(), composite.into_object())
-                    .into(),
+                Construction::new(Atom::NODE_SET_FILTER_SET.into(), set.into_object()).into(),
                 Construction::new(
-                    Atom::NODE_FILTER_FILTER.into(),
+                    Atom::NODE_SET_FILTER_FILTER.into(),
                     filter_function.into_object(),
                 )
                 .into(),
             ])
             .into(),
-            Self::Every {
-                composite,
-                predicate,
-            } => Composite::from([
-                Construction::new(Atom::NODE_EVERY_COMPOSITE.into(), composite.into_object())
-                    .into(),
-                Construction::new(Atom::NODE_EVERY_PREDICATE.into(), predicate.into_object())
-                    .into(),
+            Self::SetEvery { set, predicate } => Composite::from([
+                Construction::new(Atom::NODE_SET_EVERY_SET.into(), set.into_object()).into(),
+                Construction::new(
+                    Atom::NODE_SET_EVERY_PREDICATE.into(),
+                    predicate.into_object(),
+                )
+                .into(),
             ])
             .into(),
-            Self::Any {
-                composite,
-                predicate,
-            } => Composite::from([
-                Construction::new(Atom::NODE_ANY_COMPOSITE.into(), composite.into_object()).into(),
-                Construction::new(Atom::NODE_ANY_PREDICATE.into(), predicate.into_object()).into(),
+            Self::SetAny { set, predicate } => Composite::from([
+                Construction::new(Atom::NODE_SET_ANY_SET.into(), set.into_object()).into(),
+                Construction::new(Atom::NODE_SET_ANY_PREDICATE.into(), predicate.into_object())
+                    .into(),
             ])
             .into(),
             Self::Less { first, second } => Composite::from([
@@ -726,9 +725,9 @@ impl Node {
                 Construction::new(Atom::NODE_IF_ELSE.into(), otherwise.into_object()).into(),
             ])
             .into(),
-            Self::Unwrap(composite) => Composite::from([Construction::new(
-                Atom::NODE_UNWRAP_COMPOSITE.into(),
-                composite.into_object(),
+            Self::SetUnwrap(set) => Composite::from([Construction::new(
+                Atom::NODE_SET_UNWRAP_SET.into(),
+                set.into_object(),
             )
             .into()])
             .into(),
@@ -737,60 +736,6 @@ impl Node {
                 Construction::new(Atom::NODE_MULTIPLY_SECOND.into(), second.into_object()).into(),
             ])
             .into(),
-        }
-    }
-
-    #[must_use]
-    pub fn composite_size(&self) -> u64 {
-        // Just count the properties.
-
-        match self {
-            Self::WithSource { node, source } => match &**source {
-                Object::Composite(composite) => composite.size(),
-                Object::Atom(_) | Object::Construction(_) => node.composite_size(),
-            },
-
-            Self::Function { object, .. } => object.size(),
-
-            Self::Literal(_)
-            | Self::FunctionSelf { .. }
-            | Self::Count(_)
-            | Self::PropertiesOf(_)
-            | Self::HasValue(_)
-            | Self::QueryAtomsWithProperty { .. }
-            | Self::QueryAtomsWithConstructor { .. }
-            | Self::QueryConstructions { .. }
-            | Self::IsAtom(_)
-            | Self::IsComposite(_)
-            | Self::IsConstruction(_)
-            | Self::ConstructionConstructor { .. }
-            | Self::ConstructionValue { .. }
-            | Self::Not(_)
-            | Self::Parameter { .. } => 1,
-
-            Self::And { .. }
-            | Self::QueryConstructionValues { .. }
-            | Self::Contains { .. }
-            | Self::Equal { .. }
-            | Self::Or { .. }
-            | Self::Xor { .. }
-            | Self::Add { .. }
-            | Self::Union { .. }
-            | Self::Intersection { .. }
-            | Self::Difference { .. }
-            | Self::Map { .. }
-            | Self::Filter { .. }
-            | Self::Less { .. }
-            | Self::Multiply { .. }
-            | Self::Call { .. }
-            | Self::Every { .. }
-            | Self::Any { .. }
-            | Self::NewConstruction { .. }
-            | Self::Unwrap { .. } => 2,
-
-            Self::If { .. } | Self::Fold { .. } => 3,
-
-            Self::NewComposite { values } => values.len() as u64,
         }
     }
 }

@@ -44,7 +44,7 @@ fn properties_of() {
             &knowledge,
         )
         .into_object(&knowledge),
-        Object::Composite(Composite::from([value.clone()]))
+        Object::Composite(Composite::from_set_items(std::slice::from_ref(&value)))
     );
 
     assert_matches!(
@@ -52,12 +52,12 @@ fn properties_of() {
             &Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()),
             &knowledge,
         ),
-        LazyObject::AtomProperties(properties) if properties.size() == 1
+        LazyObject::Set(LazySet::AtomProperties(properties)) if properties.size() == 1
     );
 
     assert_eq!(
         evaluate(
-            &Node::Count(Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()).into()),
+            &Node::SetCount(Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()).into()),
             &knowledge,
         )
         .into_object(&knowledge),
@@ -107,6 +107,6 @@ fn properties_of() {
             &knowledge
         )
         .into_object(&knowledge),
-        Object::Composite(Composite::from([undefined_value]))
+        Object::Composite(Composite::from_set_items(&[undefined_value]))
     );
 }

@@ -1,6 +1,6 @@
 use crate::{
     base::BASE,
-    model::{Atom, Construction, Object},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
@@ -41,5 +41,18 @@ fn undefined_is_not_a_composite() {
         )
         .into_object(&BASE),
         Atom::FALSE.into()
+    );
+}
+
+#[test]
+fn deferred_sets_are_composites() {
+    let union = Node::SetUnion {
+        first: Node::Literal(Object::Composite(Composite::empty())).into(),
+        second: Node::Literal(Object::Composite(Composite::empty())).into(),
+    };
+
+    assert_eq!(
+        evaluate(&Node::IsComposite(union.into()), &BASE).into_object(&BASE),
+        Atom::TRUE.into()
     );
 }

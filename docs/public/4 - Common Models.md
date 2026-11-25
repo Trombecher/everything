@@ -4,15 +4,20 @@ Everything gives you the freedom to model anything. However, some models are sto
 
 ## Sets
 
-An object is a _set_ iff it is a composite whose members are all constructions of the form `contains ·· %item%`. The objects `%item%` are the _items_ of the set. The empty set is the empty composite.
+The set model is open: **every atom and every composite is a _set_.** The _items_ of a set `%o%` are the objects `%item%` for which `%o%` has the property `contains ·· %item%`:
 
-Sets inherit their structure from composites: they are unordered and contain each item at most once, `⟨contains ·· %a%, contains ·· %b%⟩ == ⟨contains ·· %b%, contains ·· %a%⟩` and `⟨contains ·· %a%, contains ·· %a%⟩ == ⟨contains ·· %a%⟩`.
+- for an atom, the statements `%o% is contains ·· %item%` in the knowledge;
+- for a composite, the members `contains ·· %item%` of the composite.
 
-`{...}` is syntactic sugar for sets: `{%a%, %b%, %c%}` stands for `⟨contains ·· %a%, contains ·· %b%, contains ·· %c%⟩`, and `{}` stands for the empty set. Braces therefore always denote sets, never composites with arbitrary members.
+A construction has no properties and is therefore not a set.
 
-Because the constraint of `contains` accepts every value for every subject, a set places no demands on its items beyond their own validity: a set is valid whenever its items are. This is what makes sets data: computed collections, such as query results or the output of map and filter, never run the constraints of the objects they collect.
+Because the model is open, a set may have properties that are not of the form `contains ·· %item%`. Those properties are not items. In particular, many atoms and composites are sets with no items at all.
 
-Sets are stored optimally in memory.
+`{...}` is syntactic sugar for the canonical composite whose members are the corresponding `contains` constructions: `{%a%, %b%, %c%}` stands for `⟨contains ·· %a%, contains ·· %b%, contains ·· %c%⟩`, and `{}` stands for the empty composite. Braces therefore always denote a composite of `contains` members, never a composite with arbitrary members. Composites in this canonical form inherit their structure from composites: they are unordered and contain each item at most once, `{a, b} == {b, a}` and `{a, a} == {a}`.
+
+The constraint of `contains` accepts every value for every subject. The `contains` properties of a set therefore place no demands on their items beyond their own validity, and collecting computed results into the canonical form `{...}` never runs the constraints of the collected objects. The other properties of an open set are ordinary properties and are validated like any other property of the atom or composite (see [Chapter 2](./2%20-%20Knowledge.md)).
+
+Sets in the canonical form `{...}` are stored optimally in memory.
 
 ### Example
 
@@ -22,6 +27,10 @@ Sets are stored optimally in memory.
 
 # {} is the empty composite
 ⟨⟩
+
+# 1 and ⟨1, 2, 3⟩ are sets with no items
+1
+⟨1, 2, 3⟩
 ```
 
 ## Integers

@@ -26,8 +26,25 @@ pub fn integer(value: i32) -> Object {
     Object::new_integer(BigInt::from(value))
 }
 
-pub fn integer_composite() -> Composite {
-    Composite::from([integer(1), integer(2), integer(3)])
+pub fn integer_set() -> Composite {
+    Composite::from_set_items(&[integer(1), integer(2), integer(3)])
+}
+
+/// The canonical set object with the given items.
+pub fn set_of(objects: impl IntoIterator<Item = Object>) -> Object {
+    let objects = objects.into_iter().collect::<Vec<_>>();
+
+    Object::Composite(Composite::from_set_items(&objects))
+}
+
+/// An ordinary composite with the given members.
+///
+/// It is a set in the open model, but its items are only the members of the
+/// form `contains ·· %item%`.
+pub fn composite_of(objects: impl IntoIterator<Item = Object>) -> Object {
+    let mut objects = objects.into_iter().collect::<Vec<_>>();
+
+    Object::Composite(Composite::from(objects.as_mut_slice()))
 }
 
 /// The curried function `acc |-> element |-> acc + element`.
@@ -99,10 +116,10 @@ pub fn undefined_on_one_false_otherwise_predicate() -> Node {
     })
 }
 
-pub fn every_result(composite: Node, predicate: Node) -> Object {
+pub fn every_result(set: Node, predicate: Node) -> Object {
     evaluate(
-        &Node::Every {
-            composite: composite.into(),
+        &Node::SetEvery {
+            set: set.into(),
             predicate: predicate.into(),
         },
         &BASE,
@@ -110,10 +127,10 @@ pub fn every_result(composite: Node, predicate: Node) -> Object {
     .into_object(&BASE)
 }
 
-pub fn any_result(composite: Node, predicate: Node) -> Object {
+pub fn any_result(set: Node, predicate: Node) -> Object {
     evaluate(
-        &Node::Any {
-            composite: composite.into(),
+        &Node::SetAny {
+            set: set.into(),
             predicate: predicate.into(),
         },
         &BASE,
@@ -158,12 +175,12 @@ pub fn and_apply_folder(predicate: Object) -> Node {
     }))
 }
 
-pub fn every_by_and_fold(composite: Node, predicate: &Node) -> Object {
+pub fn every_by_and_fold(set: Node, predicate: &Node) -> Object {
     let predicate = evaluate(predicate, &BASE).into_object(&BASE);
 
     evaluate(
-        &Node::Fold {
-            composite: composite.into(),
+        &Node::SetFold {
+            set: set.into(),
             folder: and_apply_folder(predicate).into(),
             initial: Node::Literal(Atom::TRUE.into()).into(),
         },
@@ -183,12 +200,12 @@ pub fn or_apply_folder(predicate: Object) -> Node {
     }))
 }
 
-pub fn any_by_or_fold(composite: Node, predicate: &Node) -> Object {
+pub fn any_by_or_fold(set: Node, predicate: &Node) -> Object {
     let predicate = evaluate(predicate, &BASE).into_object(&BASE);
 
     evaluate(
-        &Node::Fold {
-            composite: composite.into(),
+        &Node::SetFold {
+            set: set.into(),
             folder: or_apply_folder(predicate).into(),
             initial: Node::Literal(Atom::FALSE.into()).into(),
         },

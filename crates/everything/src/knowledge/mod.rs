@@ -6,7 +6,7 @@ pub use query::*;
 
 use imbl::OrdMap;
 
-use crate::model::{Atom, CompositeApi, Object};
+use crate::model::{Atom, CompositeApi, CompositeItems, Construction, Object};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Statement {
@@ -106,6 +106,47 @@ impl Knowledge {
         }
     }
 
+    /// Returns `true` iff `item` is an item of `object`'s set view: iff
+    /// `object` has the property `contains ·· item`.
+    #[must_use]
+    pub fn object_has_item(&self, object: &Object, item: &Object) -> bool {
+        match object {
+            Object::Atom(_) => self.object_has(
+                object,
+                &Construction::new(Atom::CONTAINS.into(), item.clone()).into(),
+            ),
+            Object::Composite(composite) => composite.has_item(item),
+            Object::Construction(_) => false,
+        }
+    }
+
+    /// Iterates over the items of `object`'s set view.
+    ///
+    /// Atoms contribute the values of their `contains` statements, composites
+    /// the values of their `contains` members. Constructions have no items.
+    #[must_use]
+    pub fn items_of(&self, object: &Object) -> ObjectItems {
+        match object {
+            Object::Atom(atom) => ObjectItems::Atom(
+                self.properties_of_atom(atom)
+                    .into_iter()
+                    .filter_map(item_of_property),
+            ),
+            Object::Composite(composite) => ObjectItems::Composite(composite.clone().into_items()),
+            Object::Construction(_) => ObjectItems::Empty,
+        }
+    }
+
+    /// The number of items of `object`'s set view.
+    #[must_use]
+    pub fn item_count_of(&self, object: &Object) -> u64 {
+        match object {
+            Object::Atom(_) => u64::try_from(self.items_of(object).count()).unwrap_or(u64::MAX),
+            Object::Composite(composite) => composite.item_count(),
+            Object::Construction(_) => 0,
+        }
+    }
+
     #[must_use]
     pub fn query_construction_values(
         &self,
@@ -192,5 +233,37 @@ impl Iterator for KnownAtoms {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.map_iter.next().map(|(atom, _)| atom)
+    }
+}
+
+/// Converts a property into the item it contributes to a set, if any.
+fn item_of_property(property: Object) -> Option<Object> {
+    match property {
+        Object::Construction(Construction { constructor, value })
+            if matches!(&*constructor, Object::Atom(Atom::CONTAINS)) =>
+        {
+            Some(*value)
+        }
+        _ => None,
+    }
+}
+
+/// Iterates over the items of an object's set view.
+#[derive(Clone)]
+pub enum ObjectItems {
+    Atom(std::iter::FilterMap<PropertiesIter, fn(Object) -> Option<Object>>),
+    Composite(CompositeItems),
+    Empty,
+}
+
+impl Iterator for ObjectItems {
+    type Item = Object;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Atom(items) => items.next(),
+            Self::Composite(items) => items.next(),
+            Self::Empty => None,
+        }
     }
 }

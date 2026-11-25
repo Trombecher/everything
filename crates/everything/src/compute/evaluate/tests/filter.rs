@@ -2,16 +2,16 @@ use num_bigint::BigInt;
 
 use crate::{
     base::BASE,
-    model::{Atom, Construction, Object},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
 use super::common::*;
 
 #[test]
-fn filter() {
-    let node = Node::Filter {
-        composite: Node::Literal(integer_composite().into()).into(),
+fn set_filter() {
+    let node = Node::SetFilter {
+        set: Node::Literal(integer_set().into()).into(),
         filter_function: Node::function(Node::Equal {
             first: Node::Parameter { depth: 0 }.into(),
             second: Node::Literal(Object::new_integer(BigInt::from(2))).into(),
@@ -25,15 +25,14 @@ fn filter() {
 }
 
 #[test]
-fn filter_requires_composites() {
-    let atom = Node::Literal(Object::Atom(Atom(42)));
+fn set_filter_requires_a_set() {
     let construction = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());
     let identity = identity_function();
 
     assert_eq!(
         evaluate(
-            &Node::Filter {
-                composite: atom.into(),
+            &Node::SetFilter {
+                set: construction.into(),
                 filter_function: identity.clone().into(),
             },
             &BASE,
@@ -41,15 +40,19 @@ fn filter_requires_composites() {
         .into_object(&BASE),
         Atom::UNDEFINED.into()
     );
-    assert_eq!(
-        evaluate(
-            &Node::Filter {
-                composite: construction.into(),
-                filter_function: identity.into(),
-            },
-            &BASE,
-        )
-        .into_object(&BASE),
-        Atom::UNDEFINED.into()
-    );
+
+    // An atom and a function object are sets with no items.
+    for set in [Node::Literal(Object::Atom(Atom(42))), identity_function()] {
+        assert_eq!(
+            evaluate(
+                &Node::SetFilter {
+                    set: set.into(),
+                    filter_function: identity.clone().into(),
+                },
+                &BASE,
+            )
+            .into_object(&BASE),
+            Object::Composite(Composite::empty())
+        );
+    }
 }

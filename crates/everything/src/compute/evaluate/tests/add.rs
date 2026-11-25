@@ -31,7 +31,7 @@ fn add() {
 
 #[test]
 fn add_rejects_composites() {
-    let union = Node::Union {
+    let union = Node::SetUnion {
         first: Node::Literal(Object::Composite(Composite::empty())).into(),
         second: Node::Literal(Object::Composite(Composite::empty())).into(),
     };

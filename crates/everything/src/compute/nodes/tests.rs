@@ -20,7 +20,7 @@ fn node_round_trip() {
         },
         Node::FunctionSelf { depth: 0 },
         Node::Parameter { depth: 0 },
-        Node::Count(Node::Literal(a.clone()).into()),
+        Node::SetCount(Node::Literal(a.clone()).into()),
         Node::PropertiesOf(Node::Literal(a.clone()).into()),
         Node::HasValue(Node::Literal(a.clone()).into()),
         Node::QueryAtomsWithProperty {
@@ -36,9 +36,9 @@ fn node_round_trip() {
         Node::QueryConstructions {
             constructor: Node::Literal(Atom::PROPERTY.into()).into(),
         },
-        Node::Contains {
+        Node::SetContains {
             element: Node::Literal(a.clone()).into(),
-            composite: Node::Literal(b.clone()).into(),
+            set: Node::Literal(b.clone()).into(),
         },
         Node::Equal {
             first: Node::Literal(a.clone()).into(),
@@ -57,24 +57,24 @@ fn node_round_trip() {
             first: Node::Literal(a.clone()).into(),
             second: Node::Literal(b.clone()).into(),
         },
-        Node::Union {
+        Node::SetUnion {
             first: Node::Literal(a.clone()).into(),
             second: Node::Literal(b.clone()).into(),
         },
-        Node::Intersection {
+        Node::SetIntersection {
             first: Node::Literal(a.clone()).into(),
             second: Node::Literal(b.clone()).into(),
         },
-        Node::Difference {
+        Node::SetDifference {
             first: Node::Literal(a.clone()).into(),
             second: Node::Literal(b.clone()).into(),
         },
-        Node::Map {
-            composite: Node::Literal(a.clone()).into(),
+        Node::SetMap {
+            set: Node::Literal(a.clone()).into(),
             mapper_function: Node::Literal(b.clone()).into(),
         },
-        Node::Filter {
-            composite: Node::Literal(a.clone()).into(),
+        Node::SetFilter {
+            set: Node::Literal(a.clone()).into(),
             filter_function: Node::Literal(b.clone()).into(),
         },
         Node::Less {
@@ -86,7 +86,7 @@ fn node_round_trip() {
             then: Node::Literal(b.clone()).into(),
             otherwise: Node::Literal(c.clone()).into(),
         },
-        Node::Unwrap(Node::Literal(a.clone()).into()),
+        Node::SetUnwrap(Node::Literal(a.clone()).into()),
         Node::Multiply {
             first: Node::Literal(a.clone()).into(),
             second: Node::Literal(b.clone()).into(),
@@ -98,16 +98,16 @@ fn node_round_trip() {
         Node::IsAtom(Node::Literal(a.clone()).into()),
         Node::IsConstruction(Node::Literal(a.clone()).into()),
         Node::IsComposite(Node::Literal(a.clone()).into()),
-        Node::Every {
-            composite: Node::Literal(a.clone()).into(),
+        Node::SetEvery {
+            set: Node::Literal(a.clone()).into(),
             predicate: Node::Literal(b.clone()).into(),
         },
-        Node::Any {
-            composite: Node::Literal(a.clone()).into(),
+        Node::SetAny {
+            set: Node::Literal(a.clone()).into(),
             predicate: Node::Literal(b.clone()).into(),
         },
-        Node::Fold {
-            composite: Node::Literal(a.clone()).into(),
+        Node::SetFold {
+            set: Node::Literal(a.clone()).into(),
             folder: Node::Literal(b.clone()).into(),
             initial: Node::Literal(c.clone()).into(),
         },
@@ -115,8 +115,8 @@ fn node_round_trip() {
             constructor: Node::Literal(a.clone()).into(),
             value: Node::Literal(b.clone()).into(),
         },
-        Node::NewComposite {
-            values: vec![
+        Node::NewSet {
+            items: vec![
                 Node::Literal(a.clone()).into(),
                 Node::Literal(b.clone()).into(),
             ],
@@ -182,14 +182,14 @@ fn node_parse_rejects_ambiguous_kind() {
 
     let object = Object::Composite(Composite::from([
         Construction::new(Atom::NODE_LITERAL.into(), value.clone()).into(),
-        Construction::new(Atom::NODE_COUNT.into(), value).into(),
+        Construction::new(Atom::NODE_SET_COUNT.into(), value).into(),
     ]));
 
     assert_eq!(
         Node::new(&object, &knowledge),
         Err(InvalidNodeError::Ambiguous {
             first: NodeKind::Literal,
-            second: NodeKind::Count,
+            second: NodeKind::SetCount,
         })
     );
 }
@@ -304,7 +304,7 @@ fn node_parse_wraps_child_errors() {
     let invalid_child = Object::Composite(Composite::empty());
 
     let object = Object::Composite(Composite::from([Construction::new(
-        Atom::NODE_COUNT.into(),
+        Atom::NODE_SET_COUNT.into(),
         invalid_child,
     )
     .into()]));
@@ -312,7 +312,7 @@ fn node_parse_wraps_child_errors() {
     assert_eq!(
         Node::new(&object, &knowledge),
         Err(InvalidNodeError::Child {
-            property: NodeProperty::Count,
+            property: NodeProperty::SetCount,
             source: Box::new(InvalidNodeError::NotANode),
         })
     );

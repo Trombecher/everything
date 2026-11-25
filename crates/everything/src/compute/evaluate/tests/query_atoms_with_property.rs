@@ -34,10 +34,10 @@ fn query_atoms_with_property() {
     );
 
     assert!(result.is_composite());
-    assert_eq!(result.size(&knowledge), 2);
-    assert!(result.has(&matching[0].into(), &knowledge));
-    assert!(result.has(&matching[1].into(), &knowledge));
-    assert!(!result.has(&other.into(), &knowledge));
+    assert_eq!(result.item_count(&knowledge), 2);
+    assert!(result.has_item(&matching[0].into(), &knowledge));
+    assert!(result.has_item(&matching[1].into(), &knowledge));
+    assert!(!result.has_item(&other.into(), &knowledge));
     assert_eq!(
         result.iter(&knowledge).collect::<Vec<_>>(),
         vec![matching[0].into(), matching[1].into()]
@@ -59,7 +59,7 @@ fn query_atoms_with_deferred_property_is_materialised() {
 
     let result = evaluate(
         &Node::QueryAtomsWithProperty {
-            property: Node::Union {
+            property: Node::SetUnion {
                 first: empty_composite.clone().into(),
                 second: empty_composite.into(),
             }

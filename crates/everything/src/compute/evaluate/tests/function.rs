@@ -24,8 +24,8 @@ fn function_evaluation_preserves_extra_properties() {
 
     assert_eq!(evaluate(&node, &BASE).into_object(&BASE), object);
     assert_eq!(
-        evaluate(&Node::Count(node.into()), &BASE).into_object(&BASE),
-        integer(2)
+        evaluate(&Node::SetCount(node.into()), &BASE).into_object(&BASE),
+        integer(0)
     );
 }
 
@@ -35,8 +35,12 @@ fn function_can_inspect_annotations_in_its_own_body() {
     // and checks whether that object carries an annotation. If capture drops
     // the annotation, the function observes a different body and returns
     // `false`.
-    let annotation: Object = Construction::new(Atom(42).into(), Atom(7).into()).into();
+    let annotation_constructor = Atom(42);
+    let annotation: Object =
+        Construction::new(annotation_constructor.into(), Atom(7).into()).into();
 
+    // Query the value of `@42 ·· ...` on the function self and test whether
+    // the query result has an item.
     let query = Composite::from([
         Construction::new(
             Atom::NODE_CONSTRUCTION_VALUES_OBJECT.into(),
@@ -45,30 +49,20 @@ fn function_can_inspect_annotations_in_its_own_body() {
         .into(),
         Construction::new(
             Atom::NODE_CONSTRUCTION_VALUES_PROPERTY_CONSTRUCTOR.into(),
-            Node::Literal(Atom::NODE_FUNCTION.into()).into_object(),
+            Node::Literal(annotation_constructor.into()).into_object(),
         )
         .into(),
-    ])
-    .into();
+    ]);
 
-    // The query yields the body as its only value; unwrap selects it.
-    let body_composite =
-        Composite::from([Construction::new(Atom::NODE_UNWRAP_COMPOSITE.into(), query).into()])
+    let body =
+        Composite::from([Construction::new(Atom::NODE_HAS_VALUE.into(), query.into()).into()])
             .into();
 
-    let body = Composite::from([
-        Construction::new(
-            Atom::NODE_CONTAINS_ELEMENT.into(),
-            Node::Literal(annotation.clone()).into_object(),
-        )
-        .into(),
-        Construction::new(Atom::NODE_CONTAINS_COMPOSITE.into(), body_composite).into(),
+    let function = Composite::from([
+        Construction::new(Atom::NODE_FUNCTION.into(), body).into(),
         annotation,
     ])
     .into();
-
-    let function =
-        Composite::from([Construction::new(Atom::NODE_FUNCTION.into(), body).into()]).into();
     let function = Node::new(&function, &BASE).unwrap();
     let call = Node::Call {
         callee: function.into(),

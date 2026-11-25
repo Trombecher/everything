@@ -31,7 +31,7 @@ const KINDS: &[KindSpec] = &[
         NodeKind::Call,
         [NodeProperty::CallCallee, NodeProperty::CallWith]
     ),
-    kind!(NodeKind::Count, [NodeProperty::Count]),
+    kind!(NodeKind::SetCount, [NodeProperty::SetCount]),
     kind!(NodeKind::PropertiesOf, [NodeProperty::PropertiesOf]),
     kind!(NodeKind::HasValue, [NodeProperty::HasValue]),
     kind!(NodeKind::Not, [NodeProperty::Not]),
@@ -56,30 +56,30 @@ const KINDS: &[KindSpec] = &[
         [NodeProperty::AddFirst, NodeProperty::AddSecond]
     ),
     kind!(
-        NodeKind::Union,
-        [NodeProperty::UnionFirst, NodeProperty::UnionSecond]
+        NodeKind::SetUnion,
+        [NodeProperty::SetUnionFirst, NodeProperty::SetUnionSecond]
     ),
     kind!(
-        NodeKind::Intersection,
+        NodeKind::SetIntersection,
         [
-            NodeProperty::IntersectionFirst,
-            NodeProperty::IntersectionSecond,
+            NodeProperty::SetIntersectionFirst,
+            NodeProperty::SetIntersectionSecond,
         ]
     ),
     kind!(
-        NodeKind::Difference,
+        NodeKind::SetDifference,
         [
-            NodeProperty::DifferenceFirst,
-            NodeProperty::DifferenceSecond,
+            NodeProperty::SetDifferenceFirst,
+            NodeProperty::SetDifferenceSecond,
         ]
     ),
     kind!(
-        NodeKind::Map,
-        [NodeProperty::MapComposite, NodeProperty::MapMapper]
+        NodeKind::SetMap,
+        [NodeProperty::SetMapSet, NodeProperty::SetMapMapper]
     ),
     kind!(
-        NodeKind::Filter,
-        [NodeProperty::FilterComposite, NodeProperty::FilterFilter]
+        NodeKind::SetFilter,
+        [NodeProperty::SetFilterSet, NodeProperty::SetFilterFilter]
     ),
     kind!(
         NodeKind::Less,
@@ -93,19 +93,19 @@ const KINDS: &[KindSpec] = &[
             NodeProperty::IfElse,
         ]
     ),
-    kind!(NodeKind::Unwrap, [NodeProperty::UnwrapComposite]),
+    kind!(NodeKind::SetUnwrap, [NodeProperty::SetUnwrapSet]),
     kind!(
         NodeKind::Multiply,
         [NodeProperty::MultiplyFirst, NodeProperty::MultiplySecond]
     ),
     kind!(NodeKind::IsAtom, [NodeProperty::IsAtom]),
     kind!(
-        NodeKind::Every,
-        [NodeProperty::EveryComposite, NodeProperty::EveryPredicate]
+        NodeKind::SetEvery,
+        [NodeProperty::SetEverySet, NodeProperty::SetEveryPredicate]
     ),
     kind!(
-        NodeKind::Any,
-        [NodeProperty::AnyComposite, NodeProperty::AnyPredicate]
+        NodeKind::SetAny,
+        [NodeProperty::SetAnySet, NodeProperty::SetAnyPredicate]
     ),
     kind!(
         NodeKind::QueryAtomsWithProperty,
@@ -127,20 +127,20 @@ const KINDS: &[KindSpec] = &[
         [NodeProperty::QueryConstructions]
     ),
     kind!(
-        NodeKind::Contains,
+        NodeKind::SetContains,
         [
-            NodeProperty::ContainsElement,
-            NodeProperty::ContainsComposite
+            NodeProperty::SetContainsElement,
+            NodeProperty::SetContainsSet
         ]
     ),
     kind!(NodeKind::IsConstruction, [NodeProperty::IsConstruction]),
     kind!(NodeKind::IsComposite, [NodeProperty::IsComposite]),
     kind!(
-        NodeKind::Fold,
+        NodeKind::SetFold,
         [
-            NodeProperty::FoldComposite,
-            NodeProperty::FoldFolder,
-            NodeProperty::FoldInitial,
+            NodeProperty::SetFoldSet,
+            NodeProperty::SetFoldFolder,
+            NodeProperty::SetFoldInitial,
         ]
     ),
     kind!(
@@ -150,7 +150,7 @@ const KINDS: &[KindSpec] = &[
             NodeProperty::NewConstructionValue,
         ]
     ),
-    kind!(NodeKind::NewComposite, [NodeProperty::NewCompositeValue]),
+    kind!(NodeKind::NewSet, [NodeProperty::NewSetItem]),
     kind!(
         NodeKind::ConstructionConstructor,
         [NodeProperty::ConstructorOfConstruction]

@@ -13,7 +13,7 @@ fn any_of_an_empty_composite_is_false() {
         Node::Literal(Atom::UNDEFINED.into()),
         Node::Literal(Object::Atom(Atom(42))),
         Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into()),
-        Node::Union {
+        Node::SetUnion {
             first: empty_composite.clone().into(),
             second: empty_composite.clone().into(),
         },
@@ -35,8 +35,8 @@ fn any_of_an_empty_composite_is_false() {
 #[test]
 fn any_of_an_empty_deferred_composite_is_false() {
     let drop_everything = Node::function(Node::Literal(Atom::FALSE.into()));
-    let empty_composite = Node::Filter {
-        composite: Node::Literal(integer_composite().into()).into(),
+    let empty_composite = Node::SetFilter {
+        set: Node::Literal(integer_set().into()).into(),
         filter_function: drop_everything.into(),
     };
 
@@ -47,18 +47,20 @@ fn any_of_an_empty_deferred_composite_is_false() {
 }
 
 #[test]
-fn any_requires_a_composite() {
-    let invalid_composites = [
-        Node::Literal(Object::Atom(Atom(42))),
-        Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into()),
-        Node::Literal(Atom::UNDEFINED.into()),
-    ];
+fn any_requires_a_set() {
+    let construction = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());
 
-    for composite in invalid_composites {
-        assert_eq!(
-            any_result(composite, always_true_predicate()),
-            Atom::UNDEFINED.into()
-        );
+    assert_eq!(
+        any_result(construction, always_true_predicate()),
+        Atom::UNDEFINED.into()
+    );
+
+    // Atoms are sets with no items, so any is false.
+    for set in [
+        Node::Literal(Object::Atom(Atom(42))),
+        Node::Literal(Atom::UNDEFINED.into()),
+    ] {
+        assert_eq!(any_result(set, always_true_predicate()), Atom::FALSE.into());
     }
 }
 
@@ -69,7 +71,7 @@ fn any_requires_a_function_predicate() {
         Node::Literal(Object::Atom(Atom(42))),
         Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into()),
         Node::Literal(Atom::UNDEFINED.into()),
-        Node::Union {
+        Node::SetUnion {
             first: empty_composite.clone().into(),
             second: empty_composite.into(),
         },
@@ -77,7 +79,7 @@ fn any_requires_a_function_predicate() {
 
     for predicate in invalid_predicates {
         assert_eq!(
-            any_result(Node::Literal(integer_composite().into()), predicate),
+            any_result(Node::Literal(integer_set().into()), predicate),
             Atom::UNDEFINED.into()
         );
     }
@@ -85,17 +87,11 @@ fn any_requires_a_function_predicate() {
 
 #[test]
 fn any_returns_true_when_a_call_is_true() {
-    let composite = Node::Literal(Object::Composite(Composite::from([integer(2)])));
+    let set = Node::Literal(set_of([integer(2)]));
 
+    assert_eq!(any_result(set, equals_two_predicate()), Atom::TRUE.into());
     assert_eq!(
-        any_result(composite, equals_two_predicate()),
-        Atom::TRUE.into()
-    );
-    assert_eq!(
-        any_result(
-            Node::Literal(integer_composite().into()),
-            equals_two_predicate()
-        ),
+        any_result(Node::Literal(integer_set().into()), equals_two_predicate()),
         Atom::TRUE.into()
     );
 }
@@ -104,7 +100,7 @@ fn any_returns_true_when_a_call_is_true() {
 fn any_returns_false_when_all_calls_are_false() {
     assert_eq!(
         any_result(
-            Node::Literal(integer_composite().into()),
+            Node::Literal(integer_set().into()),
             always_false_predicate()
         ),
         Atom::FALSE.into()
@@ -115,7 +111,7 @@ fn any_returns_false_when_all_calls_are_false() {
 fn any_returns_undefined_when_a_call_is_undefined() {
     assert_eq!(
         any_result(
-            Node::Literal(integer_composite().into()),
+            Node::Literal(integer_set().into()),
             constant_predicate(Atom::UNDEFINED.into()),
         ),
         Atom::UNDEFINED.into()
@@ -134,7 +130,7 @@ fn any_returns_undefined_when_a_call_is_not_boolean() {
     for result in non_boolean_results {
         assert_eq!(
             any_result(
-                Node::Literal(integer_composite().into()),
+                Node::Literal(integer_set().into()),
                 constant_predicate(result)
             ),
             Atom::UNDEFINED.into()
@@ -146,7 +142,7 @@ fn any_returns_undefined_when_a_call_is_not_boolean() {
 fn any_short_circuits_on_true() {
     assert_eq!(
         any_result(
-            Node::Literal(integer_composite().into()),
+            Node::Literal(integer_set().into()),
             true_on_one_undefined_otherwise_predicate(),
         ),
         Atom::TRUE.into()
@@ -157,7 +153,7 @@ fn any_short_circuits_on_true() {
 fn any_short_circuits_on_undefined() {
     assert_eq!(
         any_result(
-            Node::Literal(integer_composite().into()),
+            Node::Literal(integer_set().into()),
             undefined_on_one_true_otherwise_predicate(),
         ),
         Atom::UNDEFINED.into()
@@ -166,8 +162,8 @@ fn any_short_circuits_on_undefined() {
 
 #[test]
 fn any_iterates_deferred_composites() {
-    let doubled = Node::Map {
-        composite: Node::Literal(integer_composite().into()).into(),
+    let doubled = Node::SetMap {
+        set: Node::Literal(integer_set().into()).into(),
         mapper_function: Node::function(Node::Add {
             first: Node::Parameter { depth: 0 }.into(),
             second: Node::Parameter { depth: 0 }.into(),
@@ -184,8 +180,8 @@ fn any_iterates_deferred_composites() {
 
 #[test]
 fn any_captures_the_evaluation_context() {
-    let outer_function = Node::function(Node::Any {
-        composite: Node::Literal(integer_composite().into()).into(),
+    let outer_function = Node::function(Node::SetAny {
+        set: Node::Literal(integer_set().into()).into(),
         predicate: Node::function(Node::Less {
             first: Node::Parameter { depth: 0 }.into(),
             second: Node::Parameter { depth: 1 }.into(),
@@ -211,35 +207,35 @@ fn any_captures_the_evaluation_context() {
 #[test]
 fn any_matches_or_folding() {
     let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
-    let integer_composite_node = || Node::Literal(integer_composite().into());
+    let integer_set_node = || Node::Literal(integer_set().into());
     let cases = [
         (empty_composite.clone(), always_true_predicate()),
         (
             empty_composite.clone(),
             Node::Literal(Atom::UNDEFINED.into()),
         ),
-        (integer_composite_node(), always_true_predicate()),
-        (integer_composite_node(), always_false_predicate()),
-        (integer_composite_node(), equals_two_predicate()),
+        (integer_set_node(), always_true_predicate()),
+        (integer_set_node(), always_false_predicate()),
+        (integer_set_node(), equals_two_predicate()),
         (
-            integer_composite_node(),
+            integer_set_node(),
             constant_predicate(Atom::UNDEFINED.into()),
         ),
-        (integer_composite_node(), constant_predicate(integer(0))),
+        (integer_set_node(), constant_predicate(integer(0))),
         (
-            integer_composite_node(),
+            integer_set_node(),
             true_on_one_undefined_otherwise_predicate(),
         ),
         (
-            integer_composite_node(),
+            integer_set_node(),
             undefined_on_one_true_otherwise_predicate(),
         ),
     ];
 
     for (composite, predicate) in cases {
         let any = evaluate(
-            &Node::Any {
-                composite: composite.clone().into(),
+            &Node::SetAny {
+                set: composite.clone().into(),
                 predicate: predicate.clone().into(),
             },
             &BASE,

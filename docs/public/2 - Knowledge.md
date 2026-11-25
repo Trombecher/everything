@@ -47,7 +47,7 @@ The composite case makes validity deep: every construction in a valid composite 
 
 The constraint on property constructors used in composites and statements allows for validation, not only on the value, but on the subject as well.
 
-Composites are therefore strong: a composite must be able to bear all of its members as properties. Data does not run into this requirement because data collections are sets (see [Chapter 4](./4%20-%20Common%20Models.md#sets)): a set is a composite whose members are all `contains ·· %item%` constructions, and the constraint of `contains` accepts every value for every subject. A set is valid whenever its items are, so query results and other computed collections are valid objects.
+Composites are therefore strong: a composite must be able to bear all of its members as properties. Computed collections avoid this requirement by using the canonical set form from [Chapter 4](./4%20-%20Common%20Models.md#sets): a composite whose members are all `contains ·· %item%` constructions. The constraint of `contains` accepts every value for every subject, so such a composite is valid whenever its items are. Query results and other computed collections are therefore valid objects, and collecting objects into a canonical set never runs their constraints. The open set model still applies to all atoms and composites; a set that has additional properties beyond its `contains` properties is validated like any other atom or composite.
 
 ## Examples
 

@@ -54,6 +54,18 @@ impl SetComposite {
         self.0.items.as_slice()
     }
 
+    /// Returns `true` iff `item` is one of the set items.
+    #[must_use]
+    pub fn has_item(&self, item: &Object) -> bool {
+        self.0.items.has(item)
+    }
+
+    /// The number of set items.
+    #[must_use]
+    pub fn item_count(&self) -> u64 {
+        self.0.items.size()
+    }
+
     /// The members of the composite that are not `contains` constructions,
     /// sorted.
     #[must_use]

@@ -106,7 +106,7 @@ pub enum RawNode {
     Parameter {
         depth: u32,
     },
-    Count(Object),
+    SetCount(Object),
     PropertiesOf(Object),
     HasValue(Object),
     QueryAtomsWithProperty {
@@ -122,9 +122,9 @@ pub enum RawNode {
     QueryConstructions {
         constructor: Object,
     },
-    Contains {
+    SetContains {
         element: Object,
-        composite: Object,
+        set: Object,
     },
     Equal {
         first: Object,
@@ -143,24 +143,24 @@ pub enum RawNode {
         first: Object,
         second: Object,
     },
-    Union {
+    SetUnion {
         first: Object,
         second: Object,
     },
-    Intersection {
+    SetIntersection {
         first: Object,
         second: Object,
     },
-    Difference {
+    SetDifference {
         first: Object,
         second: Object,
     },
-    Map {
-        composite: Object,
+    SetMap {
+        set: Object,
         mapper_function: Object,
     },
-    Filter {
-        composite: Object,
+    SetFilter {
+        set: Object,
         filter_function: Object,
     },
     Less {
@@ -172,7 +172,7 @@ pub enum RawNode {
         then: Object,
         otherwise: Object,
     },
-    Unwrap(Object),
+    SetUnwrap(Object),
     Multiply {
         first: Object,
         second: Object,
@@ -184,16 +184,16 @@ pub enum RawNode {
     IsAtom(Object),
     IsConstruction(Object),
     IsComposite(Object),
-    Every {
-        composite: Object,
+    SetEvery {
+        set: Object,
         predicate: Object,
     },
-    Any {
-        composite: Object,
+    SetAny {
+        set: Object,
         predicate: Object,
     },
-    Fold {
-        composite: Object,
+    SetFold {
+        set: Object,
         folder: Object,
         initial: Object,
     },
@@ -201,8 +201,8 @@ pub enum RawNode {
         constructor: Object,
         value: Object,
     },
-    NewComposite {
-        values: Vec<Object>,
+    NewSet {
+        items: Vec<Object>,
     },
     ConstructionConstructor {
         construction: Object,
@@ -269,11 +269,11 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::Count,
+            NodeKind::SetCount,
             knowledge
-                .query_construction_values(object, Atom::NODE_COUNT.into())
+                .query_construction_values(object, Atom::NODE_SET_COUNT.into())
                 .next_and_last()
-                .map(Self::Count)
+                .map(Self::SetCount)
         );
 
         xor_with!(
@@ -356,62 +356,62 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::Union,
+            NodeKind::SetUnion,
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_UNION_FIRST.into(),
-                Atom::NODE_UNION_SECOND.into(),
+                Atom::NODE_SET_UNION_FIRST.into(),
+                Atom::NODE_SET_UNION_SECOND.into(),
             )
-            .map(|(first, second)| Self::Union { first, second })
+            .map(|(first, second)| Self::SetUnion { first, second })
         );
 
         xor_with!(
-            NodeKind::Intersection,
+            NodeKind::SetIntersection,
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_INTERSECTION_FIRST.into(),
-                Atom::NODE_INTERSECTION_SECOND.into(),
+                Atom::NODE_SET_INTERSECTION_FIRST.into(),
+                Atom::NODE_SET_INTERSECTION_SECOND.into(),
             )
-            .map(|(first, second)| Self::Intersection { first, second })
+            .map(|(first, second)| Self::SetIntersection { first, second })
         );
 
         xor_with!(
-            NodeKind::Difference,
+            NodeKind::SetDifference,
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_DIFFERENCE_FIRST.into(),
-                Atom::NODE_DIFFERENCE_SECOND.into(),
+                Atom::NODE_SET_DIFFERENCE_FIRST.into(),
+                Atom::NODE_SET_DIFFERENCE_SECOND.into(),
             )
-            .map(|(first, second)| Self::Difference { first, second })
+            .map(|(first, second)| Self::SetDifference { first, second })
         );
 
         xor_with!(
-            NodeKind::Map,
+            NodeKind::SetMap,
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_MAP_COMPOSITE.into(),
-                Atom::NODE_MAP_MAPPER.into(),
+                Atom::NODE_SET_MAP_SET.into(),
+                Atom::NODE_SET_MAP_MAPPER.into(),
             )
-            .map(|(composite, mapper_function)| Self::Map {
-                composite,
+            .map(|(set, mapper_function)| Self::SetMap {
+                set,
                 mapper_function,
             })
         );
 
         xor_with!(
-            NodeKind::Filter,
+            NodeKind::SetFilter,
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_FILTER_COMPOSITE.into(),
-                Atom::NODE_FILTER_FILTER.into(),
+                Atom::NODE_SET_FILTER_SET.into(),
+                Atom::NODE_SET_FILTER_FILTER.into(),
             )
-            .map(|(composite, filter_function)| Self::Filter {
-                composite,
+            .map(|(set, filter_function)| Self::SetFilter {
+                set,
                 filter_function,
             })
         );
@@ -444,11 +444,11 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::Unwrap,
+            NodeKind::SetUnwrap,
             knowledge
-                .query_construction_values(object, Atom::NODE_UNWRAP_COMPOSITE.into())
+                .query_construction_values(object, Atom::NODE_SET_UNWRAP_SET.into())
                 .next_and_last()
-                .map(Self::Unwrap)
+                .map(Self::SetUnwrap)
         );
 
         xor_with!(
@@ -471,31 +471,25 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::Every,
+            NodeKind::SetEvery,
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_EVERY_COMPOSITE.into(),
-                Atom::NODE_EVERY_PREDICATE.into(),
+                Atom::NODE_SET_EVERY_SET.into(),
+                Atom::NODE_SET_EVERY_PREDICATE.into(),
             )
-            .map(|(composite, predicate)| Self::Every {
-                composite,
-                predicate
-            })
+            .map(|(set, predicate)| Self::SetEvery { set, predicate })
         );
 
         xor_with!(
-            NodeKind::Any,
+            NodeKind::SetAny,
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_ANY_COMPOSITE.into(),
-                Atom::NODE_ANY_PREDICATE.into(),
+                Atom::NODE_SET_ANY_SET.into(),
+                Atom::NODE_SET_ANY_PREDICATE.into(),
             )
-            .map(|(composite, predicate)| Self::Any {
-                composite,
-                predicate
-            })
+            .map(|(set, predicate)| Self::SetAny { set, predicate })
         );
 
         xor_with!(
@@ -539,14 +533,14 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::Contains,
+            NodeKind::SetContains,
             pair_values(
                 object,
                 knowledge,
-                Atom::NODE_CONTAINS_ELEMENT.into(),
-                Atom::NODE_CONTAINS_COMPOSITE.into(),
+                Atom::NODE_SET_CONTAINS_ELEMENT.into(),
+                Atom::NODE_SET_CONTAINS_SET.into(),
             )
-            .map(|(element, composite)| Self::Contains { element, composite })
+            .map(|(element, set)| Self::SetContains { element, set })
         );
 
         xor_with!(
@@ -566,16 +560,16 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::Fold,
+            NodeKind::SetFold,
             triple_values(
                 object,
                 knowledge,
-                Atom::NODE_FOLD_COMPOSITE.into(),
-                Atom::NODE_FOLD_FOLDER.into(),
-                Atom::NODE_FOLD_INITIAL.into(),
+                Atom::NODE_SET_FOLD_SET.into(),
+                Atom::NODE_SET_FOLD_FOLDER.into(),
+                Atom::NODE_SET_FOLD_INITIAL.into(),
             )
-            .map(|(composite, folder, initial)| Self::Fold {
-                composite,
+            .map(|(set, folder, initial)| Self::SetFold {
+                set,
                 folder,
                 initial,
             })
@@ -593,9 +587,9 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::NewComposite,
-            many_values(object, knowledge, Atom::NODE_NEW_COMPOSITE_VALUE.into())
-                .map(|values| Self::NewComposite { values })
+            NodeKind::NewSet,
+            many_values(object, knowledge, Atom::NODE_NEW_SET_ITEM.into())
+                .map(|items| Self::NewSet { items })
         );
 
         xor_with!(

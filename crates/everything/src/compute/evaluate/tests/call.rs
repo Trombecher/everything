@@ -39,12 +39,12 @@ fn curried_add_function() {
 }
 
 #[test]
-fn call_parses_deferred_callee_as_a_node() {
+fn call_rejects_a_deferred_set_callee() {
     let function = identity_function().into_object();
-    let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
-    let callee = Node::Union {
+    let empty_set = Node::Literal(Object::Composite(Composite::empty()));
+    let callee = Node::SetUnion {
         first: Node::Literal(function).into(),
-        second: empty_composite.into(),
+        second: empty_set.into(),
     };
 
     assert_eq!(
@@ -56,7 +56,7 @@ fn call_parses_deferred_callee_as_a_node() {
             &BASE,
         )
         .into_object(&BASE),
-        integer(5)
+        Atom::UNDEFINED.into()
     );
 }
 
@@ -77,7 +77,7 @@ fn call_with_undefined_callee_is_undefined() {
 
 #[test]
 fn call_rejects_composites() {
-    let union = Node::Union {
+    let union = Node::SetUnion {
         first: Node::Literal(Object::Composite(Composite::empty())).into(),
         second: Node::Literal(Object::Composite(Composite::empty())).into(),
     };

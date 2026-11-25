@@ -7,47 +7,41 @@ use super::super::*;
 use super::common::*;
 
 #[test]
-fn intersection() {
+fn set_intersection() {
     let result = evaluate(
-        &Node::Intersection {
-            first: Node::Literal(Object::Composite(integer_composite())).into(),
-            second: Node::Literal(Object::Composite(Composite::from([
-                integer(2),
-                integer(3),
-                integer(4),
-            ])))
-            .into(),
+        &Node::SetIntersection {
+            first: Node::Literal(Object::Composite(integer_set())).into(),
+            second: Node::Literal(set_of([integer(2), integer(3), integer(4)])).into(),
         },
         &BASE,
     );
 
     assert!(result.is_composite());
-    assert_eq!(result.size(&BASE), 2);
+    assert_eq!(result.item_count(&BASE), 2);
     assert_eq!(
         result.iter(&BASE).collect::<Vec<_>>(),
         vec![integer(2), integer(3)]
     );
-    assert!(result.has(&integer(2), &BASE));
-    assert!(!result.has(&integer(4), &BASE));
+    assert!(result.has_item(&integer(2), &BASE));
+    assert!(!result.has_item(&integer(4), &BASE));
 }
 
 #[test]
-fn intersection_of_deferred_composites() {
-    let union = Node::Union {
-        first: Node::Literal(Object::Composite(Composite::from([integer(1), integer(2)]))).into(),
-        second: Node::Literal(Object::Composite(Composite::from([integer(3)]))).into(),
+fn set_intersection_of_deferred_sets() {
+    let union = Node::SetUnion {
+        first: Node::Literal(set_of([integer(1), integer(2)])).into(),
+        second: Node::Literal(set_of([integer(3)])).into(),
     };
 
     let result = evaluate(
-        &Node::Intersection {
+        &Node::SetIntersection {
             first: union.into(),
-            second: Node::Literal(Object::Composite(Composite::from([integer(2), integer(3)])))
-                .into(),
+            second: Node::Literal(set_of([integer(2), integer(3)])).into(),
         },
         &BASE,
     );
 
-    assert_eq!(result.size(&BASE), 2);
+    assert_eq!(result.item_count(&BASE), 2);
     assert_eq!(
         result.iter(&BASE).collect::<Vec<_>>(),
         vec![integer(2), integer(3)]
@@ -55,11 +49,11 @@ fn intersection_of_deferred_composites() {
 }
 
 #[test]
-fn intersection_of_disjoint_composites_is_empty() {
+fn set_intersection_of_disjoint_sets_is_empty() {
     let result = evaluate(
-        &Node::Intersection {
-            first: Node::Literal(Object::Composite(Composite::from([integer(1)]))).into(),
-            second: Node::Literal(Object::Composite(Composite::from([integer(2)]))).into(),
+        &Node::SetIntersection {
+            first: Node::Literal(set_of([integer(1)])).into(),
+            second: Node::Literal(set_of([integer(2)])).into(),
         },
         &BASE,
     )
@@ -69,24 +63,32 @@ fn intersection_of_disjoint_composites_is_empty() {
 }
 
 #[test]
-fn intersection_requires_composites() {
-    let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
-    let invalid = [
-        Node::Literal(Object::Atom(Atom(42))),
-        Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into()),
-    ];
+fn set_intersection_requires_a_set() {
+    let empty_set = Node::Literal(Object::Composite(Composite::empty()));
+    let invalid = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());
 
-    for node in invalid {
-        assert_eq!(
-            evaluate(
-                &Node::Intersection {
-                    first: node.into(),
-                    second: empty_composite.clone().into(),
-                },
-                &BASE,
-            )
-            .into_object(&BASE),
-            Atom::UNDEFINED.into()
-        );
-    }
+    assert_eq!(
+        evaluate(
+            &Node::SetIntersection {
+                first: invalid.into(),
+                second: empty_set.clone().into(),
+            },
+            &BASE,
+        )
+        .into_object(&BASE),
+        Atom::UNDEFINED.into()
+    );
+
+    // An atom is a set with no items.
+    assert_eq!(
+        evaluate(
+            &Node::SetIntersection {
+                first: Node::Literal(Object::Atom(Atom(42))).into(),
+                second: empty_set.into(),
+            },
+            &BASE,
+        )
+        .into_object(&BASE),
+        Object::Composite(Composite::empty())
+    );
 }

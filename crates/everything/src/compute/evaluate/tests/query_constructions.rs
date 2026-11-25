@@ -3,7 +3,7 @@ use num_bigint::BigInt;
 use crate::{
     base::BASE,
     knowledge::Statement,
-    model::{Atom, Composite, Construction, Object},
+    model::{Atom, Construction, Object},
 };
 
 use super::super::*;
@@ -53,11 +53,11 @@ fn query_constructions() {
     ];
 
     assert!(result.is_composite());
-    assert_eq!(result.size(&knowledge), 3);
-    assert!(result.has(&expected[0], &knowledge));
-    assert!(result.has(&expected[1], &knowledge));
-    assert!(result.has(&expected[2], &knowledge));
-    assert!(!result.has(
+    assert_eq!(result.item_count(&knowledge), 3);
+    assert!(result.has_item(&expected[0], &knowledge));
+    assert!(result.has_item(&expected[1], &knowledge));
+    assert!(result.has_item(&expected[2], &knowledge));
+    assert!(!result.has_item(
         &pair(first_atom, Object::new_integer(BigInt::from(3))),
         &knowledge
     ));
@@ -68,7 +68,7 @@ fn query_constructions() {
 fn query_constructions_materializes_deferred_constructor() {
     let atom = Atom(42);
     let value = Object::new_integer(BigInt::from(7));
-    let constructor = Object::Composite(Composite::from([Atom(1).into(), Atom(2).into()]));
+    let constructor = set_of([Atom(1).into(), Atom(2).into()]);
 
     let mut knowledge = BASE.clone();
     knowledge.add_statement(Statement {
@@ -78,9 +78,9 @@ fn query_constructions_materializes_deferred_constructor() {
 
     let result = evaluate(
         &Node::QueryConstructions {
-            constructor: Node::Union {
-                first: Node::Literal(Object::Composite(Composite::from([Atom(1).into()]))).into(),
-                second: Node::Literal(Object::Composite(Composite::from([Atom(2).into()]))).into(),
+            constructor: Node::SetUnion {
+                first: Node::Literal(set_of([Atom(1).into()])).into(),
+                second: Node::Literal(set_of([Atom(2).into()])).into(),
             }
             .into(),
         },

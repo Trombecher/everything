@@ -39,13 +39,13 @@ fn source_with_captured_properties(
     };
 
     let source_composite = match source {
-        Object::Composite(composite) => composite.clone(),
+        Object::Composite(set) => set.clone(),
         Object::Atom(_) => source_composite(source, knowledge),
         Object::Construction(_) => return Object::Composite(captured_composite),
     };
 
     let property_constructors = match original.into_object() {
-        Object::Composite(composite) => composite
+        Object::Composite(set) => set
             .into_iter()
             .filter_map(|value| match value {
                 Object::Construction(construction) => Some(*construction.constructor),
@@ -198,8 +198,8 @@ fn capture_with_mode(
             first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
             second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
-        Node::Count(inner) => {
-            Node::Count(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
+        Node::SetCount(inner) => {
+            Node::SetCount(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
         Node::PropertiesOf(inner) => Node::PropertiesOf(
             recurse!(inner, additional_depth, evaluation_context, knowledge).into(),
@@ -231,9 +231,9 @@ fn capture_with_mode(
             constructor: recurse!(constructor, additional_depth, evaluation_context, knowledge)
                 .into(),
         },
-        Node::Contains { element, composite } => Node::Contains {
+        Node::SetContains { element, set } => Node::SetContains {
             element: recurse!(element, additional_depth, evaluation_context, knowledge).into(),
-            composite: recurse!(composite, additional_depth, evaluation_context, knowledge).into(),
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
         },
         Node::Equal { first, second } => Node::Equal {
             first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
@@ -254,23 +254,23 @@ fn capture_with_mode(
             first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
             second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
-        Node::Union { first, second } => Node::Union {
+        Node::SetUnion { first, second } => Node::SetUnion {
             first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
             second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
-        Node::Intersection { first, second } => Node::Intersection {
+        Node::SetIntersection { first, second } => Node::SetIntersection {
             first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
             second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
-        Node::Difference { first, second } => Node::Difference {
+        Node::SetDifference { first, second } => Node::SetDifference {
             first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
             second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
         },
-        Node::Map {
-            composite,
+        Node::SetMap {
+            set,
             mapper_function,
-        } => Node::Map {
-            composite: recurse!(composite, additional_depth, evaluation_context, knowledge).into(),
+        } => Node::SetMap {
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
             mapper_function: recurse!(
                 mapper_function,
                 additional_depth,
@@ -279,11 +279,11 @@ fn capture_with_mode(
             )
             .into(),
         },
-        Node::Filter {
-            composite,
+        Node::SetFilter {
+            set,
             filter_function,
-        } => Node::Filter {
-            composite: recurse!(composite, additional_depth, evaluation_context, knowledge).into(),
+        } => Node::SetFilter {
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
             filter_function: recurse!(
                 filter_function,
                 additional_depth,
@@ -305,9 +305,9 @@ fn capture_with_mode(
             then: recurse!(then, additional_depth, evaluation_context, knowledge).into(),
             otherwise: recurse!(otherwise, additional_depth, evaluation_context, knowledge).into(),
         },
-        Node::Unwrap(composite) => Node::Unwrap(
-            recurse!(composite, additional_depth, evaluation_context, knowledge).into(),
-        ),
+        Node::SetUnwrap(set) => {
+            Node::SetUnwrap(recurse!(set, additional_depth, evaluation_context, knowledge).into())
+        }
         Node::Multiply { first, second } => Node::Multiply {
             first: recurse!(first, additional_depth, evaluation_context, knowledge).into(),
             second: recurse!(second, additional_depth, evaluation_context, knowledge).into(),
@@ -325,26 +325,20 @@ fn capture_with_mode(
         Node::IsComposite(inner) => Node::IsComposite(
             recurse!(inner, additional_depth, evaluation_context, knowledge).into(),
         ),
-        Node::Every {
-            composite,
-            predicate,
-        } => Node::Every {
-            composite: recurse!(composite, additional_depth, evaluation_context, knowledge).into(),
+        Node::SetEvery { set, predicate } => Node::SetEvery {
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
             predicate: recurse!(predicate, additional_depth, evaluation_context, knowledge).into(),
         },
-        Node::Any {
-            composite,
-            predicate,
-        } => Node::Any {
-            composite: recurse!(composite, additional_depth, evaluation_context, knowledge).into(),
+        Node::SetAny { set, predicate } => Node::SetAny {
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
             predicate: recurse!(predicate, additional_depth, evaluation_context, knowledge).into(),
         },
-        Node::Fold {
-            composite,
+        Node::SetFold {
+            set,
             folder,
             initial,
-        } => Node::Fold {
-            composite: recurse!(composite, additional_depth, evaluation_context, knowledge).into(),
+        } => Node::SetFold {
+            set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
             folder: recurse!(folder, additional_depth, evaluation_context, knowledge).into(),
             initial: recurse!(initial, additional_depth, evaluation_context, knowledge).into(),
         },
@@ -353,8 +347,8 @@ fn capture_with_mode(
                 .into(),
             value: recurse!(value, additional_depth, evaluation_context, knowledge).into(),
         },
-        Node::NewComposite { values } => Node::NewComposite {
-            values: values
+        Node::NewSet { items } => Node::NewSet {
+            items: items
                 .iter()
                 .map(|value| {
                     recurse!(value, additional_depth, evaluation_context, knowledge).into()

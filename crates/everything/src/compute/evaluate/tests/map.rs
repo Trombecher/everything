@@ -2,16 +2,16 @@ use num_bigint::BigInt;
 
 use crate::{
     base::BASE,
-    model::{Atom, Construction, Object},
+    model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
 use super::common::*;
 
 #[test]
-fn map() {
-    let node = Node::Map {
-        composite: Node::Literal(integer_composite().into()).into(),
+fn set_map() {
+    let node = Node::SetMap {
+        set: Node::Literal(integer_set().into()).into(),
         mapper_function: identity_function().into(),
     };
 
@@ -28,40 +28,28 @@ fn map() {
 }
 
 #[test]
-fn map_deduplicates() {
-    let node = Node::Map {
-        composite: Node::Literal(integer_composite().into()).into(),
-        // Maps every element to `1`.
+fn set_map_deduplicates() {
+    let node = Node::SetMap {
+        set: Node::Literal(integer_set().into()).into(),
+        // Maps every item to `1`.
         mapper_function: constant_predicate(integer(1)).into(),
     };
 
     let result = evaluate(&node, &BASE);
 
     assert_eq!(result.iter(&BASE).collect::<Vec<_>>(), vec![integer(1)]);
-    assert_eq!(result.size(&BASE), 1);
+    assert_eq!(result.item_count(&BASE), 1);
 }
 
 #[test]
-fn map_requires_composites() {
-    let atom = Node::Literal(Object::Atom(Atom(42)));
+fn set_map_requires_a_set() {
     let construction = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());
     let identity = identity_function();
 
     assert_eq!(
         evaluate(
-            &Node::Map {
-                composite: atom.into(),
-                mapper_function: identity.clone().into(),
-            },
-            &BASE,
-        )
-        .into_object(&BASE),
-        Atom::UNDEFINED.into()
-    );
-    assert_eq!(
-        evaluate(
-            &Node::Map {
-                composite: construction.into(),
+            &Node::SetMap {
+                set: construction.into(),
                 mapper_function: identity.clone().into(),
             },
             &BASE,
@@ -70,25 +58,18 @@ fn map_requires_composites() {
         Atom::UNDEFINED.into()
     );
 
-    // A function object is a composite, so mapping over it yields its property.
-    let values = evaluate(
-        &Node::Map {
-            composite: identity_function().into(),
-            mapper_function: identity_function().into(),
-        },
-        &BASE,
-    )
-    .iter(&BASE)
-    .collect::<Vec<_>>();
-
-    assert_eq!(
-        values,
-        vec![
-            Construction::new(
-                Atom::NODE_FUNCTION.into(),
-                Node::Parameter { depth: 0 }.into_object()
+    // An atom and a function object are sets with no items.
+    for set in [Node::Literal(Object::Atom(Atom(42))), identity_function()] {
+        assert_eq!(
+            evaluate(
+                &Node::SetMap {
+                    set: set.into(),
+                    mapper_function: identity.clone().into(),
+                },
+                &BASE,
             )
-            .into()
-        ]
-    );
+            .into_object(&BASE),
+            Object::Composite(Composite::empty())
+        );
+    }
 }

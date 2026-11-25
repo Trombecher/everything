@@ -11,7 +11,7 @@ This chapter describes the implemented model. It distinguishes the reference eva
 An object is a valid _node_ iff it matches exactly one node kind described in this chapter and every child position parses as a node. Node matching is shallow and structural:
 
 - A node object is an atom or a composite. The required properties are read from the atom's values in the knowledge or, for a composite, from the composite's members. A bare construction cannot be a node.
-- For every required property of a node kind, the object must have exactly one matching construction, unless the property is repeatable. For example, an add node needs exactly one `node_add_first` value and exactly one `node_add_second` value. The only repeatable property is `node_new_set_value`, which a [new-set node](#new-set) may have any positive number of times. A required property with zero values, or with several values when it is not repeatable, means the kind does not match.
+- For every required property of a node kind, the object must have exactly one matching construction, unless the property is repeatable. For example, an add node needs exactly one `node_add_first` value and exactly one `node_add_second` value. The only repeatable property is `node_new_set_item`, which a [new-set node](#new-set) may have any positive number of times. A required property with zero values, or with several values when it is not repeatable, means the kind does not match.
 - If the object matches no node kind, it is not a node. If it matches more than one kind, it is also not a valid node; node kinds may not be combined.
 - Additional properties that are not part of the recognized kind are ignored. This makes node definitions _open_: annotations and other metadata may be attached without changing the node kind. The `node_*` constructors are reserved and must not be used for annotations, because they can change the recognized kind.
 
@@ -37,7 +37,7 @@ Node recognition is not itself an evaluator operation. The evaluator takes an al
 
 ## Reference Evaluation
 
-The meaning of a node is defined by a _reference evaluation_. It is strict in data: when a set is evaluated, all of its items are evaluated. Function application is non-strict: a call binds its argument as an unevaluated expression, and the argument is evaluated only when the parameter is referenced. Control nodes follow their short-circuiting rules. A program (a node together with a knowledge) is _well-formed_ if:
+The meaning of a node is defined by a _reference evaluation_. It is strict in data: when a canonical set is evaluated, all of its items are evaluated. Function application is non-strict: a call binds its argument as an unevaluated expression, and the argument is evaluated only when the parameter is referenced. Control nodes follow their short-circuiting rules. A program (a node together with a knowledge) is _well-formed_ if:
 
 - the reference evaluation terminates for every iteration order,
 - its result is the same for every iteration order, and
@@ -71,7 +71,7 @@ An object is a _function_ iff it has the property `node_function ·· %body%`. T
 
 Evaluating a function does not evaluate its body. It produces a function object: a copy of the original in which free references to enclosing functions have been captured (see [Captures](#captures)). All other properties of the function and of nodes inside its body, including annotations and unknown properties, are preserved. The body is evaluated only when the function is called.
 
-An atom-defined function materialises into a set when it is evaluated: the atom's values become the items of the set, with the `node_function` value replaced by the captured body. An atom cannot be given a new body, so it cannot remain an atom.
+An atom-defined function materialises into a composite when it is evaluated: the atom's properties become the members of the composite, with the `node_function` value replaced by the captured body. An atom cannot be given a new body, so it cannot remain an atom.
 
 ## Parameter References
 
@@ -191,96 +191,95 @@ As with addition, integers are arbitrary precision and cannot overflow.
 
 ## Sets
 
-Several node kinds take or produce _sets_. These are objects of the [common set model](./4%20-%20Common%20Models.md#sets): a set is a composite whose members are all `contains ·· %item%` constructions, and `{...}` is syntactic sugar for it. Whenever this chapter says that a node requires or produces a set, it means an object of this model, not an arbitrary composite. The empty set is `{}`.
+Several node kinds take or produce _sets_. The set model is open (see [Chapter 4](./4%20-%20Common%20Models.md#sets)): **every atom and every composite is a set.** The _items_ of a set are the objects `%item%` for which it has the property `contains ·· %item%`: the statements of an atom in the knowledge, or the members of a composite. A construction is not a set. `{...}` is syntactic sugar for the canonical composite whose members are the corresponding `contains` constructions, and `{}` is the empty composite.
 
-Because the constraint of `contains` accepts every value for every subject, a set is valid whenever its items are valid. Collecting objects into a set therefore never produces an invalid object by itself; only invalid items can.
+Whenever this chapter says that a node produces a set, the result is a canonical set composite built from the items. The other properties of an operand are not items of that operand and do not participate when it is used as a set; [Properties Of](#properties-of) makes the properties of an atom explicit as items.
+
+Because the constraint of `contains` accepts every value for every subject, the `contains` properties of a set place no demands on their items beyond their own validity. Collecting computed items into a canonical set therefore never runs the constraints of the collected objects.
 
 ## Set Count
 
-An object is a _count node_ iff it has the property `node_count ·· %inner%`. It evaluates `%inner%` and, if the result is a set, returns its number of items:
+An object is a _set-count node_ iff it has the property `node_set_count ·· %inner%`. It evaluates `%inner%`. If the result is an atom or a composite, it returns the number of items of that result. If the result is a construction, the result is `undefined`.
 
-- for a set, the number of items;
-- for the properties of an atom, the number of properties.
-
-If the result is an atom or a construction, the result is `undefined`. Use [Properties Of](#properties-of) to count the properties of an atom: `⟨node_count ·· ⟨node_properties_of ·· %atom%⟩⟩`.
+Most atoms and composites have no items. Use [Properties Of](#properties-of) to count the properties of an atom: `⟨node_set_count ·· ⟨node_properties_of ·· %atom%⟩⟩` is the number of properties of the atom.
 
 ## Properties Of
 
 An object is a _properties-of node_ iff it has the property `node_properties_of ·· %inner%`. It evaluates `%inner%` and converts the result to the set of its properties:
 
-- for a set, the result itself;
-- for an atom, the set of properties the atom has in the knowledge;
+- for a composite, the result itself;
+- for an atom, the canonical set whose items are the properties the atom has in the knowledge;
 - for a construction, `undefined`.
 
-An atom without statements evaluates to the empty set. In contrast to [Set Count](#set-count), the conversion from an object to its properties is explicit, so counting the properties of an atom is written as `⟨node_count ·· ⟨node_properties_of ·· %atom%⟩⟩`.
+An atom without statements evaluates to the empty set. In contrast to [Set Count](#set-count), the conversion from an object to its properties is explicit, so counting the properties of an atom is written as `⟨node_set_count ·· ⟨node_properties_of ·· %atom%⟩⟩`.
 
 ## Has Value
 
 An object is a _has-value node_ iff it has the property `node_has_value ·· %inner%`. It evaluates `%inner%` and returns `true` iff the result has at least one value:
 
-- for a set, whether it has at least one item;
-- for an atom, whether it has at least one value in the knowledge;
+- for a composite, whether it has at least one item;
+- for an atom, whether it has at least one property in the knowledge;
 - for a construction, `undefined`.
 
-This is the existential counterpart of [Set Count](#set-count). It is equivalent to `⟨node_count ·· ⟨node_properties_of ·· %inner%⟩⟩ > ⟨node_literal ·· 0⟩`.
+This is the existential counterpart of [Set Count](#set-count). It is equivalent to `⟨node_set_count ·· ⟨node_properties_of ·· %inner%⟩⟩ > ⟨node_literal ·· 0⟩`.
 
 ## Set Union
 
-An object is a _union node_ iff
+An object is a _set-union node_ iff
 
-- it has the property `node_union_first ·· %left%` and
-- it has the property `node_union_second ·· %right%`.
+- it has the property `node_set_union_first ·· %left%` and
+- it has the property `node_set_union_second ·· %right%`.
 
-It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is the union of the two sets.
+It evaluates both children. If either result is a construction, the result is `undefined`. Otherwise the result is the canonical set of the items of the left and the right result.
 
 ## Set Intersection
 
-An object is an _intersection node_ iff
+An object is an _set-intersection node_ iff
 
-- it has the property `node_intersection_first ·· %left%` and
-- it has the property `node_intersection_second ·· %right%`.
+- it has the property `node_set_intersection_first ·· %left%` and
+- it has the property `node_set_intersection_second ·· %right%`.
 
-It evaluates both children. If either result is not a set, the result is `undefined`. Otherwise the result is the intersection of the two sets.
+It evaluates both children. If either result is a construction, the result is `undefined`. Otherwise the result is the canonical set of the items that are items of both results.
 
 ## Set Difference
 
-An object is a _difference node_ iff
+An object is a _set-difference node_ iff
 
-- it has the property `node_difference_first ·· %left%` and
-- it has the property `node_difference_second ·· %right%`.
+- it has the property `node_set_difference_first ·· %left%` and
+- it has the property `node_set_difference_second ·· %right%`.
 
-It evaluates `%left%`. If the result is not a set, the result is `undefined`. If it is the empty set, the result is that empty set and `%right%` is not evaluated. Otherwise it evaluates `%right%`; if that result is not a set, the result is `undefined`; otherwise the result is the set of items of the left result that are not items of the right result.
+It evaluates `%left%`. If the result is a construction, the result is `undefined`. If it has no items, the result is the empty set and `%right%` is not evaluated. Otherwise it evaluates `%right%`; if that result is a construction, the result is `undefined`; otherwise the result is the canonical set of items of the left result that are not items of the right result.
 
 Node recognition requires both children to parse as nodes.
 
-## Filter
+## Set Filter
 
-An object is a _filter node_ iff
+An object is a _set-filter node_ iff
 
-- it has the property `node_filter_set ·· %set%` and
-- it has the property `node_filter_filter ·· %filter%`.
+- it has the property `node_set_filter_set ·· %set%` and
+- it has the property `node_set_filter_filter ·· %filter%`.
 
-It evaluates `%set%` and `%filter%`. If `%set%` is not a set, or if `%filter%` is not a function, the result is `undefined`. Otherwise the result is the set of items of `%set%` for which the call of `%filter%` with the item as a literal argument evaluates to exactly `true`. Results that are `false` or have undefined truthiness are excluded.
+It evaluates `%set%` and `%filter%`. If `%set%` is a construction, or if `%filter%` is not a function, the result is `undefined`. Otherwise the result is the set of items of `%set%` for which the call of `%filter%` with the item as a literal argument evaluates to exactly `true`. Results that are `false` or have undefined truthiness are excluded.
 
-## Map
+## Set Map
 
-An object is a _map node_ iff
+An object is a _set-map node_ iff
 
-- it has the property `node_map_set ·· %set%` and
-- it has the property `node_map_mapper ·· %mapper%`.
+- it has the property `node_set_map_set ·· %set%` and
+- it has the property `node_set_map_mapper ·· %mapper%`.
 
-It evaluates `%set%` and `%mapper%`. If `%set%` is not a set, or if `%mapper%` is not a function, the result is `undefined`. Otherwise the result is the set of results of calling `%mapper%` with each item of `%set%` as a literal argument. Because the result is a set, equal mapped values are not distinguished.
+It evaluates `%set%` and `%mapper%`. If `%set%` is a construction, or if `%mapper%` is not a function, the result is `undefined`. Otherwise the result is the set of results of calling `%mapper%` with each item of `%set%` as a literal argument. Because the result is a set, equal mapped values are not distinguished.
 
-## Every
+## Set Every
 
-An object is an _every node_ iff
+An object is an _set-every node_ iff
 
-- it has the property `node_every_set ·· %set%` and
-- it has the property `node_every_predicate ·· %predicate%`.
+- it has the property `node_set_every_set ·· %set%` and
+- it has the property `node_set_every_predicate ·· %predicate%`.
 
 It evaluates `%set%` and `%predicate%`:
 
-1. If `%set%` is not a set, the result is `undefined`.
+1. If `%set%` is a construction, the result is `undefined`.
 2. If `%set%` has no items, the result is `true`; the predicate is not used.
 3. If `%predicate%` is not a function, the result is `undefined`.
 4. Otherwise the items are visited in the set's iteration order. Each item `%o%` is passed to `%predicate%` as a literal argument via `⟨node_call_callee ·· %predicate%, node_call_with ·· %o%⟩`. The first call whose result is not `true` determines the outcome: `false` yields `false`, and anything else yields `undefined`.
@@ -290,8 +289,8 @@ It evaluates `%set%` and `%predicate%`:
 
 ```text
 ⟨
-    node_fold_set ·· %set%,
-    node_fold_folder ·· ⟨
+    node_set_fold_set ·· %set%,
+    node_set_fold_folder ·· ⟨
         node_function ·· ⟨
             node_function ·· ⟨
                 node_and_first ·· ⟨node_parameter ·· 1⟩,
@@ -302,22 +301,22 @@ It evaluates `%set%` and `%predicate%`:
             ⟩
         ⟩
     ⟩,
-    node_fold_initial ·· ⟨node_literal ·· true⟩
+    node_set_fold_initial ·· ⟨node_literal ·· true⟩
 ⟩
 ```
 
 and therefore inherits the [well-formedness caveat for folds](#correctness-and-associativity). Its result does not depend on iteration order unless the predicate produces both `false` and a result with undefined truthiness: a `false` visited first yields `false`, while an undefined-truthiness result visited first yields `undefined`. In particular, the result is order-independent if the predicate returns `true` or `false` for every element. If the result depends on iteration order, the program is not well-formed.
 
-## Any
+## Set Any
 
-An object is an _any node_ iff
+An object is an _set-any node_ iff
 
-- it has the property `node_any_set ·· %set%` and
-- it has the property `node_any_predicate ·· %predicate%`.
+- it has the property `node_set_any_set ·· %set%` and
+- it has the property `node_set_any_predicate ·· %predicate%`.
 
 It evaluates `%set%` and `%predicate%`:
 
-1. If `%set%` is not a set, the result is `undefined`.
+1. If `%set%` is a construction, the result is `undefined`.
 2. If `%set%` has no items, the result is `false`; the predicate is not used.
 3. If `%predicate%` is not a function, the result is `undefined`.
 4. Otherwise the items are visited in the set's iteration order. Each item `%o%` is passed to `%predicate%` as a literal argument via `⟨node_call_callee ·· %predicate%, node_call_with ·· %o%⟩`. The first call whose result is not `false` determines the outcome: `true` yields `true`, and anything else yields `undefined`.
@@ -327,8 +326,8 @@ It evaluates `%set%` and `%predicate%`:
 
 ```text
 ⟨
-    node_fold_set ·· %set%,
-    node_fold_folder ·· ⟨
+    node_set_fold_set ·· %set%,
+    node_set_fold_folder ·· ⟨
         node_function ·· ⟨
             node_function ·· ⟨
                 node_or_first ·· ⟨node_parameter ·· 1⟩,
@@ -339,29 +338,29 @@ It evaluates `%set%` and `%predicate%`:
             ⟩
         ⟩
     ⟩,
-    node_fold_initial ·· ⟨node_literal ·· false⟩
+    node_set_fold_initial ·· ⟨node_literal ·· false⟩
 ⟩
 ```
 
 and therefore inherits the [well-formedness caveat for folds](#correctness-and-associativity). Its result does not depend on iteration order unless the predicate produces both `true` and a result with undefined truthiness: a `true` visited first yields `true`, while an undefined-truthiness result visited first yields `undefined`. In particular, the result is order-independent if the predicate returns `true` or `false` for every element. If the result depends on iteration order, the program is not well-formed.
 
-## Fold
+## Set Fold
 
-An object is a _fold node_ iff
+An object is a _set-fold node_ iff
 
-- it has the property `node_fold_set ·· %set%`,
-- it has the property `node_fold_folder ·· %folder%`, and
-- it has the property `node_fold_initial ·· %initial%`.
+- it has the property `node_set_fold_set ·· %set%`,
+- it has the property `node_set_fold_folder ·· %folder%`, and
+- it has the property `node_set_fold_initial ·· %initial%`.
 
 It evaluates `%set%`, `%folder%`, and `%initial%`:
 
-1. If `%set%` is not a set, the result is `undefined`.
+1. If `%set%` is a construction, the result is `undefined`.
 2. If `%set%` has no items, the result is the value of `%initial%`; the folder is not used.
 3. If `%folder%` is not a function, the result is `undefined`.
 4. Otherwise the accumulator starts as the value of `%initial%`. For each item `%o%` of `%set%` in iteration order, apply `%folder%` pairwise: the first call receives the previous accumulator and returns a function, which is then called with `%o%`. The result of that call becomes the new accumulator.
 5. The final accumulator is the result.
 
-In contrast to [Map](#map) and [Filter](#filter), a fold returns the final accumulator rather than a set. The accumulator may itself be a set. If a folder application does not return a function, the result is `undefined`; remaining items do not change that.
+In contrast to [Set Map](#set-map) and [Set Filter](#set-filter), a fold returns the final accumulator rather than a set. The accumulator may itself be a set. If a folder application does not return a function, the result is `undefined`; remaining items do not change that.
 
 In object form, each step is:
 
@@ -398,14 +397,14 @@ Consequently, `and` is associative only when every operand has truthiness `true`
 
 Whether a particular folder or mapper satisfies this property depends on the behaviour of arbitrary nodes. Since the computation system is Turing complete, the property is undecidable in general: no algorithm can decide it for all nodes, and the evaluator cannot check or guarantee it. Correctness of a `fold` is therefore the programmer's responsibility. If order-independence cannot be established, the fold is not well-formed, and the evaluator gives no guarantee about the result.
 
-## Contains
+## Set Contains
 
-An object is a _contains node_ iff
+An object is a _set-contains node_ iff
 
-- it has the property `node_contains_element ·· %element%` and
-- it has the property `node_contains_set ·· %set%`.
+- it has the property `node_set_contains_element ·· %element%` and
+- it has the property `node_set_contains_set ·· %set%`.
 
-It evaluates both children and returns `true` iff `%element%` is an item of `%set%`. If `%set%` is not a set, the result is `undefined`.
+It evaluates both children and returns `true` iff `%element%` is an item of `%set%`. If `%set%` is a construction, the result is `undefined`.
 
 ## Conditional Nodes
 
@@ -417,23 +416,23 @@ An object is an _if node_ iff
 
 It evaluates `%condition%`. If `%condition%` is truthy, it evaluates and returns `%then%`; if it is falsy, it evaluates and returns `%else%`; if it has undefined truthiness, the result is `undefined`.
 
-## Unwrap
+## Set Unwrap
 
-An object is an _unwrap node_ iff it has the property `node_unwrap_set ·· %set%`. It evaluates `%set%`. If the result is not a set, the result is `undefined`. Otherwise, if the result has exactly one item, that item is returned; if it has zero items or more than one item, the result is `undefined`.
+An object is an _set-unwrap node_ iff it has the property `node_set_unwrap_set ·· %set%`. It evaluates `%set%`. If the result is a construction, the result is `undefined`. Otherwise, if the result has exactly one item, that item is returned; if it has zero items or more than one item, the result is `undefined`.
 
 There is no default branch in the current implementation.
 
 ## Is Atom
 
-An object is an _is-atom node_ iff it has the property `node_is_atom ·· %inner%`. It evaluates `%inner%`. The result is `true` iff the result is an atom. Sets are not atoms and yield `false`.
+An object is an _is-atom node_ iff it has the property `node_is_atom ·· %inner%`. It evaluates `%inner%`. The result is `true` iff the result is an atom. Composites are not atoms and yield `false`.
 
 ## Is Construction
 
-An object is an _is-construction node_ iff it has the property `node_is_construction ·· %inner%`. It evaluates `%inner%`. The result is `true` iff the result is a construction. Sets yield `false`.
+An object is an _is-construction node_ iff it has the property `node_is_construction ·· %inner%`. It evaluates `%inner%`. The result is `true` iff the result is a construction. Atoms and composites yield `false`.
 
-## Is Set
+## Is Composite
 
-An object is an _is-set node_ iff it has the property `node_is_set ·· %inner%`. It evaluates `%inner%`. The result is `true` iff the result is a set (see [Sets](#sets)). Atoms, constructions, and composites that are not sets yield `false`.
+An object is an _is-composite node_ iff it has the property `node_is_composite ·· %inner%`. It evaluates `%inner%`. The result is `true` iff the result is a composite. Atoms and constructions yield `false`.
 
 ## Construction Constructor and Value
 
@@ -452,11 +451,11 @@ It evaluates both children and returns the construction `%constructor% ·· %val
 
 ## New Set
 
-An object is a _new-set node_ iff it has at least one property `node_new_set_value ·· %value%`. Unlike the properties of the other node kinds, `node_new_set_value` may occur any positive number of times.
+An object is a _new-set node_ iff it has at least one property `node_new_set_item ·· %value%`. Unlike the properties of the other node kinds, `node_new_set_item` may occur any positive number of times.
 
-It evaluates every `%value%` child exactly once and returns the set of their results. The result may contain atoms, constructions, or sets. If several children evaluate to equal objects, that object appears only once, because the result is a set. A child that evaluates to `undefined` contributes the atom `undefined` as an ordinary item.
+It evaluates every `%value%` child exactly once and returns the canonical set of their results. The items may be atoms, composites, or constructions. If several children evaluate to equal objects, that object appears only once, because the result is a set. A child that evaluates to `undefined` contributes the atom `undefined` as an ordinary item.
 
-The node recognition rule that a required property must have exactly one value does not apply to `node_new_set_value`; having zero values means the object is not a new-set node.
+The node recognition rule that a required property must have exactly one value does not apply to `node_new_set_item`; having zero values means the object is not a new-set node.
 
 ### Correctness and evaluation order
 
@@ -525,14 +524,14 @@ Calling it with `42`:
 
 evaluates to `42`.
 
-### Map
+### Set Map
 
 Mapping `x + 1` over `{1, 2, 3}`:
 
 ```
 ⟨
-    node_map_set ·· ⟨node_literal ·· {1, 2, 3}⟩,
-    node_map_mapper ·· ⟨
+    node_set_map_set ·· ⟨node_literal ·· {1, 2, 3}⟩,
+    node_set_map_mapper ·· ⟨
         node_function ·· ⟨
             node_add_first ·· ⟨node_parameter ·· 0⟩,
             node_add_second ·· ⟨node_literal ·· 1⟩
@@ -549,8 +548,8 @@ Constructing `{1, 2}` from two child expressions:
 
 ```
 ⟨
-    node_new_set_value ·· ⟨node_literal ·· 1⟩,
-    node_new_set_value ·· ⟨node_literal ·· 2⟩
+    node_new_set_item ·· ⟨node_literal ·· 1⟩,
+    node_new_set_item ·· ⟨node_literal ·· 2⟩
 ⟩
 ```
 
@@ -574,12 +573,12 @@ This section describes implementation choices. They do not affect the result of 
 
 The implementation is demand-driven:
 
-- [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#map), [filter](#filter), and the query nodes build a description of a set without iterating their operands. The items are computed when an operation needs them: by [count](#set-count), [unwrap](#unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the items, such as [fold](#fold), [every](#every), [any](#any), [map](#map), or [filter](#filter).
-- A call does not evaluate its argument. The argument is closed over the caller's context and kept as an unevaluated expression. It is evaluated when the parameter is referenced. Items that are already evaluated when a function is called internally, such as the items passed by [map](#map), [filter](#filter), [every](#every), [any](#any), and [fold](#fold), are kept as values instead of being wrapped as expressions.
+- [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#set-map), [filter](#set-filter), and the query nodes build a description of a set without iterating their operands. The items are computed when an operation needs them: by [count](#set-count), [unwrap](#set-unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the items, such as [fold](#set-fold), [every](#set-every), [any](#set-any), [map](#set-map), or [filter](#set-filter).
+- A call does not evaluate its argument. The argument is closed over the caller's context and kept as an unevaluated expression. It is evaluated when the parameter is referenced. Items that are already evaluated when a function is called internally, such as the items passed by [map](#set-map), [filter](#set-filter), [every](#set-every), [any](#set-any), and [fold](#set-fold), are kept as values instead of being wrapped as expressions.
 - Because arguments are pure, an implementation may share the result of an argument evaluation between several parameter references (call-by-need) instead of evaluating the expression each time (call-by-name). This only changes how much work is done.
-- [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#map) only depends on whether the source set has an item, so the mapper is not called.
+- [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#set-map) only depends on whether the source set has an item, so the mapper is not called.
 - A [new set](#new-set) evaluates all of its children and materialises the resulting set. Its items are therefore not represented lazily.
-- Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call. Parsed nodes retain the object they were parsed from, so materialising a captured function reproduces its body exactly, including annotations and unknown properties. Atom-defined functions materialise into sets; see [Functions](#functions).
+- Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call. Parsed nodes retain the object they were parsed from, so materialising a captured function reproduces its body exactly, including annotations and unknown properties. Atom-defined functions materialise into composites; see [Functions](#functions).
 - Capturing an unevaluated argument substitutes its closed expression into the function body instead of evaluating it or storing a runtime thunk. Function objects therefore remain finite objects even when they capture divergent code.
 
 Because evaluation is demand-driven, a program that is not well-formed may still terminate here, for example when testing whether a mapped set is non-empty without applying a divergent mapper. This is not guaranteed.
@@ -605,33 +604,33 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 | Less                         | `node_less_first`, `node_less_second`                                              | implemented for integers             |
 | Add                          | `node_add_first`, `node_add_second`                                                | implemented for integers             |
 | Multiply                     | `node_multiply_first`, `node_multiply_second`                                      | implemented for integers             |
-| Count                        | `node_count`                                                                       | implemented for sets                 |
+| Set count                    | `node_set_count`                                                                   | implemented                          |
 | Properties of                | `node_properties_of`                                                               | implemented                          |
 | Has value                    | `node_has_value`                                                                   | implemented                          |
-| Union                        | `node_union_first`, `node_union_second`                                            | implemented; set operands only       |
-| Intersection                 | `node_intersection_first`, `node_intersection_second`                              | implemented; set operands only       |
-| Difference                   | `node_difference_first`, `node_difference_second`                                  | implemented; set operands only       |
-| Filter                       | `node_filter_set`, `node_filter_filter`                                            | implemented; set operand required    |
-| Map                          | `node_map_set`, `node_map_mapper`                                                  | implemented; set operand required    |
-| Every                        | `node_every_set`, `node_every_predicate`                                           | implemented; expressible with `fold` |
-| Any                          | `node_any_set`, `node_any_predicate`                                               | implemented; expressible with `fold` |
+| Set union                    | `node_set_union_first`, `node_set_union_second`                                     | implemented                          |
+| Set intersection             | `node_set_intersection_first`, `node_set_intersection_second`                       | implemented                          |
+| Set difference               | `node_set_difference_first`, `node_set_difference_second`                           | implemented                          |
+| Set filter                   | `node_set_filter_set`, `node_set_filter_filter`                                     | implemented                          |
+| Set map                      | `node_set_map_set`, `node_set_map_mapper`                                           | implemented                          |
+| Set every                    | `node_set_every_set`, `node_set_every_predicate`                                    | implemented; expressible with `set fold` |
+| Set any                      | `node_set_any_set`, `node_set_any_predicate`                                        | implemented; expressible with `set fold` |
 | If                           | `node_if_condition`, `node_if_then`, `node_if_else`                                | implemented                          |
-| Unwrap                       | `node_unwrap_set`                                                                  | implemented for sets                 |
+| Set unwrap                   | `node_set_unwrap_set`                                                              | implemented                          |
 | Is atom                      | `node_is_atom`                                                                     | implemented                          |
 | Is construction              | `node_is_construction`                                                             | implemented                          |
-| Is set                       | `node_is_set`                                                                      | implemented                          |
+| Is composite                 | `node_is_composite`                                                                | implemented                          |
 | Construction constructor     | `node_constructor_of_construction`                                                 | implemented                          |
 | Construction value           | `node_value_of_construction`                                                       | implemented                          |
 | New construction             | `node_new_construction_constructor`, `node_new_construction_value`                 | implemented                          |
-| New set                      | `node_new_set_value` (one or more)                                                 | implemented                          |
-| Contains                     | `node_contains_element`, `node_contains_set`                                       | implemented                          |
+| New set                      | `node_new_set_item` (one or more)                                                  | implemented                          |
+| Set contains                 | `node_set_contains_element`, `node_set_contains_set`                               | implemented                          |
 | Query atoms with property    | `node_atoms_with_property`                                                         | implemented                          |
 | Query atoms with constructor | `node_atoms_with_constructor`                                                      | implemented                          |
 | Query construction values    | `node_construction_values_object`, `node_construction_values_property_constructor` | implemented                          |
 | Query constructions          | `node_query_constructions`                                                         | implemented                          |
-| Fold                         | `node_fold_set`, `node_fold_folder`, `node_fold_initial`                           | implemented                          |
+| Set fold                     | `node_set_fold_set`, `node_set_fold_folder`, `node_set_fold_initial`               | implemented                          |
 
 ## Current Limitations
 
 - Well-formedness is not checked by the evaluator. Termination, independence from iteration order, and validity of the materialised objects are semantic preconditions, so a program that is not well-formed may appear to observe laziness, iteration order, or missing validation.
-- Set-taking nodes require a set (see [Sets](#sets)). Atoms, constructions, and composites that are not sets are rejected with `undefined`; use `node_properties_of` to pass an atom's properties.
+- Set-taking nodes accept every atom and every composite, as the set model is open. Constructions are rejected with `undefined`; use `node_properties_of` to pass an atom's properties as a set.

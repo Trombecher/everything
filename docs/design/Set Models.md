@@ -1,6 +1,6 @@
 # Set Models
 
-> **Status: resolved.** This solution has landed in the public documentation: the common set model (sets as composites of `contains ·· %item%` constructions with `{...}` sugar) is defined in `docs/public/4 - Common Models.md`, the computation nodes operate on it (`docs/public/3 - Computation.md`), and it resolves the validity question in `docs/public/2 - Knowledge.md`. This document predates the notation change: composites are now written `⟨...⟩`, constructions `c ·· v`, and data sets keep `{...}` as sugar.
+> **Status: resolved.** This solution has landed in the public documentation: the open set model (every atom and composite is a set; its items are the values of its `contains ·· %item%` properties, with `{...}` sugar for the canonical composite form) is defined in `docs/public/4 - Common Models.md`, the computation nodes operate on it (`docs/public/3 - Computation.md`), and it resolves the validity question in `docs/public/2 - Knowledge.md`. This document predates the notation change: composites are now written `⟨...⟩`, constructions `c ·· v`, and canonical data sets keep `{...}` as sugar.
 
 (This problem assumes that of sets to be valid objects, all elements must be valid properties of that set, i.e. their constraint must be run.)
 

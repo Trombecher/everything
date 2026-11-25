@@ -10,7 +10,8 @@ use num_bigint::BigInt;
 
 use crate::{
     compute::{
-        LazyObject, LazyObjectIter, MaybeUndefined, Node, capture, capture_argument, operations,
+        LazyObject, LazySet, LazySetItems, MaybeUndefined, Node, capture, capture_argument,
+        operations,
     },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
@@ -30,17 +31,17 @@ enum Task {
     /// Pops the top value from the evaluated stack and if that value is not a boolean,
     /// it transforms it to undefined.
     ForceToBoolean,
-    Count,
+    SetCount,
     PropertiesOf,
     HasValue,
     QueryAtomsWithProperty,
     QueryAtomsWithConstructor,
     QueryConstructionValues,
     QueryConstructions,
-    Contains,
+    SetContains,
     NewConstruction,
-    /// Collects the results of the preceding child evaluations into a composite.
-    NewComposite {
+    /// Collects the results of the preceding child evaluations into a set.
+    NewSet {
         count: usize,
     },
     Equal,
@@ -51,45 +52,45 @@ enum Task {
     Not,
     Add,
     Multiply,
-    Union,
-    Intersection,
+    SetUnion,
+    SetIntersection,
     /// Evaluates the first child and short-circuits the second one if the
     /// first result is empty.
-    PartialDifference {
+    PartialSetDifference {
         second: Arc<Node>,
     },
-    Difference,
-    Map,
-    Filter,
-    Every,
+    SetDifference,
+    SetMap,
+    SetFilter,
+    SetEvery,
     /// One iteration of an `every` evaluation. Calls the predicate for the
     /// next element, if there is one.
     EveryStep {
-        values: Box<LazyObjectIter>,
+        values: Box<LazySetItems>,
         predicate: Node,
     },
     /// Checks the predicate result produced by the preceding `EveryStep`.
     EveryCheck {
-        values: Box<LazyObjectIter>,
+        values: Box<LazySetItems>,
         predicate: Node,
     },
-    Any,
+    SetAny,
     /// One iteration of an `any` evaluation. Calls the predicate for the
     /// next element, if there is one.
     AnyStep {
-        values: Box<LazyObjectIter>,
+        values: Box<LazySetItems>,
         predicate: Node,
     },
     /// Checks the predicate result produced by the preceding `AnyStep`.
     AnyCheck {
-        values: Box<LazyObjectIter>,
+        values: Box<LazySetItems>,
         predicate: Node,
     },
-    Fold,
+    SetFold,
     /// One iteration of a fold. The accumulator is taken from the evaluated
     /// stack.
     FoldStep {
-        values: Box<LazyObjectIter>,
+        values: Box<LazySetItems>,
         folder: Node,
     },
     /// Applies the result of the first folder call to the current element.
@@ -105,7 +106,7 @@ enum Task {
         argument: Argument,
     },
     PopContext,
-    Unwrap,
+    SetUnwrap,
     ConstructorOfConstruction,
     ValueOfConstruction,
     IsAtom,
@@ -161,19 +162,19 @@ fn resolve_evaluate_node(
             tasks.push(Task::QueryConstructions);
             tasks.push(Task::Evaluate(Arc::clone(constructor)));
         }
-        Node::Fold {
-            composite,
+        Node::SetFold {
+            set,
             folder,
             initial,
         } => {
-            tasks.push(Task::Fold);
+            tasks.push(Task::SetFold);
             tasks.push(Task::Evaluate(Arc::clone(initial)));
             tasks.push(Task::Evaluate(Arc::clone(folder)));
-            tasks.push(Task::Evaluate(Arc::clone(composite)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
         }
-        Node::Contains { element, composite } => {
-            tasks.push(Task::Contains);
-            tasks.push(Task::Evaluate(Arc::clone(composite)));
+        Node::SetContains { element, set } => {
+            tasks.push(Task::SetContains);
+            tasks.push(Task::Evaluate(Arc::clone(set)));
             tasks.push(Task::Evaluate(Arc::clone(element)));
         }
         Node::NewConstruction { constructor, value } => {
@@ -181,15 +182,13 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(value)));
             tasks.push(Task::Evaluate(Arc::clone(constructor)));
         }
-        Node::NewComposite { values } => {
-            tasks.push(Task::NewComposite {
-                count: values.len(),
-            });
+        Node::NewSet { items } => {
+            tasks.push(Task::NewSet { count: items.len() });
 
-            // The children are evaluated in the order of `values`: the stack
-            // is LIFO, so they have to be scheduled in reverse.
-            for value in values.iter().rev() {
-                tasks.push(Task::Evaluate(Arc::clone(value)));
+            // The items are evaluated in order: the stack is LIFO, so they
+            // have to be scheduled in reverse.
+            for item in items.iter().rev() {
+                tasks.push(Task::Evaluate(Arc::clone(item)));
             }
         }
         Node::IsAtom(inner) => {
@@ -216,9 +215,9 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(right)));
             tasks.push(Task::Evaluate(Arc::clone(left)));
         }
-        Node::Unwrap(composite) => {
-            tasks.push(Task::Unwrap);
-            tasks.push(Task::Evaluate(Arc::clone(composite)));
+        Node::SetUnwrap(set) => {
+            tasks.push(Task::SetUnwrap);
+            tasks.push(Task::Evaluate(Arc::clone(set)));
         }
         Node::Function { .. } => {
             evaluated.push(capture(node, 0, evaluation_context, knowledge).into());
@@ -245,8 +244,8 @@ fn resolve_evaluate_node(
             }
             MaybeUndefined::Undefined => evaluated.push(UNDEFINED),
         },
-        Node::Count(object) => {
-            tasks.push(Task::Count);
+        Node::SetCount(object) => {
+            tasks.push(Task::SetCount);
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
         Node::PropertiesOf(object) => {
@@ -282,53 +281,47 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(second)));
             tasks.push(Task::Evaluate(Arc::clone(first)));
         }
-        Node::Union { first, second } => {
-            tasks.push(Task::Union);
+        Node::SetUnion { first, second } => {
+            tasks.push(Task::SetUnion);
             tasks.push(Task::Evaluate(Arc::clone(second)));
             tasks.push(Task::Evaluate(Arc::clone(first)));
         }
-        Node::Intersection { first, second } => {
-            tasks.push(Task::Intersection);
+        Node::SetIntersection { first, second } => {
+            tasks.push(Task::SetIntersection);
             tasks.push(Task::Evaluate(Arc::clone(second)));
             tasks.push(Task::Evaluate(Arc::clone(first)));
         }
-        Node::Difference { first, second } => {
-            tasks.push(Task::PartialDifference {
+        Node::SetDifference { first, second } => {
+            tasks.push(Task::PartialSetDifference {
                 second: Arc::clone(second),
             });
             tasks.push(Task::Evaluate(Arc::clone(first)));
         }
-        Node::Map {
-            composite,
+        Node::SetMap {
+            set,
             mapper_function,
         } => {
-            tasks.push(Task::Map);
+            tasks.push(Task::SetMap);
             tasks.push(Task::Evaluate(Arc::clone(mapper_function)));
-            tasks.push(Task::Evaluate(Arc::clone(composite)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
         }
-        Node::Every {
-            composite,
-            predicate,
-        } => {
-            tasks.push(Task::Every);
+        Node::SetEvery { set, predicate } => {
+            tasks.push(Task::SetEvery);
             tasks.push(Task::Evaluate(Arc::clone(predicate)));
-            tasks.push(Task::Evaluate(Arc::clone(composite)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
         }
-        Node::Any {
-            composite,
-            predicate,
-        } => {
-            tasks.push(Task::Any);
+        Node::SetAny { set, predicate } => {
+            tasks.push(Task::SetAny);
             tasks.push(Task::Evaluate(Arc::clone(predicate)));
-            tasks.push(Task::Evaluate(Arc::clone(composite)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
         }
-        Node::Filter {
-            composite,
+        Node::SetFilter {
+            set,
             filter_function,
         } => {
-            tasks.push(Task::Filter);
+            tasks.push(Task::SetFilter);
             tasks.push(Task::Evaluate(Arc::clone(filter_function)));
-            tasks.push(Task::Evaluate(Arc::clone(composite)));
+            tasks.push(Task::Evaluate(Arc::clone(set)));
         }
         Node::Less { first, second } => {
             tasks.push(Task::Less);
@@ -420,11 +413,11 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     }
                 }
             }
-            Task::Count => {
+            Task::SetCount => {
                 let target = evaluated.pop().unwrap();
 
-                evaluated.push(if target.is_composite() {
-                    Object::new_integer(BigInt::from(target.size(knowledge))).into()
+                evaluated.push(if target.is_set() {
+                    Object::new_integer(BigInt::from(target.item_count(knowledge))).into()
                 } else {
                     UNDEFINED
                 });
@@ -433,9 +426,9 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(match object {
-                    LazyObject::Eager(Object::Atom(atom)) => {
-                        LazyObject::AtomProperties(knowledge.properties_of_atom(&atom))
-                    }
+                    LazyObject::Eager(Object::Atom(atom)) => LazyObject::Set(
+                        LazySet::AtomProperties(knowledge.properties_of_atom(&atom)),
+                    ),
                     LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
                     object => object,
                 });
@@ -443,18 +436,18 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             Task::HasValue => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(
-                    if matches!(object, LazyObject::Eager(Object::Construction(_))) {
-                        UNDEFINED
-                    } else {
-                        LazyObject::Eager(object.has_at_least_one_element(knowledge).into())
-                    },
-                );
+                evaluated.push(match object {
+                    LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
+                    LazyObject::Eager(Object::Atom(atom)) => LazyObject::Eager(
+                        (knowledge.size_of_object(&Object::Atom(atom)) != 0).into(),
+                    ),
+                    object => LazyObject::Eager(object.has_at_least_one_item(knowledge).into()),
+                });
             }
             Task::QueryAtomsWithProperty => {
                 let property = evaluated.pop().unwrap().into_object(knowledge);
 
-                evaluated.push(LazyObject::AtomsWithProperty { property });
+                evaluated.push(LazyObject::Set(LazySet::AtomsWithProperty { property }));
             }
             Task::QueryConstructionValues => {
                 let property_constructor = evaluated.pop().unwrap().into_object(knowledge);
@@ -464,31 +457,32 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     if matches!(&object, LazyObject::Eager(Object::Construction(_))) {
                         UNDEFINED
                     } else {
-                        LazyObject::ConstructionValues {
+                        LazyObject::Set(LazySet::ConstructionValues {
                             target: Box::new(object),
                             property_constructor,
-                        }
+                        })
                     },
                 );
             }
             Task::QueryAtomsWithConstructor => {
                 let constructor = evaluated.pop().unwrap().into_object(knowledge);
 
-                evaluated.push(LazyObject::AtomsWithConstructor { constructor });
+                evaluated.push(LazyObject::Set(LazySet::AtomsWithConstructor {
+                    constructor,
+                }));
             }
             Task::QueryConstructions => {
                 let constructor = evaluated.pop().unwrap().into_object(knowledge);
 
-                evaluated.push(LazyObject::Constructions { constructor });
+                evaluated.push(LazyObject::Set(LazySet::Constructions { constructor }));
             }
-            Task::Contains => {
-                let composite = evaluated.pop().unwrap();
+            Task::SetContains => {
+                let set = evaluated.pop().unwrap();
                 let element = evaluated.pop().unwrap();
 
-                evaluated.push(if composite.is_composite() {
+                evaluated.push(if set.is_set() {
                     LazyObject::Eager(
-                        composite
-                            .has(&element.into_object(knowledge), knowledge)
+                        set.has_item(&element.into_object(knowledge), knowledge)
                             .into(),
                     )
                 } else {
@@ -503,18 +497,14 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     Construction::new(constructor, value).into(),
                 ));
             }
-            Task::NewComposite { count } => {
-                let mut values = Vec::with_capacity(count);
+            Task::NewSet { count } => {
+                let mut items = Vec::with_capacity(count);
 
                 for _ in 0..count {
-                    values.push(evaluated.pop().unwrap().into_object(knowledge));
+                    items.push(evaluated.pop().unwrap().into_object(knowledge));
                 }
 
-                values.reverse();
-
-                evaluated.push(LazyObject::Eager(
-                    Composite::from(values.as_mut_slice()).into(),
-                ));
+                evaluated.push(LazyObject::Eager(Composite::from_set_items(&items).into()));
             }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();
@@ -602,108 +592,108 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     _ => UNDEFINED,
                 });
             }
-            Task::Union => {
+            Task::SetUnion => {
                 let first = evaluated.pop().unwrap();
                 let second = evaluated.pop().unwrap();
 
-                evaluated.push(if first.is_composite() && second.is_composite() {
-                    LazyObject::Union {
+                evaluated.push(if first.is_set() && second.is_set() {
+                    LazyObject::Set(LazySet::Union {
                         first: Box::new(second),
                         second: Box::new(first),
-                    }
+                    })
                 } else {
                     UNDEFINED
                 });
             }
-            Task::Intersection => {
+            Task::SetIntersection => {
                 let first = evaluated.pop().unwrap();
                 let second = evaluated.pop().unwrap();
 
-                evaluated.push(if first.is_composite() && second.is_composite() {
-                    LazyObject::Intersection {
+                evaluated.push(if first.is_set() && second.is_set() {
+                    LazyObject::Set(LazySet::Intersection {
                         first: Box::new(second),
                         second: Box::new(first),
-                    }
+                    })
                 } else {
                     UNDEFINED
                 });
             }
-            Task::PartialDifference { second } => {
+            Task::PartialSetDifference { second } => {
                 let first = evaluated.pop().unwrap();
 
-                if !first.is_composite() {
+                if !first.is_set() {
                     evaluated.push(UNDEFINED);
-                } else if !first.has_at_least_one_element(knowledge) {
-                    // Nothing can be removed from an empty composite, so the second
+                } else if !first.has_at_least_one_item(knowledge) {
+                    // Nothing can be removed from an empty set, so the second
                     // child is never evaluated.
                     evaluated.push(LazyObject::Eager(Object::Composite(Composite::empty())));
                 } else {
                     evaluated.push(first);
-                    tasks.push(Task::Difference);
+                    tasks.push(Task::SetDifference);
                     tasks.push(Task::Evaluate(second));
                 }
             }
-            Task::Difference => {
+            Task::SetDifference => {
                 let without = evaluated.pop().unwrap();
                 let source = evaluated.pop().unwrap();
 
-                evaluated.push(if without.is_composite() {
-                    LazyObject::Difference {
+                evaluated.push(if without.is_set() {
+                    LazyObject::Set(LazySet::Difference {
                         source: Box::new(source),
                         without: Box::new(without),
-                    }
+                    })
                 } else {
                     UNDEFINED
                 });
             }
-            Task::Map => {
+            Task::SetMap => {
                 let mapper_function = evaluated.pop().unwrap();
-                let composite = evaluated.pop().unwrap();
+                let set = evaluated.pop().unwrap();
 
-                if composite.is_composite()
+                if set.is_set()
                     && let Some(mapper_function @ Node::Function { .. }) = mapper_function
                         .try_into_node(knowledge)
                         .map(Node::into_plain)
                 {
-                    evaluated.push(LazyObject::Map {
-                        target: Box::new(composite),
+                    evaluated.push(LazyObject::Set(LazySet::Map {
+                        target: Box::new(set),
                         mapper_function,
-                    });
+                    }));
                 } else {
                     evaluated.push(UNDEFINED);
                 }
             }
-            Task::Filter => {
+            Task::SetFilter => {
                 let filter_function = evaluated.pop().unwrap();
-                let composite = evaluated.pop().unwrap();
+                let set = evaluated.pop().unwrap();
 
-                if composite.is_composite()
+                if set.is_set()
                     && let Some(filter_function @ Node::Function { .. }) = filter_function
                         .try_into_node(knowledge)
                         .map(Node::into_plain)
                 {
-                    evaluated.push(LazyObject::Filter {
-                        target: Box::new(composite),
+                    evaluated.push(LazyObject::Set(LazySet::Filter {
+                        target: Box::new(set),
                         filter_function,
-                    });
+                    }));
                 } else {
                     evaluated.push(UNDEFINED);
                 }
             }
-            Task::Every => {
+            Task::SetEvery => {
                 let predicate = evaluated.pop().unwrap();
-                let composite = evaluated.pop().unwrap();
+                let set = evaluated.pop().unwrap();
 
-                if !composite.is_composite() {
+                if !set.is_set() {
                     evaluated.push(UNDEFINED);
-                } else if !composite.has_at_least_one_element(knowledge) {
+                } else if !set.has_at_least_one_item(knowledge) {
                     // The predicate is never called and may therefore be invalid.
                     evaluated.push(LazyObject::Eager(true.into()));
                 } else if let Some(predicate @ Node::Function { .. }) =
                     predicate.try_into_node(knowledge).map(Node::into_plain)
                 {
                     tasks.push(Task::EveryStep {
-                        values: Box::new(composite.into_iter(knowledge)),
+                        values: Box::new(set.into_items(knowledge)),
                         predicate,
                     });
                 } else {
@@ -738,20 +728,20 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     evaluated.push(UNDEFINED);
                 }
             },
-            Task::Any => {
+            Task::SetAny => {
                 let predicate = evaluated.pop().unwrap();
-                let composite = evaluated.pop().unwrap();
+                let set = evaluated.pop().unwrap();
 
-                if !composite.is_composite() {
+                if !set.is_set() {
                     evaluated.push(UNDEFINED);
-                } else if !composite.has_at_least_one_element(knowledge) {
+                } else if !set.has_at_least_one_item(knowledge) {
                     // The predicate is never called and may therefore be invalid.
                     evaluated.push(LazyObject::Eager(false.into()));
                 } else if let Some(predicate @ Node::Function { .. }) =
                     predicate.try_into_node(knowledge).map(Node::into_plain)
                 {
                     tasks.push(Task::AnyStep {
-                        values: Box::new(composite.into_iter(knowledge)),
+                        values: Box::new(set.into_items(knowledge)),
                         predicate,
                     });
                 } else {
@@ -786,21 +776,21 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     evaluated.push(UNDEFINED);
                 }
             },
-            Task::Fold => {
+            Task::SetFold => {
                 let initial = evaluated.pop().unwrap();
                 let folder = evaluated.pop().unwrap();
-                let composite = evaluated.pop().unwrap();
+                let set = evaluated.pop().unwrap();
 
-                if !composite.is_composite() {
+                if !set.is_set() {
                     evaluated.push(UNDEFINED);
-                } else if !composite.has_at_least_one_element(knowledge) {
+                } else if !set.has_at_least_one_item(knowledge) {
                     // The folder is never called and may therefore be invalid.
                     evaluated.push(initial);
                 } else if let Some(folder @ Node::Function { .. }) =
                     folder.try_into_node(knowledge).map(Node::into_plain)
                 {
                     tasks.push(Task::FoldStep {
-                        values: Box::new(composite.into_iter(knowledge)),
+                        values: Box::new(set.into_items(knowledge)),
                         folder,
                     });
                     evaluated.push(initial);
@@ -855,11 +845,11 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     evaluated.push(UNDEFINED);
                 }
             },
-            Task::Unwrap => {
+            Task::SetUnwrap => {
                 let inner = evaluated.pop().unwrap();
 
                 evaluated.push(
-                    if inner.is_composite()
+                    if inner.is_set()
                         && let Some(inner) = inner.iter(knowledge).next_and_last()
                     {
                         LazyObject::Eager(inner)
