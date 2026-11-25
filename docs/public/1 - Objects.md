@@ -31,13 +31,13 @@ Under the model assumption, atoms with different ids (different atoms) model dif
 
 ### Composites
 
-A _composite_ is a collection of objects. It is written as a comma-separated collection enclosed in mathematical angle brackets, for example `⟨%a%, %b%, %c%⟩`. The empty composite is written `⟨⟩`. Composites are unordered: `⟨%a%, %b%⟩` and `⟨%b%, %a%⟩` denote the same object. Composites may only contain an object at most once, duplicates are removed: `⟨%a%, %a%⟩ == ⟨%a%⟩`.
+A _composite_ is a collection of objects. It is written as a comma-separated collection enclosed in mathematical angle brackets `⟨` (U+27E8) and `⟩` (U+27E9), for example `⟨%a%, %b%, %c%⟩`. The empty composite is written `⟨⟩`. Composites are unordered: `⟨%a%, %b%⟩` and `⟨%b%, %a%⟩` denote the same object. Composites may only contain an object at most once, duplicates are removed: `⟨%a%, %a%⟩ == ⟨%a%⟩`.
 
 Composites behave identically to mathematical sets but have different syntax to distinguish them from sets that are data. This distinction will become helpful when modelling and using sets.
 
 ### Constructions
 
-A _construction_ is a combination of two objects, written `%a% ·· %b%`. Constructions construct properties from a "property constructor" object (here `%a%`) and a "value" object (here `%b%`).
+A _construction_ is a combination of two objects, written `%a% ·· %b%`, where `··` consists of two middle dots (U+00B7 U+00B7), with a space on each side. Constructions construct properties from a "property constructor" object (here `%a%`) and a "value" object (here `%b%`).
 
 The purpose of constructions is to give objects "roles" when used in larger structures. The object model itself cannot impose constraints on what objects can be used as property constructors but later constraints will be introduced in knowledge validation.
 
@@ -66,9 +66,9 @@ You can model the Everything object model in itself.
 
 - Atoms can be modeled as `⟨atom ·· %n%⟩` where `%n%` is a natural number.
 - Constructions can be modeled as `⟨constructor ·· %c%, value ·· %v%⟩` where `%c%` and `%v%` are both modeled objects.
-- Sets can be modeled as a set whose elements are `⟨contains ·· %o%⟩` for each element `%o%` of the modeled set. The empty set is modeled as `⟨⟩`.
+- Composites can be modeled as a composite whose elements are `⟨contains ·· %o%⟩` for each element `%o%` of the modeled composite. The empty composite is modeled as `⟨⟩`.
 
-## Say Hi to our Maskot!
+## Say Hi to our Mascot!
 
 `⟨··⟩`
 

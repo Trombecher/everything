@@ -17,19 +17,19 @@ This approach of constructing integers is similar to the Peano axioms definition
 
 ```
 # -3
-{predecessor_of : {predecessor_of : {predecessor_of : zero}}}
+⟨predecessor_of ·· ⟨predecessor_of ·· ⟨predecessor_of ·· zero⟩⟩⟩
 
 # 0
 zero
 
 # 1
-{successor_of : zero}
+⟨successor_of ·· zero⟩
 
 # 2
-{successor_of : {successor_of : zero}}
+⟨successor_of ·· ⟨successor_of ·· zero⟩⟩
 
 # Not an integer
-{successor_of : {}}
+⟨successor_of ·· ⟨⟩⟩
 ```
 
 Integers are stored optimally in memory.
@@ -38,7 +38,7 @@ Integers are stored optimally in memory.
 
 An object is a _list_ iff either
 
-- it is the empty set `{}`, or
+- it is the empty set `⟨⟩`, or
 - it has exactly one property with the tag `list_item`, exactly one property with the tag `list_tail`, and the value of the `list_tail` property is a list.
 
 The value of the `list_item` property is the first element of the list and the value of the `list_tail` property is the rest of the list.
@@ -47,21 +47,21 @@ The value of the `list_item` property is the first element of the list and the v
 
 ```
 # [1, 2, 3]
-{
-    list_item : {successor_of : zero},
-    list_tail : {
-        list_item : {successor_of : {successor_of : zero}},
-        list_tail : {
-            list_item : {successor_of : {successor_of : {successor_of : zero}}},
-            list_tail : {}
-        }
-    }
-}
+⟨
+    list_item ·· ⟨successor_of ·· zero⟩,
+    list_tail ·· ⟨
+        list_item ·· ⟨successor_of ·· ⟨successor_of ·· zero⟩⟩,
+        list_tail ·· ⟨
+            list_item ·· ⟨successor_of ·· ⟨successor_of ·· ⟨successor_of ·· zero⟩⟩⟩,
+            list_tail ·· ⟨⟩
+        ⟩
+    ⟩
+⟩
 ```
 
 ## Characters
 
-A Unicode code point can be modelled as `{code_point : <integer>}` where `<integer>` is an integer between 0 and 0x10FFFF that does not represent a surrogate code point (0xD800 to 0xDFFF). Such an object is a _character_.
+A Unicode code point can be modelled as `⟨code_point ·· %integer%⟩` where `%integer%` is an integer between 0 and 0x10FFFF that does not represent a surrogate code point (0xD800 to 0xDFFF). Such an object is a _character_.
 
 Characters are stored optimally in memory.
 
@@ -69,7 +69,7 @@ Characters are stored optimally in memory.
 
 ```
 # 'A'
-{code_point : 65}
+⟨code_point ·· 65⟩
 ```
 
 ## Text
@@ -81,19 +81,19 @@ Text can be modelled as a list of characters. Text is stored as UTF-8 in memory.
 A _byte_ is modelled as
 
 ```
-{
-    bit_slot_0 : <bit 0>,
-    bit_slot_1 : <bit 1>,
-    bit_slot_2 : <bit 2>,
-    bit_slot_3 : <bit 3>,
-    bit_slot_4 : <bit 4>,
-    bit_slot_5 : <bit 5>,
-    bit_slot_6 : <bit 6>,
-    bit_slot_7 : <bit 7>,
-}
+⟨
+    bit_slot_0 ·· %bit 0%,
+    bit_slot_1 ·· %bit 1%,
+    bit_slot_2 ·· %bit 2%,
+    bit_slot_3 ·· %bit 3%,
+    bit_slot_4 ·· %bit 4%,
+    bit_slot_5 ·· %bit 5%,
+    bit_slot_6 ·· %bit 6%,
+    bit_slot_7 ·· %bit 7%
+⟩
 ```
 
-where each `<bit n>` is either the atom `bit_off` or the atom `bit_on`. `bit_slot_0` is the least significant bit and `bit_slot_7` is the most significant bit. A byte must have exactly one property for each bit slot.
+where each `%bit n%` is either the atom `bit_off` or the atom `bit_on`. `bit_slot_0` is the least significant bit and `bit_slot_7` is the most significant bit. A byte must have exactly one property for each bit slot.
 
 Bytes are stored optimally in memory.
 
@@ -101,16 +101,16 @@ Bytes are stored optimally in memory.
 
 ```
 # 0xA5
-{
-    bit_slot_0 : bit_on,
-    bit_slot_1 : bit_off,
-    bit_slot_2 : bit_on,
-    bit_slot_3 : bit_off,
-    bit_slot_4 : bit_off,
-    bit_slot_5 : bit_on,
-    bit_slot_6 : bit_off,
-    bit_slot_7 : bit_on,
-}
+⟨
+    bit_slot_0 ·· bit_on,
+    bit_slot_1 ·· bit_off,
+    bit_slot_2 ·· bit_on,
+    bit_slot_3 ·· bit_off,
+    bit_slot_4 ·· bit_off,
+    bit_slot_5 ·· bit_on,
+    bit_slot_6 ·· bit_off,
+    bit_slot_7 ·· bit_on
+⟩
 ```
 
 ## Bytes
@@ -142,8 +142,8 @@ An object is a _rational number_ iff either
 
 ```
 # 1 / 2
-{
-    numerator : {successor_of : zero},
-    denominator : {successor_of : {successor_of : zero}}
-}
+⟨
+    numerator ·· ⟨successor_of ·· zero⟩,
+    denominator ·· ⟨successor_of ·· ⟨successor_of ·· zero⟩⟩
+⟩
 ```

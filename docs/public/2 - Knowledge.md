@@ -6,19 +6,19 @@ We define _knowledge_ as a set of statements. A statement is a combination of an
 
 To prevent knowledge from reaching arbitrariness, Everything can validate knowledge. Knowledge `%K%` is _valid_ iff for every statement `%a% is %p% ∈ %K%`, `%p%` is a valid object and `%p%` is a valid property of `%a%` in `%K%`.
 
-Models can restrict themselves by imposing arbitrary constraints on values in property constructions and on sets where properties are used. These constraints are modelled directly in Everything with a functional computation system. This system can evaluate objects and is laid out in [the next chapter](./3%20-%20Computation.md).
+Models can restrict themselves by imposing arbitrary constraints on values in property constructions and on composites where properties are used. These constraints are modelled directly in Everything with a functional computation system. This system can evaluate objects and is laid out in [the next chapter](./3%20-%20Computation.md).
 
-### Properties Of Atoms And Sets
+### Properties Of Atoms And Composites
 
-The properties (set) of an atom or set `%o%` in (knowledge) `%K%` is defined to be
+The properties (set) of an atom or composite `%o%` in (knowledge) `%K%` is defined to be
 
 - `⟨%p% | %o% is %p% ∈ %K%⟩` if `%o%` is an atom; or
-- `%o%` if `%o%` is a set.
+- `%o%` if `%o%` is a composite.
 
-An object `%p%` is a property of an atom or a set `%o%` in (knowledge) `%K%` iff
+An object `%p%` is a property of an atom or a composite `%o%` in (knowledge) `%K%` iff
 
 - `%o%` is an atom and `%o% is %p% ∈ %K%`; or
-- `%o%` is a set and `%p% ∈ %o%`.
+- `%o%` is a composite and `%p% ∈ %o%`.
 
 It is forbidden to ask for properties of a construction.
 
@@ -26,12 +26,12 @@ It is forbidden to ask for properties of a construction.
 
 In Everything, every _property_ is either non-constructed or constructed. You can construct properties via constructions with property constructors.
 
-An object `%p%` is a **valid** property of an atom or a set `%o%` in (knowledge) `%K%` iff `%p%` is a property of `%o%` in `%K%` and at least one of the following conditions holds:
+An object `%p%` is a **valid** property of an atom or a composite `%o%` in (knowledge) `%K%` iff `%p%` is a property of `%o%` in `%K%` and at least one of the following conditions holds:
 
 - there exist objects `%c%` and `%v%` such that `%p% = %c% ·· %v%`,
-    - there exists an object `%f%` such that `property_constructor ·· %f%` is a property of `%c%` in `K`, and
+    - there exists an object `%f%` such that `property_constructor ·· %f%` is a property of `%c%` in `%K%`, and
     - `⟨node_call_callee ·· ⟨node_call_callee ·· %f%, node_call_with ·· %o%⟩, node_call_with ·· %v%⟩` evaluates to `true` in `%K%`; or
-- `%p%` is an atom or a set,
+- `%p%` is an atom or a composite,
     - there exists an object `%f%` such that `property ·· %f%` is a property of `%p%` in `%K%`, and
     - `⟨node_call_callee ·· %f%, node_call_with ·· %o%⟩` evaluates to `true` in `%K%`.
 
@@ -54,13 +54,13 @@ The other solution (that I am hesitant to propose but might be the only acceptab
 
 ---
 
-The motivation behind valid objects is to check that all property constructions in that object are valid. Formally, an object `o` is _valid_ in knowledge `K` iff one of the following holds:
+The motivation behind valid objects is to check that all property constructions in that object are valid. Formally, an object `%o%` is _valid_ in knowledge `%K%` iff one of the following holds:
 
-- `o` is an atom;
-- `o` is a construction `c ·· v`, `c` and `v` are valid objects, `c is property_constructor ·· f ∈ K`, and `⟨node_call_callee ·· ⟨node_call_callee ·· f, node_call_with ·· o⟩, node_call_with ·· v⟩` evaluates to a truthy object; or
-- `o` is a set and every object `e ∈ o` is valid.
+- `%o%` is an atom;
+- `%o%` is a construction `%c% ·· %v%`, `%c%` and `%v%` are valid objects, `%c% is property_constructor ·· %f% ∈ %K%`, and `⟨node_call_callee ·· ⟨node_call_callee ·· %f%, node_call_with ·· %o%⟩, node_call_with ·· %v%⟩` evaluates to a truthy object; or
+- `%o%` is a composite and every object `%e% ∈ %o%` is valid.
 
-The constraint on property constructors used in sets and statements allows for validation, not only on the value, but on the subject as well.
+The constraint on property constructors used in composites and statements allows for validation, not only on the value, but on the subject as well.
 
 ## Examples
 
@@ -125,8 +125,8 @@ There are a few reasons:
 
 1. Statements about non-atoms would add information to things that are inherently identified only by their intrinsic structure. Non-atoms must not have any knowledge-level context-specific meaning.
 2. A big family of such statements can be inferred/computed by the computation system (e.g. `3 is prime_number`) (and thus are redundant).
-3. Such statements would introduce foot guns, like declaring the empty set to have some property (thus not really being the empty set anymore).
-4. Implementation burden: sets and constructions would have an additional set of properties from the knowledge they are _used_ in.
+3. Such statements would introduce foot guns, like declaring the empty composite to have some property (thus not really being the empty composite anymore).
+4. Implementation burden: composites and constructions would have an additional set of properties from the knowledge they are _used_ in.
 
 More discussion (using the old model) of this topic can be found [here](../design/old%20model/Disallowing%20Composite%20Subjects.md).
 
