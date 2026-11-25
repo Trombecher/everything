@@ -17,13 +17,13 @@ fn set_intersection() {
     );
 
     assert!(result.is_composite());
-    assert_eq!(result.item_count(&BASE), 2);
+    assert_eq!(set(&result).item_count(&BASE), 2);
     assert_eq!(
-        result.iter(&BASE).collect::<Vec<_>>(),
+        set(&result).iter(&BASE).collect::<Vec<_>>(),
         vec![integer(2), integer(3)]
     );
-    assert!(result.has_item(&integer(2), &BASE));
-    assert!(!result.has_item(&integer(4), &BASE));
+    assert!(set(&result).has_item(&integer(2), &BASE));
+    assert!(!set(&result).has_item(&integer(4), &BASE));
 }
 
 #[test]
@@ -41,9 +41,9 @@ fn set_intersection_of_deferred_sets() {
         &BASE,
     );
 
-    assert_eq!(result.item_count(&BASE), 2);
+    assert_eq!(set(&result).item_count(&BASE), 2);
     assert_eq!(
-        result.iter(&BASE).collect::<Vec<_>>(),
+        set(&result).iter(&BASE).collect::<Vec<_>>(),
         vec![integer(2), integer(3)]
     );
 }

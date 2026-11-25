@@ -64,13 +64,13 @@ fn properties_of() {
         Object::new_integer(BigInt::from(1))
     );
 
+    let properties_of = evaluate(
+        &Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()),
+        &knowledge,
+    );
+
     assert_eq!(
-        evaluate(
-            &Node::PropertiesOf(Node::Literal(Object::Atom(atom)).into()),
-            &knowledge,
-        )
-        .iter(&knowledge)
-        .collect::<Vec<_>>(),
+        set(&properties_of).iter(&knowledge).collect::<Vec<_>>(),
         vec![value]
     );
 

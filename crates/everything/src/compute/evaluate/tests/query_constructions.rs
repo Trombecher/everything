@@ -53,15 +53,15 @@ fn query_constructions() {
     ];
 
     assert!(result.is_composite());
-    assert_eq!(result.item_count(&knowledge), 3);
-    assert!(result.has_item(&expected[0], &knowledge));
-    assert!(result.has_item(&expected[1], &knowledge));
-    assert!(result.has_item(&expected[2], &knowledge));
-    assert!(!result.has_item(
+    assert_eq!(set(&result).item_count(&knowledge), 3);
+    assert!(set(&result).has_item(&expected[0], &knowledge));
+    assert!(set(&result).has_item(&expected[1], &knowledge));
+    assert!(set(&result).has_item(&expected[2], &knowledge));
+    assert!(!set(&result).has_item(
         &pair(first_atom, Object::new_integer(BigInt::from(3))),
         &knowledge
     ));
-    assert_eq!(result.iter(&knowledge).collect::<Vec<_>>(), expected);
+    assert_eq!(set(&result).iter(&knowledge).collect::<Vec<_>>(), expected);
 }
 
 #[test]
@@ -88,7 +88,7 @@ fn query_constructions_materializes_deferred_constructor() {
     );
 
     assert_eq!(
-        result.iter(&knowledge).collect::<Vec<_>>(),
+        set(&result).iter(&knowledge).collect::<Vec<_>>(),
         vec![pair(atom, value)]
     );
 }
@@ -112,7 +112,7 @@ fn query_constructions_queries_undefined_as_an_atom() {
     );
 
     assert_eq!(
-        result.iter(&knowledge).collect::<Vec<_>>(),
+        set(&result).iter(&knowledge).collect::<Vec<_>>(),
         vec![pair(Atom::UNDEFINED, value)]
     );
 }

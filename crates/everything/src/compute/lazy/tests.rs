@@ -2,7 +2,7 @@ use num_bigint::BigInt;
 
 use crate::{
     knowledge::{Knowledge, Properties, Statement},
-    model::{Atom, Composite, Construction, Object},
+    model::{Atom, AtomOrComposite, Composite, Construction, Object},
 };
 
 use super::*;
@@ -15,10 +15,12 @@ fn contains(item: Object) -> Object {
     Construction::new(Atom::CONTAINS.into(), item).into()
 }
 
-fn eager_set(items: impl IntoIterator<Item = Object>) -> LazyObject {
+fn eager_set(items: impl IntoIterator<Item = Object>) -> SetValue {
     let items = items.into_iter().collect::<Vec<_>>();
 
-    LazyObject::Eager(Object::Composite(Composite::from_set_items(&items)))
+    SetValue::Eager(AtomOrComposite::Composite(Composite::from_set_items(
+        &items,
+    )))
 }
 
 #[test]
@@ -31,17 +33,19 @@ fn undefined_is_not_a_node() {
 
 #[test]
 fn is_lazy_distinguishes_materialized_results() {
-    let eager_set = eager_set([integer(1), integer(2)]);
+    let eager = LazyObject::from(eager_set([integer(1), integer(2)]));
     let eager_atom = LazyObject::Eager(Atom(42).into());
     let lazy_properties = LazyObject::Set(LazySet::AtomProperties(Properties::from([integer(1)])));
 
-    assert!(!eager_set.is_lazy());
+    assert!(!eager.is_lazy());
     assert!(!eager_atom.is_lazy());
     assert!(lazy_properties.is_lazy());
 
     let lazy_union = LazyObject::Set(LazySet::Union {
-        first: Box::new(lazy_properties.clone()),
-        second: Box::new(lazy_properties),
+        first: Box::new(SetValue::Set(LazySet::AtomProperties(Properties::from([
+            integer(1),
+        ])))),
+        second: Box::new(eager_set([integer(2)])),
     });
 
     assert!(lazy_union.is_lazy());
@@ -71,7 +75,7 @@ fn into_items_of_a_plain_composite_is_empty() {
     let composite = Composite::from([integer(1), integer(2), integer(3)]);
 
     assert_eq!(
-        LazyObject::Eager(Object::Composite(composite))
+        SetValue::Eager(AtomOrComposite::Composite(composite))
             .into_items(&Knowledge::empty())
             .count(),
         0
@@ -79,12 +83,8 @@ fn into_items_of_a_plain_composite_is_empty() {
 }
 
 #[test]
-fn into_properties_of_a_construction_is_none() {
-    assert!(
-        LazyObject::Eager(contains(integer(1)))
-            .into_properties(&Knowledge::empty())
-            .is_none()
-    );
+fn into_set_of_a_construction_is_none() {
+    assert!(LazyObject::Eager(contains(integer(1))).into_set().is_none());
 }
 
 #[test]
@@ -98,8 +98,9 @@ fn into_properties_of_an_atom_yields_its_statements() {
     });
 
     let properties = LazyObject::Eager(Object::Atom(atom))
+        .into_set()
+        .expect("an atom is a set")
         .into_properties(&knowledge)
-        .expect("an atom has properties")
         .collect::<Vec<_>>();
 
     assert_eq!(properties, vec![integer(1)]);
@@ -107,12 +108,9 @@ fn into_properties_of_an_atom_yields_its_statements() {
 
 #[test]
 fn into_properties_of_a_deferred_set_yields_contains_constructions() {
-    let lazy = LazyObject::Set(LazySet::AtomProperties(Properties::from([integer(1)])));
+    let set = SetValue::Set(LazySet::AtomProperties(Properties::from([integer(1)])));
 
-    let properties = lazy
-        .into_properties(&Knowledge::empty())
-        .expect("a deferred set has properties")
-        .collect::<Vec<_>>();
+    let properties = set.into_properties(&Knowledge::empty()).collect::<Vec<_>>();
 
     assert_eq!(properties, vec![contains(integer(1))]);
 }
@@ -135,7 +133,7 @@ fn into_items_of_an_atom_yields_contains_values() {
     });
 
     assert_eq!(
-        LazyObject::Eager(Object::Atom(atom))
+        SetValue::Eager(AtomOrComposite::Atom(atom))
             .into_items(&knowledge)
             .collect::<Vec<_>>(),
         vec![integer(2), integer(3)]
@@ -154,8 +152,8 @@ fn into_items_captures_atom_properties() {
         object: first.clone(),
     });
 
-    let lazy = LazyObject::Set(LazySet::AtomProperties(knowledge.properties_of_atom(&atom)));
-    let iterator = lazy.into_items(&knowledge);
+    let set = SetValue::Set(LazySet::AtomProperties(knowledge.properties_of_atom(&atom)));
+    let iterator = set.into_items(&knowledge);
 
     // Changes to the knowledge after creating the iterator must not be visible.
     knowledge.add_statement(Statement {
@@ -179,10 +177,10 @@ fn into_items_yields_constructions_as_atom_value_objects() {
     let mut knowledge = Knowledge::empty();
     knowledge.add_statement(statement.clone());
 
-    let lazy = LazyObject::Set(LazySet::Constructions {
+    let set = SetValue::Set(LazySet::Constructions {
         constructor: constructor.into(),
     });
-    let iterator = lazy.into_items(&knowledge);
+    let iterator = set.into_items(&knowledge);
 
     // Removing the statement after creating the iterator must not be visible.
     knowledge.remove_statement(&statement);
@@ -211,10 +209,10 @@ fn into_items_captures_atoms_with_constructor() {
     let mut knowledge = Knowledge::empty();
     knowledge.add_statement(statement.clone());
 
-    let lazy = LazyObject::Set(LazySet::AtomsWithConstructor {
+    let set = SetValue::Set(LazySet::AtomsWithConstructor {
         constructor: constructor.into(),
     });
-    let iterator = lazy.into_items(&knowledge);
+    let iterator = set.into_items(&knowledge);
 
     // Removing the statement after creating the iterator must not be visible.
     knowledge.remove_statement(&statement);
@@ -234,10 +232,10 @@ fn into_items_captures_atoms_with_property() {
     let mut knowledge = Knowledge::empty();
     knowledge.add_statement(statement.clone());
 
-    let lazy = LazyObject::Set(LazySet::AtomsWithProperty {
+    let set = SetValue::Set(LazySet::AtomsWithProperty {
         property: property.into(),
     });
-    let iterator = lazy.into_items(&knowledge);
+    let iterator = set.into_items(&knowledge);
 
     // Removing the statement after creating the iterator must not be visible.
     knowledge.remove_statement(&statement);
@@ -315,7 +313,7 @@ fn item_count_of_plain_composites_is_zero() {
     let composite = Composite::from([integer(1), integer(2), integer(3)]);
 
     assert_eq!(
-        LazyObject::Eager(Object::Composite(composite)).item_count(&Knowledge::empty()),
+        SetValue::Eager(AtomOrComposite::Composite(composite)).item_count(&Knowledge::empty()),
         0
     );
 }
@@ -355,7 +353,7 @@ fn item_count_of_filter_counts_distinct_retained_items() {
         second: Node::Literal(integer(1)).into(),
     });
     let filter = LazySet::Filter {
-        target: Box::new(LazyObject::Set(LazySet::Union {
+        target: Box::new(SetValue::Set(LazySet::Union {
             first: Box::new(eager_set([integer(1), integer(2)])),
             second: Box::new(eager_set([integer(1), integer(2)])),
         })),
@@ -368,7 +366,7 @@ fn item_count_of_filter_counts_distinct_retained_items() {
 #[test]
 fn into_items_of_intersection_and_difference_deduplicate() {
     let colliding_map = || {
-        LazyObject::Set(LazySet::Map {
+        SetValue::Set(LazySet::Map {
             target: Box::new(eager_set([integer(1), integer(2)])),
             mapper_function: Node::function(Node::Literal(integer(1))),
         })
@@ -401,7 +399,7 @@ fn into_items_of_intersection_and_difference_deduplicate() {
 fn has_item_uses_the_open_set_view() {
     let knowledge = Knowledge::empty();
     let set = eager_set([integer(1), integer(2)]);
-    let composite = LazyObject::Eager(Object::Composite(Composite::from([
+    let composite = SetValue::Eager(AtomOrComposite::Composite(Composite::from([
         integer(3),
         contains(integer(4)),
     ])));

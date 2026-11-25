@@ -19,7 +19,8 @@ fn set_filter() {
         .into(),
     };
 
-    let values = evaluate(&node, &BASE).iter(&BASE).collect::<Vec<_>>();
+    let result = evaluate(&node, &BASE);
+    let values = set(&result).iter(&BASE).collect::<Vec<_>>();
 
     assert_eq!(values, vec![Object::new_integer(BigInt::from(2))]);
 }

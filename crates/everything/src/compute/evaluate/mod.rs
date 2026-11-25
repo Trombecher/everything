@@ -15,7 +15,7 @@ use crate::{
     },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Atom, Composite, Construction, Object},
+    model::{Atom, AtomOrComposite, Composite, Construction, Object},
 };
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
@@ -416,10 +416,11 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             Task::SetCount => {
                 let target = evaluated.pop().unwrap();
 
-                evaluated.push(if target.is_set() {
-                    Object::new_integer(BigInt::from(target.item_count(knowledge))).into()
-                } else {
-                    UNDEFINED
+                evaluated.push(match target.into_set() {
+                    Some(target) => {
+                        Object::new_integer(BigInt::from(target.item_count(knowledge))).into()
+                    }
+                    None => UNDEFINED,
                 });
             }
             Task::PropertiesOf => {
@@ -439,13 +440,12 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 evaluated.push(match object {
                     LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
                     LazyObject::Eager(Object::Atom(atom)) => LazyObject::Eager(
-                        (knowledge
-                            .size_of_object(&Object::Atom(atom))
-                            .expect("an atom has properties")
-                            != 0)
-                            .into(),
+                        (knowledge.size_of_object(&AtomOrComposite::Atom(atom)) != 0).into(),
                     ),
-                    object => LazyObject::Eager(object.has_at_least_one_item(knowledge).into()),
+                    object => match object.into_set() {
+                        Some(set) => LazyObject::Eager(set.has_at_least_one_item(knowledge).into()),
+                        None => UNDEFINED,
+                    },
                 });
             }
             Task::QueryAtomsWithProperty => {
@@ -457,16 +457,13 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let property_constructor = evaluated.pop().unwrap().into_object(knowledge);
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(
-                    if matches!(&object, LazyObject::Eager(Object::Construction(_))) {
-                        UNDEFINED
-                    } else {
-                        LazyObject::Set(LazySet::ConstructionValues {
-                            target: Box::new(object),
-                            property_constructor,
-                        })
-                    },
-                );
+                evaluated.push(match object.into_set() {
+                    Some(target) => LazyObject::Set(LazySet::ConstructionValues {
+                        target: Box::new(target),
+                        property_constructor,
+                    }),
+                    None => UNDEFINED,
+                });
             }
             Task::QueryAtomsWithConstructor => {
                 let constructor = evaluated.pop().unwrap().into_object(knowledge);
@@ -484,13 +481,12 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let set = evaluated.pop().unwrap();
                 let element = evaluated.pop().unwrap();
 
-                evaluated.push(if set.is_set() {
-                    LazyObject::Eager(
+                evaluated.push(match set.into_set() {
+                    Some(set) => LazyObject::Eager(
                         set.has_item(&element.into_object(knowledge), knowledge)
                             .into(),
-                    )
-                } else {
-                    UNDEFINED
+                    ),
+                    None => UNDEFINED,
                 });
             }
             Task::NewConstruction => {
@@ -600,64 +596,70 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let first = evaluated.pop().unwrap();
                 let second = evaluated.pop().unwrap();
 
-                evaluated.push(if first.is_set() && second.is_set() {
-                    LazyObject::Set(LazySet::Union {
+                evaluated.push(match (first.into_set(), second.into_set()) {
+                    (Some(first), Some(second)) => LazyObject::Set(LazySet::Union {
                         first: Box::new(second),
                         second: Box::new(first),
-                    })
-                } else {
-                    UNDEFINED
+                    }),
+                    _ => UNDEFINED,
                 });
             }
             Task::SetIntersection => {
                 let first = evaluated.pop().unwrap();
                 let second = evaluated.pop().unwrap();
 
-                evaluated.push(if first.is_set() && second.is_set() {
-                    LazyObject::Set(LazySet::Intersection {
+                evaluated.push(match (first.into_set(), second.into_set()) {
+                    (Some(first), Some(second)) => LazyObject::Set(LazySet::Intersection {
                         first: Box::new(second),
                         second: Box::new(first),
-                    })
-                } else {
-                    UNDEFINED
+                    }),
+                    _ => UNDEFINED,
                 });
             }
             Task::PartialSetDifference { second } => {
                 let first = evaluated.pop().unwrap();
 
-                if !first.is_set() {
-                    evaluated.push(UNDEFINED);
-                } else if !first.has_at_least_one_item(knowledge) {
-                    // Nothing can be removed from an empty set, so the second
-                    // child is never evaluated.
-                    evaluated.push(LazyObject::Eager(Object::Composite(Composite::empty())));
-                } else {
-                    evaluated.push(first);
-                    tasks.push(Task::SetDifference);
-                    tasks.push(Task::Evaluate(second));
+                match first.into_set() {
+                    None => {
+                        evaluated.push(UNDEFINED);
+                    }
+                    Some(first) if !first.has_at_least_one_item(knowledge) => {
+                        // Nothing can be removed from an empty set, so the second
+                        // child is never evaluated.
+                        evaluated.push(LazyObject::Eager(Object::Composite(Composite::empty())));
+                    }
+                    Some(first) => {
+                        evaluated.push(first.into());
+                        tasks.push(Task::SetDifference);
+                        tasks.push(Task::Evaluate(second));
+                    }
                 }
             }
             Task::SetDifference => {
                 let without = evaluated.pop().unwrap();
                 let source = evaluated.pop().unwrap();
 
-                evaluated.push(if without.is_set() {
-                    LazyObject::Set(LazySet::Difference {
+                evaluated.push(match (source.into_set(), without.into_set()) {
+                    (Some(source), Some(without)) => LazyObject::Set(LazySet::Difference {
                         source: Box::new(source),
                         without: Box::new(without),
-                    })
-                } else {
-                    UNDEFINED
+                    }),
+                    _ => UNDEFINED,
                 });
             }
             Task::SetMap => {
                 let mapper_function = evaluated.pop().unwrap();
                 let set = evaluated.pop().unwrap();
 
-                if set.is_set()
-                    && let Some(mapper_function @ Node::Function { .. }) = mapper_function
-                        .try_into_node(knowledge)
-                        .map(Node::into_plain)
+                let Some(set) = set.into_set() else {
+                    evaluated.push(UNDEFINED);
+
+                    continue;
+                };
+
+                if let Some(mapper_function @ Node::Function { .. }) = mapper_function
+                    .try_into_node(knowledge)
+                    .map(Node::into_plain)
                 {
                     evaluated.push(LazyObject::Set(LazySet::Map {
                         target: Box::new(set),
@@ -671,10 +673,15 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let filter_function = evaluated.pop().unwrap();
                 let set = evaluated.pop().unwrap();
 
-                if set.is_set()
-                    && let Some(filter_function @ Node::Function { .. }) = filter_function
-                        .try_into_node(knowledge)
-                        .map(Node::into_plain)
+                let Some(set) = set.into_set() else {
+                    evaluated.push(UNDEFINED);
+
+                    continue;
+                };
+
+                if let Some(filter_function @ Node::Function { .. }) = filter_function
+                    .try_into_node(knowledge)
+                    .map(Node::into_plain)
                 {
                     evaluated.push(LazyObject::Set(LazySet::Filter {
                         target: Box::new(set),
@@ -688,9 +695,13 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let predicate = evaluated.pop().unwrap();
                 let set = evaluated.pop().unwrap();
 
-                if !set.is_set() {
+                let Some(set) = set.into_set() else {
                     evaluated.push(UNDEFINED);
-                } else if !set.has_at_least_one_item(knowledge) {
+
+                    continue;
+                };
+
+                if !set.has_at_least_one_item(knowledge) {
                     // The predicate is never called and may therefore be invalid.
                     evaluated.push(LazyObject::Eager(true.into()));
                 } else if let Some(predicate @ Node::Function { .. }) =
@@ -736,9 +747,13 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let predicate = evaluated.pop().unwrap();
                 let set = evaluated.pop().unwrap();
 
-                if !set.is_set() {
+                let Some(set) = set.into_set() else {
                     evaluated.push(UNDEFINED);
-                } else if !set.has_at_least_one_item(knowledge) {
+
+                    continue;
+                };
+
+                if !set.has_at_least_one_item(knowledge) {
                     // The predicate is never called and may therefore be invalid.
                     evaluated.push(LazyObject::Eager(false.into()));
                 } else if let Some(predicate @ Node::Function { .. }) =
@@ -785,9 +800,13 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let folder = evaluated.pop().unwrap();
                 let set = evaluated.pop().unwrap();
 
-                if !set.is_set() {
+                let Some(set) = set.into_set() else {
                     evaluated.push(UNDEFINED);
-                } else if !set.has_at_least_one_item(knowledge) {
+
+                    continue;
+                };
+
+                if !set.has_at_least_one_item(knowledge) {
                     // The folder is never called and may therefore be invalid.
                     evaluated.push(initial);
                 } else if let Some(folder @ Node::Function { .. }) =
@@ -852,15 +871,13 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             Task::SetUnwrap => {
                 let inner = evaluated.pop().unwrap();
 
-                evaluated.push(
-                    if inner.is_set()
-                        && let Some(inner) = inner.iter(knowledge).next_and_last()
-                    {
-                        LazyObject::Eager(inner)
-                    } else {
-                        UNDEFINED
+                evaluated.push(match inner.into_set() {
+                    Some(inner) => match inner.into_items(knowledge).next_and_last() {
+                        Some(inner) => LazyObject::Eager(inner),
+                        None => UNDEFINED,
                     },
-                );
+                    None => UNDEFINED,
+                });
             }
         }
     }

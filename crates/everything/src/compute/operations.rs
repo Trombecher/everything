@@ -2,8 +2,6 @@ use num_bigint::BigInt;
 
 use crate::{
     compute::{LazyObject, MaybeUndefined},
-    iter::IteratorExtNextAndLast,
-    knowledge::Knowledge,
     model::{Construction, Object},
 };
 
@@ -42,13 +40,6 @@ pub fn less(first: &Object, second: &Object) -> MaybeUndefined<bool> {
     } else {
         MaybeUndefined::Undefined
     }
-}
-
-/// Iterates over the values of `object` and returns the first and last value;
-/// otherwise [`Maybeundefined::Undefined`].
-#[must_use]
-pub fn unwrap(object: &LazyObject, knowledge: &Knowledge) -> MaybeUndefined<Object> {
-    object.iter(knowledge).next_and_last().into()
 }
 
 #[must_use]

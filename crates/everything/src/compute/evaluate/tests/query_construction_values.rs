@@ -7,6 +7,7 @@ use crate::{
 };
 
 use super::super::*;
+use super::common::*;
 
 #[test]
 fn query_construction_values() {
@@ -49,13 +50,13 @@ fn query_construction_values() {
     );
 
     assert!(result.is_composite());
-    assert_eq!(result.item_count(&knowledge), 2);
-    assert!(result.has_item(&matching_values[0], &knowledge));
-    assert!(result.has_item(&matching_values[1], &knowledge));
-    assert!(!result.has_item(&Object::new_integer(BigInt::from(3)), &knowledge));
-    assert!(!result.has_item(&Object::new_integer(BigInt::from(4)), &knowledge));
+    assert_eq!(set(&result).item_count(&knowledge), 2);
+    assert!(set(&result).has_item(&matching_values[0], &knowledge));
+    assert!(set(&result).has_item(&matching_values[1], &knowledge));
+    assert!(!set(&result).has_item(&Object::new_integer(BigInt::from(3)), &knowledge));
+    assert!(!set(&result).has_item(&Object::new_integer(BigInt::from(4)), &knowledge));
     assert_eq!(
-        result.iter(&knowledge).collect::<Vec<_>>(),
+        set(&result).iter(&knowledge).collect::<Vec<_>>(),
         matching_values.to_vec()
     );
 
@@ -69,7 +70,7 @@ fn query_construction_values() {
     );
 
     assert_eq!(
-        direct.iter(&knowledge).collect::<Vec<_>>(),
+        set(&direct).iter(&knowledge).collect::<Vec<_>>(),
         matching_values.to_vec()
     );
 }
@@ -93,7 +94,7 @@ fn query_construction_values_of_literal_composite() {
     );
 
     assert_eq!(
-        result.iter(&BASE).collect::<Vec<_>>(),
+        set(&result).iter(&BASE).collect::<Vec<_>>(),
         vec![
             Object::new_integer(BigInt::from(1)),
             Object::new_integer(BigInt::from(3)),
@@ -128,7 +129,10 @@ fn query_construction_values_materialises_deferred_constructor() {
     );
 
     assert!(result.is_composite());
-    assert_eq!(result.iter(&knowledge).collect::<Vec<_>>(), vec![value]);
+    assert_eq!(
+        set(&result).iter(&knowledge).collect::<Vec<_>>(),
+        vec![value]
+    );
 }
 
 #[test]
@@ -160,8 +164,8 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
         property_constructor.clone(),
     );
     assert!(atom_result.is_composite());
-    assert_eq!(atom_result.item_count(&BASE), 0);
-    assert_eq!(atom_result.iter(&BASE).count(), 0);
+    assert_eq!(set(&atom_result).item_count(&BASE), 0);
+    assert_eq!(set(&atom_result).iter(&BASE).count(), 0);
 
     // `undefined` is an atom and is queried like any other atom.
     let undefined_result = evaluate_query(
@@ -169,8 +173,8 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
         property_constructor.clone(),
     );
     assert!(undefined_result.is_composite());
-    assert_eq!(undefined_result.item_count(&BASE), 0);
-    assert_eq!(undefined_result.iter(&BASE).count(), 0);
+    assert_eq!(set(&undefined_result).item_count(&BASE), 0);
+    assert_eq!(set(&undefined_result).iter(&BASE).count(), 0);
 
     // A deferred constructor is materialised and accepted like an eager one.
     let empty_composite = Node::Literal(Object::Composite(Composite::empty()));
@@ -185,15 +189,15 @@ fn query_construction_values_resolves_objects_through_the_knowledge() {
     );
 
     assert!(from_deferred.is_composite());
-    assert_eq!(from_deferred.item_count(&BASE), 0);
-    assert_eq!(from_deferred.iter(&BASE).count(), 0);
+    assert_eq!(set(&from_deferred).item_count(&BASE), 0);
+    assert_eq!(set(&from_deferred).iter(&BASE).count(), 0);
 
     // A deferred composite target yields a deferred result.
     let result = evaluate_query(deferred_composite, Node::Literal(Atom(1).into()));
 
     assert!(result.is_composite());
-    assert_eq!(result.item_count(&BASE), 0);
-    assert_eq!(result.iter(&BASE).count(), 0);
+    assert_eq!(set(&result).item_count(&BASE), 0);
+    assert_eq!(set(&result).iter(&BASE).count(), 0);
 }
 
 #[test]
@@ -215,5 +219,8 @@ fn query_construction_values_queries_undefined_as_an_atom() {
         &knowledge,
     );
 
-    assert_eq!(result.iter(&knowledge).collect::<Vec<_>>(), vec![value]);
+    assert_eq!(
+        set(&result).iter(&knowledge).collect::<Vec<_>>(),
+        vec![value]
+    );
 }

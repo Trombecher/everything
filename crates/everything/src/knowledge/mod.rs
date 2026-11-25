@@ -8,7 +8,7 @@ pub use query::*;
 
 use imbl::OrdMap;
 
-use crate::model::{Atom, CompositeApi, CompositeItems, Construction, Object};
+use crate::model::{Atom, AtomOrComposite, CompositeApi, CompositeItems, Construction, Object};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Statement {
@@ -85,46 +85,39 @@ impl Knowledge {
     /// * If the given object is an atom, then the properties are all properties
     ///   of that atom;
     /// * if the given object is a composite, then the properties are the members
-    ///   of that composite;
-    /// * a construction has no properties, so `None` is returned.
+    ///   of that composite.
     #[must_use]
-    pub fn properties_of(&self, object: &Object) -> Option<ObjectProperties> {
+    pub fn properties_of(&self, object: &AtomOrComposite) -> ObjectProperties {
         match object {
-            Object::Atom(atom) => Some(ObjectProperties::properties(self.properties_of_atom(atom))),
-            Object::Construction(_) => None,
-            Object::Composite(composite) => Some(ObjectProperties::members(composite.clone())),
+            AtomOrComposite::Atom(atom) => {
+                ObjectProperties::properties(self.properties_of_atom(atom))
+            }
+            AtomOrComposite::Composite(composite) => ObjectProperties::members(composite.clone()),
         }
     }
 
     /// Returns `true` iff `object` has `property` as one of its properties.
-    ///
-    /// Returns `None` iff `object` is a construction, which has no properties.
     #[must_use]
-    pub fn object_has_property(&self, object: &Object, property: &Object) -> Option<bool> {
+    pub fn object_has_property(&self, object: &AtomOrComposite, property: &Object) -> bool {
         match object {
-            Object::Atom(atom) => Some(
-                self.map
-                    .get(atom)
-                    .is_some_and(|properties| properties.has(property)),
-            ),
-            Object::Construction(_) => None,
-            Object::Composite(composite) => Some(composite.has(property)),
+            AtomOrComposite::Atom(atom) => self
+                .map
+                .get(atom)
+                .is_some_and(|properties| properties.has(property)),
+            AtomOrComposite::Composite(composite) => composite.has(property),
         }
     }
 
     /// Returns `true` iff `item` is an item of `object`'s set view: iff
     /// `object` has the property `contains ·· item`.
-    ///
-    /// Returns `None` iff `object` is a construction, which is not a set.
     #[must_use]
-    pub fn object_has_item(&self, object: &Object, item: &Object) -> Option<bool> {
+    pub fn object_has_item(&self, object: &AtomOrComposite, item: &Object) -> bool {
         match object {
-            Object::Atom(_) => self.object_has_property(
+            AtomOrComposite::Atom(_) => self.object_has_property(
                 object,
                 &Construction::new(Atom::CONTAINS.into(), item.clone()).into(),
             ),
-            Object::Composite(composite) => Some(composite.has_item(item)),
-            Object::Construction(_) => None,
+            AtomOrComposite::Composite(composite) => composite.has_item(item),
         }
     }
 
@@ -132,50 +125,45 @@ impl Knowledge {
     ///
     /// Atoms contribute the values of their `contains` statements, composites
     /// the values of their `contains` members.
-    ///
-    /// Returns `None` iff `object` is a construction, which is not a set.
     #[must_use]
-    pub fn items_of(&self, object: &Object) -> Option<ObjectItems> {
+    pub fn items_of(&self, object: &AtomOrComposite) -> ObjectItems {
         match object {
-            Object::Atom(atom) => Some(ObjectItems::Atom(
+            AtomOrComposite::Atom(atom) => ObjectItems::Atom(
                 self.properties_of_atom(atom)
                     .into_iter()
                     .filter_map(item_of_property),
-            )),
-            Object::Composite(composite) => {
-                Some(ObjectItems::Composite(composite.clone().into_items()))
+            ),
+            AtomOrComposite::Composite(composite) => {
+                ObjectItems::Composite(composite.clone().into_items())
             }
-            Object::Construction(_) => None,
         }
     }
 
     /// The number of items of `object`'s set view.
-    ///
-    /// Returns `None` iff `object` is a construction, which is not a set.
     #[must_use]
-    pub fn item_count_of(&self, object: &Object) -> Option<u64> {
+    pub fn item_count_of(&self, object: &AtomOrComposite) -> u64 {
         match object {
-            Object::Atom(_) => {
-                Some(u64::try_from(self.items_of(object)?.count()).unwrap_or(u64::MAX))
+            AtomOrComposite::Atom(_) => {
+                u64::try_from(self.items_of(object).count()).unwrap_or(u64::MAX)
             }
-            Object::Composite(composite) => Some(composite.item_count()),
-            Object::Construction(_) => None,
+            AtomOrComposite::Composite(composite) => composite.item_count(),
         }
     }
 
     /// Queries the values of the constructions of `target` with the given
     /// `property_constructor`.
     ///
-    /// Returns `None` iff `target` has no properties, i.e. iff it is a
-    /// construction.
+    /// Returns `None` iff `target` is a construction, which has no properties.
     #[must_use]
     pub fn query_construction_values(
         &self,
         target: &Object,
         property_constructor: Object,
     ) -> Option<QueryConstructionValues> {
+        let target = AtomOrComposite::try_from(target).ok()?;
+
         Some(QueryConstructionValues {
-            properties: self.properties_of(target)?,
+            properties: self.properties_of(&target),
             property_constructor,
         })
     }
@@ -199,14 +187,11 @@ impl Knowledge {
 
     /// Determines the size of the object in this knowledge, i.e.
     /// the number of properties it has.
-    ///
-    /// Returns `None` iff `object` is a construction, which has no properties.
     #[must_use]
-    pub fn size_of_object(&self, object: &Object) -> Option<u64> {
+    pub fn size_of_object(&self, object: &AtomOrComposite) -> u64 {
         match object {
-            Object::Atom(atom) => Some(self.map.get(atom).map_or(0, Properties::size)),
-            Object::Construction(_) => None,
-            Object::Composite(composite) => Some(composite.size()),
+            AtomOrComposite::Atom(atom) => self.map.get(atom).map_or(0, Properties::size),
+            AtomOrComposite::Composite(composite) => composite.size(),
         }
     }
 

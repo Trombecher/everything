@@ -214,7 +214,7 @@ fn fold_can_accumulate_deferred_sets() {
 
     assert!(result.is_composite());
     assert_eq!(
-        result.iter(&BASE).collect::<Vec<_>>(),
+        super::common::set(&result).iter(&BASE).collect::<Vec<_>>(),
         vec![integer(1), integer(2)]
     );
 }

@@ -2,7 +2,7 @@ use num_bigint::BigInt;
 
 use crate::{
     knowledge::{Knowledge, Statement},
-    model::{Atom, Composite, Construction, Object},
+    model::{Atom, AtomOrComposite, Composite, Construction, Object},
 };
 
 fn integer(value: i32) -> Object {
@@ -88,7 +88,12 @@ fn query_construction_values_of_construction_is_none() {
 }
 
 #[test]
-fn object_has_property_of_construction_is_none() {
+fn construction_is_not_an_atom_or_composite() {
+    assert!(AtomOrComposite::try_from(construction_value(Atom(1), 1)).is_err());
+}
+
+#[test]
+fn object_has_property_distinguishes_known_and_unknown_properties() {
     let property = integer(1);
     let atom = Atom(42);
 
@@ -98,22 +103,12 @@ fn object_has_property_of_construction_is_none() {
         object: property.clone(),
     });
 
-    assert_eq!(
-        knowledge.object_has_property(&atom.into(), &property),
-        Some(true)
-    );
-    assert_eq!(
-        knowledge.object_has_property(&Atom(43).into(), &property),
-        Some(false)
-    );
-    assert_eq!(
-        knowledge.object_has_property(&construction_value(Atom(1), 1), &property),
-        None
-    );
+    assert!(knowledge.object_has_property(&AtomOrComposite::Atom(atom), &property));
+    assert!(!knowledge.object_has_property(&AtomOrComposite::Atom(Atom(43)), &property));
 }
 
 #[test]
-fn object_has_item_of_construction_is_none() {
+fn object_has_item_distinguishes_contained_and_absent_items() {
     let atom = Atom(42);
     let contained = integer(1);
     let not_contained = integer(2);
@@ -124,22 +119,14 @@ fn object_has_item_of_construction_is_none() {
         object: contains(contained.clone()),
     });
 
-    assert_eq!(
-        knowledge.object_has_item(&atom.into(), &contained),
-        Some(true)
-    );
-    assert_eq!(
-        knowledge.object_has_item(&atom.into(), &not_contained),
-        Some(false)
-    );
-    assert_eq!(
-        knowledge.object_has_item(&construction_value(Atom(1), 1), &contained),
-        None
-    );
+    let atom = AtomOrComposite::Atom(atom);
+
+    assert!(knowledge.object_has_item(&atom, &contained));
+    assert!(!knowledge.object_has_item(&atom, &not_contained));
 }
 
 #[test]
-fn items_of_construction_is_none() {
+fn items_of_an_atom_yields_its_contains_values() {
     let atom = Atom(42);
 
     let mut knowledge = Knowledge::empty();
@@ -154,20 +141,14 @@ fn items_of_construction_is_none() {
 
     assert_eq!(
         knowledge
-            .items_of(&atom.into())
-            .expect("an atom is a set")
+            .items_of(&AtomOrComposite::Atom(atom))
             .collect::<Vec<_>>(),
         vec![integer(1)]
-    );
-    assert!(
-        knowledge
-            .items_of(&construction_value(Atom(1), 1))
-            .is_none()
     );
 }
 
 #[test]
-fn item_count_of_construction_is_none() {
+fn item_count_of_an_atom_counts_its_contains_values() {
     let atom = Atom(42);
 
     let mut knowledge = Knowledge::empty();
@@ -180,15 +161,11 @@ fn item_count_of_construction_is_none() {
         object: contains(integer(2)),
     });
 
-    assert_eq!(knowledge.item_count_of(&atom.into()), Some(2));
-    assert_eq!(
-        knowledge.item_count_of(&construction_value(Atom(1), 1)),
-        None
-    );
+    assert_eq!(knowledge.item_count_of(&AtomOrComposite::Atom(atom)), 2);
 }
 
 #[test]
-fn size_of_object_of_construction_is_none() {
+fn size_of_object_counts_the_properties_of_an_atom() {
     let atom = Atom(42);
 
     let mut knowledge = Knowledge::empty();
@@ -201,9 +178,5 @@ fn size_of_object_of_construction_is_none() {
         object: integer(2),
     });
 
-    assert_eq!(knowledge.size_of_object(&atom.into()), Some(2));
-    assert_eq!(
-        knowledge.size_of_object(&construction_value(Atom(1), 1)),
-        None
-    );
+    assert_eq!(knowledge.size_of_object(&AtomOrComposite::Atom(atom)), 2);
 }

@@ -17,12 +17,12 @@ fn set_difference() {
     );
 
     assert!(result.is_composite());
-    assert_eq!(result.item_count(&BASE), 2);
+    assert_eq!(set(&result).item_count(&BASE), 2);
     assert_eq!(
-        result.iter(&BASE).collect::<Vec<_>>(),
+        set(&result).iter(&BASE).collect::<Vec<_>>(),
         vec![integer(1), integer(3)]
     );
-    assert!(!result.has_item(&integer(2), &BASE));
+    assert!(!set(&result).has_item(&integer(2), &BASE));
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn set_difference_of_deferred_sets() {
     );
 
     assert_eq!(
-        result.iter(&BASE).collect::<Vec<_>>(),
+        set(&result).iter(&BASE).collect::<Vec<_>>(),
         vec![integer(1), integer(3)]
     );
 }
@@ -116,8 +116,11 @@ fn set_difference_of_a_map_deduplicates() {
         &BASE,
     );
 
-    assert_eq!(result.iter(&BASE).collect::<Vec<_>>(), vec![integer(1)]);
-    assert_eq!(result.item_count(&BASE), 1);
+    assert_eq!(
+        set(&result).iter(&BASE).collect::<Vec<_>>(),
+        vec![integer(1)]
+    );
+    assert_eq!(set(&result).item_count(&BASE), 1);
 }
 
 #[test]

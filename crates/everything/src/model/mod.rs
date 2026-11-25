@@ -123,3 +123,59 @@ impl From<bool> for Object {
         Atom::from(truth).into()
     }
 }
+
+/// An [`Object`] that is not a construction.
+///
+/// Atoms and composites have properties and are sets; constructions have
+/// neither. APIs that query properties or set items take this type instead of
+/// [`Object`], so that passing a construction is rejected at compile time.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum AtomOrComposite {
+    Atom(Atom),
+    Composite(Composite),
+}
+
+impl TryFrom<Object> for AtomOrComposite {
+    type Error = Construction;
+
+    fn try_from(object: Object) -> Result<Self, Self::Error> {
+        match object {
+            Object::Atom(atom) => Ok(Self::Atom(atom)),
+            Object::Composite(composite) => Ok(Self::Composite(composite)),
+            Object::Construction(construction) => Err(construction),
+        }
+    }
+}
+
+impl TryFrom<&Object> for AtomOrComposite {
+    type Error = Construction;
+
+    fn try_from(object: &Object) -> Result<Self, Self::Error> {
+        match object {
+            Object::Atom(atom) => Ok(Self::Atom(*atom)),
+            Object::Composite(composite) => Ok(Self::Composite(composite.clone())),
+            Object::Construction(construction) => Err(construction.clone()),
+        }
+    }
+}
+
+impl From<AtomOrComposite> for Object {
+    fn from(value: AtomOrComposite) -> Self {
+        match value {
+            AtomOrComposite::Atom(atom) => Self::Atom(atom),
+            AtomOrComposite::Composite(composite) => Self::Composite(composite),
+        }
+    }
+}
+
+impl From<Atom> for AtomOrComposite {
+    fn from(atom: Atom) -> Self {
+        Self::Atom(atom)
+    }
+}
+
+impl From<Composite> for AtomOrComposite {
+    fn from(composite: Composite) -> Self {
+        Self::Composite(composite)
+    }
+}

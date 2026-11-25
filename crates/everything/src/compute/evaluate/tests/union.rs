@@ -34,7 +34,7 @@ fn set_union_requires_a_set() {
     );
 
     assert!(union.is_composite());
-    assert_eq!(union.item_count(&BASE), 0);
+    assert_eq!(set(&union).item_count(&BASE), 0);
 }
 
 #[test]
@@ -47,10 +47,10 @@ fn set_union_iterates_each_item_once() {
     let result = evaluate(&union, &BASE);
 
     assert_eq!(
-        result.iter(&BASE).collect::<Vec<_>>(),
+        set(&result).iter(&BASE).collect::<Vec<_>>(),
         vec![integer(1), integer(2), integer(3)]
     );
-    assert_eq!(result.item_count(&BASE), 3);
+    assert_eq!(set(&result).item_count(&BASE), 3);
 }
 
 #[test]

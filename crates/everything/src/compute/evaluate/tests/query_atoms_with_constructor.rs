@@ -48,12 +48,12 @@ fn query_atoms_with_constructor() {
     );
 
     assert!(result.is_composite());
-    assert_eq!(result.item_count(&knowledge), 2);
-    assert!(result.has_item(&first_atom.into(), &knowledge));
-    assert!(result.has_item(&second_atom.into(), &knowledge));
-    assert!(!result.has_item(&other_atom.into(), &knowledge));
+    assert_eq!(set(&result).item_count(&knowledge), 2);
+    assert!(set(&result).has_item(&first_atom.into(), &knowledge));
+    assert!(set(&result).has_item(&second_atom.into(), &knowledge));
+    assert!(!set(&result).has_item(&other_atom.into(), &knowledge));
     assert_eq!(
-        result.iter(&knowledge).collect::<Vec<_>>(),
+        set(&result).iter(&knowledge).collect::<Vec<_>>(),
         vec![first_atom.into(), second_atom.into()]
     );
 }
@@ -81,7 +81,7 @@ fn query_atoms_with_constructor_materializes_deferred_constructor() {
     );
 
     assert_eq!(
-        result.iter(&knowledge).collect::<Vec<_>>(),
+        set(&result).iter(&knowledge).collect::<Vec<_>>(),
         vec![atom.into()]
     );
 }

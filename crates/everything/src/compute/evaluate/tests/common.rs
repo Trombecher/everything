@@ -2,10 +2,19 @@ use num_bigint::BigInt;
 
 use crate::{
     base::BASE,
+    compute::SetValue,
     model::{Atom, Composite, Construction, Object},
 };
 
 use super::super::*;
+
+/// Asserts that an evaluation result is a set and returns its typed set value.
+pub fn set(object: &LazyObject) -> SetValue {
+    object
+        .clone()
+        .into_set()
+        .expect("evaluation result is a set")
+}
 
 pub fn product_iterator<A: Clone, B>(
     a: impl Iterator<Item = A>,

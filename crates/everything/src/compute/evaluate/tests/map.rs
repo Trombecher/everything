@@ -15,7 +15,8 @@ fn set_map() {
         mapper_function: identity_function().into(),
     };
 
-    let values = evaluate(&node, &BASE).iter(&BASE).collect::<Vec<_>>();
+    let result = evaluate(&node, &BASE);
+    let values = set(&result).iter(&BASE).collect::<Vec<_>>();
 
     assert_eq!(
         values,
@@ -37,8 +38,11 @@ fn set_map_deduplicates() {
 
     let result = evaluate(&node, &BASE);
 
-    assert_eq!(result.iter(&BASE).collect::<Vec<_>>(), vec![integer(1)]);
-    assert_eq!(result.item_count(&BASE), 1);
+    assert_eq!(
+        set(&result).iter(&BASE).collect::<Vec<_>>(),
+        vec![integer(1)]
+    );
+    assert_eq!(set(&result).item_count(&BASE), 1);
 }
 
 #[test]
