@@ -4,8 +4,6 @@ Everything gives you the freedom to model anything. However, some models are sto
 
 ## Sets
 
-The atom `contains` is introduced by this model and is not predefined in `atoms.rs`. It is a property constructor whose constraint accepts every value for every subject.
-
 An object is a _set_ iff it is a composite whose members are all constructions of the form `contains ·· %item%`. The objects `%item%` are the _items_ of the set. The empty set is the empty composite.
 
 Sets inherit their structure from composites: they are unordered and contain each item at most once, `⟨contains ·· %a%, contains ·· %b%⟩ == ⟨contains ·· %b%, contains ·· %a%⟩` and `⟨contains ·· %a%, contains ·· %a%⟩ == ⟨contains ·· %a%⟩`.
@@ -33,7 +31,7 @@ Integers are constructed recursively through object nesting. An object is an _in
 - it is equal to the atom `zero`, or
 - it is a composite with a single property whose constructor is `successor_of` or `predecessor_of` and whose value is an integer.
 
-An integer is _positive_ iff it has a `successor_of` property and _negative_ iff it has a `predecessor_of` property. The atom `zero` is neither positive nor negative. For the canonical representation, the value of a `successor_of` property must be non-negative and the value of a `predecessor_of` property must be non-positive.
+An integer is _positive_ iff it has a `successor_of` property and _negative_ iff it has a `predecessor_of` property. The atom `zero` is neither positive nor negative. The value of a `successor_of` property must be non-negative and the value of a `predecessor_of` property must be non-positive.
 
 This approach of constructing integers is similar to the Peano axioms definition of natural numbers.
 
@@ -142,8 +140,6 @@ Bytes are stored optimally in memory.
 Bytes / binary data can be modelled as a list of bytes. It is stored as actual bytes in memory.
 
 ## Rational Numbers
-
-The atoms `numerator` and `denominator` are introduced by this model and are not predefined in `atoms.rs`.
 
 A rational number in math is represented by two integers $a$ and $b$: $a/b$. The goal is to model rational numbers in Everything such that **two objects representing rational numbers are equal (and that means _structurally_) iff the rational numbers the objects represent are equal**.
 

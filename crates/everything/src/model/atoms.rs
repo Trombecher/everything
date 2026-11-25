@@ -206,6 +206,15 @@ impl Atom {
 
         /// Literal falsehood.
         FALSE = 2170291666543565065425670792797371702;
+
+        /// Set membership.
+        CONTAINS = 2170709517673194230291133647353683043;
+
+        /// Numerator in a fraction.
+        NUMERATOR = 2170709897728466098635434080350968542;
+
+        /// Denominator in a fraction.
+        DENOMINATOR = 2170709907418312990524200060941600479;
     );
 }
 
