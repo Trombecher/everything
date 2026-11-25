@@ -55,21 +55,21 @@ impl CompositeApi for CharacterComposite {
 
 impl IntoIterator for CharacterComposite {
     type Item = Object;
-    type IntoIter = CharacterCompositeValues;
+    type IntoIter = CharacterCompositeProperties;
 
     fn into_iter(self) -> Self::IntoIter {
-        CharacterCompositeValues {
+        CharacterCompositeProperties {
             to_yield: Some(self.representing),
         }
     }
 }
 
 #[derive(Clone)]
-pub struct CharacterCompositeValues {
+pub struct CharacterCompositeProperties {
     pub to_yield: Option<char>,
 }
 
-impl Iterator for CharacterCompositeValues {
+impl Iterator for CharacterCompositeProperties {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -115,18 +115,18 @@ mod Byte {
 }
 
 #[allow(non_snake_case)]
-mod ByteValues {
+mod ByteProperties {
     use super::super::*;
 
     #[test]
     fn next() {
-        let mut values = ByteCompositeValues {
+        let mut properties = ByteCompositeProperties {
             byte: ByteComposite(0b1010_0101),
             next_slot: Some(BitSlot::Slot0),
         };
 
         assert_eq!(
-            values.next(),
+            properties.next(),
             Some(
                 Construction {
                     constructor: Box::new(Object::Atom(Atom::BIT_SLOT_0)),
@@ -137,7 +137,7 @@ mod ByteValues {
         );
 
         assert_eq!(
-            values.next(),
+            properties.next(),
             Some(
                 Construction {
                     constructor: Box::new(Object::Atom(Atom::BIT_SLOT_1)),
@@ -148,7 +148,7 @@ mod ByteValues {
         );
 
         assert_eq!(
-            values.next(),
+            properties.next(),
             Some(
                 Construction {
                     constructor: Box::new(Object::Atom(Atom::BIT_SLOT_2)),
@@ -159,7 +159,7 @@ mod ByteValues {
         );
 
         assert_eq!(
-            values.next(),
+            properties.next(),
             Some(
                 Construction {
                     constructor: Box::new(Object::Atom(Atom::BIT_SLOT_3)),
@@ -170,7 +170,7 @@ mod ByteValues {
         );
 
         assert_eq!(
-            values.next(),
+            properties.next(),
             Some(
                 Construction {
                     constructor: Box::new(Object::Atom(Atom::BIT_SLOT_4)),
@@ -181,7 +181,7 @@ mod ByteValues {
         );
 
         assert_eq!(
-            values.next(),
+            properties.next(),
             Some(
                 Construction {
                     constructor: Box::new(Object::Atom(Atom::BIT_SLOT_5)),
@@ -192,7 +192,7 @@ mod ByteValues {
         );
 
         assert_eq!(
-            values.next(),
+            properties.next(),
             Some(
                 Construction {
                     constructor: Box::new(Object::Atom(Atom::BIT_SLOT_6)),
@@ -203,7 +203,7 @@ mod ByteValues {
         );
 
         assert_eq!(
-            values.next(),
+            properties.next(),
             Some(
                 Construction {
                     constructor: Box::new(Object::Atom(Atom::BIT_SLOT_7)),
@@ -213,9 +213,9 @@ mod ByteValues {
             )
         );
 
-        assert_eq!(values.next(), None);
-        assert_eq!(values.next(), None);
-        assert_eq!(values.next(), None);
-        assert_eq!(values.next(), None);
+        assert_eq!(properties.next(), None);
+        assert_eq!(properties.next(), None);
+        assert_eq!(properties.next(), None);
+        assert_eq!(properties.next(), None);
     }
 }

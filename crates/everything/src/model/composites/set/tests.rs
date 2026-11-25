@@ -127,11 +127,11 @@ fn members_are_iterated_in_ascending_order() {
 
     let composite = Composite::from([contains(Object::Atom(Atom(40))), lower, upper, atom]);
 
-    let values: Vec<_> = composite.values().collect();
+    let properties: Vec<_> = composite.properties().collect();
 
     assert!(
-        values.windows(2).all(|pair| pair[0] < pair[1]),
-        "values are not ascending: {values:?}"
+        properties.windows(2).all(|pair| pair[0] < pair[1]),
+        "properties are not ascending: {properties:?}"
     );
 }
 

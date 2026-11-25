@@ -1,5 +1,5 @@
 use everything::{
-    knowledge::{Knowledge, Statement, Values},
+    knowledge::{Knowledge, Properties, Statement},
     model::{
         Atom, ByteComposite, CharacterComposite, Composite, Construction, Object, TextComposite,
     },
@@ -190,19 +190,19 @@ fn parse_composite(cursor: &mut ReadCursor) -> Result<Composite, ParseError> {
     Ok(Composite::from(properties.as_mut_slice()))
 }
 
-/// Parses the values of a subject: a LEB128 count followed by that many objects.
-fn parse_values(cursor: &mut ReadCursor) -> Result<Values, ParseError> {
-    let value_count = cursor
+/// Parses the properties of a subject: a LEB128 count followed by that many objects.
+fn parse_properties(cursor: &mut ReadCursor) -> Result<Properties, ParseError> {
+    let property_count = cursor
         .read_leb128_u64()
         .map_err(|_| ParseError::InvalidCompositeValueCount)?;
 
-    let mut values = Values::empty();
+    let mut properties = Properties::empty();
 
-    for _ in 0..value_count {
-        values.insert(parse_object(cursor)?);
+    for _ in 0..property_count {
+        properties.insert(parse_object(cursor)?);
     }
 
-    Ok(values)
+    Ok(properties)
 }
 
 /// Parses a text composite: a LEB128 length in bytes followed by that many bytes
@@ -236,10 +236,10 @@ fn collect_base(base: &[u8], knowledge: &mut Knowledge) -> Result<(), ParseError
 
     while cursor.remaining() > 0 {
         let atom = parse_atom(&mut cursor)?;
-        let values = parse_values(&mut cursor)?;
+        let properties = parse_properties(&mut cursor)?;
 
-        if !values.is_empty() {
-            knowledge.map.insert(atom, values);
+        if !properties.is_empty() {
+            knowledge.map.insert(atom, properties);
         }
     }
 

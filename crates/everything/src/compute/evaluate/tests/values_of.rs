@@ -52,7 +52,7 @@ fn values_of() {
             &Node::ValuesOf(Node::Literal(Object::Atom(atom)).into()),
             &knowledge,
         ),
-        LazyObject::AtomValues(values) if values.size() == 1
+        LazyObject::AtomProperties(properties) if properties.size() == 1
     );
 
     assert_eq!(

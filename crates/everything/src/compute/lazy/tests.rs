@@ -1,7 +1,7 @@
 use num_bigint::BigInt;
 
 use crate::{
-    knowledge::{Knowledge, Statement, Values},
+    knowledge::{Knowledge, Properties, Statement},
     model::{Atom, Composite, Construction, Object},
 };
 
@@ -23,15 +23,15 @@ fn undefined_is_not_a_node() {
 fn is_lazy_distinguishes_materialized_results() {
     let eager_composite = LazyObject::Eager(Object::Composite(Composite::from([integer(1)])));
     let eager_atom = LazyObject::Eager(Atom(42).into());
-    let lazy_values = LazyObject::AtomValues(Values::from([integer(1)]));
+    let lazy_properties = LazyObject::AtomProperties(Properties::from([integer(1)]));
 
     assert!(!eager_composite.is_lazy());
     assert!(!eager_atom.is_lazy());
-    assert!(lazy_values.is_lazy());
+    assert!(lazy_properties.is_lazy());
 
     let lazy_union = LazyObject::Union {
-        first: Box::new(lazy_values.clone()),
-        second: Box::new(lazy_values),
+        first: Box::new(lazy_properties.clone()),
+        second: Box::new(lazy_properties),
     };
 
     assert!(lazy_union.is_lazy());
@@ -85,7 +85,7 @@ fn into_iter_of_a_union_yields_each_value_at_most_once() {
 }
 
 #[test]
-fn into_iter_captures_atom_values() {
+fn into_iter_captures_atom_properties() {
     let atom = Atom(42);
     let first = integer(1);
     let second = integer(2);
@@ -96,7 +96,7 @@ fn into_iter_captures_atom_values() {
         object: first.clone(),
     });
 
-    let lazy = LazyObject::AtomValues(knowledge.values_of_atom(&atom));
+    let lazy = LazyObject::AtomProperties(knowledge.properties_of_atom(&atom));
     let iterator = lazy.into_iter(&knowledge);
 
     // Changes to the knowledge after creating the iterator must not be visible.

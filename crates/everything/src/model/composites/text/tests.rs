@@ -18,8 +18,8 @@ fn text_object(text: &str) -> Object {
     Object::Composite(Composite::Text(TextComposite::new(text.into()).unwrap()))
 }
 
-/// Returns the two values of the text composite representing `text`.
-fn text_values(text: &str) -> [Object; 2] {
+/// Returns the two properties of the text composite representing `text`.
+fn text_properties(text: &str) -> [Object; 2] {
     let mut characters = text.chars();
     let item = characters.next().unwrap();
     let tail = characters.as_str();
@@ -39,35 +39,38 @@ fn text_values(text: &str) -> [Object; 2] {
 
 #[test]
 fn specializes_text_composites() {
-    let values = text_values("hello");
-    let composite = Composite::from(values.clone());
+    let properties = text_properties("hello");
+    let composite = Composite::from(properties.clone());
 
     assert_eq!(
         composite,
         Composite::Text(TextComposite::new("hello".into()).unwrap())
     );
     assert_eq!(composite.size(), 2);
-    assert!(composite.has(&values[0]));
-    assert!(composite.has(&values[1]));
+    assert!(composite.has(&properties[0]));
+    assert!(composite.has(&properties[1]));
 
-    // Re-specializing the values must give back the same composite. `add_object`
+    // Re-specializing the properties must give back the same composite. `add_object`
     // and `remove_object` rely on this.
-    let mut rebuilt_values: Vec<_> = composite.clone().values().collect();
-    assert_eq!(Composite::from(rebuilt_values.as_mut_slice()), composite);
+    let mut rebuilt_properties: Vec<_> = composite.clone().properties().collect();
+    assert_eq!(
+        Composite::from(rebuilt_properties.as_mut_slice()),
+        composite
+    );
 }
 
 #[test]
 fn specializes_single_character_text_composites() {
-    let values = text_values("x");
-    let composite = Composite::from(values.clone());
+    let properties = text_properties("x");
+    let composite = Composite::from(properties.clone());
 
     assert_eq!(
         composite,
         Composite::Text(TextComposite::new("x".into()).unwrap())
     );
     assert_eq!(composite.size(), 2);
-    assert!(composite.has(&values[0]));
-    assert!(composite.has(&values[1]));
+    assert!(composite.has(&properties[0]));
+    assert!(composite.has(&properties[1]));
 }
 
 #[test]
@@ -112,7 +115,7 @@ fn does_not_specialize_ill_formed_text_composites() {
         Composite::Any(_)
     ));
 
-    // A composite with more than two values is never text.
+    // A composite with more than two properties is never text.
     assert!(matches!(
         Composite::from([empty_tail, Atom::ZERO.into(), Atom::LIST_ITEM.into()]),
         Composite::Any(_)

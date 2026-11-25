@@ -434,7 +434,7 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
 
                 evaluated.push(match object {
                     LazyObject::Eager(Object::Atom(atom)) => {
-                        LazyObject::AtomValues(knowledge.values_of_atom(&atom))
+                        LazyObject::AtomProperties(knowledge.properties_of_atom(&atom))
                     }
                     LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
                     object => object,

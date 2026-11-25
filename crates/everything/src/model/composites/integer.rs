@@ -23,10 +23,10 @@ impl Debug for IntegerComposite {
 
 impl IntoIterator for IntegerComposite {
     type Item = Object;
-    type IntoIter = IntegerCompositeValues;
+    type IntoIter = IntegerCompositeProperties;
 
     fn into_iter(self) -> Self::IntoIter {
-        IntegerCompositeValues {
+        IntegerCompositeProperties {
             to_yield: Some(self.representing),
         }
     }
@@ -94,11 +94,11 @@ impl CompositeApi for IntegerComposite {
 }
 
 #[derive(Clone)]
-pub struct IntegerCompositeValues {
+pub struct IntegerCompositeProperties {
     to_yield: Option<NonZeroBigInt>,
 }
 
-impl Iterator for IntegerCompositeValues {
+impl Iterator for IntegerCompositeProperties {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

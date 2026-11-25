@@ -159,10 +159,10 @@ impl CompositeApi for TextComposite {
 
 impl IntoIterator for TextComposite {
     type Item = Object;
-    type IntoIter = TextCompositeValues;
+    type IntoIter = TextCompositeProperties;
 
     fn into_iter(self) -> Self::IntoIter {
-        TextCompositeValues {
+        TextCompositeProperties {
             text_composite: self,
             step: TextCompositeIteratorStep::YieldItem,
         }
@@ -177,12 +177,12 @@ enum TextCompositeIteratorStep {
 }
 
 #[derive(Clone)]
-pub struct TextCompositeValues {
+pub struct TextCompositeProperties {
     text_composite: TextComposite,
     step: TextCompositeIteratorStep,
 }
 
-impl Iterator for TextCompositeValues {
+impl Iterator for TextCompositeProperties {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -32,7 +32,7 @@ fn empty_composite_is_canonical() {
 }
 
 #[test]
-fn duplicate_values_are_removed() {
+fn duplicate_properties_are_removed() {
     let atom = Object::Atom(Atom(0xDEAD_BEEF));
 
     let from_slice = Composite::from([atom.clone(), atom.clone(), atom.clone()]);
@@ -43,7 +43,7 @@ fn duplicate_values_are_removed() {
 }
 
 #[test]
-fn duplicate_values_do_not_select_invalid_specialization() {
+fn duplicate_properties_do_not_select_invalid_specialization() {
     let bit = construction(Atom::BIT_SLOT_0.into(), Atom::BIT_ON.into());
     let objects: [Object; 8] = std::array::from_fn(|_| bit.clone());
 
@@ -129,8 +129,8 @@ fn arbitrary_composites_are_sorted_and_deduplicated() {
     assert!(matches!(&composite, Composite::Any(_)));
     assert_eq!(composite.size(), 3);
 
-    let values: Vec<_> = composite.values().collect();
-    assert_eq!(values.as_slice(), [a, b, c].as_slice());
+    let properties: Vec<_> = composite.properties().collect();
+    assert_eq!(properties.as_slice(), [a, b, c].as_slice());
 }
 
 #[test]
@@ -156,11 +156,11 @@ fn every_variant_iterates_in_ascending_order() {
     ];
 
     for composite in composites {
-        let values: Vec<_> = composite.values().collect();
+        let properties: Vec<_> = composite.properties().collect();
 
         assert!(
-            values.windows(2).all(|pair| pair[0] < pair[1]),
-            "values are not ascending: {values:?}"
+            properties.windows(2).all(|pair| pair[0] < pair[1]),
+            "properties are not ascending: {properties:?}"
         );
     }
 }

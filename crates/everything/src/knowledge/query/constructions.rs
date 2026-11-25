@@ -1,7 +1,7 @@
 use imbl::OrdMap;
 
 use crate::{
-    knowledge::{Values, ValuesValues},
+    knowledge::{Properties, PropertiesIter},
     model::{Atom, Composite, Construction, Object},
 };
 
@@ -30,15 +30,15 @@ impl AtomValuePair {
 /// atom has the construction `constructor : value` in the knowledge.
 #[derive(Clone)]
 pub struct QueryConstructions {
-    atoms: <OrdMap<Atom, Values> as IntoIterator>::IntoIter,
+    atoms: <OrdMap<Atom, Properties> as IntoIterator>::IntoIter,
     constructor: Object,
-    current: Option<(Atom, ValuesValues)>,
+    current: Option<(Atom, PropertiesIter)>,
 }
 
 impl QueryConstructions {
     #[must_use]
     pub fn new(
-        atoms: <OrdMap<Atom, Values> as IntoIterator>::IntoIter,
+        atoms: <OrdMap<Atom, Properties> as IntoIterator>::IntoIter,
         constructor: Object,
     ) -> Self {
         Self {
@@ -54,16 +54,16 @@ impl Iterator for QueryConstructions {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let (atom, values) = if let Some((atom, values)) = &mut self.current {
-                (*atom, values)
+            let (atom, properties) = if let Some((atom, properties)) = &mut self.current {
+                (*atom, properties)
             } else {
-                let (atom, values) = self.atoms.next()?;
-                self.current = Some((atom, values.into_iter()));
+                let (atom, properties) = self.atoms.next()?;
+                self.current = Some((atom, properties.into_iter()));
 
                 continue;
             };
 
-            for property in values {
+            for property in properties {
                 if let Object::Construction(Construction { constructor, value }) = property
                     && constructor.as_ref() == &self.constructor
                 {

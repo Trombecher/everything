@@ -1,13 +1,13 @@
 use imbl::OrdMap;
 
 use crate::{
-    knowledge::Values,
+    knowledge::Properties,
     model::{Atom, Construction, Object},
 };
 
 #[derive(Clone)]
 pub struct QueryAtomsWithProperty {
-    pub atoms: <OrdMap<Atom, Values> as IntoIterator>::IntoIter,
+    pub atoms: <OrdMap<Atom, Properties> as IntoIterator>::IntoIter,
     pub property: Object,
 }
 
@@ -15,8 +15,8 @@ impl Iterator for QueryAtomsWithProperty {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.atoms.find_map(|(atom, composite)| {
-            if composite.has(&self.property) {
+        self.atoms.find_map(|(atom, properties)| {
+            if properties.has(&self.property) {
                 Some(atom)
             } else {
                 None
@@ -29,7 +29,7 @@ impl Iterator for QueryAtomsWithProperty {
 /// construction with the given constructor.
 #[derive(Clone)]
 pub struct QueryAtomsWithConstructor {
-    pub atoms: <OrdMap<Atom, Values> as IntoIterator>::IntoIter,
+    pub atoms: <OrdMap<Atom, Properties> as IntoIterator>::IntoIter,
     pub constructor: Object,
 }
 
@@ -37,8 +37,8 @@ impl Iterator for QueryAtomsWithConstructor {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.atoms.find_map(|(atom, values)| {
-            values
+        self.atoms.find_map(|(atom, properties)| {
+            properties
                 .into_iter()
                 .any(|property| {
                     matches!(

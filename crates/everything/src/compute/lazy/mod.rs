@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 use crate::{
     compute::{self, MaybeUndefined, Node},
     knowledge::{
-        AtomValuePair, Knowledge, ObjectValues, QueryAtomsWithConstructor, QueryAtomsWithProperty,
-        QueryConstructions, Values,
+        AtomValuePair, Knowledge, ObjectProperties, Properties, QueryAtomsWithConstructor,
+        QueryAtomsWithProperty, QueryConstructions,
     },
     model::{Composite, Construction, Object},
 };
@@ -20,11 +20,11 @@ pub enum LazyObject {
     /// A node.
     Node(Node),
 
-    /// The composite of values of an atom in the knowledge.
+    /// The composite of properties of an atom in the knowledge.
     ///
-    /// The values are kept in their knowledge container, so iterating
+    /// The properties are kept in their knowledge container, so iterating
     /// them does not require materialising a model [`Composite`].
-    AtomValues(Values),
+    AtomProperties(Properties),
 
     /// Represents the composite that is the union of two [`LazyObject`]s.
     Union { first: Box<Self>, second: Box<Self> },
@@ -96,7 +96,7 @@ impl LazyObject {
     pub fn is_composite(&self) -> bool {
         match self {
             Self::Eager(Object::Composite(_))
-            | Self::AtomValues(_)
+            | Self::AtomProperties(_)
             | Self::Node(_)
             | Self::Union { .. }
             | Self::Intersection { .. }
@@ -128,7 +128,7 @@ impl LazyObject {
         match self {
             Self::Eager(object) => Some(object),
             Self::Node(node) => Some(node.into_object()),
-            Self::AtomValues(values) => Some(atom_values_into_object(values)),
+            Self::AtomProperties(properties) => Some(atom_properties_into_object(properties)),
             Self::Union { .. }
             | Self::Intersection { .. }
             | Self::Difference { .. }
@@ -148,7 +148,7 @@ impl LazyObject {
         match self {
             Self::Eager(object) => object,
             Self::Node(node) => node.into_object(),
-            Self::AtomValues(values) => atom_values_into_object(values),
+            Self::AtomProperties(properties) => atom_properties_into_object(properties),
             lazy_composite => {
                 let mut values = lazy_composite
                     .into_composite_iter(knowledge)
@@ -164,7 +164,7 @@ impl LazyObject {
         match self {
             Self::Node(node) => node.composite_size(),
             Self::Eager(object) => knowledge.size_of_object(object),
-            Self::AtomValues(values) => values.size(),
+            Self::AtomProperties(properties) => properties.size(),
             Self::Union { .. }
             | Self::Intersection { .. }
             | Self::Difference { .. }
@@ -192,7 +192,7 @@ impl LazyObject {
         match self {
             Self::Node(node) => node.composite_size() != 0,
             Self::Eager(object) => knowledge.size_of_object(object) != 0,
-            Self::AtomValues(values) => !values.is_empty(),
+            Self::AtomProperties(properties) => !properties.is_empty(),
             Self::Union { first, second } => {
                 first.has_at_least_one_element(knowledge)
                     || second.has_at_least_one_element(knowledge)
@@ -227,7 +227,7 @@ impl LazyObject {
         match self {
             Self::Node(node) => knowledge.object_has(&node.into_object(), element),
             Self::Eager(object) => knowledge.object_has(object, element),
-            Self::AtomValues(values) => values.has(element),
+            Self::AtomProperties(properties) => properties.has(element),
             Self::Union { first, second } => {
                 first.has(element, knowledge) || second.has(element, knowledge)
             }
@@ -299,11 +299,13 @@ impl LazyObject {
     #[must_use]
     pub fn iter(&self, knowledge: &Knowledge) -> LazyObjectIter {
         match self {
-            Self::Eager(object) => LazyObjectIter::ObjectValues(knowledge.values_of(object)),
+            Self::Eager(object) => {
+                LazyObjectIter::ObjectProperties(knowledge.properties_of(object))
+            }
             Self::Node(node) => {
                 let object = node.into_object();
 
-                LazyObjectIter::ObjectValues(knowledge.values_of(&object))
+                LazyObjectIter::ObjectProperties(knowledge.properties_of(&object))
             }
             lazy_object => lazy_object.clone().into_iter(knowledge),
         }
@@ -319,11 +321,13 @@ impl LazyObject {
             Self::Node(node) => {
                 let object = node.into_object();
 
-                LazyObjectIter::ObjectValues(knowledge.values_of(&object))
+                LazyObjectIter::ObjectProperties(knowledge.properties_of(&object))
             }
-            Self::Eager(object) => LazyObjectIter::ObjectValues(knowledge.values_of(&object)),
-            Self::AtomValues(values) => {
-                LazyObjectIter::ObjectValues(ObjectValues::properties(values))
+            Self::Eager(object) => {
+                LazyObjectIter::ObjectProperties(knowledge.properties_of(&object))
+            }
+            Self::AtomProperties(properties) => {
+                LazyObjectIter::ObjectProperties(ObjectProperties::properties(properties))
             }
             Self::Union { first, second } => LazyObjectIter::Deduplicated {
                 values: Box::new(LazyObjectIter::Union {
@@ -398,15 +402,15 @@ impl LazyObject {
 }
 
 #[must_use]
-fn atom_values_into_object(values: Values) -> Object {
-    let mut values = values.into_iter().collect::<Vec<_>>();
+fn atom_properties_into_object(properties: Properties) -> Object {
+    let mut properties = properties.into_iter().collect::<Vec<_>>();
 
-    Composite::from(values.as_mut_slice()).into()
+    Composite::from(properties.as_mut_slice()).into()
 }
 
 #[derive(Clone)]
 pub enum LazyObjectIter {
-    ObjectValues(ObjectValues),
+    ObjectProperties(ObjectProperties),
     AtomsWithProperty(QueryAtomsWithProperty),
     AtomsWithConstructor(QueryAtomsWithConstructor),
     ConstructionValues {
@@ -458,7 +462,7 @@ impl Iterator for LazyObjectIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Self::ObjectValues(composite_values) => composite_values.next(),
+            Self::ObjectProperties(properties) => properties.next(),
             Self::AtomsWithProperty(atoms) => atoms.next().map(Object::Atom),
             Self::AtomsWithConstructor(atoms) => atoms.next().map(Object::Atom),
             Self::ConstructionValues {

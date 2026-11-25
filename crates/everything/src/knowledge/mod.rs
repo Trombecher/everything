@@ -1,8 +1,8 @@
+mod properties;
 mod query;
-mod values;
 
+pub use properties::*;
 pub use query::*;
-pub use values::*;
 
 use imbl::OrdMap;
 
@@ -16,7 +16,7 @@ pub struct Statement {
 
 #[derive(Clone)]
 pub struct Knowledge {
-    pub map: OrdMap<Atom, Values>,
+    pub map: OrdMap<Atom, Properties>,
 }
 
 impl Default for Knowledge {
@@ -35,19 +35,19 @@ impl Knowledge {
 
     pub fn add_statement(&mut self, statement: Statement) {
         match self.map.get_mut(&statement.atom) {
-            Some(values) => values.insert(statement.object),
+            Some(properties) => properties.insert(statement.object),
             None => {
                 self.map
-                    .insert(statement.atom, Values::from([statement.object]));
+                    .insert(statement.atom, Properties::from([statement.object]));
             }
         }
     }
 
     pub fn remove_statement(&mut self, statement: &Statement) {
         let is_empty = match self.map.get_mut(&statement.atom) {
-            Some(values) => {
-                values.remove(&statement.object);
-                values.is_empty()
+            Some(properties) => {
+                properties.remove(&statement.object);
+                properties.is_empty()
             }
             None => return,
         };
@@ -72,32 +72,35 @@ impl Knowledge {
         }
     }
 
-    /// Returns the values of the given atom in the knowledge.
+    /// Returns the properties of the given atom in the knowledge.
     #[must_use]
-    pub fn values_of_atom(&self, atom: &Atom) -> Values {
+    pub fn properties_of_atom(&self, atom: &Atom) -> Properties {
         self.map.get(atom).cloned().unwrap_or_default()
     }
 
-    /// Returns an iterator over the values of the given object.
+    /// Returns an iterator over the properties of the given object.
     ///
-    /// * If the given object is an atom, then the values are all properties of
-    ///   that atom;
-    /// * if the given object is a composite, then the values are the members of that
-    ///   composite;
+    /// * If the given object is an atom, then the properties are all properties
+    ///   of that atom;
+    /// * if the given object is a composite, then the properties are the members
+    ///   of that composite;
     /// * otherwise the iterator is empty.
     #[must_use]
-    pub fn values_of(&self, object: &Object) -> ObjectValues {
+    pub fn properties_of(&self, object: &Object) -> ObjectProperties {
         match object {
-            Object::Atom(atom) => ObjectValues::properties(self.values_of_atom(atom)),
-            Object::Construction(_) => ObjectValues::empty(),
-            Object::Composite(composite) => ObjectValues::members(composite.clone()),
+            Object::Atom(atom) => ObjectProperties::properties(self.properties_of_atom(atom)),
+            Object::Construction(_) => ObjectProperties::empty(),
+            Object::Composite(composite) => ObjectProperties::members(composite.clone()),
         }
     }
 
     #[must_use]
     pub fn object_has(&self, object: &Object, element: &Object) -> bool {
         match object {
-            Object::Atom(atom) => self.map.get(atom).is_some_and(|values| values.has(element)),
+            Object::Atom(atom) => self
+                .map
+                .get(atom)
+                .is_some_and(|properties| properties.has(element)),
             Object::Construction(_) => false,
             Object::Composite(composite) => composite.has(element),
         }
@@ -110,7 +113,7 @@ impl Knowledge {
         property_constructor: Object,
     ) -> QueryConstructionValues {
         QueryConstructionValues {
-            properties: self.values_of(target),
+            properties: self.properties_of(target),
             property_constructor,
         }
     }
@@ -133,12 +136,12 @@ impl Knowledge {
     }
 
     /// Determines the size of the object in this knowledge, i.e.
-    /// the number of values it has. Constructions
-    /// have no values.
+    /// the number of properties it has. Constructions
+    /// have no properties.
     #[must_use]
     pub fn size_of_object(&self, object: &Object) -> u64 {
         match object {
-            Object::Atom(atom) => self.map.get(atom).map_or(0, Values::size),
+            Object::Atom(atom) => self.map.get(atom).map_or(0, Properties::size),
             Object::Construction(_) => 0,
             Object::Composite(composite) => composite.size(),
         }
@@ -163,15 +166,15 @@ impl Knowledge {
 
     #[must_use]
     fn composite_is_valid(&self, composite: &Composite) -> bool {
-        composite.values().all(|value| self.object_is_valid())
+        composite.properties().all(|property| self.object_is_valid())
     }
 
     #[must_use]
     pub fn is_valid(&self) -> bool {
         self.map.iter().all(|(_, composite)| {
             composite.clone()
-                .values()
-                .all(|value| self.object_is_property(&value))
+                .properties()
+                .all(|property| self.object_is_property(&property))
         })
     }
      */
@@ -179,7 +182,7 @@ impl Knowledge {
 
 #[derive(Clone)]
 pub struct KnownAtoms {
-    map_iter: <OrdMap<Atom, Values> as IntoIterator>::IntoIter,
+    map_iter: <OrdMap<Atom, Properties> as IntoIterator>::IntoIter,
 }
 
 impl Iterator for KnownAtoms {

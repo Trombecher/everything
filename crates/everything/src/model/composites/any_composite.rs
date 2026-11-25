@@ -70,10 +70,10 @@ impl Ord for AnyComposite {
 
 impl IntoIterator for AnyComposite {
     type Item = Object;
-    type IntoIter = AnyCompositeValues;
+    type IntoIter = AnyCompositeProperties;
 
     fn into_iter(self) -> Self::IntoIter {
-        AnyCompositeValues {
+        AnyCompositeProperties {
             composite: self,
             next_index: 0,
         }
@@ -81,12 +81,12 @@ impl IntoIterator for AnyComposite {
 }
 
 #[derive(Clone)]
-pub struct AnyCompositeValues {
+pub struct AnyCompositeProperties {
     composite: AnyComposite,
     next_index: usize,
 }
 
-impl Iterator for AnyCompositeValues {
+impl Iterator for AnyCompositeProperties {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

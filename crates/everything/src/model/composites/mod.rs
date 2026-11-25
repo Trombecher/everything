@@ -34,7 +34,7 @@ where
     fn has(&self, object: &Object) -> bool;
 
     #[doc(alias = "into_iter")]
-    fn values(self) -> Self::IntoIter {
+    fn properties(self) -> Self::IntoIter {
         self.into_iter()
     }
 }
@@ -157,7 +157,7 @@ impl Composite {
     fn from_sorted(objects: &mut [Object]) -> Self {
         debug_assert!(
             objects.windows(2).all(|pair| pair[0] < pair[1]),
-            "the values must be sorted and deduplicated"
+            "the properties must be sorted and deduplicated"
         );
 
         if let Some(composite) = Self::try_new_primitive_specialization(objects) {
@@ -185,13 +185,13 @@ impl Composite {
             return self;
         }
 
-        let mut values = self.into_iter().collect::<Vec<_>>();
+        let mut properties = self.into_iter().collect::<Vec<_>>();
 
-        if let Err(index) = values.binary_search(&object) {
-            values.insert(index, object);
+        if let Err(index) = properties.binary_search(&object) {
+            properties.insert(index, object);
         }
 
-        Self::from_sorted(values.as_mut_slice())
+        Self::from_sorted(properties.as_mut_slice())
     }
 
     #[must_use]
@@ -200,13 +200,13 @@ impl Composite {
             return self;
         }
 
-        let mut values = self.into_iter().collect::<Vec<_>>();
+        let mut properties = self.into_iter().collect::<Vec<_>>();
 
-        if let Some(index) = values.iter().position(|value| value == object) {
-            values.remove(index);
+        if let Some(index) = properties.iter().position(|property| property == object) {
+            properties.remove(index);
         }
 
-        Self::from_sorted(values.as_mut_slice())
+        Self::from_sorted(properties.as_mut_slice())
     }
 }
 
@@ -242,34 +242,34 @@ impl Debug for Composite {
 
 impl IntoIterator for Composite {
     type Item = Object;
-    type IntoIter = CompositeValues;
+    type IntoIter = CompositeProperties;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            Self::Integer(x) => CompositeValues::Integer(x.into_iter()),
-            Self::Any(x) => CompositeValues::Any(x.into_iter()),
-            Self::Character(x) => CompositeValues::Character(x.into_iter()),
-            Self::Byte(x) => CompositeValues::Byte(x.into_iter()),
-            Self::OneConstruction(x) => CompositeValues::OneConstruction(x.into_iter()),
-            Self::Text(x) => CompositeValues::Text(x.into_iter()),
-            Self::Set(x) => CompositeValues::Set(x.into_iter()),
+            Self::Integer(x) => CompositeProperties::Integer(x.into_iter()),
+            Self::Any(x) => CompositeProperties::Any(x.into_iter()),
+            Self::Character(x) => CompositeProperties::Character(x.into_iter()),
+            Self::Byte(x) => CompositeProperties::Byte(x.into_iter()),
+            Self::OneConstruction(x) => CompositeProperties::OneConstruction(x.into_iter()),
+            Self::Text(x) => CompositeProperties::Text(x.into_iter()),
+            Self::Set(x) => CompositeProperties::Set(x.into_iter()),
         }
     }
 }
 
-/// An iterator over objects ("values") of a composite object.
+/// An iterator over the properties of a composite object.
 #[derive(Clone)]
-pub enum CompositeValues {
-    Integer(IntegerCompositeValues),
-    Character(CharacterCompositeValues),
-    Byte(ByteCompositeValues),
-    OneConstruction(OneConstructionCompositeValues),
-    Any(AnyCompositeValues),
-    Text(TextCompositeValues),
-    Set(SetCompositeValues),
+pub enum CompositeProperties {
+    Integer(IntegerCompositeProperties),
+    Character(CharacterCompositeProperties),
+    Byte(ByteCompositeProperties),
+    OneConstruction(OneConstructionCompositeProperties),
+    Any(AnyCompositeProperties),
+    Text(TextCompositeProperties),
+    Set(SetCompositeProperties),
 }
 
-impl Iterator for CompositeValues {
+impl Iterator for CompositeProperties {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

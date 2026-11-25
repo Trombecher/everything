@@ -1,8 +1,8 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::model::{
-    AnyComposite, AnyCompositeValues, Atom, CompositeApi, CompositeSpecialization, Construction,
-    Object,
+    AnyComposite, AnyCompositeProperties, Atom, CompositeApi, CompositeSpecialization,
+    Construction, Object,
 };
 
 #[cfg(test)]
@@ -131,10 +131,10 @@ impl CompositeApi for SetComposite {
 
 impl IntoIterator for SetComposite {
     type Item = Object;
-    type IntoIter = SetCompositeValues;
+    type IntoIter = SetCompositeProperties;
 
     fn into_iter(self) -> Self::IntoIter {
-        SetCompositeValues::new(
+        SetCompositeProperties::new(
             self.0.items.clone().into_iter(),
             self.0.rest.clone().into_iter(),
         )
@@ -144,30 +144,30 @@ impl IntoIterator for SetComposite {
 /// Iterates the members of a set in ascending order by merging the `contains`
 /// constructions of the items with the other members of the composite.
 #[derive(Clone)]
-pub struct SetCompositeValues {
-    items: AnyCompositeValues,
-    rest: AnyCompositeValues,
+pub struct SetCompositeProperties {
+    items: AnyCompositeProperties,
+    rest: AnyCompositeProperties,
     next_item: Option<Object>,
     next_rest: Option<Object>,
 }
 
-impl SetCompositeValues {
-    fn new(items: AnyCompositeValues, rest: AnyCompositeValues) -> Self {
-        let mut values = Self {
+impl SetCompositeProperties {
+    fn new(items: AnyCompositeProperties, rest: AnyCompositeProperties) -> Self {
+        let mut properties = Self {
             items,
             rest,
             next_item: None,
             next_rest: None,
         };
 
-        values.next_item = values.items.next().map(contains_construction);
-        values.next_rest = values.rest.next();
+        properties.next_item = properties.items.next().map(contains_construction);
+        properties.next_rest = properties.rest.next();
 
-        values
+        properties
     }
 }
 
-impl Iterator for SetCompositeValues {
+impl Iterator for SetCompositeProperties {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

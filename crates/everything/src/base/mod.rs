@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use imbl::OrdMap;
 
 use crate::{
-    knowledge::{Knowledge, Values},
+    knowledge::{Knowledge, Properties},
     model::{Atom, Construction},
 };
 
@@ -12,14 +12,14 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
 
     base.insert(
         Atom::PROPERTY,
-        Values::from([
+        Properties::from([
             Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );
 
     base.insert(
         Atom::PROPERTY_CONSTRUCTOR,
-        Values::from([
+        Properties::from([
             Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );
@@ -28,13 +28,13 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
 
     base.insert(
         Atom::SUCCESSOR_OF,
-        Values::from([
+        Properties::from([
             Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );
     base.insert(
         Atom::PREDECESSOR_OF,
-        Values::from([
+        Properties::from([
             Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );
@@ -43,13 +43,13 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
 
     base.insert(
         Atom::ATOM,
-        Values::from([
+        Properties::from([
             Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );
     base.insert(
         Atom::VALUE,
-        Values::from([
+        Properties::from([
             Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),
     );

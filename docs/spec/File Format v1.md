@@ -669,8 +669,8 @@ does not yet satisfy this specification.
 | construction | `everything::model::Construction` |
 | set | `everything::model::Set` and its specializations |
 | statement | `everything::knowledge::Statement` |
-| knowledge base | `everything::knowledge::Knowledge` (`OrdMap<Atom, Values>`) |
-| base entry | one `(Atom, Values)` pair of the map |
+| knowledge base | `everything::knowledge::Knowledge` (`OrdMap<Atom, Properties>`) |
+| base entry | one `(Atom, Properties)` pair of the map |
 | change record | `StatementChange::Add` / `StatementChange::Remove` |
 | specialized set | `Set::Integer`, `Set::Character`, `Set::Byte`, `Set::Text`, `Set::OneConstruction`, `Set::Any` |
 

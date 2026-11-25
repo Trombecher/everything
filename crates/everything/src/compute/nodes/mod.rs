@@ -211,7 +211,7 @@ pub(crate) fn source_composite(object: &Object, knowledge: &Knowledge) -> Compos
         Object::Composite(composite) => composite.clone(),
         Object::Atom(atom) => {
             let mut values = knowledge
-                .values_of_atom(atom)
+                .properties_of_atom(atom)
                 .into_iter()
                 .collect::<Vec<_>>();
 

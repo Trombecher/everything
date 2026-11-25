@@ -59,21 +59,21 @@ impl CompositeApi for OneConstructionComposite {
 
 impl IntoIterator for OneConstructionComposite {
     type Item = Object;
-    type IntoIter = OneConstructionCompositeValues;
+    type IntoIter = OneConstructionCompositeProperties;
 
     fn into_iter(self) -> Self::IntoIter {
-        OneConstructionCompositeValues {
+        OneConstructionCompositeProperties {
             to_yield: Some(self.construction),
         }
     }
 }
 
 #[derive(Clone)]
-pub struct OneConstructionCompositeValues {
+pub struct OneConstructionCompositeProperties {
     to_yield: Option<Construction>,
 }
 
-impl Iterator for OneConstructionCompositeValues {
+impl Iterator for OneConstructionCompositeProperties {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {

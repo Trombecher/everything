@@ -1,5 +1,5 @@
 use everything::{
-    knowledge::{Knowledge, Statement, Values},
+    knowledge::{Knowledge, Properties, Statement},
     model::{Atom, Composite, CompositeApi, NonZeroBigInt, Object, TextComposite},
     num_bigint::Sign,
 };
@@ -28,9 +28,9 @@ pub(super) fn write_knowledge(knowledge: &Knowledge, out: &mut Vec<u8>) {
 
     let base_position = out.len();
 
-    for (atom, values) in &knowledge.map {
+    for (atom, properties) in &knowledge.map {
         write_atom(*atom, out);
-        write_values(values, out);
+        write_properties(properties, out);
     }
 
     let base_length_in_bytes =
@@ -102,7 +102,7 @@ fn write_composite_object(composite: &Composite, out: &mut Vec<u8>) {
         }
         Composite::OneConstruction(_) | Composite::Set(_) | Composite::Any(_) => {
             out.push(OBJECT_TYPE_COMPOSITE);
-            write_composite_values(composite, out);
+            write_composite_properties(composite, out);
         }
     }
 }
@@ -143,21 +143,21 @@ fn write_text(text: &TextComposite, out: &mut Vec<u8>) {
     out.extend_from_slice(content.as_bytes());
 }
 
-/// Writes the values of a composite, prefixed by their count.
-fn write_composite_values(composite: &Composite, out: &mut Vec<u8>) {
+/// Writes the properties of a composite, prefixed by their count.
+fn write_composite_properties(composite: &Composite, out: &mut Vec<u8>) {
     leb128::write_leb128_u64(composite.size(), out);
 
-    for value in composite.clone() {
-        write_object(&value, out);
+    for property in composite.clone() {
+        write_object(&property, out);
     }
 }
 
-/// Writes the values of a subject, prefixed by their count.
-fn write_values(values: &Values, out: &mut Vec<u8>) {
-    leb128::write_leb128_u64(values.size(), out);
+/// Writes the properties of a subject, prefixed by their count.
+fn write_properties(properties: &Properties, out: &mut Vec<u8>) {
+    leb128::write_leb128_u64(properties.size(), out);
 
-    for value in values.clone() {
-        write_object(&value, out);
+    for property in properties.clone() {
+        write_object(&property, out);
     }
 }
 

@@ -76,10 +76,10 @@ impl CompositeApi for ByteComposite {
 
 impl IntoIterator for ByteComposite {
     type Item = Object;
-    type IntoIter = ByteCompositeValues;
+    type IntoIter = ByteCompositeProperties;
 
     fn into_iter(self) -> Self::IntoIter {
-        ByteCompositeValues {
+        ByteCompositeProperties {
             byte: self,
             next_slot: Some(BitSlot::Slot0),
         }
@@ -225,12 +225,12 @@ impl From<BitSlot> for Atom {
 }
 
 #[derive(Clone)]
-pub struct ByteCompositeValues {
+pub struct ByteCompositeProperties {
     byte: ByteComposite,
     next_slot: Option<BitSlot>,
 }
 
-impl Iterator for ByteCompositeValues {
+impl Iterator for ByteCompositeProperties {
     type Item = Object;
 
     fn next(&mut self) -> Option<Self::Item> {
