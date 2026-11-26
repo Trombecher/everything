@@ -11,7 +11,7 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
     let mut base = OrdMap::new();
 
     base.insert(
-        Atom::PROPERTY,
+        Atom::NON_CONSTRUCTED_PROPERTY,
         Properties::from([
             Construction::new(Atom::PROPERTY_CONSTRUCTOR.into(), Atom::TRUE.into()).into(),
         ]),

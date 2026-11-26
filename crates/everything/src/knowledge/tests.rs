@@ -47,7 +47,7 @@ fn permissive_knowledge() -> Knowledge {
     let mut knowledge = Knowledge::empty();
 
     for atom in [
-        Atom::PROPERTY,
+        Atom::NON_CONSTRUCTED_PROPERTY,
         Atom::PROPERTY_CONSTRUCTOR,
         Atom::NODE_FUNCTION,
         Atom::NODE_LITERAL,
@@ -70,7 +70,7 @@ fn permissive_knowledge() -> Knowledge {
 
     knowledge.add_statement(Statement {
         atom: PERSON,
-        object: property(Atom::PROPERTY, unary_constant(true)),
+        object: property(Atom::NON_CONSTRUCTED_PROPERTY, unary_constant(true)),
     });
 
     knowledge
@@ -86,7 +86,7 @@ fn composite_with_property_constraint<const N: usize>(
     items: [Object; N],
 ) -> Object {
     let mut members = items.into_iter().collect::<Vec<_>>();
-    members.push(property(Atom::PROPERTY, constraint));
+    members.push(property(Atom::NON_CONSTRUCTED_PROPERTY, constraint));
 
     Composite::from(members.as_mut_slice()).into()
 }
@@ -488,14 +488,14 @@ fn non_constructed_property_requires_exactly_one_constraint() {
 
     knowledge.add_statement(Statement {
         atom: Atom(1901),
-        object: construction(Atom::PROPERTY, unary_constant(true)),
+        object: construction(Atom::NON_CONSTRUCTED_PROPERTY, unary_constant(true)),
     });
 
     assert!(knowledge.object_has_valid_property(&subject, &property));
 
     knowledge.add_statement(Statement {
         atom: Atom(1901),
-        object: construction(Atom::PROPERTY, unary_constant(false)),
+        object: construction(Atom::NON_CONSTRUCTED_PROPERTY, unary_constant(false)),
     });
 
     assert!(!knowledge.object_has_valid_property(&subject, &property));

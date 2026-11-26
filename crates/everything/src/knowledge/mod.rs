@@ -294,7 +294,7 @@ impl Knowledge {
                 let property = AtomOrComposite::try_from(property)
                     .expect("an atom or composite has properties");
                 let Some(constraint) =
-                    self.unique_property_value(&property, &Atom::PROPERTY.into())
+                    self.unique_property_value(&property, &Atom::NON_CONSTRUCTED_PROPERTY.into())
                 else {
                     return false;
                 };

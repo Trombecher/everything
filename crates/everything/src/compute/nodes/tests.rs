@@ -28,13 +28,13 @@ fn node_round_trip() {
         },
         Node::QueryConstructionValues {
             object: Node::Literal(a.clone()).into(),
-            property_constructor: Node::Literal(Atom::PROPERTY.into()).into(),
+            property_constructor: Node::Literal(Atom::NON_CONSTRUCTED_PROPERTY.into()).into(),
         },
         Node::QueryAtomsWithConstructor {
-            constructor: Node::Literal(Atom::PROPERTY.into()).into(),
+            constructor: Node::Literal(Atom::NON_CONSTRUCTED_PROPERTY.into()).into(),
         },
         Node::QueryConstructions {
-            constructor: Node::Literal(Atom::PROPERTY.into()).into(),
+            constructor: Node::Literal(Atom::NON_CONSTRUCTED_PROPERTY.into()).into(),
         },
         Node::SetContains {
             element: Node::Literal(a.clone()).into(),

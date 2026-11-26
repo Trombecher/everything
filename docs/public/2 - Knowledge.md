@@ -38,7 +38,7 @@ An object `%p%` is a **valid** property of an atom or a composite `%o%` in (know
   - `%c%` is a property constructor in `%K%` with constraint `%f%`, and
   - `⟨node_call_callee ·· ⟨node_call_callee ·· %f%, node_call_with ·· ⟨node_literal ·· %o%⟩⟩, node_call_with ·· ⟨node_literal ·· %v%⟩⟩` evaluates to `true` in `%K%`; or
 - `%p%` is an atom or a composite,
-  - there exists exactly one object `%f%` such that `property ·· %f%` is a property of `%p%` in `%K%`, and
+  - there exists exactly one object `%f%` such that `non_constructed_property ·· %f%` is a property of `%p%` in `%K%`, and
   - `⟨node_call_callee ·· %f%, node_call_with ·· ⟨node_literal ·· %o%⟩⟩` evaluates to `true` in `%K%`.
 
 The literal nodes pass the original subject and value to the constraint as data, even when those objects themselves look like nodes.
@@ -69,7 +69,7 @@ The following example extends the required base knowledge. Decimal integers are 
 
 ```
 # `person` is a property that accepts all subjects (function always returns true).
-person is property ·· ⟨node_function ·· ⟨node_literal ·· true⟩⟩
+person is non_constructed_property ·· ⟨node_function ·· ⟨node_literal ·· true⟩⟩
 
 # `date_time`, `born`, and `child_of` are property constructors.
 # The first two accept every subject and value, so their constraints are curried
