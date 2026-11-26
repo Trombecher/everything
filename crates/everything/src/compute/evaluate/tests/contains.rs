@@ -160,6 +160,17 @@ fn set_contains_requires_a_set() {
 }
 
 #[test]
+fn set_contains_does_not_evaluate_the_element_when_the_set_is_a_construction() {
+    let construction = Node::Literal(Construction::new(Atom(1).into(), Atom(2).into()).into());
+
+    // The element child would not terminate if it were evaluated.
+    assert_eq!(
+        contains(diverging_term(), construction, &BASE),
+        Atom::UNDEFINED.into()
+    );
+}
+
+#[test]
 fn undefined_is_a_first_class_value() {
     assert_eq!(
         contains(

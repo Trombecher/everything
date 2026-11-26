@@ -419,7 +419,7 @@ An object is a _set-contains node_ iff
 - it has the property `node_set_contains_element ·· %element%` and
 - it has the property `node_set_contains_set ·· %set%`.
 
-It evaluates both children and returns `true` iff `%element%` is an item of `%set%`. If `%set%` is a construction, the result is `undefined`.
+It evaluates `%set%` first. If `%set%` is a construction, the result is `undefined` and `%element%` is not evaluated. Otherwise it evaluates `%element%` and returns `true` iff `%element%` is an item of `%set%`.
 
 ## Conditional Nodes
 

@@ -47,7 +47,15 @@ enum Task {
     QueryAtomsWithConstructor,
     QueryConstructionValues,
     QueryConstructions,
-    SetContains,
+    /// Evaluates the set and short-circuits the element child if the set is a
+    /// construction.
+    PartialSetContains {
+        element: Arc<Node>,
+    },
+    /// Checks whether the evaluated element is an item of the set.
+    SetContains {
+        set: Box<SetValue>,
+    },
     NewConstruction,
     /// Collects the results of the preceding child evaluations into a set.
     NewSet {
@@ -199,9 +207,10 @@ fn resolve_evaluate_node(
             tasks.push(Task::Evaluate(Arc::clone(set)));
         }
         Node::SetContains { element, set } => {
-            tasks.push(Task::SetContains);
+            tasks.push(Task::PartialSetContains {
+                element: Arc::clone(element),
+            });
             tasks.push(Task::Evaluate(Arc::clone(set)));
-            tasks.push(Task::Evaluate(Arc::clone(element)));
         }
         Node::NewConstruction { constructor, value } => {
             tasks.push(Task::NewConstruction);
@@ -541,17 +550,25 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
 
                 evaluated.push(LazyObject::Set(LazySet::Constructions { constructor }));
             }
-            Task::SetContains => {
+            Task::PartialSetContains { element } => {
                 let set = evaluated.pop().unwrap();
-                let element = evaluated.pop().unwrap();
 
-                evaluated.push(match set.into_set() {
-                    Some(set) => LazyObject::Eager(
-                        set.has_item(&element.into_object(knowledge), knowledge)
-                            .into(),
-                    ),
-                    None => UNDEFINED,
-                });
+                match set.into_set() {
+                    Some(set) => {
+                        tasks.push(Task::SetContains { set: Box::new(set) });
+                        tasks.push(Task::Evaluate(element));
+                    }
+                    None => {
+                        // A construction is not a set; the element child is
+                        // not evaluated.
+                        evaluated.push(UNDEFINED);
+                    }
+                }
+            }
+            Task::SetContains { set } => {
+                let element = evaluated.pop().unwrap().into_object(knowledge);
+
+                evaluated.push(LazyObject::Eager(set.has_item(&element, knowledge).into()));
             }
             Task::NewConstruction => {
                 let value = evaluated.pop().unwrap().into_object(knowledge);
