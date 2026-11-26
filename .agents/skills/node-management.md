@@ -61,7 +61,7 @@ A node is not a separate type in the database. It is an object shape:
 For a new node kind, touch these in order. Code paths are relative to
 `crates/everything/src/`:
 
-1. `model/atoms.rs` — declare new `NODE_*` property atoms.
+1. `model/atoms/mod.rs` — declare new `NODE_*` property atoms.
 2. `compute/nodes/kind.rs` — `NodeKind`, `NodeProperty`, atom mapping,
    requirement, repeatability, display names.
 3. `compute/nodes/raw/mod.rs` — `RawNode` variant and recognition.
@@ -102,13 +102,13 @@ Write a design note under `docs/design/` if the semantics are non-obvious or
 contested, and update `docs/design/Q and A/Unresolved Questions.md` if the
 change resolves or invalidates an open question.
 
-## Step 2 — Atoms (`crates/everything/src/model/atoms.rs`)
+## Step 2 — Atoms (`crates/everything/src/model/atoms/mod.rs`)
 
-Every node property needs a stable atom id:
+Every node property needs a stable atom id and a documentation name:
 
 ```rust
-NODE_MY_FIRST = 1234...;
-NODE_MY_SECOND = 5678...;
+NODE_MY_FIRST = "node_my_first" = 1234...;
+NODE_MY_SECOND = "node_my_second" = 5678...;
 ```
 
 Rules:
@@ -118,10 +118,12 @@ Rules:
   (`crates/everything_cli/src/main.rs`) prints sample ids.
 - Never reuse, renumber, or "tidy" an existing id. Persisted knowledge stores
   ids, not names.
-- `declare_known_atoms!` runs a compile-time duplicate check; keep it passing.
+- `declare_known_atoms!` runs compile-time duplicate checks for ids and names;
+  keep them passing.
 - `node_*` is a reserved namespace. Do not use it for annotations.
-- Name the constant after the property, matching the `NodeProperty::Display`
-  string (e.g. `NODE_MY_FIRST` ↔ `"node_my_first"`).
+- Name the constant after the property and match the `NodeProperty::Display`
+  string in the name literal (e.g. `NODE_MY_FIRST` ↔ `"node_my_first"`). The
+  name literal is what `Atom::Debug` prints for known atoms.
 - Normally no change is needed in `base/mod.rs`. Node recognition reads
   construction values directly; only touch the base knowledge if the atom is
   meant to be a global property/property constructor.
@@ -139,7 +141,7 @@ Add the kind and each property to all relevant places:
     `PropertyRequirement::Depth` for a non-negative `u32` depth;
   - `allows_multiple()` → `true` only for a repeatable property
     (currently only `NewSetItem`);
-  - `Display` → the exact `node_*` atom name.
+  - `Display` → the exact `node_*` atom name, matching the atom's name literal.
 
 Use names that describe the property role, following existing pairs such as
 `AndFirst`/`AndSecond`, `SetMapSet`/`SetMapMapper`, and
@@ -457,7 +459,7 @@ cargo test -p everything --lib
 
 ## Review Checklist
 
-- [ ] New atoms have unique ids, `NODE_*` names, and stable values.
+- [ ] New atoms have unique ids, unique name literals, and stable values.
 - [ ] `NodeKind`, `NodeProperty`, `RawNode`, `Node`, `Task`, `LazyObject`,
       `SetValue`, `LazySet`, and `LazySetItems` are all updated
       (compiler-checked).
