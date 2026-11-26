@@ -25,6 +25,8 @@ Read these first:
 - `crates/everything/src/compute/nodes/raw/diagnose.rs` — recognition error
   explanations.
 - `crates/everything/src/compute/evaluate/mod.rs` — the evaluator.
+- `crates/everything/src/compute/evaluate/context.rs` — evaluation context and
+  the `Thunk` used for call-by-need arguments.
 - `crates/everything/src/compute/capture/mod.rs` — closure capture.
 - `crates/everything/src/compute/lazy/mod.rs` — deferred set results and `SetValue`.
 - `crates/everything/src/model/mod.rs` — `Object` and `AtomOrComposite`.
@@ -41,6 +43,9 @@ A node is not a separate type in the database. It is an object shape:
 - Parsing is layered: `RawNode` recognises the kind and extracts top-level
   property values, then `Node::new` recursively parses children into a
   structural `Node`, wrapped together with the original source object.
+- Not every `Node` variant is a database node kind. `WithSource` preserves the
+  parsed object, and `Thunk` shares an unevaluated call argument for
+  call-by-need; both are internal and are never produced by `RawNode`.
 - `Node::into_object` is the inverse of parsing. It must reproduce the
   canonical object encoding of the kind.
 - Evaluation is a demand-driven stack machine. Set-valued results may be
@@ -61,8 +66,7 @@ For a new node kind, touch these in order. Code paths are relative to
    requirement, repeatability, display names.
 3. `compute/nodes/raw/mod.rs` — `RawNode` variant and recognition.
 4. `compute/nodes/raw/diagnose.rs` — add the kind's `kind!(...)` spec.
-5. `compute/nodes/mod.rs` — `Node` variant, child parsing, `into_object`,
-   `composite_size`.
+5. `compute/nodes/mod.rs` — `Node` variant, child parsing, `into_object`.
 6. `compute/capture/mod.rs` — capture arm.
 7. `compute/evaluate/mod.rs` — `Task` variant(s), scheduling, stack effect.
 8. `compute/lazy/mod.rs` — only if the node returns a deferred set.
@@ -134,11 +138,11 @@ Add the kind and each property to all relevant places:
   - `requirement()` → `PropertyRequirement::Value` normally,
     `PropertyRequirement::Depth` for a non-negative `u32` depth;
   - `allows_multiple()` → `true` only for a repeatable property
-    (currently only `NewCompositeValue`);
+    (currently only `NewSetItem`);
   - `Display` → the exact `node_*` atom name.
 
 Use names that describe the property role, following existing pairs such as
-`AndFirst`/`AndSecond`, `MapComposite`/`MapMapper`, and
+`AndFirst`/`AndSecond`, `SetMapSet`/`SetMapMapper`, and
 `ConstructionValuesPropertyConstructor`. There is no automatic derivation, so
 be consistent with neighbouring kinds.
 
@@ -194,9 +198,6 @@ Add a `Node` variant:
   same property atoms. Use `Composite::from([...]).into()` for a single value,
   follow the pair/triple patterns for multiple values, and handle variadic
   properties explicitly.
-- In `Node::composite_size`, return the number of properties in the object
-  encoding: 1 for single-property nodes, 2 for pairs, 3 for triples,
-  `values.len()` for variadic nodes.
 - `WithSource` preserves the object a node was parsed from, so `into_object`
   reproduces annotations and unknown properties. The structural encoding is
   still the canonical form produced by construction and must round-trip.
@@ -213,6 +214,12 @@ Add a `Node::<Kind>` arm that recursively captures every child:
 - Keep the returned `Node` structurally identical apart from captured
   parameter/self references.
 
+Parameter references are substituted by the bound value or by the argument
+thunk. An unevaluated argument is shared as `Node::Thunk`, not copied; a thunk
+whose value is already cached becomes a `Node::Literal`. This is what makes
+call-by-need work, so do not rebuild an argument expression when capturing a
+parameter reference.
+
 If a child is not captured, closures that escape a call keep stale
 references. Test this when the node can contain functions.
 
@@ -225,11 +232,10 @@ The evaluator is an explicit stack machine. Two places matter:
 - Add a `Node::<Kind>` arm.
 - Push the task that consumes the children first, then push child evaluations.
   The task stack is LIFO, so push children in reverse operand order to have
-  them pop in source order. `NewComposite` shows the variadic pattern: push the
-  `NewComposite { count }` task, then iterate `values.rev()` pushing
-  `Task::Evaluate`.
+  them pop in source order. `NewSet` shows the variadic pattern: push the
+  `NewSet { count }` task, then iterate `items.rev()` pushing `Task::Evaluate`.
 - For short-circuiting nodes, push a partial task such as `PartialAnd`,
-  `PartialOr`, `PartialIf`, or `PartialDifference`, and schedule the second
+  `PartialOr`, `PartialIf`, or `PartialSetDifference`, and schedule the second
   child only after the first result is known.
 
 ### `evaluate`
@@ -309,7 +315,8 @@ the module already uses one).
 - Create `tests/<kind_snake_case>.rs` and register it alphabetically in
   `tests/mod.rs`.
 - Use `crate::base::BASE` and the helpers in `tests/common.rs`
-  (`integer`, `integer_composite`, `identity_function`, predicate helpers, etc.).
+  (`integer`, `integer_set`, `set_of`, `composite_of`, `identity_function`,
+  predicate helpers, etc.).
 - `evaluate` returns `LazyObject`. Use the `set(&result)` helper from
   `tests/common.rs` to assert set semantics through `SetValue`; it panics in
   the test if the result is a construction.
@@ -353,7 +360,7 @@ change:
 - Add an example under “Examples” when it clarifies the encoding.
 - Update “Node Objects and Recognition” if the recognition rules change
   (for example, a new repeatable property changes the sentence that names
-  `node_new_composite_value` as the only repeatable one).
+  `node_new_set_item` as the only repeatable one).
 - Update “Evaluation Strategy” if the node is deferred, short-circuits, or
   materialises values.
 - Update the “Implementation Status” table with the encoding and any
@@ -457,7 +464,6 @@ cargo test -p everything --lib
 - [ ] `diagnose.rs` mirrors `RawNode::new`.
 - [ ] `into_object` reproduces the canonical encoding; round-trip test passes.
 - [ ] Every child is parsed, captured, and evaluated in the right order.
-- [ ] `composite_size` matches the number of encoded properties.
 - [ ] Set-taking tasks convert operands with `LazyObject::into_set()` and map
       `None` to `UNDEFINED`; set algebra stores `SetValue`, not `LazyObject`.
 - [ ] Deferred sets obey set semantics for item count, iteration, and
