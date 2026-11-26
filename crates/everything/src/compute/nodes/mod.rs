@@ -82,6 +82,15 @@ pub enum Node {
     /// Composites are tested directly, atoms are tested against their values
     /// in the knowledge, and constructions evaluate to undefined.
     HasValue(Arc<Node>),
+    /// Evaluates to `true` iff the property result is a property of the
+    /// subject result. Atoms are resolved through the knowledge, composites
+    /// through their members, and constructions evaluate to undefined as the
+    /// subject. The property child is not evaluated if the subject is a
+    /// construction.
+    HasProperty {
+        subject: Arc<Node>,
+        property: Arc<Node>,
+    },
     QueryAtomsWithProperty {
         property: Arc<Node>,
     },
@@ -294,6 +303,10 @@ impl Node {
                 Self::PropertiesOf(child!(NodeProperty::PropertiesOf, &object))
             }
             RawNode::HasValue(object) => Self::HasValue(child!(NodeProperty::HasValue, &object)),
+            RawNode::HasProperty { subject, property } => Self::HasProperty {
+                subject: child!(NodeProperty::HasPropertySubject, &subject),
+                property: child!(NodeProperty::HasPropertyProperty, &property),
+            },
             RawNode::QueryAtomsWithProperty { property } => Self::QueryAtomsWithProperty {
                 property: child!(NodeProperty::AtomsWithProperty, &property),
             },
@@ -605,6 +618,19 @@ impl Node {
                 object.into_object(),
             )
             .into()])
+            .into(),
+            Self::HasProperty { subject, property } => Composite::from([
+                Construction::new(
+                    Atom::NODE_HAS_PROPERTY_SUBJECT.into(),
+                    subject.into_object(),
+                )
+                .into(),
+                Construction::new(
+                    Atom::NODE_HAS_PROPERTY_PROPERTY.into(),
+                    property.into_object(),
+                )
+                .into(),
+            ])
             .into(),
             Self::QueryAtomsWithProperty { property } => Composite::from([Construction::new(
                 Atom::NODE_ATOMS_WITH_PROPERTY.into(),

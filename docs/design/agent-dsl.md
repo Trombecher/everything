@@ -178,6 +178,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `count(s)` / `unwrap(s)`     | Count / Unwrap                              |
 | `properties_of(x)`           | PropertiesOf                                |
 | `has_value(x)`               | HasValue                                    |
+| `has_property(s, p)`         | HasProperty                                 |
 | `map(s, f)`                  | Map                                         |
 | `filter(s, f)`               | Filter                                      |
 | `every(s, p)` / `any(s, p)`  | Every / Any                                 |

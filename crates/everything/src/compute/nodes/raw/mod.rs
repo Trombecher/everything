@@ -104,6 +104,10 @@ pub enum RawNode {
     SetCount(Object),
     PropertiesOf(Object),
     HasValue(Object),
+    HasProperty {
+        subject: Object,
+        property: Object,
+    },
     QueryAtomsWithProperty {
         property: Object,
     },
@@ -274,6 +278,17 @@ impl RawNode {
         xor_with!(
             NodeKind::HasValue,
             construction_value(object, knowledge, Atom::NODE_HAS_VALUE.into()).map(Self::HasValue)
+        );
+
+        xor_with!(
+            NodeKind::HasProperty,
+            pair_values(
+                object,
+                knowledge,
+                Atom::NODE_HAS_PROPERTY_SUBJECT.into(),
+                Atom::NODE_HAS_PROPERTY_PROPERTY.into(),
+            )
+            .map(|(subject, property)| Self::HasProperty { subject, property })
         );
 
         xor_with!(

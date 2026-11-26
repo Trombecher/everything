@@ -10,8 +10,8 @@ use num_bigint::BigInt;
 
 use crate::{
     compute::{
-        LazyObject, LazySet, LazySetItems, MaybeUndefined, Node, capture, capture_argument,
-        operations,
+        LazyObject, LazySet, LazySetItems, MaybeUndefined, Node, SetValue, capture,
+        capture_argument, operations,
     },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
@@ -34,6 +34,15 @@ enum Task {
     SetCount,
     PropertiesOf,
     HasValue,
+    /// Evaluates the subject and short-circuits the property child if the
+    /// subject is a construction.
+    PartialHasProperty {
+        property: Arc<Node>,
+    },
+    /// Checks whether the evaluated property belongs to the subject.
+    HasProperty {
+        subject: Box<SetValue>,
+    },
     QueryAtomsWithProperty,
     QueryAtomsWithConstructor,
     QueryConstructionValues,
@@ -276,6 +285,12 @@ fn resolve_evaluate_node(
             tasks.push(Task::HasValue);
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
+        Node::HasProperty { subject, property } => {
+            tasks.push(Task::PartialHasProperty {
+                property: Arc::clone(property),
+            });
+            tasks.push(Task::Evaluate(Arc::clone(subject)));
+        }
         Node::Equal { first, second } => {
             tasks.push(Task::Equal);
             tasks.push(Task::Evaluate(Arc::clone(second)));
@@ -473,6 +488,30 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                         None => UNDEFINED,
                     },
                 });
+            }
+            Task::PartialHasProperty { property } => {
+                let subject = evaluated.pop().unwrap();
+
+                match subject.into_set() {
+                    Some(subject) => {
+                        tasks.push(Task::HasProperty {
+                            subject: Box::new(subject),
+                        });
+                        tasks.push(Task::Evaluate(property));
+                    }
+                    None => {
+                        // A construction is not a subject; the property child
+                        // is not evaluated.
+                        evaluated.push(UNDEFINED);
+                    }
+                }
+            }
+            Task::HasProperty { subject } => {
+                let property = evaluated.pop().unwrap().into_object(knowledge);
+
+                evaluated.push(LazyObject::Eager(
+                    subject.has_property(&property, knowledge).into(),
+                ));
             }
             Task::QueryAtomsWithProperty => {
                 let property = evaluated.pop().unwrap().into_object(knowledge);

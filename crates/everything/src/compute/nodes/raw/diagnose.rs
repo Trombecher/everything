@@ -34,6 +34,13 @@ const KINDS: &[KindSpec] = &[
     kind!(NodeKind::SetCount, [NodeProperty::SetCount]),
     kind!(NodeKind::PropertiesOf, [NodeProperty::PropertiesOf]),
     kind!(NodeKind::HasValue, [NodeProperty::HasValue]),
+    kind!(
+        NodeKind::HasProperty,
+        [
+            NodeProperty::HasPropertySubject,
+            NodeProperty::HasPropertyProperty,
+        ]
+    ),
     kind!(NodeKind::Not, [NodeProperty::Not]),
     kind!(
         NodeKind::And,

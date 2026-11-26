@@ -150,6 +150,31 @@ fn capture_substitutes_an_evaluated_thunk_as_its_value() {
 }
 
 #[test]
+fn capture_transforms_both_has_property_children() {
+    let mut context = EvaluationContext::default();
+    context.push(FunctionContext {
+        function: Node::function(Node::Literal(Atom(1).into())),
+        parameter: Argument::Value(LazyObject::Eager(Atom(2).into())),
+    });
+
+    let node = Node::HasProperty {
+        subject: Node::Parameter { depth: 0 }.into(),
+        property: Node::Parameter { depth: 0 }.into(),
+    };
+    let captured = capture(&node, 0, &context, &BASE);
+
+    let literal = Node::Literal(Atom(2).into());
+
+    assert_eq!(
+        captured,
+        Node::HasProperty {
+            subject: literal.clone().into(),
+            property: literal.into(),
+        }
+    );
+}
+
+#[test]
 fn capture_argument_closes_free_parameters_to_undefined() {
     let captured = capture_argument(
         &Node::Parameter { depth: 0 },

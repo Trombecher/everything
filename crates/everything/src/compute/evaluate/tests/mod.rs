@@ -12,6 +12,7 @@ mod every;
 mod filter;
 mod fold;
 mod function;
+mod has_property;
 mod has_value;
 mod intersection;
 mod is_atom;

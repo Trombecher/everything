@@ -223,6 +223,10 @@ fn capture_with_mode(
         Node::HasValue(inner) => {
             Node::HasValue(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
         }
+        Node::HasProperty { subject, property } => Node::HasProperty {
+            subject: recurse!(subject, additional_depth, evaluation_context, knowledge).into(),
+            property: recurse!(property, additional_depth, evaluation_context, knowledge).into(),
+        },
         Node::QueryAtomsWithProperty { property } => Node::QueryAtomsWithProperty {
             property: recurse!(property, additional_depth, evaluation_context, knowledge).into(),
         },

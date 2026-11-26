@@ -223,6 +223,20 @@ An object is a _has-value node_ iff it has the property `node_has_value ·· %in
 
 This is the existential counterpart of [Set Count](#set-count). It is equivalent to `⟨node_set_count ·· ⟨node_properties_of ·· %inner%⟩⟩ > ⟨node_literal ·· 0⟩`.
 
+## Has Property
+
+An object is a _has-property node_ iff
+
+- it has the property `node_has_property_subject ·· %subject%` and
+- it has the property `node_has_property_property ·· %property%`.
+
+It evaluates `%subject%`. If the result is a construction, the result is `undefined` and `%property%` is not evaluated. Otherwise it evaluates `%property%` and returns `true` iff `%property%` is a property of `%subject%`:
+
+- for a composite, whether it is one of the composite's members;
+- for an atom, whether it is a statement about the atom in the knowledge.
+
+A deferred set is a composite whose members are `contains` constructions, so only those constructions are its properties. This is the property counterpart of [Set Contains](#set-contains); use [Properties Of](#properties-of) to obtain an atom's properties as a set.
+
 ## Set Union
 
 An object is a _set-union node_ iff
@@ -577,6 +591,7 @@ The implementation is demand-driven:
 - A call does not evaluate its argument. The argument is closed over the caller's context and kept as an unevaluated thunk. It is evaluated when the parameter is first referenced, and the result is cached for later references (call-by-need) and for code that captured the parameter. Items that are already evaluated when a function is called internally, such as the items passed by [map](#set-map), [filter](#set-filter), [every](#set-every), [any](#set-any), and [fold](#set-fold), are kept as values instead of being wrapped as thunks.
 - Because arguments are pure, sharing the result of an argument evaluation does not change the result, only how much work is done.
 - [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#set-map) only depends on whether the source set has an item, so the mapper is not called.
+- [Has property](#has-property) evaluates the subject first. If the subject is a construction, the result is `undefined` and the property child is never evaluated.
 - A [new set](#new-set) evaluates all of its children and materialises the resulting set. Its items are therefore not represented lazily.
 - Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call. Parsed nodes retain the object they were parsed from, so materialising a captured function reproduces its body exactly, including annotations and unknown properties. Atom-defined functions materialise into composites; see [Functions](#functions).
 - Capturing an unevaluated argument shares its thunk in the function body instead of evaluating it or copying its closed expression. A thunk contains a finite closed expression and an optional cached result, so function objects remain finite even when they capture divergent code. Capturing an argument that is already evaluated escapes its value into a literal.
@@ -607,6 +622,7 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 | Set count                    | `node_set_count`                                                                   | implemented                          |
 | Properties of                | `node_properties_of`                                                               | implemented                          |
 | Has value                    | `node_has_value`                                                                   | implemented                          |
+| Has property                 | `node_has_property_subject`, `node_has_property_property`                         | implemented                          |
 | Set union                    | `node_set_union_first`, `node_set_union_second`                                     | implemented                          |
 | Set intersection             | `node_set_intersection_first`, `node_set_intersection_second`                       | implemented                          |
 | Set difference               | `node_set_difference_first`, `node_set_difference_second`                           | implemented                          |

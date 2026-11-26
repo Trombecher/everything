@@ -23,6 +23,10 @@ fn node_round_trip() {
         Node::SetCount(Node::Literal(a.clone()).into()),
         Node::PropertiesOf(Node::Literal(a.clone()).into()),
         Node::HasValue(Node::Literal(a.clone()).into()),
+        Node::HasProperty {
+            subject: Node::Literal(a.clone()).into(),
+            property: Node::Literal(b.clone()).into(),
+        },
         Node::QueryAtomsWithProperty {
             property: Node::Literal(a.clone()).into(),
         },
@@ -283,7 +287,16 @@ fn node_parse_reports_invalid_depth() {
 #[test]
 fn node_parse_error_display_uses_node_names() {
     assert_eq!(NodeKind::And.to_string(), "and");
+    assert_eq!(NodeKind::HasProperty.to_string(), "has property");
     assert_eq!(NodeProperty::AndSecond.to_string(), "node_and_second");
+    assert_eq!(
+        NodeProperty::HasPropertySubject.to_string(),
+        "node_has_property_subject"
+    );
+    assert_eq!(
+        NodeProperty::HasPropertyProperty.to_string(),
+        "node_has_property_property"
+    );
     assert_eq!(
         PropertyRequirement::Depth.to_string(),
         "a non-negative 32-bit integer"
