@@ -175,18 +175,17 @@ that tag. The complete tag table is:
 | 6 | character-3 | 3 bytes | the character set for a code point |
 | 7 | character-4 | 4 bytes | the character set for a code point |
 | 8 | text | LEB128 length, bytes | a text set |
-| 9 | *(reserved)* | *(undefined)* | *(none; MUST NOT be used)* |
+| 9 | *(unassigned)* | *(undefined)* | *(none; MUST NOT be used)* |
 | 10 | set | LEB128 count, objects | a set |
 | 11 | byte | 1 byte | a byte set |
 | 12 | positive integer | LEB128 length, bytes | the integer set for a positive integer |
 | 13 | negative integer | LEB128 length, bytes | the integer set for a negative integer |
 | 14-255 | *(unassigned)* | *(undefined)* | *(none; MUST NOT be used)* |
 
-A decoder MUST reject a tag it does not know, including tag 9 and all tags
-above 13.
+A decoder MUST reject a tag it does not know, including all unassigned tags.
 
-Tags 4 through 13 encode *specialized representations of sets*, not scalar
-values. Their meaning is defined in [§9](#9-tag-definitions).
+Tags 4 through 8 and 10 through 13 encode *specialized representations of sets*,
+not scalar values. Their meaning is defined in [§9](#9-tag-definitions).
 
 ## 9. Tag definitions
 
@@ -333,12 +332,6 @@ characters, or the empty set once no characters remain. Thus every non-empty
 text set has exactly two members and there is exactly one text set per non-empty
 UTF-8 string.
 
-### 9.9. Reserved tag 9
-
-Tag 9 is reserved and has no defined payload. It MUST NOT appear in any version 1
-file, and a decoder MUST reject it. Its assignment is reserved for a future
-version (see §16).
-
 ## 10. Reserved atoms
 
 The specialized encodings of §9 are defined in terms of the following atoms.
@@ -416,7 +409,7 @@ A decoder MUST reject:
 - incorrect magic bytes or a version other than 1;
 - a base length that exceeds the available bytes, or a base that is not an
   exact sequence of entries;
-- an unknown object tag, including tag 9 and tags above 13;
+- an unknown or unassigned object tag;
 - a truncated object, statement, or change record;
 - an invalid UTF-8 text set, or an empty text set;
 - an integer magnitude of zero or a length of zero;
@@ -508,9 +501,8 @@ file is created, replaced, or synchronized; see §15.
   document. A decoder MUST reject any other version.
 - The 24 reserved bytes are available for future extensions that do not change
   the meaning of the rest of the file. Version 1 decoders MUST ignore them.
-- Tags 14 through 255 are unassigned. A version 1 decoder MUST reject unknown
-  tags; new tags require a new version unless this document is revised.
-- Tag 9 is reserved and MUST NOT be used by version 1 encoders.
+- Tags 9 and 14 through 255 are unassigned. A version 1 decoder MUST reject
+  unknown tags; new tags require a new version unless this document is revised.
 - Reserved atom ids are part of the format. Adding new specialized
   representations that depend on new atoms still requires a new version,
   because version 1 decoders reject their tags.
@@ -565,7 +557,7 @@ leb128-u64 := 1..=10 bytes, least significant group first, 0x80 = continuation
 | 6 | 3-byte code point |
 | 7 | 4-byte code point |
 | 8 | `leb128-u64` byte length, UTF-8 bytes |
-| 9 | reserved - MUST NOT appear |
+| 9 | unassigned - MUST NOT appear |
 | 10 | `leb128-u64` count, count objects |
 | 11 | 1-byte bit mask |
 | 12 | `leb128-u64` magnitude length, magnitude |
@@ -676,18 +668,16 @@ does not yet satisfy this specification.
 
 Known deviations of the reference implementation from this document:
 
-1. **Tag 9 panics.** `parse_object` calls `todo!()` for tag 9 instead of
-   reporting an error. This document requires rejection.
-2. **Duplicate base entries are accepted.** `collect_base` inserts each entry
+1. **Duplicate base entries are accepted.** `collect_base` inserts each entry
    into the map; a later entry for the same atom silently replaces the earlier
    one. This document declares such a file invalid.
-3. **No nesting limit.** Object parsing is directly recursive, so a hostile file
+2. **No nesting limit.** Object parsing is directly recursive, so a hostile file
    can exhaust the stack instead of producing a parse error, contrary to §15.
-4. **32-bit targets are unsupported.** `u64_to_usize` is only defined for
+3. **32-bit targets are unsupported.** `u64_to_usize` is only defined for
    `target_pointer_width = "64"`, so the crate does not build for 32-bit
    targets. The format does not require 32-bit support, but an implementation
    that targets them must check length conversions itself.
-5. **Change-log partial writes.** The database layer encodes a whole update
+4. **Change-log partial writes.** The database layer encodes a whole update
    before appending it, but a crash during the append can still leave a partial
    trailing record. This is permitted by §15 but makes the file unreadable.
 
@@ -701,3 +691,4 @@ empty base entries, ignored reserved bytes, and any ordering choice.
 | Date | Change |
 |---|---|
 | 2026-11-03 | Initial draft of version 1. |
+| 2026-11-26 | Removed the binary data variant; tag 9 is unassigned. |

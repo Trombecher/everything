@@ -134,7 +134,6 @@ fn parse_object(cursor: &mut ReadCursor) -> Result<Object, ParseError> {
             )))
         }
         ObjectType::Text => Ok(Object::Composite(Composite::Text(parse_text(cursor)?))),
-        ObjectType::Binary => todo!(),
         ObjectType::Composite => Ok(Object::Composite(parse_composite(cursor)?)),
         ObjectType::Byte => Ok(Object::Composite(Composite::Byte(parse_byte(cursor)?))),
     }
