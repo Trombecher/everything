@@ -1,8 +1,0 @@
-[package]
-name = "everything_cli"
-description = "The Everything CLI lets you interface with .struct files."
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-ulid = "1.2.1"

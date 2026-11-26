@@ -56,13 +56,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "everything_cli"
-version = "0.1.0"
-dependencies = [
- "ulid",
-]
-
-[[package]]
 name = "everything_db"
 version = "0.1.0"
 dependencies = [
@@ -72,6 +65,13 @@ dependencies = [
  "scursor",
  "thiserror",
  "zerocopy",
+]
+
+[[package]]
+name = "generate_ulids"
+version = "0.1.0"
+dependencies = [
+ "ulid",
 ]
 
 [[package]]

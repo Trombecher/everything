@@ -114,8 +114,8 @@ NODE_MY_SECOND = "node_my_second" = 5678...;
 Rules:
 
 - Atom ids are global `u128` identifiers. Generate them with time plus
-  randomness (ULIDs are the repository convention). The CLI crate
-  (`crates/everything_cli/src/main.rs`) prints sample ids.
+  randomness (ULIDs are the repository convention). The `generate_ulids`
+  crate (`crates/generate_ulids/src/main.rs`) prints sample ids.
 - Never reuse, renumber, or "tidy" an existing id. Persisted knowledge stores
   ids, not names.
 - `declare_known_atoms!` runs compile-time duplicate checks for ids and names;
