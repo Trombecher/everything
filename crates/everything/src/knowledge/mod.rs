@@ -8,7 +8,10 @@ pub use query::*;
 
 use imbl::OrdMap;
 
-use crate::model::{Atom, AtomOrComposite, CompositeApi, CompositeItems, Construction, Object};
+use crate::{
+    compute::{MaybeUndefined, Node, evaluate},
+    model::{Atom, AtomOrComposite, CompositeApi, CompositeItems, Construction, Object},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Statement {
@@ -195,37 +198,141 @@ impl Knowledge {
         }
     }
 
-    /*
-    fn object_is_property_in(&self, object: &Object, containing_composite: &Composite) -> bool {
-        match object {
-            Object::Atom(_) | Object::Composite(_) => {
-                let f = self
-                    .query_construction_values(object, Atom::PROPERTY.into())
-                    .and_then(|mut values| values.next_and_last());
+    /// Returns `true` iff every statement in this knowledge is valid.
+    ///
+    /// A statement `a is p` is valid iff `p` is a valid property of `a` in the
+    /// complete knowledge.
+    #[must_use]
+    pub fn is_valid(&self) -> bool {
+        self.map.iter().all(|(atom, properties)| {
+            properties.clone().into_iter().all(|property| {
+                self.object_has_valid_property(&AtomOrComposite::Atom(*atom), &property)
+            })
+        })
+    }
 
-                if let Some(constraint_function) = f {
-                } else {
-                    false
-                }
+    /// Returns `true` iff `object` is valid in this knowledge.
+    ///
+    /// Atoms are always valid. A construction is valid iff its constructor and
+    /// value are valid objects and its constructor is a property constructor.
+    /// A composite is valid iff every one of its properties is a valid property
+    /// of the composite.
+    #[must_use]
+    pub fn object_is_valid(&self, object: &Object) -> bool {
+        match object {
+            Object::Atom(_) => true,
+            Object::Construction(construction) => {
+                self.object_is_valid(&construction.constructor)
+                    && self.object_is_valid(&construction.value)
+                    && self
+                        .property_constructor_constraint(&construction.constructor)
+                        .is_some()
             }
-            Object::Construction(construction) => todo!(),
+            Object::Composite(composite) => composite.clone().into_iter().all(|property| {
+                self.object_has_valid_property(
+                    &AtomOrComposite::Composite(composite.clone()),
+                    &property,
+                )
+            }),
         }
     }
 
+    /// Returns `true` iff `property` is a valid property of `object`.
+    ///
+    /// The property must be a valid object, must belong to the object, and the
+    /// applicable constraint must evaluate to exactly `true` in this complete
+    /// knowledge.
     #[must_use]
-    fn composite_is_valid(&self, composite: &Composite) -> bool {
-        composite.properties().all(|property| self.object_is_valid())
+    pub fn object_has_valid_property(&self, object: &AtomOrComposite, property: &Object) -> bool {
+        self.object_is_valid(property)
+            && self.object_has_property(object, property)
+            && self.property_constraint_accepts(object, property)
     }
 
-    #[must_use]
-    pub fn is_valid(&self) -> bool {
-        self.map.iter().all(|(_, composite)| {
-            composite.clone()
-                .properties()
-                .all(|property| self.object_is_property(&property))
-        })
+    /// Returns the unique constraint of a property constructor, if `object` is
+    /// one.
+    fn property_constructor_constraint(&self, object: &Object) -> Option<Object> {
+        let object = AtomOrComposite::try_from(object).ok()?;
+
+        self.unique_property_value(&object, &Atom::PROPERTY_CONSTRUCTOR.into())
     }
-     */
+
+    /// Returns the only value of the property `constructor ·· v` of `object`, if
+    /// there is exactly one such property.
+    fn unique_property_value(
+        &self,
+        object: &AtomOrComposite,
+        constructor: &Object,
+    ) -> Option<Object> {
+        let mut values = self
+            .properties_of(object)
+            .filter_map(|property| match property {
+                Object::Construction(Construction {
+                    constructor: property_constructor,
+                    value,
+                }) if property_constructor.as_ref() == constructor => Some(*value),
+                _ => None,
+            });
+
+        let value = values.next()?;
+
+        values.next().is_none().then_some(value)
+    }
+
+    /// Returns `true` iff the constraint applicable to the use of `property` on
+    /// `object` evaluates to exactly `true`.
+    fn property_constraint_accepts(&self, object: &AtomOrComposite, property: &Object) -> bool {
+        match property {
+            Object::Construction(Construction { constructor, value }) => {
+                let Some(constraint) = self.property_constructor_constraint(constructor) else {
+                    return false;
+                };
+
+                self.constraint_accepts_subject_and_value(&constraint, object, value)
+            }
+            Object::Atom(_) | Object::Composite(_) => {
+                let property = AtomOrComposite::try_from(property)
+                    .expect("an atom or composite has properties");
+                let Some(constraint) =
+                    self.unique_property_value(&property, &Atom::PROPERTY.into())
+                else {
+                    return false;
+                };
+
+                self.constraint_accepts_subject(&constraint, object)
+            }
+        }
+    }
+
+    /// Calls a unary constraint with the subject passed as a literal.
+    fn constraint_accepts_subject(&self, constraint: &Object, subject: &AtomOrComposite) -> bool {
+        let call = Node::Call {
+            callee: Node::Literal(constraint.clone()).into(),
+            with: Node::Literal(subject.clone().into()).into(),
+        };
+
+        evaluate(&call, self).truthy() == MaybeUndefined::Defined(true)
+    }
+
+    /// Calls a curried binary constraint with the subject and value passed as
+    /// literals.
+    fn constraint_accepts_subject_and_value(
+        &self,
+        constraint: &Object,
+        subject: &AtomOrComposite,
+        value: &Object,
+    ) -> bool {
+        let callee = Node::Call {
+            callee: Node::Literal(constraint.clone()).into(),
+            with: Node::Literal(subject.clone().into()).into(),
+        };
+        let call = Node::Call {
+            callee: callee.into(),
+            with: Node::Literal(value.clone()).into(),
+        };
+
+        evaluate(&call, self).truthy() == MaybeUndefined::Defined(true)
+    }
 }
 
 #[derive(Clone)]
