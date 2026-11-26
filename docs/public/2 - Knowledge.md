@@ -4,9 +4,13 @@ We define _knowledge_ as a set of statements. A statement is a combination of an
 
 ## Validation
 
-To prevent knowledge from reaching arbitrariness, Everything can validate knowledge. Knowledge `%K%` is _valid_ iff for every statement `%a% is %p% ∈ %K%`, `%p%` is a valid object and `%p%` is a valid property of `%a%` in `%K%`.
+To prevent knowledge from reaching arbitrariness, Everything can validate knowledge. Knowledge `%K%` is _valid_ iff for every statement `%a% is %p% ∈ %K%`, `%p%` is a valid property of `%a%` in `%K%`. As defined below, this also requires `%p%` to be a valid object in `%K%`.
 
-Models can restrict themselves by imposing arbitrary constraints on values in property constructions and on composites where properties are used. These constraints are modelled directly in Everything with a functional computation system. This system can evaluate objects and is laid out in [the next chapter](./3%20-%20Computation.md).
+Models can restrict themselves by imposing arbitrary constraints on the subjects and values of constructed properties and on the subjects of non-constructed properties. These constraints apply wherever properties are used, whether in statements or composites. They are modelled directly in Everything with a functional computation system. This system can evaluate objects and is laid out in [the next chapter](./3%20-%20Computation.md).
+
+Validation performs every required constraint evaluation in the complete knowledge `%K%` itself, not in a progressively validated subset. The statement being checked is therefore visible to its constraint, and statements have no validation order. A constraint accepts only when it evaluates to exactly `true`; every other result rejects the property. Since constraints are arbitrary computations, validation is not guaranteed to terminate.
+
+The three levels of validation have different roles: knowledge validation checks statements, object validation checks recursive structure, and property validation checks the use of a property in a particular subject and, where applicable, value context.
 
 ### Properties Of Atoms And Composites
 
@@ -26,24 +30,32 @@ It is forbidden to ask for properties of a construction.
 
 In Everything, every _property_ is either non-constructed or constructed. You can construct properties via constructions with property constructors.
 
-An object `%p%` is a **valid** property of an atom or a composite `%o%` in (knowledge) `%K%` iff `%p%` is a property of `%o%` in `%K%` and at least one of the following conditions holds:
+An object `%c%` is a _property constructor_ in knowledge `%K%` iff there exists exactly one object `%f%` such that `property_constructor ·· %f%` is a property of `%c%` in `%K%`. This `%f%` is the constructor's constraint. Both atoms and composites may be property constructors.
+
+An object `%p%` is a **valid** property of an atom or a composite `%o%` in (knowledge) `%K%` iff `%p%` is a valid object in `%K%`, `%p%` is a property of `%o%` in `%K%`, and at least one of the following conditions holds:
 
 - there exist objects `%c%` and `%v%` such that `%p% = %c% ·· %v%`,
-    - there exists an object `%f%` such that `property_constructor ·· %f%` is a property of `%c%` in `%K%`, and
-    - `⟨node_call_callee ·· ⟨node_call_callee ·· %f%, node_call_with ·· %o%⟩, node_call_with ·· %v%⟩` evaluates to `true` in `%K%`; or
+  - `%c%` is a property constructor in `%K%` with constraint `%f%`, and
+  - `⟨node_call_callee ·· ⟨node_call_callee ·· %f%, node_call_with ·· ⟨node_literal ·· %o%⟩⟩, node_call_with ·· ⟨node_literal ·· %v%⟩⟩` evaluates to `true` in `%K%`; or
 - `%p%` is an atom or a composite,
-    - there exists an object `%f%` such that `property ·· %f%` is a property of `%p%` in `%K%`, and
-    - `⟨node_call_callee ·· %f%, node_call_with ·· %o%⟩` evaluates to `true` in `%K%`.
+  - there exists exactly one object `%f%` such that `property ·· %f%` is a property of `%p%` in `%K%`, and
+  - `⟨node_call_callee ·· %f%, node_call_with ·· ⟨node_literal ·· %o%⟩⟩` evaluates to `true` in `%K%`.
+
+The literal nodes pass the original subject and value to the constraint as data, even when those objects themselves look like nodes.
+
+Constraints are unique rather than alternative. In particular, the constraint on `property_constructor` itself in the required base knowledge rejects multiple `property_constructor` declarations on the same object; validation may not choose whichever constraint returns `true`.
 
 ### Valid Objects
 
-The motivation behind valid objects is to check that all property constructions in that object are valid. Formally, an object `%o%` is _valid_ in knowledge `%K%` iff one of the following holds:
+The motivation behind valid objects is to check the recursive structure of property constructions and to ensure that composites bear their members as valid properties. Formally, an object `%o%` is _valid_ in knowledge `%K%` iff one of the following holds:
 
 - `%o%` is an atom;
-- `%o%` is a construction `%c% ·· %v%`, `%c%` and `%v%` are valid objects, and `%c%` is a property constructor in `%K%` (that is, `%c% is property_constructor ·· %f% ∈ %K%` for some object `%f%`); or
-- `%o%` is a composite and every member `%m%` of `%o%` is a valid property of `%o%` in `%K%`.
+- `%o%` is a construction `%c% ·· %v%`, `%c%` and `%v%` are valid objects, and `%c%` is a property constructor in `%K%`; or
+- `%o%` is a composite and every property `%p%` of `%o%` is a valid property of `%o%` in `%K%`.
 
-The composite case makes validity deep: every construction in a valid composite has its constraint applied with that composite as the subject, and nested composites are checked the same way with themselves as the subject. A construction that is only used as a value is checked structurally: its constructor must be a property constructor and its value must be valid. Its constraint runs where a subject exists, namely in statements and in the composites that contain it as a member.
+The composite case makes validity deep: since a valid property must also be a valid object, every member is recursively checked as an object, and every construction that is a member of a valid composite also has its constraint applied with that composite as the subject. Nested composites are checked the same way with themselves as the subject. A construction that is only used as a value is checked structurally: its constructor must be a property constructor and its value must be valid. Its constraint runs where a subject exists, namely in statements and in the composites that contain it as a member.
+
+For example, suppose `age` is a property constructor whose constraint rejects `-1`, and `other` is another property constructor. The construction `age ·· -1` is still a valid object, but `⟨age ·· -1⟩` is not: the construction is a member of the composite, so the `age` constraint rejects that property use. In contrast, `other ·· (age ·· -1)` is a valid object as long as `other` and the nested construction are structurally valid. If that outer construction is used as a property, only `other`'s constraint is applied automatically to the outer use; the `age` constraint does not run merely because `age ·· -1` is nested in the value.
 
 The constraint on property constructors used in composites and statements allows for validation, not only on the value, but on the subject as well.
 
@@ -51,15 +63,29 @@ Composites are therefore strong: a composite must be able to bear all of its mem
 
 ## Examples
 
+### Valid Knowledge
+
+The following example extends the required base knowledge. Decimal integers are used for readability.
+
 ```
 # `person` is a property that accepts all subjects (function always returns true).
 person is property ·· ⟨node_function ·· ⟨node_literal ·· true⟩⟩
 
 # `date_time`, `born`, and `child_of` are property constructors.
+# The first two accept every subject and value, so their constraints are curried
+# functions that accept both arguments before returning true.
 
-date_time is property_constructor ·· ⟨node_function ·· ⟨node_literal ·· true⟩⟩
+date_time is property_constructor ·· ⟨
+    node_function ·· ⟨
+        node_function ·· ⟨node_literal ·· true⟩
+    ⟩
+⟩
 
-born is property_constructor ·· ⟨node_function ·· ⟨node_literal ·· true⟩⟩
+born is property_constructor ·· ⟨
+    node_function ·· ⟨
+        node_function ·· ⟨node_literal ·· true⟩
+    ⟩
+⟩
 
 child_of is property_constructor ·· ⟨
     # child
@@ -95,6 +121,55 @@ David is child_of ·· Anna
 Anna is person
 Anna is born ·· ⟨date_time ·· 45385034985039⟩
 ```
+
+To validate `David is child_of ·· Anna`, object validation first observes that `child_of` and `Anna` are atoms and that `child_of` is a property constructor. Property validation then calls the unique `child_of` constraint with `David` and `Anna` as literal arguments. The constraint finds `David is person` and `Anna is person` in the complete knowledge and returns `true`.
+
+Validating `David is born ·· ⟨date_time ·· 10234823948⟩` also checks the nested `date_time` construction. It must be a valid object and a valid property of its enclosing composite, and that composite is passed to the `date_time` constraint as the subject. The `born` constraint separately validates the outer construction with `David` as the subject.
+
+### Invalid Knowledge
+
+The following examples use the declarations above. Each illustrates a different reason validation fails:
+
+- An undeclared constructor makes the property an invalid object:
+
+  ```
+  David is unknown_constructor ·· Anna
+  ```
+
+  `unknown_constructor` has no unique `property_constructor` constraint.
+
+- A constructor may reject the subject even when the property is structurally valid:
+
+  ```
+  Rock is child_of ·· Anna
+  ```
+
+  `Rock` is not a person, so the `child_of` constraint does not return `true`.
+
+- A constructor may independently reject the value:
+
+  ```
+  David is child_of ·· Rock
+  ```
+
+  Here the subject is a person, but the value is not.
+
+- Accepting outer constraints cannot hide an invalid nested construction:
+
+  ```
+  David is born ·· ⟨date_time ·· (unknown_constructor ·· Anna)⟩
+  ```
+
+  Although `born` and `date_time` accept every subject and value, `unknown_constructor ·· Anna` is not a valid object. Recursive object validation therefore rejects the entire statement.
+
+- Multiple constraints are not alternatives. For distinct `%f1%` and `%f2%`, the following declarations are rejected by the `property_constructor` constraint in the required base knowledge:
+
+  ```
+  child_of is property_constructor ·· %f1%
+  child_of is property_constructor ·· %f2%
+  ```
+
+  Validation cannot choose whichever constraint accepts, even if one or both would return `true`.
 
 ## Reasoning About Multiple Knowledges
 
