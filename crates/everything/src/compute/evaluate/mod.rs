@@ -467,12 +467,11 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
             Task::PropertiesOf => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(match object {
-                    LazyObject::Eager(Object::Atom(atom)) => LazyObject::Set(
-                        LazySet::AtomProperties(knowledge.properties_of_atom(&atom)),
-                    ),
-                    LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
-                    object => object,
+                evaluated.push(match object.into_set() {
+                    Some(target) => LazyObject::Set(LazySet::PropertiesOf {
+                        target: Box::new(target),
+                    }),
+                    None => UNDEFINED,
                 });
             }
             Task::HasValue => {

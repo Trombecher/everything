@@ -193,7 +193,7 @@ As with addition, integers are arbitrary precision and cannot overflow.
 
 Several node kinds take or produce _sets_. The set model is open (see [Chapter 4](./4%20-%20Common%20Models.md#sets)): **every atom and every composite is a set.** The _items_ of a set are the objects `%item%` for which it has the property `contains ·· %item%`: the statements of an atom in the knowledge, or the members of a composite. A construction is not a set. `{...}` is syntactic sugar for the canonical composite whose members are the corresponding `contains` constructions, and `{}` is the empty composite.
 
-Whenever this chapter says that a node produces a set, the result is a canonical set composite built from the items. The other properties of an operand are not items of that operand and do not participate when it is used as a set; [Properties Of](#properties-of) makes the properties of an atom explicit as items.
+Whenever this chapter says that a node produces a set, the result is a canonical set composite built from the items. The other properties of an operand are not items of that operand and do not participate when it is used as a set; [Properties Of](#properties-of) makes the properties of an object explicit as items.
 
 Because the constraint of `contains` accepts every value for every subject, the `contains` properties of a set place no demands on their items beyond their own validity. Collecting computed items into a canonical set therefore never runs the constraints of the collected objects.
 
@@ -201,17 +201,18 @@ Because the constraint of `contains` accepts every value for every subject, the 
 
 An object is a _set-count node_ iff it has the property `node_set_count ·· %inner%`. It evaluates `%inner%`. If the result is an atom or a composite, it returns the number of items of that result. If the result is a construction, the result is `undefined`.
 
-Most atoms and composites have no items. Use [Properties Of](#properties-of) to count the properties of an atom: `⟨node_set_count ·· ⟨node_properties_of ·· %atom%⟩⟩` is the number of properties of the atom.
+Most atoms and composites have no items. Use [Properties Of](#properties-of) to count the properties of an object: `⟨node_set_count ·· ⟨node_properties_of ·· %object%⟩⟩` is the number of properties of the object.
 
 ## Properties Of
 
-An object is a _properties-of node_ iff it has the property `node_properties_of ·· %inner%`. It evaluates `%inner%` and converts the result to the set of its properties:
+An object is a _properties-of node_ iff it has the property `node_properties_of ·· %inner%`. It evaluates `%inner%` and returns the canonical set whose items are all properties of the result:
 
-- for a composite, the result itself;
-- for an atom, the canonical set whose items are the properties the atom has in the knowledge;
+- for an atom, the properties it has in the knowledge;
+- for a composite, all of its members;
+- for a deferred set, the `contains ·· %item%` constructions corresponding to its items, since those are the properties of its composite representation;
 - for a construction, `undefined`.
 
-An atom without statements evaluates to the empty set. In contrast to [Set Count](#set-count), the conversion from an object to its properties is explicit, so counting the properties of an atom is written as `⟨node_set_count ·· ⟨node_properties_of ·· %atom%⟩⟩`.
+Unlike [Set Count](#set-count), this makes the properties of an object explicit as items. In particular, the items of the result are the properties themselves, not the items of the original object. Counting the properties of an atom or composite is therefore written as `⟨node_set_count ·· ⟨node_properties_of ·· %object%⟩⟩`. An atom or composite without properties evaluates to the empty set.
 
 ## Has Value
 
@@ -221,7 +222,7 @@ An object is a _has-value node_ iff it has the property `node_has_value ·· %in
 - for an atom, whether it has at least one property in the knowledge;
 - for a construction, `undefined`.
 
-This is the existential counterpart of [Set Count](#set-count). It is equivalent to `⟨node_set_count ·· ⟨node_properties_of ·· %inner%⟩⟩ > ⟨node_literal ·· 0⟩`.
+This is the existential counterpart of [Set Count](#set-count). For an atom it is equivalent to `⟨node_set_count ·· ⟨node_properties_of ·· %inner%⟩⟩ > ⟨node_literal ·· 0⟩`. For a composite it is not equivalent, because [Properties Of](#properties-of) counts all members while a composite has a value only if it has a `contains` item.
 
 ## Has Property
 
@@ -235,7 +236,7 @@ It evaluates `%subject%`. If the result is a construction, the result is `undefi
 - for a composite, whether it is one of the composite's members;
 - for an atom, whether it is a statement about the atom in the knowledge.
 
-A deferred set is a composite whose members are `contains` constructions, so only those constructions are its properties. This is the property counterpart of [Set Contains](#set-contains); use [Properties Of](#properties-of) to obtain an atom's properties as a set.
+A deferred set is a composite whose members are `contains` constructions, so only those constructions are its properties. This is the property counterpart of [Set Contains](#set-contains); use [Properties Of](#properties-of) to obtain an object's properties as a set.
 
 ## Set Union
 
@@ -587,7 +588,7 @@ This section describes implementation choices. They do not affect the result of 
 
 The implementation is demand-driven:
 
-- [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#set-map), [filter](#set-filter), and the query nodes build a description of a set without iterating their operands. The items are computed when an operation needs them: by [count](#set-count), [unwrap](#set-unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the items, such as [fold](#set-fold), [every](#set-every), [any](#set-any), [map](#set-map), or [filter](#set-filter).
+- [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#set-map), [filter](#set-filter), [properties of](#properties-of), and the query nodes build a description of a set without iterating their operands. The items are computed when an operation needs them: by [count](#set-count), [unwrap](#set-unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the items, such as [fold](#set-fold), [every](#set-every), [any](#set-any), [map](#set-map), or [filter](#set-filter).
 - A call does not evaluate its argument. The argument is closed over the caller's context and kept as an unevaluated thunk. It is evaluated when the parameter is first referenced, and the result is cached for later references (call-by-need) and for code that captured the parameter. Items that are already evaluated when a function is called internally, such as the items passed by [map](#set-map), [filter](#set-filter), [every](#set-every), [any](#set-any), and [fold](#set-fold), are kept as values instead of being wrapped as thunks.
 - Because arguments are pure, sharing the result of an argument evaluation does not change the result, only how much work is done.
 - [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#set-map) only depends on whether the source set has an item, so the mapper is not called.
@@ -649,4 +650,4 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 ## Current Limitations
 
 - Well-formedness is not checked by the evaluator. Termination, independence from iteration order, and validity of the materialised objects are semantic preconditions, so a program that is not well-formed may appear to observe laziness, iteration order, or missing validation.
-- Set-taking nodes accept every atom and every composite, as the set model is open. Constructions are rejected with `undefined`; use `node_properties_of` to pass an atom's properties as a set.
+- Set-taking nodes accept every atom and every composite, as the set model is open. Constructions are rejected with `undefined`; use `node_properties_of` to pass an object's properties as a set.

@@ -38,6 +38,13 @@ pub enum LazySet {
     /// The set whose items are the properties of an atom in the knowledge.
     AtomProperties(Properties),
 
+    /// The set whose items are the properties of the target set value.
+    ///
+    /// For an atom these are its statements in the knowledge, for a composite
+    /// its members, and for a deferred set the `contains` constructions that
+    /// encode its items.
+    PropertiesOf { target: Box<SetValue> },
+
     /// The set of atoms with the given property.
     AtomsWithProperty { property: Object },
 
@@ -313,6 +320,10 @@ impl LazySet {
     pub fn item_count(&self, knowledge: &Knowledge) -> u64 {
         match self {
             Self::AtomProperties(properties) => properties.size(),
+            Self::PropertiesOf { target } => match target.as_ref() {
+                SetValue::Eager(object) => knowledge.size_of_object(object),
+                SetValue::Set(set) => set.item_count(knowledge),
+            },
             Self::AtomsWithProperty { property } => u64::try_from(
                 knowledge
                     .query_atoms_with_property(property.clone())
@@ -334,6 +345,10 @@ impl LazySet {
     pub fn has_at_least_one_item(&self, knowledge: &Knowledge) -> bool {
         match self {
             Self::AtomProperties(properties) => !properties.is_empty(),
+            Self::PropertiesOf { target } => match target.as_ref() {
+                SetValue::Eager(object) => knowledge.size_of_object(object) != 0,
+                SetValue::Set(set) => set.has_at_least_one_item(knowledge),
+            },
             Self::AtomsWithProperty { property } => knowledge
                 .query_atoms_with_property(property.clone())
                 .next()
@@ -355,6 +370,7 @@ impl LazySet {
     pub fn has_item(&self, item: &Object, knowledge: &Knowledge) -> bool {
         match self {
             Self::AtomProperties(properties) => properties.has(item),
+            Self::PropertiesOf { target } => target.has_property(item, knowledge),
             Self::AtomsWithProperty { property } => match item {
                 Object::Atom(atom) => {
                     knowledge.object_has_property(&AtomOrComposite::Atom(*atom), property)
@@ -409,6 +425,9 @@ impl LazySet {
         match self {
             Self::AtomProperties(properties) => {
                 LazySetItems::AtomProperties(properties.into_iter())
+            }
+            Self::PropertiesOf { target } => {
+                LazySetItems::Properties(target.into_properties(knowledge))
             }
             Self::AtomsWithProperty { property } => {
                 LazySetItems::AtomsWithProperty(knowledge.query_atoms_with_property(property))
@@ -497,6 +516,7 @@ impl Iterator for LazyObjectProperties {
 pub enum LazySetItems {
     ObjectItems(ObjectItems),
     AtomProperties(PropertiesIter),
+    Properties(LazyObjectProperties),
     AtomsWithProperty(QueryAtomsWithProperty),
     AtomsWithConstructor(QueryAtomsWithConstructor),
     ConstructionValues {
@@ -550,6 +570,7 @@ impl Iterator for LazySetItems {
         match self {
             Self::ObjectItems(items) => items.next(),
             Self::AtomProperties(properties) => properties.next(),
+            Self::Properties(properties) => properties.next(),
             Self::AtomsWithProperty(atoms) => atoms.next().map(Object::Atom),
             Self::AtomsWithConstructor(atoms) => atoms.next().map(Object::Atom),
             Self::ConstructionValues {

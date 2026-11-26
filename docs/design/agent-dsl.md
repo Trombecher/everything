@@ -193,7 +193,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `x.p`                        | `unwrap(values(x, p))`                      |
 | `true` / `false` / `undefined` | atoms                                      |
 
-Set-taking builtins (`count`, `unwrap`, `map`, `filter`, …) require a set. Use `properties_of(x)` to pass an atom's properties as a set. `values(o, c)` is a query rather than a set operation: it accepts any object, resolving atoms through the knowledge and sets through their members.
+Set-taking builtins (`count`, `unwrap`, `map`, `filter`, …) require a set. Use `properties_of(x)` to pass an object's properties as a set. `values(o, c)` is a query rather than a set operation: it accepts any object, resolving atoms through the knowledge and sets through their members.
 
 ### Samples
 

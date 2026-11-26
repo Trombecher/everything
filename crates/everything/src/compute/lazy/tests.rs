@@ -116,6 +116,117 @@ fn into_properties_of_a_deferred_set_yields_contains_constructions() {
 }
 
 #[test]
+fn properties_of_lists_composite_members() {
+    let knowledge = Knowledge::empty();
+    let annotation = integer(1);
+    let member = contains(integer(2));
+
+    let target = SetValue::Eager(AtomOrComposite::Composite(Composite::from([
+        annotation.clone(),
+        member.clone(),
+    ])));
+    let properties = LazySet::PropertiesOf {
+        target: Box::new(target),
+    };
+
+    assert_eq!(properties.item_count(&knowledge), 2);
+    assert!(properties.has_at_least_one_item(&knowledge));
+    assert!(properties.has_item(&annotation, &knowledge));
+    assert!(properties.has_item(&member, &knowledge));
+    assert!(!properties.has_item(&integer(3), &knowledge));
+
+    let mut items = properties.into_items(&knowledge).collect::<Vec<_>>();
+    items.sort();
+
+    let mut expected = vec![annotation, member];
+    expected.sort();
+
+    assert_eq!(items, expected);
+}
+
+#[test]
+fn properties_of_atom_target_uses_its_statements() {
+    let atom = Atom(42);
+    let first = integer(1);
+    let second = integer(2);
+    let late = integer(3);
+
+    let mut knowledge = Knowledge::empty();
+    knowledge.add_statement(Statement {
+        atom,
+        object: first.clone(),
+    });
+    knowledge.add_statement(Statement {
+        atom,
+        object: second.clone(),
+    });
+
+    let properties = LazySet::PropertiesOf {
+        target: Box::new(SetValue::Eager(AtomOrComposite::Atom(atom))),
+    };
+
+    assert_eq!(properties.item_count(&knowledge), 2);
+    assert!(properties.has_at_least_one_item(&knowledge));
+    assert!(properties.has_item(&first, &knowledge));
+    assert!(properties.has_item(&second, &knowledge));
+    assert!(!properties.has_item(&contains(first.clone()), &knowledge));
+
+    let iterator = properties.into_items(&knowledge);
+
+    // Changes to the knowledge after creating the iterator must not be visible.
+    knowledge.add_statement(Statement { atom, object: late });
+
+    let mut items = iterator.collect::<Vec<_>>();
+    items.sort();
+
+    let mut expected = vec![first, second];
+    expected.sort();
+
+    assert_eq!(items, expected);
+}
+
+#[test]
+fn properties_of_deferred_target_wraps_items_in_contains() {
+    let knowledge = Knowledge::empty();
+    let first = integer(1);
+    let second = integer(2);
+
+    let target = SetValue::Set(LazySet::Union {
+        first: Box::new(eager_set([first.clone()])),
+        second: Box::new(eager_set([second.clone()])),
+    });
+    let properties = LazySet::PropertiesOf {
+        target: Box::new(target),
+    };
+
+    assert_eq!(properties.item_count(&knowledge), 2);
+    assert!(properties.has_at_least_one_item(&knowledge));
+    assert!(properties.has_item(&contains(first.clone()), &knowledge));
+    assert!(!properties.has_item(&first, &knowledge));
+
+    let mut items = properties.into_items(&knowledge).collect::<Vec<_>>();
+    items.sort();
+
+    let mut expected = vec![contains(first), contains(second)];
+    expected.sort();
+
+    assert_eq!(items, expected);
+}
+
+#[test]
+fn properties_of_empty_target_has_no_items() {
+    let knowledge = Knowledge::empty();
+    let target = SetValue::Eager(AtomOrComposite::Composite(Composite::empty()));
+    let properties = LazySet::PropertiesOf {
+        target: Box::new(target),
+    };
+
+    assert_eq!(properties.item_count(&knowledge), 0);
+    assert!(!properties.has_at_least_one_item(&knowledge));
+    assert_eq!(properties.into_items(&knowledge).count(), 0);
+}
+
+#[test]
 fn into_items_of_an_atom_yields_contains_values() {
     let atom = Atom(42);
     let mut knowledge = Knowledge::empty();
