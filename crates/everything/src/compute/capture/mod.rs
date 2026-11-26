@@ -375,6 +375,14 @@ fn capture_with_mode(
                 })
                 .collect(),
         },
+        Node::NewComposite { properties } => Node::NewComposite {
+            properties: properties
+                .iter()
+                .map(|value| {
+                    recurse!(value, additional_depth, evaluation_context, knowledge).into()
+                })
+                .collect(),
+        },
         Node::ConstructionConstructor { construction } => Node::ConstructionConstructor {
             construction: recurse!(
                 construction,

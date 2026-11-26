@@ -158,6 +158,7 @@ const KINDS: &[KindSpec] = &[
         ]
     ),
     kind!(NodeKind::NewSet, [NodeProperty::NewSetItem]),
+    kind!(NodeKind::NewComposite, [NodeProperty::NewCompositeProperty]),
     kind!(
         NodeKind::ConstructionConstructor,
         [NodeProperty::ConstructorOfConstruction]

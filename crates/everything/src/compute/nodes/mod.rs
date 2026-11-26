@@ -212,6 +212,16 @@ pub enum Node {
     NewSet {
         items: Vec<Arc<Node>>,
     },
+    /// Constructs a composite from the results of the given child nodes.
+    ///
+    /// There is always at least one child. The results become members of the
+    /// composite directly; unlike [`Node::NewSet`], they are not wrapped in
+    /// `contains` constructions. The children are evaluated in an unspecified
+    /// order; see the computation documentation for the resulting
+    /// well-formedness requirement.
+    NewComposite {
+        properties: Vec<Arc<Node>>,
+    },
     ConstructionConstructor {
         construction: Arc<Node>,
     },
@@ -429,6 +439,14 @@ impl Node {
                     .map(|item| Self::child(item, knowledge, NodeProperty::NewSetItem))
                     .collect::<Result<Vec<_>, _>>()?,
             },
+            RawNode::NewComposite { properties } => Self::NewComposite {
+                properties: properties
+                    .iter()
+                    .map(|property| {
+                        Self::child(property, knowledge, NodeProperty::NewCompositeProperty)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            },
             RawNode::ConstructionConstructor { construction } => Self::ConstructionConstructor {
                 construction: child!(NodeProperty::ConstructorOfConstruction, &construction),
             },
@@ -529,6 +547,20 @@ impl Node {
                     .iter()
                     .map(|item| {
                         Construction::new(Atom::NODE_NEW_SET_ITEM.into(), item.into_object()).into()
+                    })
+                    .collect::<Vec<Object>>();
+
+                Composite::from(members.as_mut_slice()).into()
+            }
+            Self::NewComposite { properties } => {
+                let mut members = properties
+                    .iter()
+                    .map(|property| {
+                        Construction::new(
+                            Atom::NODE_NEW_COMPOSITE_PROPERTY.into(),
+                            property.into_object(),
+                        )
+                        .into()
                     })
                     .collect::<Vec<Object>>();
 

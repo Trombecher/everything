@@ -203,6 +203,9 @@ pub enum RawNode {
     NewSet {
         items: Vec<Object>,
     },
+    NewComposite {
+        properties: Vec<Object>,
+    },
     ConstructionConstructor {
         construction: Object,
     },
@@ -571,6 +574,12 @@ impl RawNode {
             NodeKind::NewSet,
             many_values(object, knowledge, Atom::NODE_NEW_SET_ITEM.into())
                 .map(|items| Self::NewSet { items })
+        );
+
+        xor_with!(
+            NodeKind::NewComposite,
+            many_values(object, knowledge, Atom::NODE_NEW_COMPOSITE_PROPERTY.into())
+                .map(|properties| Self::NewComposite { properties })
         );
 
         xor_with!(

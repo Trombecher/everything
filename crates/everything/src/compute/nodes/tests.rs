@@ -125,6 +125,12 @@ fn node_round_trip() {
                 Node::Literal(b.clone()).into(),
             ],
         },
+        Node::NewComposite {
+            properties: vec![
+                Node::Literal(a.clone()).into(),
+                Node::Literal(b.clone()).into(),
+            ],
+        },
         Node::ConstructionConstructor {
             construction: Node::Literal(a.clone()).into(),
         },
@@ -166,6 +172,31 @@ fn node_round_trip_preserves_extra_properties() {
 
     assert!(matches!(parsed.resolve(), Node::Add { .. }));
     assert_eq!(parsed.into_object(), object);
+}
+
+#[test]
+fn node_parse_collects_all_new_composite_properties() {
+    let knowledge = Knowledge { map: OrdMap::new() };
+    let first = Object::new_integer(BigInt::from(1));
+    let second = Object::new_integer(BigInt::from(2));
+
+    let object = Node::NewComposite {
+        properties: vec![
+            Node::Literal(first.clone()).into(),
+            Node::Literal(second.clone()).into(),
+        ],
+    }
+    .into_object();
+
+    let parsed = Node::new(&object, &knowledge).unwrap();
+
+    let Node::NewComposite { properties } = parsed.resolve() else {
+        panic!("expected a new-composite node");
+    };
+
+    assert_eq!(properties.len(), 2);
+    assert_eq!(properties[0].resolve(), &Node::Literal(first));
+    assert_eq!(properties[1].resolve(), &Node::Literal(second));
 }
 
 #[test]
@@ -288,7 +319,12 @@ fn node_parse_reports_invalid_depth() {
 fn node_parse_error_display_uses_node_names() {
     assert_eq!(NodeKind::And.to_string(), "and");
     assert_eq!(NodeKind::HasProperty.to_string(), "has property");
+    assert_eq!(NodeKind::NewComposite.to_string(), "new composite");
     assert_eq!(NodeProperty::AndSecond.to_string(), "node_and_second");
+    assert_eq!(
+        NodeProperty::NewCompositeProperty.to_string(),
+        "node_new_composite_property"
+    );
     assert_eq!(
         NodeProperty::HasPropertySubject.to_string(),
         "node_has_property_subject"

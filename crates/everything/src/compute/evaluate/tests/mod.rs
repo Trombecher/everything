@@ -20,6 +20,7 @@ mod is_composite;
 mod is_construction;
 mod less;
 mod map;
+mod new_composite;
 mod new_construction;
 mod new_set;
 mod properties_of;

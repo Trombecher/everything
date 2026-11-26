@@ -11,7 +11,7 @@ This chapter describes the implemented model. It distinguishes the reference eva
 An object is a valid _node_ iff it matches exactly one node kind described in this chapter and every child position parses as a node. Node matching is shallow and structural:
 
 - A node object is an atom or a composite. The required properties are read from the atom's values in the knowledge or, for a composite, from the composite's members. A bare construction cannot be a node.
-- For every required property of a node kind, the object must have exactly one matching construction, unless the property is repeatable. For example, an add node needs exactly one `node_add_first` value and exactly one `node_add_second` value. The only repeatable property is `node_new_set_item`, which a [new-set node](#new-set) may have any positive number of times. A required property with zero values, or with several values when it is not repeatable, means the kind does not match.
+- For every required property of a node kind, the object must have exactly one matching construction, unless the property is repeatable. For example, an add node needs exactly one `node_add_first` value and exactly one `node_add_second` value. The repeatable properties are `node_new_set_item`, which a [new-set node](#new-set) may have any positive number of times, and `node_new_composite_property`, which a [new-composite node](#new-composite) may have any positive number of times. A required property with zero values, or with several values when it is not repeatable, means the kind does not match.
 - If the object matches no node kind, it is not a node. If it matches more than one kind, it is also not a valid node; node kinds may not be combined.
 - Additional properties that are not part of the recognized kind are ignored. This makes node definitions _open_: annotations and other metadata may be attached without changing the node kind. The `node_*` constructors are reserved and must not be used for annotations, because they can change the recognized kind.
 
@@ -466,7 +466,7 @@ It evaluates both children and returns the construction `%constructor% ·· %val
 
 ## New Set
 
-An object is a _new-set node_ iff it has at least one property `node_new_set_item ·· %value%`. Unlike the properties of the other node kinds, `node_new_set_item` may occur any positive number of times.
+An object is a _new-set node_ iff it has at least one property `node_new_set_item ·· %value%`. This property is repeatable: it may occur any positive number of times.
 
 It evaluates every `%value%` child exactly once and returns the canonical set of their results. The items may be atoms, composites, or constructions. If several children evaluate to equal objects, that object appears only once, because the result is a set. A child that evaluates to `undefined` contributes the atom `undefined` as an ordinary item.
 
@@ -477,6 +477,22 @@ The node recognition rule that a required property must have exactly one value d
 The reference evaluation specifies only the set of child results, not an order in which the children are evaluated. The implementation evaluates the children in a concrete order.
 
 For a well-formed program this order cannot be observed: every child terminates and the result is the set of their results, independent of the order. However, if the program is not well-formed—for example if a child does not terminate, or if a child reads a value whose evaluation depends on the order in which children are visited—then the implementation may diverge on one child before reaching another, or may produce a result that depends on the chosen order. As with [fold](#correctness-and-associativity), the evaluator cannot check well-formedness, so it remains the programmer's responsibility.
+
+## New Composite
+
+An object is a _new-composite node_ iff it has at least one property `node_new_composite_property ·· %value%`. Like `node_new_set_item`, this property may occur any positive number of times.
+
+It evaluates every `%value%` child exactly once and returns the canonical composite whose members are their results. The results become members of the composite directly; unlike a [new set](#new-set), they are not wrapped in `contains` constructions. If several children evaluate to equal objects, that object appears only once, because the result is a canonical composite. A child that evaluates to `undefined` contributes the atom `undefined` as an ordinary member.
+
+The result is a composite in the open set model. It therefore has no set items unless a child result is itself a construction `contains ·· %item%`; use [Properties Of](#properties-of) to make its members explicit as items.
+
+The node recognition rule that a required property must have exactly one value does not apply to `node_new_composite_property`; having zero values means the object is not a new-composite node.
+
+### Correctness and evaluation order
+
+The reference evaluation specifies only the composite formed by the child results, not an order in which the children are evaluated. The implementation evaluates the children in a concrete order.
+
+For a well-formed program this order cannot be observed: every child terminates and the result is the composite of their results, independent of the order. However, if the program is not well-formed—for example if a child does not terminate, or if a child reads a value whose evaluation depends on the order in which children are visited—then the implementation may diverge on one child before reaching another, or may produce a result that depends on the chosen order. As with [fold](#correctness-and-associativity), the evaluator cannot check well-formedness, so it remains the programmer's responsibility.
 
 ## Query Atoms With Property
 
@@ -570,6 +586,19 @@ Constructing `{1, 2}` from two child expressions:
 
 evaluates to the set `{1, 2}`.
 
+### New Composite
+
+Constructing the composite `⟨1, 2⟩` from two child expressions:
+
+```
+⟨
+    node_new_composite_property ·· ⟨node_literal ·· 1⟩,
+    node_new_composite_property ·· ⟨node_literal ·· 2⟩
+⟩
+```
+
+evaluates to the composite `⟨1, 2⟩`. Unlike the [new-set example](#new-set), the members are inserted directly and are not wrapped in `contains` constructions.
+
 ### Conditional
 
 ```
@@ -594,6 +623,7 @@ The implementation is demand-driven:
 - [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#set-map) only depends on whether the source set has an item, so the mapper is not called.
 - [Has property](#has-property) evaluates the subject first. If the subject is a construction, the result is `undefined` and the property child is never evaluated.
 - A [new set](#new-set) evaluates all of its children and materialises the resulting set. Its items are therefore not represented lazily.
+- A [new composite](#new-composite) evaluates all of its children and materialises the resulting composite. The child results become its members directly; they are not wrapped as `contains` items.
 - Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call. Parsed nodes retain the object they were parsed from, so materialising a captured function reproduces its body exactly, including annotations and unknown properties. Atom-defined functions materialise into composites; see [Functions](#functions).
 - Capturing an unevaluated argument shares its thunk in the function body instead of evaluating it or copying its closed expression. A thunk contains a finite closed expression and an optional cached result, so function objects remain finite even when they capture divergent code. Capturing an argument that is already evaluated escapes its value into a literal.
 
@@ -640,6 +670,7 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 | Construction value           | `node_value_of_construction`                                                       | implemented                          |
 | New construction             | `node_new_construction_constructor`, `node_new_construction_value`                 | implemented                          |
 | New set                      | `node_new_set_item` (one or more)                                                  | implemented                          |
+| New composite                | `node_new_composite_property` (one or more)                                        | implemented                          |
 | Set contains                 | `node_set_contains_element`, `node_set_contains_set`                               | implemented                          |
 | Query atoms with property    | `node_atoms_with_property`                                                         | implemented                          |
 | Query atoms with constructor | `node_atoms_with_constructor`                                                      | implemented                          |
@@ -650,4 +681,5 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 ## Current Limitations
 
 - Well-formedness is not checked by the evaluator. Termination, independence from iteration order, and validity of the materialised objects are semantic preconditions, so a program that is not well-formed may appear to observe laziness, iteration order, or missing validation.
+- [New composite](#new-composite) inserts its child results without validating them as properties of the resulting composite. Object and property validation is a semantic precondition, as for other constructed values.
 - Set-taking nodes accept every atom and every composite, as the set model is open. Constructions are rejected with `undefined`; use `node_properties_of` to pass an object's properties as a set.

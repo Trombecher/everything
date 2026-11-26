@@ -175,6 +175,33 @@ fn capture_transforms_both_has_property_children() {
 }
 
 #[test]
+fn capture_transforms_all_new_composite_properties() {
+    let mut context = EvaluationContext::default();
+    context.push(FunctionContext {
+        function: Node::function(Node::Literal(Atom(1).into())),
+        parameter: Argument::Value(LazyObject::Eager(Atom(2).into())),
+    });
+
+    let node = Node::NewComposite {
+        properties: vec![
+            Node::Parameter { depth: 0 }.into(),
+            Node::Literal(Atom(3).into()).into(),
+        ],
+    };
+    let captured = capture(&node, 0, &context, &BASE);
+
+    assert_eq!(
+        captured,
+        Node::NewComposite {
+            properties: vec![
+                Node::Literal(Atom(2).into()).into(),
+                Node::Literal(Atom(3).into()).into(),
+            ],
+        }
+    );
+}
+
+#[test]
 fn capture_argument_closes_free_parameters_to_undefined() {
     let captured = capture_argument(
         &Node::Parameter { depth: 0 },

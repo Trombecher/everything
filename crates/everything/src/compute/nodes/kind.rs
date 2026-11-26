@@ -42,6 +42,7 @@ pub enum NodeKind {
     SetFold,
     NewConstruction,
     NewSet,
+    NewComposite,
     ConstructionConstructor,
     ConstructionValue,
 }
@@ -86,6 +87,7 @@ impl fmt::Display for NodeKind {
             Self::SetFold => "set fold",
             Self::NewConstruction => "new construction",
             Self::NewSet => "new set",
+            Self::NewComposite => "new composite",
             Self::ConstructionConstructor => "construction constructor",
             Self::ConstructionValue => "construction value",
         })
@@ -172,6 +174,7 @@ pub enum NodeProperty {
     NewConstructionConstructor,
     NewConstructionValue,
     NewSetItem,
+    NewCompositeProperty,
     ConstructorOfConstruction,
     ValueOfConstruction,
 }
@@ -242,6 +245,7 @@ impl NodeProperty {
             Self::NewConstructionConstructor => Atom::NODE_NEW_CONSTRUCTION_CONSTRUCTOR,
             Self::NewConstructionValue => Atom::NODE_NEW_CONSTRUCTION_VALUE,
             Self::NewSetItem => Atom::NODE_NEW_SET_ITEM,
+            Self::NewCompositeProperty => Atom::NODE_NEW_COMPOSITE_PROPERTY,
             Self::ConstructorOfConstruction => Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION,
             Self::ValueOfConstruction => Atom::NODE_VALUE_OF_CONSTRUCTION,
         }
@@ -259,7 +263,7 @@ impl NodeProperty {
     /// this property. Every other property must have exactly one value.
     #[must_use]
     pub(crate) const fn allows_multiple(self) -> bool {
-        matches!(self, Self::NewSetItem)
+        matches!(self, Self::NewSetItem | Self::NewCompositeProperty)
     }
 }
 
@@ -328,6 +332,7 @@ impl fmt::Display for NodeProperty {
             Self::NewConstructionConstructor => "node_new_construction_constructor",
             Self::NewConstructionValue => "node_new_construction_value",
             Self::NewSetItem => "node_new_set_item",
+            Self::NewCompositeProperty => "node_new_composite_property",
             Self::ConstructorOfConstruction => "node_constructor_of_construction",
             Self::ValueOfConstruction => "node_value_of_construction",
         })

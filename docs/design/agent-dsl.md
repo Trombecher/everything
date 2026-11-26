@@ -170,6 +170,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `'e`                         | Literal (needed when data matches a node pattern) |
 | `f(x)`                       | Call                                        |
 | `a b` (expression position)  | ≈ NewConstruction semantics (evaluate parts, construct) |
+| `[ a, b ]`                   | NewComposite                                |
 | `a and b` / `a or b` / `a xor b` / `not a` | And / Or / Xor / Not            |
 | `a = b` / `a < b`            | Equal / Less                                |
 | `a + b` / `a * b`            | Add / Multiply                              |

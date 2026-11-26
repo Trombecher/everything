@@ -61,6 +61,11 @@ enum Task {
     NewSet {
         count: usize,
     },
+    /// Collects the results of the preceding child evaluations into a
+    /// composite.
+    NewComposite {
+        count: usize,
+    },
     Equal,
     PartialOr {
         second: Arc<Node>,
@@ -224,6 +229,17 @@ fn resolve_evaluate_node(
             // have to be scheduled in reverse.
             for item in items.iter().rev() {
                 tasks.push(Task::Evaluate(Arc::clone(item)));
+            }
+        }
+        Node::NewComposite { properties } => {
+            tasks.push(Task::NewComposite {
+                count: properties.len(),
+            });
+
+            // The properties are evaluated in order: the stack is LIFO, so
+            // they have to be scheduled in reverse.
+            for property in properties.iter().rev() {
+                tasks.push(Task::Evaluate(Arc::clone(property)));
             }
         }
         Node::IsAtom(inner) => {
@@ -586,6 +602,17 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 }
 
                 evaluated.push(LazyObject::Eager(Composite::from_set_items(&items).into()));
+            }
+            Task::NewComposite { count } => {
+                let mut properties = Vec::with_capacity(count);
+
+                for _ in 0..count {
+                    properties.push(evaluated.pop().unwrap().into_object(knowledge));
+                }
+
+                evaluated.push(LazyObject::Eager(
+                    Composite::from(properties.as_mut_slice()).into(),
+                ));
             }
             Task::ForceToBoolean => {
                 let object = evaluated.pop().unwrap();

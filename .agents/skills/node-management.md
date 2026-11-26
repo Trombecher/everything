@@ -140,7 +140,7 @@ Add the kind and each property to all relevant places:
   - `requirement()` → `PropertyRequirement::Value` normally,
     `PropertyRequirement::Depth` for a non-negative `u32` depth;
   - `allows_multiple()` → `true` only for a repeatable property
-    (currently only `NewSetItem`);
+    (currently `NewSetItem` and `NewCompositeProperty`);
   - `Display` → the exact `node_*` atom name, matching the atom's name literal.
 
 Use names that describe the property role, following existing pairs such as
@@ -361,8 +361,8 @@ change:
 - Specify evaluation, including every `undefined` case and short-circuit.
 - Add an example under “Examples” when it clarifies the encoding.
 - Update “Node Objects and Recognition” if the recognition rules change
-  (for example, a new repeatable property changes the sentence that names
-  `node_new_set_item` as the only repeatable one).
+  (for example, a new repeatable property changes the sentence that lists the
+  repeatable properties).
 - Update “Evaluation Strategy” if the node is deferred, short-circuits, or
   materialises values.
 - Update the “Implementation Status” table with the encoding and any
