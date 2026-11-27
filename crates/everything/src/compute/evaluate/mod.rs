@@ -15,7 +15,7 @@ use crate::{
     },
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Atom, AtomOrComposite, Composite, Construction, Object},
+    model::{Atom, Composite, Construction, Object},
 };
 
 const UNDEFINED: LazyObject = LazyObject::Eager(Object::Atom(Atom::UNDEFINED));
@@ -33,7 +33,7 @@ enum Task {
     ForceToBoolean,
     SetCount,
     PropertiesOf,
-    HasValue,
+    HasASetItem,
     /// Evaluates the subject and short-circuits the property child if the
     /// subject is a construction.
     PartialHasProperty {
@@ -306,8 +306,8 @@ fn resolve_evaluate_node(
             tasks.push(Task::PropertiesOf);
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
-        Node::HasValue(object) => {
-            tasks.push(Task::HasValue);
+        Node::HasASetItem(object) => {
+            tasks.push(Task::HasASetItem);
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
         Node::HasProperty { subject, property } => {
@@ -499,18 +499,12 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                     None => UNDEFINED,
                 });
             }
-            Task::HasValue => {
+            Task::HasASetItem => {
                 let object = evaluated.pop().unwrap();
 
-                evaluated.push(match object {
-                    LazyObject::Eager(Object::Construction(_)) => UNDEFINED,
-                    LazyObject::Eager(Object::Atom(atom)) => LazyObject::Eager(
-                        (knowledge.size_of_object(&AtomOrComposite::Atom(atom)) != 0).into(),
-                    ),
-                    object => match object.into_set() {
-                        Some(set) => LazyObject::Eager(set.has_at_least_one_item(knowledge).into()),
-                        None => UNDEFINED,
-                    },
+                evaluated.push(match object.into_set() {
+                    Some(set) => LazyObject::Eager(set.has_at_least_one_item(knowledge).into()),
+                    None => UNDEFINED,
                 });
             }
             Task::PartialHasProperty { property } => {

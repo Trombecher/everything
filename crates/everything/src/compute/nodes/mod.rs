@@ -78,10 +78,10 @@ pub enum Node {
     /// properties in the knowledge, and constructions evaluate to undefined.
     PropertiesOf(Arc<Node>),
 
-    /// Evaluates to `true` iff the inner result has at least one value.
-    /// Composites are tested directly, atoms are tested against their values
-    /// in the knowledge, and constructions evaluate to undefined.
-    HasValue(Arc<Node>),
+    /// Evaluates to `true` iff the inner result has at least one set item.
+    /// Atoms and composites are tested through their set view, and
+    /// constructions evaluate to undefined.
+    HasASetItem(Arc<Node>),
     /// Evaluates to `true` iff the property result is a property of the
     /// subject result. Atoms are resolved through the knowledge, composites
     /// through their members, and constructions evaluate to undefined as the
@@ -312,7 +312,9 @@ impl Node {
             RawNode::PropertiesOf(object) => {
                 Self::PropertiesOf(child!(NodeProperty::PropertiesOf, &object))
             }
-            RawNode::HasValue(object) => Self::HasValue(child!(NodeProperty::HasValue, &object)),
+            RawNode::HasASetItem(object) => {
+                Self::HasASetItem(child!(NodeProperty::HasASetItem, &object))
+            }
             RawNode::HasProperty { subject, property } => Self::HasProperty {
                 subject: child!(NodeProperty::HasPropertySubject, &subject),
                 property: child!(NodeProperty::HasPropertyProperty, &property),
@@ -645,8 +647,8 @@ impl Node {
             )
             .into()])
             .into(),
-            Self::HasValue(object) => Composite::from([Construction::new(
-                Atom::NODE_HAS_VALUE.into(),
+            Self::HasASetItem(object) => Composite::from([Construction::new(
+                Atom::NODE_HAS_A_SET_ITEM.into(),
                 object.into_object(),
             )
             .into()])

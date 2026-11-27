@@ -216,15 +216,11 @@ An object is a _properties-of node_ iff it has the property `node_properties_of 
 
 Unlike [Set Count](#set-count), this makes the properties of an object explicit as items. In particular, the items of the result are the properties themselves, not the items of the original object. Counting the properties of an atom or composite is therefore written as `⟨node_set_count ·· ⟨node_properties_of ·· %object%⟩⟩`. An atom or composite without properties evaluates to the empty set.
 
-## Has Value
+## Has a Set Item
 
-An object is a _has-value node_ iff it has the property `node_has_value ·· %inner%`. It evaluates `%inner%` and returns `true` iff the result has at least one value:
+An object is a _has-a-set-item node_ iff it has the property `node_has_a_set_item ·· %inner%`. It evaluates `%inner%` and returns `true` iff the result has at least one set item. Atoms and composites are both sets in the open set model, so the check is the same for both. If the result is a construction, the result is `undefined`.
 
-- for a composite, whether it has at least one item;
-- for an atom, whether it has at least one property in the knowledge;
-- for a construction, `undefined`.
-
-This is the existential counterpart of [Set Count](#set-count). For an atom it is equivalent to `⟨node_set_count ·· ⟨node_properties_of ·· %inner%⟩⟩ > ⟨node_literal ·· 0⟩`. For a composite it is not equivalent, because [Properties Of](#properties-of) counts all members while a composite has a value only if it has a `contains` item.
+This is the existential counterpart of [Set Count](#set-count): it is equivalent to `⟨node_set_count ·· %inner%⟩ > ⟨node_literal ·· 0⟩`. It tests the items of the set view, not its properties. In particular, a composite without a `contains` member is false even if it has other members; use [Properties Of](#properties-of) first to test whether it has any property.
 
 ## Has Property
 
@@ -622,7 +618,7 @@ The implementation is demand-driven:
 - [Union](#set-union), [intersection](#set-intersection), [difference](#set-difference), [map](#set-map), [filter](#set-filter), [properties of](#properties-of), and the query nodes build a description of a set without iterating their operands. The items are computed when an operation needs them: by [count](#set-count), [unwrap](#set-unwrap), [equality](#equality), [new construction](#new-construction), when a value is required as an object or a node, or when an operation visits the items, such as [fold](#set-fold), [every](#set-every), [any](#set-any), [map](#set-map), or [filter](#set-filter).
 - A call does not evaluate its argument. The argument is closed over the caller's context and kept as an unevaluated thunk. It is evaluated when the parameter is first referenced, and the result is cached for later references (call-by-need) and for code that captured the parameter. Items that are already evaluated when a function is called internally, such as the items passed by [map](#set-map), [filter](#set-filter), [every](#set-every), [any](#set-any), and [fold](#set-fold), are kept as values instead of being wrapped as thunks.
 - Because arguments are pure, sharing the result of an argument evaluation does not change the result, only how much work is done.
-- [Has value](#has-value) stops as soon as the answer is known. For example, the has-value result of a [map](#set-map) only depends on whether the source set has an item, so the mapper is not called.
+- [Has a set item](#has-a-set-item) stops as soon as the answer is known. For example, the has-a-set-item result of a [map](#set-map) only depends on whether the source set has an item, so the mapper is not called.
 - [Has property](#has-property) evaluates the subject first. If the subject is a construction, the result is `undefined` and the property child is never evaluated.
 - A [new set](#new-set) evaluates all of its children and materialises the resulting set. Its items are therefore not represented lazily.
 - A [new composite](#new-composite) evaluates all of its children and materialises the resulting composite. The child results become its members directly; they are not wrapped as `contains` items.
@@ -654,7 +650,7 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 | Multiply                     | `node_multiply_first`, `node_multiply_second`                                      | implemented for integers             |
 | Set count                    | `node_set_count`                                                                   | implemented                          |
 | Properties of                | `node_properties_of`                                                               | implemented                          |
-| Has value                    | `node_has_value`                                                                   | implemented                          |
+| Has a set item               | `node_has_a_set_item`                                                              | implemented                          |
 | Has property                 | `node_has_property_subject`, `node_has_property_property`                         | implemented                          |
 | Set union                    | `node_set_union_first`, `node_set_union_second`                                     | implemented                          |
 | Set intersection             | `node_set_intersection_first`, `node_set_intersection_second`                       | implemented                          |

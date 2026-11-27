@@ -103,7 +103,7 @@ pub enum RawNode {
     },
     SetCount(Object),
     PropertiesOf(Object),
-    HasValue(Object),
+    HasASetItem(Object),
     HasProperty {
         subject: Object,
         property: Object,
@@ -279,8 +279,9 @@ impl RawNode {
         );
 
         xor_with!(
-            NodeKind::HasValue,
-            construction_value(object, knowledge, Atom::NODE_HAS_VALUE.into()).map(Self::HasValue)
+            NodeKind::HasASetItem,
+            construction_value(object, knowledge, Atom::NODE_HAS_A_SET_ITEM.into())
+                .map(Self::HasASetItem)
         );
 
         xor_with!(

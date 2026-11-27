@@ -55,7 +55,7 @@ fn function_can_inspect_annotations_in_its_own_body() {
     ]);
 
     let body =
-        Composite::from([Construction::new(Atom::NODE_HAS_VALUE.into(), query.into()).into()])
+        Composite::from([Construction::new(Atom::NODE_HAS_A_SET_ITEM.into(), query.into()).into()])
             .into();
 
     let function = Composite::from([

@@ -178,7 +178,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `a in s`                     | Contains                                    |
 | `count(s)` / `unwrap(s)`     | Count / Unwrap                              |
 | `properties_of(x)`           | PropertiesOf                                |
-| `has_value(x)`               | HasValue                                    |
+| `has_a_set_item(x)`          | HasASetItem                                 |
 | `has_property(s, p)`         | HasProperty                                 |
 | `map(s, f)`                  | Map                                         |
 | `filter(s, f)`               | Filter                                      |

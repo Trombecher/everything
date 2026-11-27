@@ -22,7 +22,7 @@ fn node_round_trip() {
         Node::Parameter { depth: 0 },
         Node::SetCount(Node::Literal(a.clone()).into()),
         Node::PropertiesOf(Node::Literal(a.clone()).into()),
-        Node::HasValue(Node::Literal(a.clone()).into()),
+        Node::HasASetItem(Node::Literal(a.clone()).into()),
         Node::HasProperty {
             subject: Node::Literal(a.clone()).into(),
             property: Node::Literal(b.clone()).into(),
