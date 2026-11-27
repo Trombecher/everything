@@ -39,7 +39,7 @@ Composites behave identically to mathematical sets but have different syntax to 
 
 A _construction_ is a combination of two objects, written `%a% ·· %b%`, where `··` consists of two middle dots (U+00B7 U+00B7), with a space on each side. Constructions construct properties from a "property constructor" object (here `%a%`) and a "value" object (here `%b%`).
 
-The purpose of constructions is to give objects "roles" when used in larger structures. The object model itself cannot impose constraints on what objects can be used as property constructors but later constraints will be introduced in knowledge validation.
+The purpose of constructions is to give objects "roles" when used in larger structures. The object model itself cannot impose constraints on what objects can be used as property constructors; knowledge validation lets a knowledge attach constraints to the constructors it uses, but it does not limit which constructors can be introduced. See [Limits of Validation](./2%20-%20Knowledge.md#limits-of-validation).
 
 Constructions associate to the right: `%a% ·· %b% ·· %c% == %a% ·· (%b% ·· %c%)`.
 

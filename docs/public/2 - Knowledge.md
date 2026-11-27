@@ -23,7 +23,7 @@ There are three levels of validation that have different roles: knowledge valida
 
 ### Validation Of Knowledge
 
-To prevent knowledge from reaching arbitrariness, Everything can validate knowledge. Knowledge `%K%` is _valid_ iff
+Everything can validate knowledge. Validation checks that a knowledge is consistent with its own declarations; it does not restrict which facts a knowledge may state (see [Limits of Validation](#limits-of-validation)). Knowledge `%K%` is _valid_ iff
 
 1. for all atoms and composites `%o%` that occur in `%K%` there exists at most one object `%f%` such that `property_constructor ·· %f%` is a property of `%o%` in `%K%`;
 2. for all atoms and composites `%o%` that occur in `%K%` there exists at most one object `%f%` such that `non_constructed_property ·· %f%` is a property of `%o%` in `%K%`; and
@@ -65,6 +65,30 @@ Constraints therefore only guarantee something where there is a subject. If the 
 The constraint on property constructors used in composites and statements allows for validation, not only on the value, but on the subject as well.
 
 Composites are therefore strong: a composite must be able to bear all of its members as properties. Computed collections avoid this requirement by using the canonical set form from [Chapter 4](./4%20-%20Common%20Models.md#sets): a composite whose members are all `contains ·· %item%` constructions. The constraint of `contains` accepts every value for every subject, so such a composite is valid whenever its items are. Query results and other computed collections are therefore valid objects, and collecting objects into a canonical set never runs their constraints. The open set model still applies to all atoms and composites; a set that has additional properties beyond its `contains` properties is validated like any other atom or composite.
+
+### Limits of Validation
+
+Validation protects the meaning of the property constructors and non-constructed properties that a knowledge uses. It does not prevent a knowledge from introducing new ones or from stating arbitrary facts.
+
+The reason is that a declaration is just a property: for an atom it comes from a statement, and for a composite it is one of its members. Since composites have exactly their members as properties, a composite that contains `property_constructor ·· %f%` is itself a property constructor with constraint `%f%`. A composite that contains `non_constructed_property ·· %f%` is itself a non-constructed property with constraint `%f%`. Such composites can be written inline, so a declaration does not need to be a separate statement about an atom. The inline constructor has no separate atom name, but it is a property constructor in exactly the same sense as a declared one.
+
+For example, let `%f%` be `⟨node_function ·· ⟨node_literal ·· true⟩⟩`, which returns `true` for every subject, and let `%g%` be `⟨node_function ·· ⟨node_function ·· ⟨node_literal ·· true⟩⟩⟩`, which returns such a function for every subject. Then the following statement is valid without any prior declaration of `%f%` or of the composite:
+
+```
+a is ⟨non_constructed_property ·· %f%⟩
+```
+
+The composite is a non-constructed property of `a`, because it contains `non_constructed_property ·· %f%`, and `%f%` accepts `a`. The composite is the property of the statement, not its subject; only the subject of a statement must be an atom. Likewise, a property can carry its own constructor inline:
+
+```
+a is ⟨property_constructor ·· %g%⟩ ·· v
+```
+
+Here `%g%` is a function that accepts every subject and value, so it accepts `a` and `v`. The declaration of the constructor is part of the object that uses it.
+
+Even without inline declarations, anyone who can add statements can declare a new constructor whose constraint accepts everything and then use it. Validation cannot distinguish a well-motivated declaration from a permissive one; both are declarations that the knowledge makes.
+
+What validation does guarantee is narrower: every property constructor and every non-constructed property has at most one constraint, constraints are applied wherever properties are used with a subject, and a composite must be able to bear all of its members. These checks keep a knowledge consistent with its own declarations. They are not an access-control boundary over who may add which declarations or facts. That boundary belongs to the process that controls writing to the knowledge.
 
 ## Base For Valid, Non-Empty Knowledge
 
