@@ -23,7 +23,11 @@ There are three levels of validation that have different roles: knowledge valida
 
 ### Validation Of Knowledge
 
-Everything can validate knowledge. Validation checks that a knowledge is consistent with its own declarations; it does not restrict which facts a knowledge may state (see [Limits of Validation](#limits-of-validation)). Knowledge `%K%` is _valid_ iff
+Everything can validate knowledge. Validation checks that a knowledge is consistent with its own declarations; it does not restrict which facts a knowledge may state (see [Limits of Validation](#limits-of-validation)).
+
+An atom or composite `%o%` _occurs_ in `%K%` iff it is reachable through [deep object validation](#validation-of-objects): the subject and the property of every statement in `%K%` occur, the constructor and the value of an occurring construction occur, and every member of an occurring composite occurs. An occurring atom is a leaf; validation does not follow the properties that `%K%` states about it, though those statements are validated in their own right.
+
+Knowledge `%K%` is _valid_ iff
 
 1. for all atoms and composites `%o%` that occur in `%K%` there exists at most one object `%f%` such that `property_constructor ·· %f%` is a property of `%o%` in `%K%`;
 2. for all atoms and composites `%o%` that occur in `%K%` there exists at most one object `%f%` such that `non_constructed_property ·· %f%` is a property of `%o%` in `%K%`; and
