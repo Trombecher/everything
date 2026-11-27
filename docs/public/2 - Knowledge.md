@@ -52,6 +52,8 @@ An object `%p%` is a **valid** property of an atom or a composite `%o%` in (know
 
 The literal nodes pass the original subject and value to the constraint as data, even when those objects themselves look like nodes.
 
+Whether a constraint program evaluates to `true` is itself only specified when the program is [well-formed](./3%20-%20Computation.md#reference-evaluation). Otherwise the validity of the property, and with it the validity of the whole knowledge, is unspecified rather than false (see [Metaproperties Of Validation](#metaproperties-of-validation)).
+
 ### Validation Of Objects
 
 The motivation behind valid objects is to check the recursive structure of property constructions and to ensure that composites bear their members as valid properties. Formally, an object `%o%` is _valid_ in knowledge `%K%` iff one of the following holds:
@@ -93,6 +95,14 @@ Here `%g%` is a function that accepts every subject and value, so it accepts `a`
 Even without inline declarations, anyone who can add statements can declare a new constructor whose constraint accepts everything and then use it. Validation cannot distinguish a well-motivated declaration from a permissive one; both are declarations that the knowledge makes.
 
 What validation does guarantee is narrower: every property constructor and every non-constructed property has at most one constraint, constraints are applied wherever properties are used with a subject, and a composite must be able to bear all of its members. These checks keep a knowledge consistent with its own declarations. They are not an access-control boundary over who may add which declarations or facts. That boundary belongs to the process that controls writing to the knowledge.
+
+### Metaproperties Of Validation
+
+Validity is only partly defined. Conditions 1 and 2 ask what `%K%` declares, but condition 3 asks whether a constraint program evaluates to `true`. If that program is not [well-formed](./3%20-%20Computation.md#reference-evaluation), the question has no specified answer, and the validity of `%K%` is unspecified: `%K%` is neither known to be valid nor known to be invalid. Only when every constraint program involved is well-formed is validity a definite property.
+
+Validity is also not monotone. A constraint may query the entire knowledge, as the `child_of` constraint in the example below does when it looks for `David is person` and `Anna is person`. Statements can therefore depend on statements anywhere in `%K%`, so adding a statement can invalidate a statement elsewhere, and removing one can restore it. The empty knowledge is valid, but no statement can be judged in isolation from the knowledge that contains it.
+
+This is acceptable for a definition of validity, but three consequences follow. Validation is undecidable, since it embeds the evaluation of arbitrary programs. Validation cannot be maintained incrementally without recording which statements and constraints each verdict depends on. And [merging knowledges](./5%20-%20Across%20Knowledges.md) requires a full re-validation of the union; the fact that both parts were valid says nothing about the result.
 
 ## Base For Valid, Non-Empty Knowledge
 
