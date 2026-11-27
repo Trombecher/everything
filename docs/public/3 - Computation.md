@@ -295,7 +295,7 @@ It evaluates `%set%` and `%predicate%`:
 1. If `%set%` is a construction, the result is `undefined`.
 2. If `%set%` has no items, the result is `true`; the predicate is not used.
 3. If `%predicate%` is not a function, the result is `undefined`.
-4. Otherwise the items are visited in the set's iteration order. Each item `%o%` is passed to `%predicate%` as a literal argument via `⟨node_call_callee ·· %predicate%, node_call_with ·· %o%⟩`. The first call whose result is not `true` determines the outcome: `false` yields `false`, and anything else yields `undefined`.
+4. Otherwise the items are visited in the set's iteration order. Each item `%o%` is passed to `%predicate%` as a literal argument via `⟨node_call_callee ·· %predicate%, node_call_with ·· ⟨node_literal ·· %o%⟩⟩`. The first call whose result is not `true` determines the outcome: `false` yields `false`, and anything else yields `undefined`.
 5. If every call yields `true`, the result is `true`.
 
 `every` is the short-circuiting fold
@@ -332,7 +332,7 @@ It evaluates `%set%` and `%predicate%`:
 1. If `%set%` is a construction, the result is `undefined`.
 2. If `%set%` has no items, the result is `false`; the predicate is not used.
 3. If `%predicate%` is not a function, the result is `undefined`.
-4. Otherwise the items are visited in the set's iteration order. Each item `%o%` is passed to `%predicate%` as a literal argument via `⟨node_call_callee ·· %predicate%, node_call_with ·· %o%⟩`. The first call whose result is not `false` determines the outcome: `true` yields `true`, and anything else yields `undefined`.
+4. Otherwise the items are visited in the set's iteration order. Each item `%o%` is passed to `%predicate%` as a literal argument via `⟨node_call_callee ·· %predicate%, node_call_with ·· ⟨node_literal ·· %o%⟩⟩`. The first call whose result is not `false` determines the outcome: `true` yields `true`, and anything else yields `undefined`.
 5. If every call yields `false`, the result is `false`.
 
 `any` is the short-circuiting fold
