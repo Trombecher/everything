@@ -171,12 +171,6 @@ The following examples use the declarations above. Each illustrates a different 
 
   Validation cannot choose whichever constraint accepts, even if one or both would return `true`.
 
-## Reasoning About Multiple Knowledges
-
-Reasoning about knowledge of two or more knowledge bases (implicitly) unions them into one knowledge base. Even if all knowledge bases are valid on their own, this does not mean that the union is valid.
-
-It might be the case that two or more knowledge bases may model the same things with different atoms (because the creators worked independently, for example). Merging them may lead the maintainers to discover such cases. To uphold the model assumption of Everything, their only choice is to **rename all atoms with the same meaning to one id**. It also may be beneficial to ensure that the union is valid knowledge.
-
 ## Statements About Composites
 
 There might be cases where the user of the knowledge base might want to state something about objects that are not atoms. Everything disallows such statements.

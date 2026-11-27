@@ -44,6 +44,8 @@ An integer is _positive_ iff it has a `successor_of` property and _negative_ iff
 
 This approach of constructing integers is similar to the Peano axioms definition of natural numbers.
 
+(Non-negative) integers are used in the computation system to denote function parameter- and self-references with De-Brujin-indices.
+
 ### Examples
 
 ```
@@ -67,9 +69,9 @@ Integers are stored optimally in memory.
 
 ## Lists
 
-An object is a _list_ iff either
+An object is a _list_ iff it either
 
-- it is the empty set `{}`, or
+- is the empty composite `⟨⟩`; or
 - it has exactly one property with the constructor `list_item`, exactly one property with the constructor `list_tail`, and the value of the `list_tail` property is a list.
 
 The value of the `list_item` property is the first element of the list and the value of the `list_tail` property is the rest of the list.
@@ -84,7 +86,7 @@ The value of the `list_item` property is the first element of the list and the v
         list_item ·· ⟨successor_of ·· ⟨successor_of ·· zero⟩⟩,
         list_tail ·· ⟨
             list_item ·· ⟨successor_of ·· ⟨successor_of ·· ⟨successor_of ·· zero⟩⟩⟩,
-            list_tail ·· {}
+            list_tail ·· ⟨⟩
         ⟩
     ⟩
 ⟩
@@ -109,7 +111,7 @@ Text can be modelled as a list of characters. Text is stored as UTF-8 in memory.
 
 ## Byte
 
-A _byte_ is modelled as
+A _byte_ can be modelled as
 
 ```
 ⟨
@@ -158,14 +160,12 @@ An object is a _rational number_ iff either
 
 - it is an integer, or
 - all of the following hold:
-    - it has the property constructor `numerator` with a single associated value,
-    - it has the property constructor `denominator` with a single associated value,
-    - every property on the object is constructed using `numerator` or `denominator`,
-    - the associated value of `numerator` (the _numerator_) is an integer,
-    - the associated value of `denominator` (the _denominator_) is an integer,
-    - the numerator is not equal to zero,
-    - the denominator is greater than one, and
-    - numerator and denominator are coprime (i.e. the greatest common divisor of their absolute values is one).
+  - it has exactly one property `numerator ·· %n%`,
+  - it has exactly one property `denominator ·· %d%`,
+  - the object has exactly two properties (that makes the definition closed),
+  - `%n%` is an integer which is not equal to `0`,
+  - `%d%` is an integer which is greater than `1`, and
+  - `%n%` and `%d%` are coprime (i.e. the greatest common divisor of their absolute values is one).
 
 ### Example
 
