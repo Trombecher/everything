@@ -1,36 +1,41 @@
 # Chapter 2 - Knowledge
 
-We define _knowledge_ as a set of statements. A statement is a combination of an atom `%a%` with an object `%o%`, written `%a% is %o%`. Mathematically, it is a pair. Semantically, a statement states that an atom `%a%` has the property `%o%` and therefore is an element of the set of all objects that have this property.
+We define _knowledge_ as a set of statements. A _statement_ is a combination of an atom `%a%` with an object `%p%`, written `%a% is %p%`. Mathematically, it is a pair. Semantically, a statement states that an atom `%a%` has the property `%p%` and therefore is an element of the set of all objects that have this property.
 
-## Validation
-
-To prevent knowledge from reaching arbitrariness, Everything can validate knowledge. Knowledge `%K%` is _valid_ iff for every statement `%a% is %p% ∈ %K%`, `%p%` is a valid property of `%a%` in `%K%`. As defined below, this also requires `%p%` to be a valid object in `%K%`.
-
-Models can restrict themselves by imposing arbitrary constraints on the subjects and values of constructed properties and on the subjects of non-constructed properties. These constraints apply wherever properties are used, whether in statements or composites. They are modelled directly in Everything with a functional computation system. This system can evaluate objects and is laid out in [the next chapter](./3%20-%20Computation.md).
-
-Validation performs every required constraint evaluation in the complete knowledge `%K%` itself, not in a progressively validated subset. The statement being checked is therefore visible to its constraint, and statements have no validation order. A constraint accepts only when it evaluates to exactly `true`; every other result rejects the property. Since constraints are arbitrary computations, validation is not guaranteed to terminate.
-
-The three levels of validation have different roles: knowledge validation checks statements, object validation checks recursive structure, and property validation checks the use of a property in a particular subject and, where applicable, value context.
-
-### Properties Of Atoms And Composites
-
-The properties (set) of an atom or composite `%o%` in (knowledge) `%K%` is defined to be
-
-- `{%p% | %o% is %p% ∈ %K%}` if `%o%` is an atom; or
-- `%o%` if `%o%` is a composite.
+## Properties Of Atoms And Composites
 
 An object `%p%` is a property of an atom or a composite `%o%` in (knowledge) `%K%` iff
 
 - `%o%` is an atom and `%o% is %p% ∈ %K%`; or
 - `%o%` is a composite and `%p% ∈ %o%`.
 
+The properties set of an atom or composite `%o%` in (knowledge) `%K%` is defined to be the set of all objects that are properties of `%o%`.
+
+An object `%c%` is a _property constructor_ in knowledge `%K%` iff there exists an object `%f%` such that `property_constructor ·· %f%` is a property of `%c%` in `%K%`. This `%f%` is the property constructor's _constraint_. It follows that both atoms and composites may be property constructors. Knowledge validation condition 1 assures that there is at most one such `%f%`.
+
 It is forbidden to ask for properties of a construction.
 
-### Valid Properties
+## Validation
+
+Models can restrict themselves by imposing arbitrary constraints on the subjects and values of constructed properties and on the subjects of non-constructed properties. These constraints apply wherever properties are used, whether in statements or composites. They are modelled directly in Everything with a functional computation system. This system can evaluate objects and is laid out in [the next chapter](./3%20-%20Computation.md).
+
+There are three levels of validation that have different roles: knowledge validation checks statements, object validation checks recursive structure, and property validation checks the use of a property in a particular subject and, where applicable, value context.
+
+### Validation Of Knowledge
+
+To prevent knowledge from reaching arbitrariness, Everything can validate knowledge. Knowledge `%K%` is _valid_ iff
+
+1. for all atoms and composites `%o%` that occur in `%K%` there exists at most one object `%f%` such that `property_constructor ·· %f%` is a property of `%o%` in `%K%`;
+2. for all atoms and composites `%o%` that occur in `%K%` there exists at most one object `%f%` such that `non_constructed_property ·· %f%` is a property of `%o%` in `%K%`; and
+3. for every statement `%a% is %p% ∈ %K%`, `%p%` is a valid property of `%a%` in `%K%`.
+
+The correctness of condition 3 relies on conditions 1 and 2, so they are to be checked first. The definitions in the following sections rely on conditions 1 and 2 being true.
+
+As a consequence, the empty knowledge is valid.
+
+### Validation Of Properties
 
 In Everything, every _property_ is either non-constructed or constructed. You can construct properties via constructions with property constructors.
-
-An object `%c%` is a _property constructor_ in knowledge `%K%` iff there exists exactly one object `%f%` such that `property_constructor ·· %f%` is a property of `%c%` in `%K%`. This `%f%` is the constructor's constraint. Both atoms and composites may be property constructors.
 
 An object `%p%` is a **valid** property of an atom or a composite `%o%` in (knowledge) `%K%` iff `%p%` is a valid object in `%K%`, `%p%` is a property of `%o%` in `%K%`, and at least one of the following conditions holds:
 
@@ -38,14 +43,12 @@ An object `%p%` is a **valid** property of an atom or a composite `%o%` in (know
   - `%c%` is a property constructor in `%K%` with constraint `%f%`, and
   - `⟨node_call_callee ·· ⟨node_call_callee ·· %f%, node_call_with ·· ⟨node_literal ·· %o%⟩⟩, node_call_with ·· ⟨node_literal ·· %v%⟩⟩` evaluates to `true` in `%K%`; or
 - `%p%` is an atom or a composite,
-  - there exists exactly one object `%f%` such that `non_constructed_property ·· %f%` is a property of `%p%` in `%K%`, and
+  - there exists an object `%f%` such that `non_constructed_property ·· %f%` is a property of `%p%` in `%K%`, and
   - `⟨node_call_callee ·· %f%, node_call_with ·· ⟨node_literal ·· %o%⟩⟩` evaluates to `true` in `%K%`.
 
 The literal nodes pass the original subject and value to the constraint as data, even when those objects themselves look like nodes.
 
-Constraints are unique rather than alternative. In particular, the constraint on `property_constructor` itself in the required base knowledge rejects multiple `property_constructor` declarations on the same object; validation may not choose whichever constraint returns `true`.
-
-### Valid Objects
+### Validation Of Objects
 
 The motivation behind valid objects is to check the recursive structure of property constructions and to ensure that composites bear their members as valid properties. Formally, an object `%o%` is _valid_ in knowledge `%K%` iff one of the following holds:
 
@@ -60,6 +63,36 @@ For example, suppose `age` is a property constructor whose constraint rejects `-
 The constraint on property constructors used in composites and statements allows for validation, not only on the value, but on the subject as well.
 
 Composites are therefore strong: a composite must be able to bear all of its members as properties. Computed collections avoid this requirement by using the canonical set form from [Chapter 4](./4%20-%20Common%20Models.md#sets): a composite whose members are all `contains ·· %item%` constructions. The constraint of `contains` accepts every value for every subject, so such a composite is valid whenever its items are. Query results and other computed collections are therefore valid objects, and collecting objects into a canonical set never runs their constraints. The open set model still applies to all atoms and composites; a set that has additional properties beyond its `contains` properties is validated like any other atom or composite.
+
+## Base For Valid, Non-Empty Knowledge
+
+For a non-empty knowledge `%K%`, just one statement requires the existance of other statements. Let that statement be `%a% is %p% ∈ %K%`. Valid knowledge requires that `%p%` be a valid property of `%a%` in `%K%`.
+
+In the case that `%p%` is an atom or a composite,
+
+- it is required that there exists an object `%f%` such that `non_constructed_property ·· %f%` is a property of `%p%` in `%K%`.
+- This implies that (A) `non_constructed_property` must be a property constructor in `%K%`.
+- This implies that `property_constructor` must be a property constructor itself in `%K%`, which leads to (B) `property_constructor is property_constructor ·· %h% ∈ %K%`.
+
+In the case that `%p%` is a construction, it is required that the constructor of `%p%` be a property constructor in `%K%` which leads to the same condition, B, being required.
+
+What follows that, in every case, `property_constructor is property_constructor ·· %h% ∈ %K%` is required for every non-empty `%K%`. If there exists a statement in `%K%` that includes an atom or a composite as a property, then `non_constructed_property is property_constructor ·· %g% ∈ %K%` is required.
+
+### How Implementation Handle This
+
+For implementations, it is attractive to move the checking of conditions 1 and 2 of knowledge validation into condition 3.
+
+To encode knowledge validation condition 1 directly within knowledge, `%h%` must be a constraint that ensures that there is at most one value for constructions with the property constructor `property_constructor` on the subject where `property_constructor` is used as the property constructor in a property. Because this equivalence is undecidable, implementations may require `%h%` to be some implementation-defined object. The same with condition 2.
+
+What emerges is an alternative definition of valid knowledge by
+
+- enforcing `property_constructor is property_constructor ·· %h% ∈ %K%` and `non_constructed_property is property_constructor ·· %g% ∈ %K%`, uniquely; and
+- `%h%` and `%g%` being equal to some implementation defined objects which check for uniqueness.
+- Then, condition 3 is required.
+
+### Other Conditions
+
+Implementation may impose additional conditions for knowledge to be valid. For node objects of the computation system to be valid in the knowledge, each property constructor must be declared in the knowledge.
 
 ## Examples
 
@@ -170,26 +203,3 @@ The following examples use the declarations above. Each illustrates a different 
   ```
 
   Validation cannot choose whichever constraint accepts, even if one or both would return `true`.
-
-## Statements About Composites
-
-There might be cases where the user of the knowledge base might want to state something about objects that are not atoms. Everything disallows such statements.
-
-### Why Everything Does That
-
-There are a few reasons:
-
-1. Statements about non-atoms would add information to things that are inherently identified only by their intrinsic structure. Non-atoms must not have any knowledge-level context-specific meaning.
-2. A big family of such statements can be inferred/computed by the computation system (e.g. `3 is prime_number`) (and thus are redundant).
-3. Such statements would introduce foot guns, like declaring the empty composite to have some property (thus not really being the empty composite anymore).
-4. Implementation burden: composites and constructions would have an additional set of properties from the knowledge they are _used_ in.
-
-More discussion of this topic can be found [here](../design/Disallowing%20Composite%20Subjects.md).
-
-There are workarounds for some cases.
-
-### Workarounds
-
-- The statement you want to state may be computable by a function in the computation system. For example, there is no need to state `4 is even`, since you can compute evenness of integers.
-- The statement you want to state may be reversible if the property is constructed with an atom value. For example, `10 is favourite_integer_of ·· Alice` may be (correctly) stated as `Alice is having_favourite_integer ·· 10` which works because `Alice` is an atom.
-- NOT RECOMMENDED: if the statement involves an atom as the property, you can flip the statement: `a is b` could become `b is contained_in ·· a`. This is not recommended since there would be two definitions of set inclusion.
