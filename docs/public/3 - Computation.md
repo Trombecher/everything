@@ -24,6 +24,8 @@ Every child position of a node is itself parsed as a node, recursively. There is
 - Every child must itself parse as a node. If any child fails, the whole object is not a valid node.
 - To use plain data as a child, it must be wrapped in a literal node: `⟨node_literal ·· %object%⟩`.
 
+The design rationale, including the arguments for and against implicit literalization, is recorded in [Children Are Nodes](../design/Children%20Are%20Nodes.md).
+
 The object encoding produced by the implementation therefore always wraps literals explicitly. For example, `1 + 2` is encoded as:
 
 ```
