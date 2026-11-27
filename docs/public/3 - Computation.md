@@ -43,11 +43,13 @@ The meaning of a node is defined by a _reference evaluation_. It is strict in da
 
 - the reference evaluation terminates for every iteration order,
 - its result is the same for every iteration order, and
-- every object the evaluation materialises is valid in the knowledge (see [Chapter 2](./2%20-%20Knowledge.md)).
+- every object the evaluation materialises is valid in the knowledge (see [Chapter 2](./2%20-%20Knowledge.md)), except for the stratified evaluation of a constraint described below.
 
 Its result may be the atom `undefined`; producing `undefined` is an ordinary, specified result.
 
-The validity condition extends knowledge validation to dynamically created objects: a program that materialises an invalid object has no specified result. As with termination and order-independence, this is a semantic precondition that the evaluator does not check; implementations may check materialised objects eagerly or lazily, which only changes how much work is done.
+Outside the constraint exception below, the validity condition extends knowledge validation to dynamically created objects: a program that materialises an invalid object has no specified result. As with termination and order-independence, this is a semantic precondition that the evaluator does not check; implementations may check materialised objects eagerly or lazily, which only changes how much work is done.
+
+Validation evaluates constraints under a stratification exception. When a constraint is called during property validation, the arguments that validation passes to it are treated as valid objects whose structure is not inspected. The literal nodes that carry those arguments and the closures that capture them are therefore not required to contain only objects that are valid in the knowledge. This keeps the well-formedness of a constraint independent of the validity of the objects it is used to validate; otherwise validating a composite would depend on its own validity. The constraint must still be well-formed in every other respect. See [Validation Of Properties](./2%20-%20Knowledge.md#validation-of-properties).
 
 A well-formed program may contain subterms that do not terminate, provided those subterms are never demanded. For example, feeding a non-terminating argument to a function that ignores its parameter is well-formed and produces the function's result.
 

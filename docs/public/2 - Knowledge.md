@@ -52,7 +52,9 @@ An object `%p%` is a **valid** property of an atom or a composite `%o%` in (know
 
 The literal nodes pass the original subject and value to the constraint as data, even when those objects themselves look like nodes.
 
-Whether a constraint program evaluates to `true` is itself only specified when the program is [well-formed](./3%20-%20Computation.md#reference-evaluation). Otherwise the validity of the property, and with it the validity of the whole knowledge, is unspecified rather than false (see [Metaproperties Of Validation](#metaproperties-of-validation)).
+Constraint evaluation is stratified: a constraint is evaluated without requiring its arguments to be valid. For the [materialisation condition](./3%20-%20Computation.md#reference-evaluation), the arguments that validation passes to a constraint are treated as valid objects whose structure is not inspected. The literal nodes that carry those arguments and the closures that capture them are judged under the same relaxed condition, so they may contain arguments that are not valid in `%K%`. This breaks the dependency between a composite's validity and the constraint programs that validate it: checking the composite does not first require the composite to be valid. The constraint program must still satisfy the other well-formedness conditions; only the validity of its arguments is waived.
+
+Whether a constraint program evaluates to `true` is itself only specified when the program is [well-formed](./3%20-%20Computation.md#reference-evaluation) under this stratified reading. Otherwise the validity of the property, and with it the validity of the whole knowledge, is unspecified rather than false (see [Metaproperties Of Validation](#metaproperties-of-validation)).
 
 ### Validation Of Objects
 
@@ -98,7 +100,7 @@ What validation does guarantee is narrower: every property constructor and every
 
 ### Metaproperties Of Validation
 
-Validity is only partly defined. Conditions 1 and 2 ask what `%K%` declares, but condition 3 asks whether a constraint program evaluates to `true`. If that program is not [well-formed](./3%20-%20Computation.md#reference-evaluation), the question has no specified answer, and the validity of `%K%` is unspecified: `%K%` is neither known to be valid nor known to be invalid. Only when every constraint program involved is well-formed is validity a definite property.
+Validity is only partly defined. Conditions 1 and 2 ask what `%K%` declares, but condition 3 asks whether a constraint program evaluates to `true`. If that program is not [well-formed](./3%20-%20Computation.md#reference-evaluation) under the stratified reading described above, the question has no specified answer, and the validity of `%K%` is unspecified: `%K%` is neither known to be valid nor known to be invalid. Only when every constraint program involved is well-formed is validity a definite property.
 
 Validity is also not monotone. A constraint may query the entire knowledge, as the `child_of` constraint in the example below does when it looks for `David is person` and `Anna is person`. Statements can therefore depend on statements anywhere in `%K%`, so adding a statement can invalidate a statement elsewhere, and removing one can restore it. The empty knowledge is valid, but no statement can be judged in isolation from the knowledge that contains it.
 
