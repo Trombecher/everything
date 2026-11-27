@@ -184,7 +184,7 @@ There are a few reasons:
 3. Such statements would introduce foot guns, like declaring the empty composite to have some property (thus not really being the empty composite anymore).
 4. Implementation burden: composites and constructions would have an additional set of properties from the knowledge they are _used_ in.
 
-More discussion (using the old model) of this topic can be found [here](../design/old%20model/Disallowing%20Composite%20Subjects.md).
+More discussion of this topic can be found [here](../design/Disallowing%20Composite%20Subjects.md).
 
 There are workarounds for some cases.
 

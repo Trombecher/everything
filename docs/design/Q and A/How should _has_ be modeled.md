@@ -72,7 +72,7 @@ If the set is open, extra roles change structural equality and break exact match
 
 **4. B's "reification" is only apparent.**
 
-The set `{wing_count : 4}` cannot itself be the subject of a statement, because subjects must be atoms (`Knowledge.md:3`; see also `docs/design/old model/Disallowing Composite Subjects.md`). So you cannot attach metadata to the association itself, e.g. "the wing count was 4 in 2020" or "this count came from source X", unless you mint an atom for the association. If true reification is the goal, B does not achieve it.
+The set `{wing_count : 4}` cannot itself be the subject of a statement, because subjects must be atoms (`Knowledge.md:3`; see also `docs/design/Disallowing Composite Subjects.md`). So you cannot attach metadata to the association itself, e.g. "the wing count was 4 in 2020" or "this count came from source X", unless you mint an atom for the association. If true reification is the goal, B does not achieve it.
 
 ### New issues to consider
 
