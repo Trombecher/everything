@@ -1,8 +1,9 @@
 use num_bigint::BigInt;
 
 use crate::{
+    base::BASE,
     compute::Node,
-    knowledge::{Knowledge, Statement},
+    knowledge::{Knowledge, Properties, Statement},
     model::{Atom, AtomOrComposite, Composite, Construction, Object},
 };
 
@@ -39,34 +40,9 @@ fn declare_property_constructor(knowledge: &mut Knowledge, atom: Atom, constrain
     });
 }
 
-/// Returns knowledge in which the meta properties and the node constructors
-/// used by the test constraints are permissive property constructors.
-fn permissive_knowledge() -> Knowledge {
-    let constraint = binary_constant(true);
-
-    let mut knowledge = Knowledge::empty();
-
-    for atom in [
-        Atom::NON_CONSTRUCTED_PROPERTY,
-        Atom::PROPERTY_CONSTRUCTOR,
-        Atom::NODE_FUNCTION,
-        Atom::NODE_LITERAL,
-        Atom::NODE_PARAMETER,
-        Atom::NODE_AND_FIRST,
-        Atom::NODE_AND_SECOND,
-        Atom::NODE_EQUAL_FIRST,
-        Atom::NODE_EQUAL_SECOND,
-        Atom::NODE_PROPERTIES_OF,
-        Atom::NODE_SET_CONTAINS_ELEMENT,
-        Atom::NODE_SET_CONTAINS_SET,
-        Atom::NODE_NEW_CONSTRUCTION_CONSTRUCTOR,
-        Atom::NODE_NEW_CONSTRUCTION_VALUE,
-        Atom::SUCCESSOR_OF,
-        Atom::PREDECESSOR_OF,
-        Atom::CONTAINS,
-    ] {
-        declare_property_constructor(&mut knowledge, atom, constraint.clone());
-    }
+/// Returns the base knowledge extended with a permissive `PERSON` property.
+fn base_knowledge() -> Knowledge {
+    let mut knowledge = BASE.clone();
 
     knowledge.add_statement(Statement {
         atom: PERSON,
@@ -262,7 +238,7 @@ fn empty_knowledge_is_valid() {
 
 #[test]
 fn knowledge_with_nested_constructed_properties_is_valid() {
-    let mut knowledge = permissive_knowledge();
+    let mut knowledge = base_knowledge();
 
     let born = Atom(1100);
     let date_time = Atom(1101);
@@ -287,7 +263,7 @@ fn knowledge_with_nested_constructed_properties_is_valid() {
 
 #[test]
 fn composite_can_be_a_property_constructor() {
-    let mut knowledge = permissive_knowledge();
+    let mut knowledge = BASE.clone();
 
     let constructor: Object =
         Composite::from([property(Atom::PROPERTY_CONSTRUCTOR, binary_constant(true))]).into();
@@ -304,7 +280,7 @@ fn composite_can_be_a_property_constructor() {
 
 #[test]
 fn nested_composites_are_validated_with_themselves_as_subject() {
-    let knowledge = permissive_knowledge();
+    let knowledge = BASE.clone();
 
     let inner_true = composite_with_property_constraint(
         unary_constant(true),
@@ -324,7 +300,7 @@ fn nested_composites_are_validated_with_themselves_as_subject() {
 
 #[test]
 fn constraint_arguments_are_passed_as_literals() {
-    let mut knowledge = permissive_knowledge();
+    let mut knowledge = BASE.clone();
 
     let node_like = Atom(1400);
     let constructor = Atom(1401);
@@ -360,7 +336,7 @@ fn constraint_arguments_are_passed_as_literals() {
 
 #[test]
 fn value_only_construction_is_valid_without_running_its_constraint() {
-    let mut knowledge = permissive_knowledge();
+    let mut knowledge = BASE.clone();
 
     let age = Atom(1500);
     let other = Atom(1501);
@@ -393,7 +369,7 @@ fn value_only_construction_is_valid_without_running_its_constraint() {
 
 #[test]
 fn statement_using_a_rejecting_constructor_is_invalid() {
-    let mut knowledge = permissive_knowledge();
+    let mut knowledge = BASE.clone();
 
     let age = Atom(1600);
     declare_property_constructor(&mut knowledge, age, binary_constant(false));
@@ -412,7 +388,7 @@ fn statement_using_a_rejecting_constructor_is_invalid() {
 
 #[test]
 fn unknown_constructor_makes_knowledge_invalid() {
-    let mut knowledge = permissive_knowledge();
+    let mut knowledge = BASE.clone();
 
     knowledge.add_statement(Statement {
         atom: Atom(1700),
@@ -424,7 +400,7 @@ fn unknown_constructor_makes_knowledge_invalid() {
 
 #[test]
 fn only_exact_true_accepts_a_property() {
-    let mut knowledge = permissive_knowledge();
+    let mut knowledge = BASE.clone();
 
     let constructor = Atom(1800);
     let constraint: Object = Node::function(Node::function(Node::Literal(Atom(42).into()))).into();
@@ -443,7 +419,7 @@ fn only_exact_true_accepts_a_property() {
 
 #[test]
 fn constraint_sees_the_statement_being_validated() {
-    let mut knowledge = permissive_knowledge();
+    let mut knowledge = BASE.clone();
 
     let constructor = Atom(2000);
     let subject = Atom(2001);
@@ -471,7 +447,7 @@ fn constraint_sees_the_statement_being_validated() {
 
 #[test]
 fn non_constructed_property_requires_exactly_one_constraint() {
-    let mut knowledge = permissive_knowledge();
+    let mut knowledge = BASE.clone();
 
     let subject = Atom(1900);
     let property = Atom(1901);
@@ -503,9 +479,59 @@ fn non_constructed_property_requires_exactly_one_constraint() {
 
 #[test]
 fn property_must_belong_to_the_subject() {
-    let knowledge = permissive_knowledge();
+    let knowledge = base_knowledge();
 
     assert!(
         !knowledge.object_has_valid_property(&AtomOrComposite::Atom(Atom(2000)), &PERSON.into())
     );
+}
+
+#[test]
+fn duplicate_property_constructor_constraints_invalidate_knowledge() {
+    let mut knowledge = BASE.clone();
+
+    let constructor = Atom(2100);
+    let first = binary_constant(true);
+    let second: Object = Node::function(Node::function(Node::Literal(Atom(2101).into()))).into();
+
+    knowledge.add_statement(Statement {
+        atom: constructor,
+        object: property(Atom::PROPERTY_CONSTRUCTOR, first),
+    });
+    knowledge.add_statement(Statement {
+        atom: constructor,
+        object: property(Atom::PROPERTY_CONSTRUCTOR, second),
+    });
+
+    assert!(!knowledge.is_valid());
+}
+
+#[test]
+fn duplicate_non_constructed_property_constraints_invalidate_knowledge() {
+    let mut knowledge = BASE.clone();
+
+    let subject = Atom(2200);
+
+    knowledge.add_statement(Statement {
+        atom: subject,
+        object: property(Atom::NON_CONSTRUCTED_PROPERTY, unary_constant(true)),
+    });
+    knowledge.add_statement(Statement {
+        atom: subject,
+        object: property(Atom::NON_CONSTRUCTED_PROPERTY, unary_constant(false)),
+    });
+
+    assert!(!knowledge.is_valid());
+}
+
+#[test]
+fn permissive_base_constraints_invalidate_knowledge() {
+    let mut knowledge = BASE.clone();
+
+    knowledge.map.insert(
+        Atom::PROPERTY_CONSTRUCTOR,
+        Properties::from([property(Atom::PROPERTY_CONSTRUCTOR, binary_constant(true))]),
+    );
+
+    assert!(!knowledge.is_valid());
 }

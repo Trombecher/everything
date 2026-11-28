@@ -202,13 +202,43 @@ impl Knowledge {
     ///
     /// A statement `a is p` is valid iff `p` is a valid property of `a` in the
     /// complete knowledge.
+    ///
+    /// The constraints of `property_constructor` and
+    /// `non_constructed_property` must be the ones from the [base
+    /// knowledge](crate::base::BASE). This pins them to constraints that
+    /// enforce that a subject has at most one declaration of each kind, which
+    /// implements conditions 1 and 2 of knowledge validation.
     #[must_use]
     pub fn is_valid(&self) -> bool {
-        self.map.iter().all(|(atom, properties)| {
-            properties.clone().into_iter().all(|property| {
-                self.object_has_valid_property(&AtomOrComposite::Atom(*atom), &property)
+        self.base_constraints_are_pinned()
+            && self.map.iter().all(|(atom, properties)| {
+                properties.clone().into_iter().all(|property| {
+                    self.object_has_valid_property(&AtomOrComposite::Atom(*atom), &property)
+                })
             })
-        })
+    }
+
+    /// Returns `true` iff the constraints of the base atoms that occur in this
+    /// knowledge are the ones from the base knowledge.
+    ///
+    /// A base atom that does not occur may omit its constraint: the empty
+    /// knowledge is valid, and a non-empty knowledge cannot use these atoms
+    /// without declaring their constraints.
+    fn base_constraints_are_pinned(&self) -> bool {
+        let base = &*crate::base::BASE;
+
+        [Atom::PROPERTY_CONSTRUCTOR, Atom::NON_CONSTRUCTED_PROPERTY]
+            .into_iter()
+            .all(|atom| {
+                if !self.map.contains_key(&atom) {
+                    return true;
+                }
+
+                let object = Object::from(atom);
+
+                self.property_constructor_constraint(&object)
+                    == base.property_constructor_constraint(&object)
+            })
     }
 
     /// Returns `true` iff `object` is valid in this knowledge.
