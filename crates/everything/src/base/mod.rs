@@ -18,6 +18,13 @@ fn accepts_everything() -> Object {
     RawNode::function(RawNode::function(RawNode::literal(true))).into_object()
 }
 
+/// Returns a constraint that accepts every subject and requires the value to
+/// be a valid node.
+fn accepts_only_nodes() -> Object {
+    // node_function ·· ⟨node_function ·· ⟨node_is_node ·· ⟨node_parameter ·· 0⟩⟩⟩
+    RawNode::function(RawNode::function(RawNode::is_node(RawNode::parameter(0)))).into_object()
+}
+
 /// Declares `atom` to be a property constructor with the given `constraint`.
 fn declare_property_constructor(
     base: &mut OrdMap<Atom, Properties>,
@@ -30,12 +37,13 @@ fn declare_property_constructor(
     );
 }
 
-/// Returns the constraint that enforces uniqueness of the declaration of
-/// `for_property_constructor` on its subject.
+/// Returns the constraint for declarations of a property constructor.
 ///
 /// The constraint checks that the subject has exactly one property that is a
 /// construction with `for_property_constructor` as its constructor. Applied to
 /// the subject of a declaration, this rejects a second, different constraint.
+/// It also requires the declared value, which is the constraint function
+/// itself, to be a node.
 fn property_constraint(for_property_constructor: Atom) -> Object {
     // construction_values (subject, for_property_constructor)
     let construction_values = RawNode::query_construction_values(
@@ -49,11 +57,11 @@ fn property_constraint(for_property_constructor: Atom) -> Object {
         RawNode::literal(BigInt::ONE),
     );
 
-    // TODO: add check that value is a node; but for that we need
-    // a node that checks if an object is a node (which would
-    // be very slow to implement in raw Everything).
+    // The value is the constraint function of the declaration. It has to be a
+    // node so that it can be evaluated when the declaration is applied.
+    let value_is_node = RawNode::is_node(RawNode::parameter(0));
 
-    RawNode::function(RawNode::function(equal)).into_object()
+    RawNode::function(RawNode::function(RawNode::and(equal, value_is_node))).into_object()
 }
 
 pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
@@ -74,12 +82,11 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
 
     // --- Statements for the computation system to work ---
 
-    // TODO: the declarations below accept every value. They should check
-    // that the value is a well-formed node, integer, list, and so on. For
-    // nodes this is deferred until there is a reasonably fast node check
-    // (see `property_constraint`).
-
-    let constraint = accepts_everything();
+    // These constructors still accept every value. Checking the remaining
+    // value types (integers, lists, characters, bytes, fractions, and sets)
+    // needs a reasonably fast type check that the computation system does not
+    // provide yet.
+    let any_value = accepts_everything();
 
     for atom in [
         // Integers
@@ -107,12 +114,23 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
         Atom::DENOMINATOR,
         // Sets
         Atom::CONTAINS,
-        // Nodes
-        Atom::NODE_FUNCTION,
+        // `node_literal` accepts arbitrary data. The depth properties take
+        // integers, which are not checked yet.
         Atom::NODE_LITERAL,
+        Atom::NODE_PARAMETER,
+        Atom::NODE_FUNCTION_SELF,
+    ] {
+        declare_property_constructor(&mut base, atom, any_value.clone());
+    }
+
+    // Every other node property takes a child node. Their values must be
+    // well-formed nodes in the current knowledge.
+    let node_value = accepts_only_nodes();
+
+    for atom in [
+        Atom::NODE_FUNCTION,
         Atom::NODE_AND_FIRST,
         Atom::NODE_AND_SECOND,
-        Atom::NODE_PARAMETER,
         Atom::NODE_SET_COUNT,
         Atom::NODE_PROPERTIES_OF,
         Atom::NODE_HAS_A_SET_ITEM,
@@ -125,7 +143,6 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
         Atom::NODE_XOR_FIRST,
         Atom::NODE_XOR_SECOND,
         Atom::NODE_NOT,
-        Atom::NODE_FUNCTION_SELF,
         Atom::NODE_ADD_FIRST,
         Atom::NODE_ADD_SECOND,
         Atom::NODE_SET_UNION_FIRST,
@@ -160,6 +177,7 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
         Atom::NODE_IS_ATOM,
         Atom::NODE_IS_CONSTRUCTION,
         Atom::NODE_IS_COMPOSITE,
+        Atom::NODE_IS_NODE,
         Atom::NODE_NEW_CONSTRUCTION_CONSTRUCTOR,
         Atom::NODE_NEW_CONSTRUCTION_VALUE,
         Atom::NODE_NEW_SET_ITEM,
@@ -172,7 +190,7 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
         Atom::NODE_QUERY_CONSTRUCTIONS,
         Atom::NODE_ATOMS_WITH_CONSTRUCTOR,
     ] {
-        declare_property_constructor(&mut base, atom, constraint.clone());
+        declare_property_constructor(&mut base, atom, node_value.clone());
     }
 
     Knowledge { map: base }

@@ -26,6 +26,8 @@ Read these first:
   constructor helpers used by the public API and tests.
 - `crates/everything/src/compute/nodes/raw/diagnose.rs` — recognition error
   explanations.
+- `crates/everything/src/base/mod.rs` — the base knowledge, including the
+  property-constructor declarations for node atoms.
 - `crates/everything/src/compute/evaluate/mod.rs` — the evaluator.
 - `crates/everything/src/compute/evaluate/context.rs` — evaluation context and
   the `Thunk` used for call-by-need arguments.
@@ -64,22 +66,25 @@ For a new node kind, touch these in order. Code paths are relative to
 `crates/everything/src/`:
 
 1. `model/atoms/mod.rs` — declare new `NODE_*` property atoms.
-2. `compute/nodes/kind.rs` — `NodeKind`, `NodeProperty`, atom mapping,
+2. `base/mod.rs` — declare each new atom as a property constructor with the
+   proper value constraint.
+3. `compute/nodes/kind.rs` — `NodeKind`, `NodeProperty`, atom mapping,
    requirement, repeatability, display names.
-3. `compute/nodes/raw/mod.rs` — `RawNode` variant and recognition.
-4. `compute/nodes/raw/diagnose.rs` — add the kind's `kind!(...)` spec.
-5. `compute/nodes/raw/constructors/mod.rs` — add a `RawNode::<kind>` helper.
-6. `compute/nodes/mod.rs` — `Node` variant, child parsing, `into_object`.
-7. `compute/capture/mod.rs` — capture arm.
-8. `compute/evaluate/mod.rs` — `Task` variant(s), scheduling, stack effect.
-9. `compute/lazy/mod.rs` — only if the node returns a deferred set.
-10. `compute/operations.rs` — pure helpers, if the node needs one.
-11. Tests: `compute/nodes/tests.rs`, `compute/nodes/raw/constructors/tests.rs`,
-    a new `compute/evaluate/tests/<name>.rs`, plus `compute/lazy/tests.rs` and
-    `compute/capture/tests.rs` when relevant.
-12. Docs: `docs/public/3 - Computation.md` and the node sugar table in
+4. `compute/nodes/raw/mod.rs` — `RawNode` variant and recognition.
+5. `compute/nodes/raw/diagnose.rs` — add the kind's `kind!(...)` spec.
+6. `compute/nodes/raw/constructors/mod.rs` — add a `RawNode::<kind>` helper.
+7. `compute/nodes/mod.rs` — `Node` variant, child parsing, `into_object`.
+8. `compute/capture/mod.rs` — capture arm.
+9. `compute/evaluate/mod.rs` — `Task` variant(s), scheduling, stack effect.
+10. `compute/lazy/mod.rs` — only if the node returns a deferred set.
+11. `compute/operations.rs` — pure helpers, if the node needs one.
+12. Tests: `compute/nodes/tests.rs`, `compute/nodes/raw/constructors/tests.rs`,
+    a new `compute/evaluate/tests/<name>.rs`, `base/tests.rs` for the new
+    constraints, plus `compute/lazy/tests.rs` and `compute/capture/tests.rs`
+    when relevant.
+13. Docs: `docs/public/3 - Computation.md` and the node sugar table in
     `docs/design/agent-dsl.md`.
-13. Run `cargo fmt`, `cargo test`, and `cargo clippy`.
+14. Run `cargo fmt`, `cargo test`, and `cargo clippy`.
 
 Let the compiler help: `cargo check` after adding the enum variants points at
 every non-exhaustive `match` in `Node`, `RawNode`, `NodeKind`, `NodeProperty`,
@@ -127,9 +132,14 @@ Rules:
 - Name the constant after the property and match the `NodeProperty::Display`
   string in the name literal (e.g. `NODE_MY_FIRST` ↔ `"node_my_first"`). The
   name literal is what `Atom::Debug` prints for known atoms.
-- Normally no change is needed in `base/mod.rs`. Node recognition reads
-  construction values directly; only touch the base knowledge if the atom is
-  meant to be a global property/property constructor.
+- Register every new node property atom as a property constructor in
+  `crates/everything/src/base/mod.rs`. Otherwise objects that use the new kind
+  are not valid in `BASE`. Child-node properties use the node-value constraint
+  (`accepts_only_nodes`); properties that take arbitrary data or a depth keep
+  the permissive constraint until a suitable type check exists.
+- Add the node property atom to the statement that updates `base/mod.rs`'s
+  property-constructor declarations and cover the new constraint in
+  `base/tests.rs`.
 
 ## Step 3 — Kind Metadata (`crates/everything/src/compute/nodes/kind.rs`)
 
@@ -472,6 +482,8 @@ cargo test -p everything --lib
       `SetValue`, `LazySet`, and `LazySetItems` are all updated
       (compiler-checked).
 - [ ] `diagnose.rs` mirrors `RawNode::new`.
+- [ ] Every new property atom is declared in `base/mod.rs` with the right
+      value constraint and covered by `base/tests.rs`.
 - [ ] `RawNode::<kind>` constructor helper exists and is round-trip tested.
 - [ ] `into_object` reproduces the canonical encoding; round-trip test passes.
 - [ ] Every child is parsed, captured, and evaluated in the right order.

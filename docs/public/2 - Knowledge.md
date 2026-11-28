@@ -136,6 +136,8 @@ What emerges is an alternative definition of valid knowledge by
 
 Implementation may impose additional conditions for knowledge to be valid. For node objects of the computation system to be valid in the knowledge, each property constructor must be declared in the knowledge.
 
+The base knowledge declares the node property constructors. Properties that take a child node require their value to be a well-formed node in the current knowledge; `node_literal` accepts arbitrary data, and the depth properties currently accept any value. The declarations of `property_constructor` and `non_constructed_property` also require their constraint value to be a node.
+
 ## Examples
 
 ### Valid Knowledge
