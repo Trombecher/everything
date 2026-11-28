@@ -4,7 +4,7 @@ use crate::{
     base::BASE,
     compute::Node,
     knowledge::{Knowledge, Statement},
-    model::{Atom, AtomOrComposite, Construction, Object},
+    model::{Atom, AtomOrComposite, Composite, Construction, Object},
 };
 
 fn with_statement(atom: Atom, property: Object) -> Knowledge {
@@ -53,6 +53,7 @@ fn base_constraints_are_nodes() {
         super::accepts_only_nodes(),
         super::property_constraint(Atom::NON_CONSTRUCTED_PROPERTY),
         super::property_constraint(Atom::PROPERTY_CONSTRUCTOR),
+        super::bit_slot_constraint(Atom::BIT_SLOT_0),
     ] {
         let parsed = Node::new(&constraint, &BASE).expect("base constraint is a node");
 
@@ -128,4 +129,69 @@ fn base_knowledge_accepts_an_is_node_object() {
     let object = Node::IsNode(Node::Literal(Object::new_integer(BigInt::ONE)).into()).into_object();
 
     assert!(BASE.object_is_valid(&object).is_ok());
+}
+
+#[test]
+fn bit_slots_accept_only_bit_values() {
+    let subject = AtomOrComposite::Atom(Atom(3003));
+
+    for slot in [
+        Atom::BIT_SLOT_0,
+        Atom::BIT_SLOT_1,
+        Atom::BIT_SLOT_2,
+        Atom::BIT_SLOT_3,
+        Atom::BIT_SLOT_4,
+        Atom::BIT_SLOT_5,
+        Atom::BIT_SLOT_6,
+        Atom::BIT_SLOT_7,
+    ] {
+        for bit in [Atom::BIT_ON, Atom::BIT_OFF] {
+            let property: Object = Construction::new(slot.into(), bit.into()).into();
+            let knowledge = with_statement(Atom(3003), property.clone());
+
+            assert!(
+                knowledge
+                    .object_has_valid_property(&subject, &property)
+                    .is_ok()
+            );
+        }
+
+        let property: Object = Construction::new(slot.into(), Atom(3004).into()).into();
+        let knowledge = with_statement(Atom(3003), property.clone());
+
+        assert!(
+            knowledge
+                .object_has_valid_property(&subject, &property)
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn bit_slot_properties_must_be_unique() {
+    let subject = Atom(3005);
+    let mut knowledge = BASE.clone();
+
+    for bit in [Atom::BIT_ON, Atom::BIT_OFF] {
+        knowledge.add_statement(Statement {
+            atom: subject,
+            object: Construction::new(Atom::BIT_SLOT_0.into(), bit.into()).into(),
+        });
+    }
+
+    let property: Object = Construction::new(Atom::BIT_SLOT_0.into(), Atom::BIT_ON.into()).into();
+
+    assert!(
+        knowledge
+            .object_has_valid_property(&AtomOrComposite::Atom(subject), &property)
+            .is_err()
+    );
+}
+
+#[test]
+fn bit_slots_accept_any_subject() {
+    let property: Object = Construction::new(Atom::BIT_SLOT_0.into(), Atom::BIT_ON.into()).into();
+    let subject: Object = Composite::from([property]).into();
+
+    assert!(BASE.object_is_valid(&subject).is_ok());
 }

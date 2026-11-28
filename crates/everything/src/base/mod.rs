@@ -37,6 +37,29 @@ fn declare_property_constructor(
     );
 }
 
+/// Returns a constraint for `for_property_constructor` that requires exactly one
+/// such property on the subject and restricts its value with `value_constraint`.
+///
+/// The uniqueness check is open: it places no other demands on the subject.
+fn property_constraint_with_value(
+    for_property_constructor: Atom,
+    value_constraint: impl Into<RawNode>,
+) -> Object {
+    // construction_values (subject, for_property_constructor)
+    let construction_values = RawNode::query_construction_values(
+        RawNode::parameter(1),
+        RawNode::literal(for_property_constructor),
+    );
+
+    // |construction_values| == 1
+    let unique = RawNode::equal(
+        RawNode::set_count(construction_values),
+        RawNode::literal(BigInt::ONE),
+    );
+
+    RawNode::function(RawNode::function(RawNode::and(unique, value_constraint))).into_object()
+}
+
 /// Returns the constraint for declarations of a property constructor.
 ///
 /// The constraint checks that the subject has exactly one property that is a
@@ -45,23 +68,25 @@ fn declare_property_constructor(
 /// It also requires the declared value, which is the constraint function
 /// itself, to be a node.
 fn property_constraint(for_property_constructor: Atom) -> Object {
-    // construction_values (subject, for_property_constructor)
-    let construction_values = RawNode::query_construction_values(
-        RawNode::parameter(1),
-        RawNode::literal(for_property_constructor),
-    );
-
-    // |construction_values| == 1
-    let equal = RawNode::equal(
-        RawNode::set_count(construction_values),
-        RawNode::literal(BigInt::ONE),
-    );
-
     // The value is the constraint function of the declaration. It has to be a
     // node so that it can be evaluated when the declaration is applied.
     let value_is_node = RawNode::is_node(RawNode::parameter(0));
 
-    RawNode::function(RawNode::function(RawNode::and(equal, value_is_node))).into_object()
+    property_constraint_with_value(for_property_constructor, value_is_node)
+}
+
+/// Returns the constraint for a bit slot property constructor.
+///
+/// The constraint accepts every subject but requires the subject to have
+/// exactly one property with `for_property_constructor` as its constructor. The
+/// value of that property must be either `bit_on` or `bit_off`.
+fn bit_slot_constraint(for_property_constructor: Atom) -> Object {
+    let value_is_bit = RawNode::or(
+        RawNode::equal(RawNode::parameter(0), RawNode::literal(Atom::BIT_ON)),
+        RawNode::equal(RawNode::parameter(0), RawNode::literal(Atom::BIT_OFF)),
+    );
+
+    property_constraint_with_value(for_property_constructor, value_is_bit)
 }
 
 pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
@@ -83,9 +108,9 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
     // --- Statements for the computation system to work ---
 
     // These constructors still accept every value. Checking the remaining
-    // value types (integers, lists, characters, bytes, fractions, and sets)
-    // needs a reasonably fast type check that the computation system does not
-    // provide yet.
+    // value types (integers, lists, characters, fractions, and sets) needs a
+    // reasonably fast type check that the computation system does not provide
+    // yet.
     let any_value = accepts_everything();
 
     for atom in [
@@ -100,15 +125,6 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
         Atom::LIST_TAIL,
         // Characters
         Atom::CODE_POINT,
-        // Bytes
-        Atom::BIT_SLOT_0,
-        Atom::BIT_SLOT_1,
-        Atom::BIT_SLOT_2,
-        Atom::BIT_SLOT_3,
-        Atom::BIT_SLOT_4,
-        Atom::BIT_SLOT_5,
-        Atom::BIT_SLOT_6,
-        Atom::BIT_SLOT_7,
         // Fractions
         Atom::NUMERATOR,
         Atom::DENOMINATOR,
@@ -121,6 +137,21 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
         Atom::NODE_FUNCTION_SELF,
     ] {
         declare_property_constructor(&mut base, atom, any_value.clone());
+    }
+
+    // Bit slots accept any subject, but a bit slot may occur at most once and
+    // its value must be either `bit_on` or `bit_off`.
+    for atom in [
+        Atom::BIT_SLOT_0,
+        Atom::BIT_SLOT_1,
+        Atom::BIT_SLOT_2,
+        Atom::BIT_SLOT_3,
+        Atom::BIT_SLOT_4,
+        Atom::BIT_SLOT_5,
+        Atom::BIT_SLOT_6,
+        Atom::BIT_SLOT_7,
+    ] {
+        declare_property_constructor(&mut base, atom, bit_slot_constraint(atom));
     }
 
     // Every other node property takes a child node. Their values must be
