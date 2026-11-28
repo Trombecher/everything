@@ -186,6 +186,11 @@ pub enum Node {
     IsAtom(Arc<Node>),
     IsConstruction(Arc<Node>),
     IsComposite(Arc<Node>),
+    /// Evaluates to `true` iff the inner result parses as a valid node in the
+    /// current knowledge. Atoms and composites can be nodes; a construction is
+    /// never a node and yields `false`, as does `undefined` or any object that
+    /// does not match exactly one node kind.
+    IsNode(Arc<Node>),
     SetEvery {
         set: Arc<Node>,
         predicate: Arc<Node>,
@@ -413,6 +418,7 @@ impl Node {
             RawNode::IsComposite(object) => {
                 Self::IsComposite(child!(NodeProperty::IsComposite, &object))
             }
+            RawNode::IsNode(object) => Self::IsNode(child!(NodeProperty::IsNode, &object)),
             RawNode::SetEvery { set, predicate } => Self::SetEvery {
                 set: child!(NodeProperty::SetEverySet, &set),
                 predicate: child!(NodeProperty::SetEveryPredicate, &predicate),
@@ -619,6 +625,7 @@ impl Node {
             Self::IsAtom(object) => RawNode::IsAtom(object.into_object()),
             Self::IsConstruction(object) => RawNode::IsConstruction(object.into_object()),
             Self::IsComposite(object) => RawNode::IsComposite(object.into_object()),
+            Self::IsNode(object) => RawNode::IsNode(object.into_object()),
             Self::SetEvery { set, predicate } => RawNode::SetEvery {
                 set: set.into_object(),
                 predicate: predicate.into_object(),

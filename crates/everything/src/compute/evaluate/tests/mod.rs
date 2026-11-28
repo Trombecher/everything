@@ -18,6 +18,7 @@ mod intersection;
 mod is_atom;
 mod is_composite;
 mod is_construction;
+mod is_node;
 mod less;
 mod map;
 mod new_composite;

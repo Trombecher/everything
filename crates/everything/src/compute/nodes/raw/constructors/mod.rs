@@ -267,6 +267,12 @@ impl RawNode {
         Self::IsComposite(child(object))
     }
 
+    /// Creates an is-node node.
+    #[must_use]
+    pub fn is_node(object: impl Into<Self>) -> Self {
+        Self::IsNode(child(object))
+    }
+
     /// Creates a set-every node.
     #[must_use]
     pub fn set_every(set: impl Into<Self>, predicate: impl Into<Self>) -> Self {

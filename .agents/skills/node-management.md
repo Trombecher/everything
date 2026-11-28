@@ -22,6 +22,8 @@ Read these first:
 - `crates/everything/src/compute/nodes/kind.rs` — `NodeKind`, `NodeProperty`,
   their atoms and display names.
 - `crates/everything/src/compute/nodes/raw/mod.rs` — node recognition.
+- `crates/everything/src/compute/nodes/raw/constructors/mod.rs` — `RawNode`
+  constructor helpers used by the public API and tests.
 - `crates/everything/src/compute/nodes/raw/diagnose.rs` — recognition error
   explanations.
 - `crates/everything/src/compute/evaluate/mod.rs` — the evaluator.
@@ -66,17 +68,18 @@ For a new node kind, touch these in order. Code paths are relative to
    requirement, repeatability, display names.
 3. `compute/nodes/raw/mod.rs` — `RawNode` variant and recognition.
 4. `compute/nodes/raw/diagnose.rs` — add the kind's `kind!(...)` spec.
-5. `compute/nodes/mod.rs` — `Node` variant, child parsing, `into_object`.
-6. `compute/capture/mod.rs` — capture arm.
-7. `compute/evaluate/mod.rs` — `Task` variant(s), scheduling, stack effect.
-8. `compute/lazy/mod.rs` — only if the node returns a deferred set.
-9. `compute/operations.rs` — pure helpers, if the node needs one.
-10. Tests: `compute/nodes/tests.rs`, a new
-    `compute/evaluate/tests/<name>.rs`, plus `compute/lazy/tests.rs` and
+5. `compute/nodes/raw/constructors/mod.rs` — add a `RawNode::<kind>` helper.
+6. `compute/nodes/mod.rs` — `Node` variant, child parsing, `into_object`.
+7. `compute/capture/mod.rs` — capture arm.
+8. `compute/evaluate/mod.rs` — `Task` variant(s), scheduling, stack effect.
+9. `compute/lazy/mod.rs` — only if the node returns a deferred set.
+10. `compute/operations.rs` — pure helpers, if the node needs one.
+11. Tests: `compute/nodes/tests.rs`, `compute/nodes/raw/constructors/tests.rs`,
+    a new `compute/evaluate/tests/<name>.rs`, plus `compute/lazy/tests.rs` and
     `compute/capture/tests.rs` when relevant.
-11. Docs: `docs/public/3 - Computation.md` and the node sugar table in
+12. Docs: `docs/public/3 - Computation.md` and the node sugar table in
     `docs/design/agent-dsl.md`.
-12. Run `cargo fmt`, `cargo test`, and `cargo clippy`.
+13. Run `cargo fmt`, `cargo test`, and `cargo clippy`.
 
 Let the compiler help: `cargo check` after adding the enum variants points at
 every non-exhaustive `match` in `Node`, `RawNode`, `NodeKind`, `NodeProperty`,
@@ -162,6 +165,9 @@ error text in `compute/nodes/error.rs`.
    - repeatable property: `many_values` (returns `None` for zero values);
    - depth property: convert to `u32` as in `node_parameter_depth`.
 3. Wrap it in `xor_with!(NodeKind::<Kind>, ...)`.
+4. Add a `RawNode::<kind>` constructor helper in
+   `compute/nodes/raw/constructors/mod.rs`, following the neighbouring unary,
+   binary, ternary, or variadic constructors.
 
 Recognition invariants:
 
@@ -301,6 +307,8 @@ the module already uses one).
 
 - Add the new variant to `node_round_trip` so
   `into_object → Node::new → into_object` is identical.
+- Add the new constructor helper to the round-trip array in
+  `compute/nodes/raw/constructors/tests.rs`.
 - Add display assertions for the new `NodeKind` and `NodeProperty` if the
   names are user-visible in errors.
 - If you add a new property requirement:
@@ -392,9 +400,9 @@ meaning.
   strings, but keep the atom id stable. `NodeProperty::Display` is the
   user-facing `node_*` name; diagnostics and docs must use the new name.
 - **Remove a node kind**: remove every variant and match arm across `Node`,
-  `RawNode`, `NodeKind`, `NodeProperty`, `Task`, `LazyObject`, `SetValue`,
-  `LazySet`, and `LazySetItems`; remove its tests, docs section, status table
-  row, and agent-DSL row.
+  `RawNode`, `RawNode` constructor, `NodeKind`, `NodeProperty`, `Task`,
+  `LazyObject`, `SetValue`, `LazySet`, and `LazySetItems`; remove its tests,
+  docs section, status table row, and agent-DSL row.
 - **Do not delete atom ids.** Old objects may still contain them. Reusing an
   id would silently change the meaning of persisted knowledge.
 - **Check for reinterpretation**: after removing a kind, objects that used it
@@ -464,6 +472,7 @@ cargo test -p everything --lib
       `SetValue`, `LazySet`, and `LazySetItems` are all updated
       (compiler-checked).
 - [ ] `diagnose.rs` mirrors `RawNode::new`.
+- [ ] `RawNode::<kind>` constructor helper exists and is round-trip tested.
 - [ ] `into_object` reproduces the canonical encoding; round-trip test passes.
 - [ ] Every child is parsed, captured, and evaluated in the right order.
 - [ ] Set-taking tasks convert operands with `LazyObject::into_set()` and map

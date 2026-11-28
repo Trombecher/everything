@@ -34,6 +34,7 @@ fn raw_node_constructors_round_trip() {
             RawNode::literal(Object::new_integer(BigInt::from(2))),
         ]),
         RawNode::new_composite([RawNode::literal(Object::new_integer(BigInt::from(1)))]),
+        RawNode::is_node(RawNode::literal(Object::new_integer(BigInt::from(1)))),
     ];
 
     for raw in nodes {

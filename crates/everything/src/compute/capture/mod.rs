@@ -345,6 +345,9 @@ fn capture_with_mode(
         Node::IsComposite(inner) => Node::IsComposite(
             recurse!(inner, additional_depth, evaluation_context, knowledge).into(),
         ),
+        Node::IsNode(inner) => {
+            Node::IsNode(recurse!(inner, additional_depth, evaluation_context, knowledge).into())
+        }
         Node::SetEvery { set, predicate } => Node::SetEvery {
             set: recurse!(set, additional_depth, evaluation_context, knowledge).into(),
             predicate: recurse!(predicate, additional_depth, evaluation_context, knowledge).into(),

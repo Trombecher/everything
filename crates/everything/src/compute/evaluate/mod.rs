@@ -138,6 +138,7 @@ enum Task {
     IsAtom,
     IsConstruction,
     IsComposite,
+    IsNode,
 }
 
 /// Pushes a thunk's cached value, or schedules its expression and the task
@@ -171,6 +172,10 @@ fn resolve_evaluate_node(
         }
         Node::IsConstruction(inner) => {
             tasks.push(Task::IsConstruction);
+            tasks.push(Task::Evaluate(Arc::clone(inner)));
+        }
+        Node::IsNode(inner) => {
+            tasks.push(Task::IsNode);
             tasks.push(Task::Evaluate(Arc::clone(inner)));
         }
         Node::ConstructionConstructor { construction } => {
@@ -663,6 +668,13 @@ pub fn evaluate(node: &Node, knowledge: &Knowledge) -> LazyObject {
                 let object = evaluated.pop().unwrap();
 
                 evaluated.push(LazyObject::Eager(object.is_composite().into()));
+            }
+            Task::IsNode => {
+                let object = evaluated.pop().unwrap();
+
+                evaluated.push(LazyObject::Eager(
+                    object.try_into_node(knowledge).is_some().into(),
+                ));
             }
             Task::Not => match evaluated.pop().unwrap().truthy() {
                 MaybeUndefined::Defined(truth) => {

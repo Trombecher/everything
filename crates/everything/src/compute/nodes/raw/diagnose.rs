@@ -142,6 +142,7 @@ const KINDS: &[KindSpec] = &[
     ),
     kind!(NodeKind::IsConstruction, [NodeProperty::IsConstruction]),
     kind!(NodeKind::IsComposite, [NodeProperty::IsComposite]),
+    kind!(NodeKind::IsNode, [NodeProperty::IsNode]),
     kind!(
         NodeKind::SetFold,
         [

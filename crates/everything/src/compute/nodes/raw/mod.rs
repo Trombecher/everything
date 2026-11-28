@@ -193,6 +193,7 @@ pub enum RawNode {
     IsAtom(Object),
     IsConstruction(Object),
     IsComposite(Object),
+    IsNode(Object),
     SetEvery {
         set: Object,
         predicate: Object,
@@ -555,6 +556,11 @@ impl RawNode {
         );
 
         xor_with!(
+            NodeKind::IsNode,
+            construction_value(object, knowledge, Atom::NODE_IS_NODE.into()).map(Self::IsNode)
+        );
+
+        xor_with!(
             NodeKind::SetFold,
             triple_values(
                 object,
@@ -795,6 +801,7 @@ impl RawNode {
             Self::IsAtom(object) => unary_property(Atom::NODE_IS_ATOM, object),
             Self::IsConstruction(object) => unary_property(Atom::NODE_IS_CONSTRUCTION, object),
             Self::IsComposite(object) => unary_property(Atom::NODE_IS_COMPOSITE, object),
+            Self::IsNode(object) => unary_property(Atom::NODE_IS_NODE, object),
             Self::SetEvery { set, predicate } => binary_properties(
                 Atom::NODE_SET_EVERY_SET,
                 set,

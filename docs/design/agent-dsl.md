@@ -189,7 +189,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `atoms_with_ctor(c)`         | QueryAtomsWithConstructor                   |
 | `values(o, c)`               | QueryConstructionValues                     |
 | `constructions(c)`           | QueryConstructions                          |
-| `is_atom(x)` / `is_set(x)` / `is_construction(x)` | IsAtom / IsSet / IsConstruction |
+| `is_atom(x)` / `is_set(x)` / `is_construction(x)` / `is_node(x)` | IsAtom / IsSet / IsConstruction / IsNode |
 | `ctor_of(c)` / `val_of(c)`   | ConstructionConstructor / ConstructionValue |
 | `x.p`                        | `unwrap(values(x, p))`                      |
 | `true` / `false` / `undefined` | atoms                                      |

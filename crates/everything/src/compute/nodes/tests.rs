@@ -103,6 +103,7 @@ fn node_round_trip() {
         Node::IsAtom(Node::Literal(a.clone()).into()),
         Node::IsConstruction(Node::Literal(a.clone()).into()),
         Node::IsComposite(Node::Literal(a.clone()).into()),
+        Node::IsNode(Node::Literal(a.clone()).into()),
         Node::SetEvery {
             set: Node::Literal(a.clone()).into(),
             predicate: Node::Literal(b.clone()).into(),
@@ -321,7 +322,9 @@ fn node_parse_error_display_uses_node_names() {
     assert_eq!(NodeKind::And.to_string(), "and");
     assert_eq!(NodeKind::HasProperty.to_string(), "has property");
     assert_eq!(NodeKind::NewComposite.to_string(), "new composite");
+    assert_eq!(NodeKind::IsNode.to_string(), "is node");
     assert_eq!(NodeProperty::AndSecond.to_string(), "node_and_second");
+    assert_eq!(NodeProperty::IsNode.to_string(), "node_is_node");
     assert_eq!(
         NodeProperty::NewCompositeProperty.to_string(),
         "node_new_composite_property"

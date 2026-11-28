@@ -449,6 +449,10 @@ An object is an _is-construction node_ iff it has the property `node_is_construc
 
 An object is an _is-composite node_ iff it has the property `node_is_composite ·· %inner%`. It evaluates `%inner%`. The result is `true` iff the result is a composite. Atoms and constructions yield `false`.
 
+## Is Node
+
+An object is an _is-node node_ iff it has the property `node_is_node ·· %inner%`. It evaluates `%inner%`. The result is `true` iff the result is a valid node in the current knowledge, as defined in [Node Objects and Recognition](#node-objects-and-recognition). Atoms and composites can be nodes. A construction, `undefined`, or any object that does not match exactly one node kind yields `false`. The check is recursive: a node shape whose child position is not itself a valid node is not a node.
+
 ## Construction Constructor and Value
 
 An object is a _construction-constructor node_ iff it has the property `node_constructor_of_construction ·· %construction%`. It evaluates `%construction%` and returns the constructor of the resulting construction. If the result is not a construction, the result is `undefined`.
@@ -666,6 +670,7 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 | Is atom                      | `node_is_atom`                                                                     | implemented                          |
 | Is construction              | `node_is_construction`                                                             | implemented                          |
 | Is composite                 | `node_is_composite`                                                                | implemented                          |
+| Is node                      | `node_is_node`                                                                     | implemented                          |
 | Construction constructor     | `node_constructor_of_construction`                                                 | implemented                          |
 | Construction value           | `node_value_of_construction`                                                       | implemented                          |
 | New construction             | `node_new_construction_constructor`, `node_new_construction_value`                 | implemented                          |
