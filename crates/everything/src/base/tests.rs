@@ -2,6 +2,7 @@ use num_bigint::BigInt;
 
 use crate::{
     base::BASE,
+    compute::Node,
     model::{Atom, Object},
 };
 
@@ -26,4 +27,17 @@ fn base_knowledge_accepts_the_property_constructor_constraint() {
         .expect("property_constructor has a constraint");
 
     assert!(BASE.object_is_valid(&constraint));
+}
+
+#[test]
+fn base_constraints_are_nodes() {
+    for constraint in [
+        super::accepts_everything(),
+        super::property_constraint(Atom::NON_CONSTRUCTED_PROPERTY),
+        super::property_constraint(Atom::PROPERTY_CONSTRUCTOR),
+    ] {
+        let parsed = Node::new(&constraint, &BASE).expect("base constraint is a node");
+
+        assert_eq!(parsed.into_object(), constraint);
+    }
 }

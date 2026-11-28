@@ -4,8 +4,9 @@ use imbl::OrdMap;
 use num_bigint::BigInt;
 
 use crate::{
+    compute::RawNode,
     knowledge::{Knowledge, Properties},
-    model::{Atom, Composite, Construction, Object},
+    model::{Atom, Construction, Object},
 };
 
 #[cfg(test)]
@@ -14,14 +15,7 @@ mod tests;
 /// Returns a constraint that accepts every subject and value.
 fn accepts_everything() -> Object {
     // node_function ·· ⟨node_function ·· ⟨node_literal ·· true⟩⟩
-    let inner = Composite::from([Construction::new(
-        Atom::NODE_FUNCTION.into(),
-        Composite::from([Construction::new(Atom::NODE_LITERAL.into(), Atom::TRUE.into()).into()])
-            .into(),
-    )
-    .into()]);
-
-    Composite::from([Construction::new(Atom::NODE_FUNCTION.into(), inner.into()).into()]).into()
+    RawNode::function(RawNode::function(RawNode::literal(true))).into_object()
 }
 
 /// Declares `atom` to be a property constructor with the given `constraint`.
@@ -43,64 +37,23 @@ fn declare_property_constructor(
 /// construction with `for_property_constructor` as its constructor. Applied to
 /// the subject of a declaration, this rejects a second, different constraint.
 fn property_constraint(for_property_constructor: Atom) -> Object {
-    // contruction_values (subject, for_property_constructor)
-    let construction_values: Object = Composite::from([
-        Construction::new(
-            Atom::NODE_CONSTRUCTION_VALUES_OBJECT.into(),
-            Composite::from([Construction::new(
-                Atom::NODE_PARAMETER.into(),
-                Object::from(BigInt::ONE),
-            )
-            .into()])
-            .into(),
-        )
-        .into(),
-        Construction::new(
-            Atom::NODE_CONSTRUCTION_VALUES_PROPERTY_CONSTRUCTOR.into(),
-            Composite::from([Construction::new(
-                Atom::NODE_LITERAL.into(),
-                for_property_constructor.into(),
-            )
-            .into()])
-            .into(),
-        )
-        .into(),
-    ])
-    .into();
+    // construction_values (subject, for_property_constructor)
+    let construction_values = RawNode::query_construction_values(
+        RawNode::parameter(1),
+        RawNode::literal(for_property_constructor),
+    );
 
     // |construction_values| == 1
-    let equal = Composite::from([
-        Construction::new(
-            Atom::NODE_EQUAL_FIRST.into(),
-            Composite::from([
-                Construction::new(Atom::NODE_SET_COUNT.into(), construction_values).into(),
-            ])
-            .into(),
-        )
-        .into(),
-        Construction::new(
-            Atom::NODE_EQUAL_SECOND.into(),
-            Composite::from([Construction::new(
-                Atom::NODE_LITERAL.into(),
-                Object::from(BigInt::ONE),
-            )
-            .into()])
-            .into(),
-        )
-        .into(),
-    ])
-    .into();
+    let equal = RawNode::equal(
+        RawNode::set_count(construction_values),
+        RawNode::literal(BigInt::ONE),
+    );
 
     // TODO: add check that value is a node; but for that we need
     // a node that checks if an object is a node (which would
     // be very slow to implement in raw Everything).
 
-    Composite::from([Construction::new(
-        Atom::NODE_FUNCTION.into(),
-        Composite::from([Construction::new(Atom::NODE_FUNCTION.into(), equal).into()]).into(),
-    )
-    .into()])
-    .into()
+    RawNode::function(RawNode::function(equal)).into_object()
 }
 
 pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {

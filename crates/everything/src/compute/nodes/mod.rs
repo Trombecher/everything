@@ -6,13 +6,12 @@ mod tests;
 
 pub use error::InvalidNodeError;
 pub use kind::{NodeKind, NodeProperty, PropertyRequirement};
+pub(crate) use raw::RawNode;
 
 use std::sync::Arc;
 
-use num_bigint::BigInt;
-
 use crate::{
-    compute::{evaluate::Thunk, nodes::raw::RawNode},
+    compute::evaluate::Thunk,
     knowledge::Knowledge,
     model::{Atom, Composite, Construction, Object},
 };
@@ -499,312 +498,163 @@ impl Node {
     }
 
     #[must_use]
-    #[allow(clippy::too_many_lines)]
     pub fn into_object(&self) -> Object {
         match self {
             Self::WithSource { source, .. } => (**source).clone(),
-            Self::IsConstruction(inner) => Composite::from([Construction::new(
-                Atom::NODE_IS_CONSTRUCTION.into(),
-                inner.into_object(),
-            )
-            .into()])
-            .into(),
-            Self::IsComposite(inner) => Composite::from([Construction::new(
-                Atom::NODE_IS_COMPOSITE.into(),
-                inner.into_object(),
-            )
-            .into()])
-            .into(),
-            Self::ConstructionConstructor { construction } => Composite::from([Construction::new(
-                Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION.into(),
-                construction.into_object(),
-            )
-            .into()])
-            .into(),
+            Self::Thunk(thunk) => thunk.expression().into_object(),
+            Self::Function { body, object } => function_object(object, body),
+            node => node.to_raw().into_object(),
+        }
+    }
+
+    /// Maps an ordinary node to its raw node object representation.
+    ///
+    /// The runtime-only variants are handled by [`Self::into_object`] before
+    /// this method is called.
+    #[allow(clippy::too_many_lines)]
+    fn to_raw(&self) -> RawNode {
+        match self {
+            Self::WithSource { .. } | Self::Thunk(_) | Self::Function { .. } => {
+                unreachable!("runtime-only node variants are serialized separately")
+            }
+            Self::Literal(object) => RawNode::Literal(object.clone()),
+            Self::And { first, second } => RawNode::And {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::FunctionSelf { depth } => RawNode::FunctionSelf { depth: *depth },
+            Self::Parameter { depth } => RawNode::Parameter { depth: *depth },
+            Self::SetCount(object) => RawNode::SetCount(object.into_object()),
+            Self::PropertiesOf(object) => RawNode::PropertiesOf(object.into_object()),
+            Self::HasASetItem(object) => RawNode::HasASetItem(object.into_object()),
+            Self::HasProperty { subject, property } => RawNode::HasProperty {
+                subject: subject.into_object(),
+                property: property.into_object(),
+            },
+            Self::QueryAtomsWithProperty { property } => RawNode::QueryAtomsWithProperty {
+                property: property.into_object(),
+            },
+            Self::QueryAtomsWithConstructor { constructor } => RawNode::QueryAtomsWithConstructor {
+                constructor: constructor.into_object(),
+            },
+            Self::QueryConstructionValues {
+                object,
+                property_constructor,
+            } => RawNode::QueryConstructionValues {
+                object: object.into_object(),
+                property_constructor: property_constructor.into_object(),
+            },
+            Self::QueryConstructions { constructor } => RawNode::QueryConstructions {
+                constructor: constructor.into_object(),
+            },
+            Self::SetContains { element, set } => RawNode::SetContains {
+                element: element.into_object(),
+                set: set.into_object(),
+            },
+            Self::Equal { first, second } => RawNode::Equal {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::Or { first, second } => RawNode::Or {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::Xor { first, second } => RawNode::Xor {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::Not(object) => RawNode::Not(object.into_object()),
+            Self::Add { first, second } => RawNode::Add {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::SetUnion { first, second } => RawNode::SetUnion {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::SetIntersection { first, second } => RawNode::SetIntersection {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::SetDifference { first, second } => RawNode::SetDifference {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::SetMap {
+                set,
+                mapper_function,
+            } => RawNode::SetMap {
+                set: set.into_object(),
+                mapper_function: mapper_function.into_object(),
+            },
+            Self::SetFilter {
+                set,
+                filter_function,
+            } => RawNode::SetFilter {
+                set: set.into_object(),
+                filter_function: filter_function.into_object(),
+            },
+            Self::Less { first, second } => RawNode::Less {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::If {
+                condition,
+                then,
+                otherwise,
+            } => RawNode::If {
+                condition: condition.into_object(),
+                then: then.into_object(),
+                otherwise: otherwise.into_object(),
+            },
+            Self::SetUnwrap(object) => RawNode::SetUnwrap(object.into_object()),
+            Self::Multiply { first, second } => RawNode::Multiply {
+                first: first.into_object(),
+                second: second.into_object(),
+            },
+            Self::Call { callee, with } => RawNode::Call {
+                callee: callee.into_object(),
+                with: with.into_object(),
+            },
+            Self::IsAtom(object) => RawNode::IsAtom(object.into_object()),
+            Self::IsConstruction(object) => RawNode::IsConstruction(object.into_object()),
+            Self::IsComposite(object) => RawNode::IsComposite(object.into_object()),
+            Self::SetEvery { set, predicate } => RawNode::SetEvery {
+                set: set.into_object(),
+                predicate: predicate.into_object(),
+            },
+            Self::SetAny { set, predicate } => RawNode::SetAny {
+                set: set.into_object(),
+                predicate: predicate.into_object(),
+            },
             Self::SetFold {
                 set,
                 folder,
                 initial,
-            } => Composite::from([
-                Construction::new(Atom::NODE_SET_FOLD_SET.into(), set.into_object()).into(),
-                Construction::new(Atom::NODE_SET_FOLD_FOLDER.into(), folder.into_object()).into(),
-                Construction::new(Atom::NODE_SET_FOLD_INITIAL.into(), initial.into_object()).into(),
-            ])
-            .into(),
-            Self::NewConstruction { constructor, value } => Composite::from([
-                Construction::new(
-                    Atom::NODE_NEW_CONSTRUCTION_CONSTRUCTOR.into(),
-                    constructor.into_object(),
-                )
-                .into(),
-                Construction::new(
-                    Atom::NODE_NEW_CONSTRUCTION_VALUE.into(),
-                    value.into_object(),
-                )
-                .into(),
-            ])
-            .into(),
-            Self::NewSet { items } => {
-                let mut members = items
+            } => RawNode::SetFold {
+                set: set.into_object(),
+                folder: folder.into_object(),
+                initial: initial.into_object(),
+            },
+            Self::NewConstruction { constructor, value } => RawNode::NewConstruction {
+                constructor: constructor.into_object(),
+                value: value.into_object(),
+            },
+            Self::NewSet { items } => RawNode::NewSet {
+                items: items.iter().map(|item| item.into_object()).collect(),
+            },
+            Self::NewComposite { properties } => RawNode::NewComposite {
+                properties: properties
                     .iter()
-                    .map(|item| {
-                        Construction::new(Atom::NODE_NEW_SET_ITEM.into(), item.into_object()).into()
-                    })
-                    .collect::<Vec<Object>>();
-
-                Composite::from(members.as_mut_slice()).into()
-            }
-            Self::NewComposite { properties } => {
-                let mut members = properties
-                    .iter()
-                    .map(|property| {
-                        Construction::new(
-                            Atom::NODE_NEW_COMPOSITE_PROPERTY.into(),
-                            property.into_object(),
-                        )
-                        .into()
-                    })
-                    .collect::<Vec<Object>>();
-
-                Composite::from(members.as_mut_slice()).into()
-            }
-            Self::SetContains { element, set } => Composite::from([
-                Construction::new(
-                    Atom::NODE_SET_CONTAINS_ELEMENT.into(),
-                    element.into_object(),
-                )
-                .into(),
-                Construction::new(Atom::NODE_SET_CONTAINS_SET.into(), set.into_object()).into(),
-            ])
-            .into(),
-            Self::ConstructionValue { construction } => Composite::from([Construction::new(
-                Atom::NODE_VALUE_OF_CONSTRUCTION.into(),
-                construction.into_object(),
-            )
-            .into()])
-            .into(),
-            Self::IsAtom(inner) => {
-                Composite::from([
-                    Construction::new(Atom::NODE_IS_ATOM.into(), inner.into_object()).into(),
-                ])
-                .into()
-            }
-            Self::Call { callee, with } => Composite::from([
-                Construction::new(Atom::NODE_CALL_CALLEE.into(), callee.into_object()).into(),
-                Construction::new(Atom::NODE_CALL_WITH.into(), with.into_object()).into(),
-            ])
-            .into(),
-            Self::QueryConstructionValues {
-                object,
-                property_constructor,
-            } => Composite::from([
-                Construction::new(
-                    Atom::NODE_CONSTRUCTION_VALUES_OBJECT.into(),
-                    object.into_object(),
-                )
-                .into(),
-                Construction::new(
-                    Atom::NODE_CONSTRUCTION_VALUES_PROPERTY_CONSTRUCTOR.into(),
-                    property_constructor.into_object(),
-                )
-                .into(),
-            ])
-            .into(),
-            Self::Function { body, object } => function_object(object, body),
-            Self::Literal(literal) => {
-                Composite::from([
-                    Construction::new(Atom::NODE_LITERAL.into(), literal.clone()).into(),
-                ])
-                .into()
-            }
-            Self::Thunk(thunk) => thunk.expression().into_object(),
-            Self::And { first, second } => Composite::from([
-                Construction::new(Atom::NODE_AND_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_AND_SECOND.into(), second.into_object()).into(),
-            ])
-            .into(),
-            Self::FunctionSelf { depth } => Composite::from([Construction::new(
-                Atom::NODE_FUNCTION_SELF.into(),
-                Object::new_integer(BigInt::from(*depth)),
-            )
-            .into()])
-            .into(),
-            Self::Parameter { depth } => Composite::from([Construction::new(
-                Atom::NODE_PARAMETER.into(),
-                Object::new_integer(BigInt::from(*depth)),
-            )
-            .into()])
-            .into(),
-            Self::SetCount(object) => Composite::from([Construction::new(
-                Atom::NODE_SET_COUNT.into(),
-                object.into_object(),
-            )
-            .into()])
-            .into(),
-            Self::PropertiesOf(object) => Composite::from([Construction::new(
-                Atom::NODE_PROPERTIES_OF.into(),
-                object.into_object(),
-            )
-            .into()])
-            .into(),
-            Self::HasASetItem(object) => Composite::from([Construction::new(
-                Atom::NODE_HAS_A_SET_ITEM.into(),
-                object.into_object(),
-            )
-            .into()])
-            .into(),
-            Self::HasProperty { subject, property } => Composite::from([
-                Construction::new(
-                    Atom::NODE_HAS_PROPERTY_SUBJECT.into(),
-                    subject.into_object(),
-                )
-                .into(),
-                Construction::new(
-                    Atom::NODE_HAS_PROPERTY_PROPERTY.into(),
-                    property.into_object(),
-                )
-                .into(),
-            ])
-            .into(),
-            Self::QueryAtomsWithProperty { property } => Composite::from([Construction::new(
-                Atom::NODE_ATOMS_WITH_PROPERTY.into(),
-                property.into_object(),
-            )
-            .into()])
-            .into(),
-            Self::QueryAtomsWithConstructor { constructor } => {
-                Composite::from([Construction::new(
-                    Atom::NODE_ATOMS_WITH_CONSTRUCTOR.into(),
-                    constructor.into_object(),
-                )
-                .into()])
-                .into()
-            }
-            Self::Equal { first, second } => Composite::from([
-                Construction::new(Atom::NODE_EQUAL_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_EQUAL_SECOND.into(), second.into_object()).into(),
-            ])
-            .into(),
-            Self::Or { first, second } => Composite::from([
-                Construction::new(Atom::NODE_OR_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_OR_SECOND.into(), second.into_object()).into(),
-            ])
-            .into(),
-            Self::Xor { first, second } => Composite::from([
-                Construction::new(Atom::NODE_XOR_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_XOR_SECOND.into(), second.into_object()).into(),
-            ])
-            .into(),
-            Self::Not(node) => {
-                Composite::from([
-                    Construction::new(Atom::NODE_NOT.into(), node.into_object()).into()
-                ])
-                .into()
-            }
-            Self::Add { first, second } => Composite::from([
-                Construction::new(Atom::NODE_ADD_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_ADD_SECOND.into(), second.into_object()).into(),
-            ])
-            .into(),
-            Self::SetUnion { first, second } => Composite::from([
-                Construction::new(Atom::NODE_SET_UNION_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_SET_UNION_SECOND.into(), second.into_object()).into(),
-            ])
-            .into(),
-            Self::SetIntersection { first, second } => Composite::from([
-                Construction::new(
-                    Atom::NODE_SET_INTERSECTION_FIRST.into(),
-                    first.into_object(),
-                )
-                .into(),
-                Construction::new(
-                    Atom::NODE_SET_INTERSECTION_SECOND.into(),
-                    second.into_object(),
-                )
-                .into(),
-            ])
-            .into(),
-            Self::SetDifference { first, second } => Composite::from([
-                Construction::new(Atom::NODE_SET_DIFFERENCE_FIRST.into(), first.into_object())
-                    .into(),
-                Construction::new(
-                    Atom::NODE_SET_DIFFERENCE_SECOND.into(),
-                    second.into_object(),
-                )
-                .into(),
-            ])
-            .into(),
-            Self::QueryConstructions { constructor } => Composite::from([Construction::new(
-                Atom::NODE_QUERY_CONSTRUCTIONS.into(),
-                constructor.into_object(),
-            )
-            .into()])
-            .into(),
-            Self::SetMap {
-                set,
-                mapper_function,
-            } => Composite::from([
-                Construction::new(Atom::NODE_SET_MAP_SET.into(), set.into_object()).into(),
-                Construction::new(
-                    Atom::NODE_SET_MAP_MAPPER.into(),
-                    mapper_function.into_object(),
-                )
-                .into(),
-            ])
-            .into(),
-            Self::SetFilter {
-                set,
-                filter_function,
-            } => Composite::from([
-                Construction::new(Atom::NODE_SET_FILTER_SET.into(), set.into_object()).into(),
-                Construction::new(
-                    Atom::NODE_SET_FILTER_FILTER.into(),
-                    filter_function.into_object(),
-                )
-                .into(),
-            ])
-            .into(),
-            Self::SetEvery { set, predicate } => Composite::from([
-                Construction::new(Atom::NODE_SET_EVERY_SET.into(), set.into_object()).into(),
-                Construction::new(
-                    Atom::NODE_SET_EVERY_PREDICATE.into(),
-                    predicate.into_object(),
-                )
-                .into(),
-            ])
-            .into(),
-            Self::SetAny { set, predicate } => Composite::from([
-                Construction::new(Atom::NODE_SET_ANY_SET.into(), set.into_object()).into(),
-                Construction::new(Atom::NODE_SET_ANY_PREDICATE.into(), predicate.into_object())
-                    .into(),
-            ])
-            .into(),
-            Self::Less { first, second } => Composite::from([
-                Construction::new(Atom::NODE_LESS_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_LESS_SECOND.into(), second.into_object()).into(),
-            ])
-            .into(),
-            Self::If {
-                condition,
-                otherwise,
-                then,
-            } => Composite::from([
-                Construction::new(Atom::NODE_IF_CONDITION.into(), condition.into_object()).into(),
-                Construction::new(Atom::NODE_IF_THEN.into(), then.into_object()).into(),
-                Construction::new(Atom::NODE_IF_ELSE.into(), otherwise.into_object()).into(),
-            ])
-            .into(),
-            Self::SetUnwrap(set) => Composite::from([Construction::new(
-                Atom::NODE_SET_UNWRAP_SET.into(),
-                set.into_object(),
-            )
-            .into()])
-            .into(),
-            Self::Multiply { first, second } => Composite::from([
-                Construction::new(Atom::NODE_MULTIPLY_FIRST.into(), first.into_object()).into(),
-                Construction::new(Atom::NODE_MULTIPLY_SECOND.into(), second.into_object()).into(),
-            ])
-            .into(),
+                    .map(|property| property.into_object())
+                    .collect(),
+            },
+            Self::ConstructionConstructor { construction } => RawNode::ConstructionConstructor {
+                construction: construction.into_object(),
+            },
+            Self::ConstructionValue { construction } => RawNode::ConstructionValue {
+                construction: construction.into_object(),
+            },
         }
     }
 }

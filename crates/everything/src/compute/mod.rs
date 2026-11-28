@@ -9,6 +9,7 @@ pub mod operations;
 pub use capture::*;
 pub use evaluate::*;
 pub use lazy::*;
+pub(crate) use nodes::RawNode;
 pub use nodes::*;
 
 use crate::model::{Atom, Object};

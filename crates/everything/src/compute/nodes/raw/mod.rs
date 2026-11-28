@@ -1,12 +1,15 @@
 //! This module handles node kind detection and first-level parsing.
 
+mod constructors;
 mod diagnose;
+
+use num_bigint::BigInt;
 
 use super::{InvalidNodeError, NodeKind};
 use crate::{
     iter::IteratorExtNextAndLast,
     knowledge::Knowledge,
-    model::{Atom, Object},
+    model::{Atom, Composite, Construction, Object},
 };
 use diagnose::diagnose;
 
@@ -86,6 +89,13 @@ fn node_parameter_depth(object: &Object, knowledge: &Knowledge) -> Option<RawNod
         .map(|depth| RawNode::Parameter { depth })
 }
 
+/// A shallow node: a recognised node kind whose children are raw objects.
+///
+/// `RawNode` is the boundary between [`Object`] and the runtime
+/// [`Node`](super::Node). Its children are objects, so it can be nested via the
+/// constructors without the `Arc`s that the runtime node uses. It does not
+/// preserve non-body properties of function objects; use [`Node`](super::Node)
+/// when the source object matters.
 pub enum RawNode {
     Function {
         body: Object,
@@ -605,5 +615,232 @@ impl RawNode {
             Some(node) => Ok(node),
             None => Err(diagnose(object, knowledge)),
         }
+    }
+}
+
+/// Builds a node object with a single property construction.
+fn unary_property(atom: Atom, value: Object) -> Object {
+    Composite::from([Construction::new(atom.into(), value).into()]).into()
+}
+
+/// Builds a node object with two property constructions.
+fn binary_properties(first_atom: Atom, first: Object, second_atom: Atom, second: Object) -> Object {
+    Composite::from([
+        Construction::new(first_atom.into(), first).into(),
+        Construction::new(second_atom.into(), second).into(),
+    ])
+    .into()
+}
+
+/// Builds a node object with three property constructions.
+fn ternary_properties(
+    first_atom: Atom,
+    first: Object,
+    second_atom: Atom,
+    second: Object,
+    third_atom: Atom,
+    third: Object,
+) -> Object {
+    Composite::from([
+        Construction::new(first_atom.into(), first).into(),
+        Construction::new(second_atom.into(), second).into(),
+        Construction::new(third_atom.into(), third).into(),
+    ])
+    .into()
+}
+
+/// Builds a node object with any positive number of constructions of the same
+/// property.
+fn repeated_properties(atom: Atom, values: Vec<Object>) -> Object {
+    let mut members = values
+        .into_iter()
+        .map(|value| Construction::new(atom.into(), value).into())
+        .collect::<Vec<Object>>();
+
+    Composite::from(members.as_mut_slice()).into()
+}
+
+impl RawNode {
+    /// Converts this raw node into its minimal object form.
+    ///
+    /// Non-body properties of function nodes are not part of a raw node and
+    /// are therefore not preserved.
+    #[must_use]
+    #[allow(clippy::too_many_lines)]
+    pub fn into_object(self) -> Object {
+        match self {
+            Self::Function { body } => unary_property(Atom::NODE_FUNCTION, body),
+            Self::Literal(object) => unary_property(Atom::NODE_LITERAL, object),
+            Self::And { first, second } => {
+                binary_properties(Atom::NODE_AND_FIRST, first, Atom::NODE_AND_SECOND, second)
+            }
+            Self::FunctionSelf { depth } => unary_property(
+                Atom::NODE_FUNCTION_SELF,
+                Object::new_integer(BigInt::from(depth)),
+            ),
+            Self::Parameter { depth } => unary_property(
+                Atom::NODE_PARAMETER,
+                Object::new_integer(BigInt::from(depth)),
+            ),
+            Self::SetCount(object) => unary_property(Atom::NODE_SET_COUNT, object),
+            Self::PropertiesOf(object) => unary_property(Atom::NODE_PROPERTIES_OF, object),
+            Self::HasASetItem(object) => unary_property(Atom::NODE_HAS_A_SET_ITEM, object),
+            Self::HasProperty { subject, property } => binary_properties(
+                Atom::NODE_HAS_PROPERTY_SUBJECT,
+                subject,
+                Atom::NODE_HAS_PROPERTY_PROPERTY,
+                property,
+            ),
+            Self::QueryAtomsWithProperty { property } => {
+                unary_property(Atom::NODE_ATOMS_WITH_PROPERTY, property)
+            }
+            Self::QueryAtomsWithConstructor { constructor } => {
+                unary_property(Atom::NODE_ATOMS_WITH_CONSTRUCTOR, constructor)
+            }
+            Self::QueryConstructionValues {
+                object,
+                property_constructor,
+            } => binary_properties(
+                Atom::NODE_CONSTRUCTION_VALUES_OBJECT,
+                object,
+                Atom::NODE_CONSTRUCTION_VALUES_PROPERTY_CONSTRUCTOR,
+                property_constructor,
+            ),
+            Self::QueryConstructions { constructor } => {
+                unary_property(Atom::NODE_QUERY_CONSTRUCTIONS, constructor)
+            }
+            Self::SetContains { element, set } => binary_properties(
+                Atom::NODE_SET_CONTAINS_ELEMENT,
+                element,
+                Atom::NODE_SET_CONTAINS_SET,
+                set,
+            ),
+            Self::Equal { first, second } => binary_properties(
+                Atom::NODE_EQUAL_FIRST,
+                first,
+                Atom::NODE_EQUAL_SECOND,
+                second,
+            ),
+            Self::Or { first, second } => {
+                binary_properties(Atom::NODE_OR_FIRST, first, Atom::NODE_OR_SECOND, second)
+            }
+            Self::Xor { first, second } => {
+                binary_properties(Atom::NODE_XOR_FIRST, first, Atom::NODE_XOR_SECOND, second)
+            }
+            Self::Not(object) => unary_property(Atom::NODE_NOT, object),
+            Self::Add { first, second } => {
+                binary_properties(Atom::NODE_ADD_FIRST, first, Atom::NODE_ADD_SECOND, second)
+            }
+            Self::SetUnion { first, second } => binary_properties(
+                Atom::NODE_SET_UNION_FIRST,
+                first,
+                Atom::NODE_SET_UNION_SECOND,
+                second,
+            ),
+            Self::SetIntersection { first, second } => binary_properties(
+                Atom::NODE_SET_INTERSECTION_FIRST,
+                first,
+                Atom::NODE_SET_INTERSECTION_SECOND,
+                second,
+            ),
+            Self::SetDifference { first, second } => binary_properties(
+                Atom::NODE_SET_DIFFERENCE_FIRST,
+                first,
+                Atom::NODE_SET_DIFFERENCE_SECOND,
+                second,
+            ),
+            Self::SetMap {
+                set,
+                mapper_function,
+            } => binary_properties(
+                Atom::NODE_SET_MAP_SET,
+                set,
+                Atom::NODE_SET_MAP_MAPPER,
+                mapper_function,
+            ),
+            Self::SetFilter {
+                set,
+                filter_function,
+            } => binary_properties(
+                Atom::NODE_SET_FILTER_SET,
+                set,
+                Atom::NODE_SET_FILTER_FILTER,
+                filter_function,
+            ),
+            Self::Less { first, second } => {
+                binary_properties(Atom::NODE_LESS_FIRST, first, Atom::NODE_LESS_SECOND, second)
+            }
+            Self::If {
+                condition,
+                then,
+                otherwise,
+            } => ternary_properties(
+                Atom::NODE_IF_CONDITION,
+                condition,
+                Atom::NODE_IF_THEN,
+                then,
+                Atom::NODE_IF_ELSE,
+                otherwise,
+            ),
+            Self::SetUnwrap(object) => unary_property(Atom::NODE_SET_UNWRAP_SET, object),
+            Self::Multiply { first, second } => binary_properties(
+                Atom::NODE_MULTIPLY_FIRST,
+                first,
+                Atom::NODE_MULTIPLY_SECOND,
+                second,
+            ),
+            Self::Call { callee, with } => {
+                binary_properties(Atom::NODE_CALL_CALLEE, callee, Atom::NODE_CALL_WITH, with)
+            }
+            Self::IsAtom(object) => unary_property(Atom::NODE_IS_ATOM, object),
+            Self::IsConstruction(object) => unary_property(Atom::NODE_IS_CONSTRUCTION, object),
+            Self::IsComposite(object) => unary_property(Atom::NODE_IS_COMPOSITE, object),
+            Self::SetEvery { set, predicate } => binary_properties(
+                Atom::NODE_SET_EVERY_SET,
+                set,
+                Atom::NODE_SET_EVERY_PREDICATE,
+                predicate,
+            ),
+            Self::SetAny { set, predicate } => binary_properties(
+                Atom::NODE_SET_ANY_SET,
+                set,
+                Atom::NODE_SET_ANY_PREDICATE,
+                predicate,
+            ),
+            Self::SetFold {
+                set,
+                folder,
+                initial,
+            } => ternary_properties(
+                Atom::NODE_SET_FOLD_SET,
+                set,
+                Atom::NODE_SET_FOLD_FOLDER,
+                folder,
+                Atom::NODE_SET_FOLD_INITIAL,
+                initial,
+            ),
+            Self::NewConstruction { constructor, value } => binary_properties(
+                Atom::NODE_NEW_CONSTRUCTION_CONSTRUCTOR,
+                constructor,
+                Atom::NODE_NEW_CONSTRUCTION_VALUE,
+                value,
+            ),
+            Self::NewSet { items } => repeated_properties(Atom::NODE_NEW_SET_ITEM, items),
+            Self::NewComposite { properties } => {
+                repeated_properties(Atom::NODE_NEW_COMPOSITE_PROPERTY, properties)
+            }
+            Self::ConstructionConstructor { construction } => {
+                unary_property(Atom::NODE_CONSTRUCTOR_OF_CONSTRUCTION, construction)
+            }
+            Self::ConstructionValue { construction } => {
+                unary_property(Atom::NODE_VALUE_OF_CONSTRUCTION, construction)
+            }
+        }
+    }
+}
+
+impl From<RawNode> for Object {
+    fn from(value: RawNode) -> Self {
+        value.into_object()
     }
 }
