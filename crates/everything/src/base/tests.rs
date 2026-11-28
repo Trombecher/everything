@@ -19,14 +19,20 @@ fn with_statement(atom: Atom, property: Object) -> Knowledge {
 
 #[test]
 fn base_knowledge_is_valid() {
-    assert!(BASE.is_valid());
+    assert!(BASE.is_valid().is_ok());
 }
 
 #[test]
 fn base_knowledge_accepts_integers() {
-    assert!(BASE.object_is_valid(&Atom::ZERO.into()));
-    assert!(BASE.object_is_valid(&Object::new_integer(BigInt::ONE)));
-    assert!(BASE.object_is_valid(&Object::new_integer(BigInt::NEG_ONE)));
+    assert!(BASE.object_is_valid(&Atom::ZERO.into()).is_ok());
+    assert!(
+        BASE.object_is_valid(&Object::new_integer(BigInt::ONE))
+            .is_ok()
+    );
+    assert!(
+        BASE.object_is_valid(&Object::new_integer(BigInt::NEG_ONE))
+            .is_ok()
+    );
 }
 
 #[test]
@@ -37,7 +43,7 @@ fn base_knowledge_accepts_the_property_constructor_constraint() {
         .next()
         .expect("property_constructor has a constraint");
 
-    assert!(BASE.object_is_valid(&constraint));
+    assert!(BASE.object_is_valid(&constraint).is_ok());
 }
 
 #[test]
@@ -67,11 +73,15 @@ fn node_property_constraints_require_node_values() {
 
     let knowledge = with_statement(Atom(3000), non_node.clone());
 
-    assert!(!knowledge.object_has_valid_property(&subject, &non_node));
+    assert!(
+        knowledge
+            .object_has_valid_property(&subject, &non_node)
+            .is_err()
+    );
 
     let knowledge = with_statement(Atom(3000), node.clone());
 
-    assert!(knowledge.object_has_valid_property(&subject, &node));
+    assert!(knowledge.object_has_valid_property(&subject, &node).is_ok());
 }
 
 #[test]
@@ -82,7 +92,11 @@ fn non_node_properties_still_accept_arbitrary_values() {
 
     let knowledge = with_statement(Atom(3001), property.clone());
 
-    assert!(knowledge.object_has_valid_property(&subject, &property));
+    assert!(
+        knowledge
+            .object_has_valid_property(&subject, &property)
+            .is_ok()
+    );
 }
 
 #[test]
@@ -98,16 +112,20 @@ fn property_constructor_declarations_require_node_constraints() {
 
     let knowledge = with_statement(Atom(3002), non_node.clone());
 
-    assert!(!knowledge.object_has_valid_property(&subject, &non_node));
+    assert!(
+        knowledge
+            .object_has_valid_property(&subject, &non_node)
+            .is_err()
+    );
 
     let knowledge = with_statement(Atom(3002), node.clone());
 
-    assert!(knowledge.object_has_valid_property(&subject, &node));
+    assert!(knowledge.object_has_valid_property(&subject, &node).is_ok());
 }
 
 #[test]
 fn base_knowledge_accepts_an_is_node_object() {
     let object = Node::IsNode(Node::Literal(Object::new_integer(BigInt::ONE)).into()).into_object();
 
-    assert!(BASE.object_is_valid(&object));
+    assert!(BASE.object_is_valid(&object).is_ok());
 }

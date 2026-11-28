@@ -1,8 +1,10 @@
+mod error;
 mod properties;
 mod query;
 #[cfg(test)]
 mod tests;
 
+pub use error::*;
 pub use properties::*;
 pub use query::*;
 
@@ -198,7 +200,7 @@ impl Knowledge {
         }
     }
 
-    /// Returns `true` iff every statement in this knowledge is valid.
+    /// Checks that every statement in this knowledge is valid.
     ///
     /// A statement `a is p` is valid iff `p` is a valid property of `a` in the
     /// complete knowledge.
@@ -208,75 +210,148 @@ impl Knowledge {
     /// knowledge](crate::base::BASE). This pins them to constraints that
     /// enforce that a subject has at most one declaration of each kind, which
     /// implements conditions 1 and 2 of knowledge validation.
-    #[must_use]
-    pub fn is_valid(&self) -> bool {
-        self.base_constraints_are_pinned()
-            && self.map.iter().all(|(atom, properties)| {
-                properties.clone().into_iter().all(|property| {
-                    self.object_has_valid_property(&AtomOrComposite::Atom(*atom), &property)
-                })
-            })
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidKnowledgeError::BaseConstraintNotPinned`] if a base
+    /// constraint is not the one from the base knowledge, and
+    /// [`InvalidKnowledgeError::InvalidStatement`] with the offending statement
+    /// and the reason why its property is invalid if a statement is not valid.
+    pub fn is_valid(&self) -> Result<(), InvalidKnowledgeError> {
+        self.base_constraints_are_pinned()?;
+
+        for (atom, properties) in &self.map {
+            for property in properties.clone() {
+                self.object_has_valid_property(&AtomOrComposite::Atom(*atom), &property)
+                    .map_err(|source| InvalidKnowledgeError::InvalidStatement {
+                        atom: *atom,
+                        property,
+                        source: Box::new(source),
+                    })?;
+            }
+        }
+
+        Ok(())
     }
 
-    /// Returns `true` iff the constraints of the base atoms that occur in this
+    /// Checks that the constraints of the base atoms that occur in this
     /// knowledge are the ones from the base knowledge.
     ///
     /// A base atom that does not occur may omit its constraint: the empty
     /// knowledge is valid, and a non-empty knowledge cannot use these atoms
     /// without declaring their constraints.
-    fn base_constraints_are_pinned(&self) -> bool {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidKnowledgeError::BaseConstraintNotPinned`] if an
+    /// occurring base atom has a different constraint.
+    fn base_constraints_are_pinned(&self) -> Result<(), InvalidKnowledgeError> {
         let base = &*crate::base::BASE;
 
-        [Atom::PROPERTY_CONSTRUCTOR, Atom::NON_CONSTRUCTED_PROPERTY]
-            .into_iter()
-            .all(|atom| {
-                if !self.map.contains_key(&atom) {
-                    return true;
-                }
+        for atom in [Atom::PROPERTY_CONSTRUCTOR, Atom::NON_CONSTRUCTED_PROPERTY] {
+            if !self.map.contains_key(&atom) {
+                continue;
+            }
 
-                let object = Object::from(atom);
+            let object = Object::from(atom);
 
-                self.property_constructor_constraint(&object)
-                    == base.property_constructor_constraint(&object)
-            })
+            if self.property_constructor_constraint(&object)
+                != base.property_constructor_constraint(&object)
+            {
+                return Err(InvalidKnowledgeError::BaseConstraintNotPinned { atom });
+            }
+        }
+
+        Ok(())
     }
 
-    /// Returns `true` iff `object` is valid in this knowledge.
+    /// Checks that `object` is valid in this knowledge.
     ///
     /// Atoms are always valid. A construction is valid iff its constructor and
     /// value are valid objects and its constructor is a property constructor.
     /// A composite is valid iff every one of its properties is a valid property
     /// of the composite.
-    #[must_use]
-    pub fn object_is_valid(&self, object: &Object) -> bool {
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`InvalidObjectError`] that names the offending part of the
+    /// object and the reason why it is invalid.
+    pub fn object_is_valid(&self, object: &Object) -> Result<(), InvalidObjectError> {
         match object {
-            Object::Atom(_) => true,
+            Object::Atom(_) => Ok(()),
             Object::Construction(construction) => {
                 self.object_is_valid(&construction.constructor)
-                    && self.object_is_valid(&construction.value)
-                    && self
-                        .property_constructor_constraint(&construction.constructor)
-                        .is_some()
+                    .map_err(|source| InvalidObjectError::InvalidConstructor {
+                        construction: construction.clone(),
+                        source: Box::new(source),
+                    })?;
+
+                self.object_is_valid(&construction.value)
+                    .map_err(|source| InvalidObjectError::InvalidValue {
+                        construction: construction.clone(),
+                        source: Box::new(source),
+                    })?;
+
+                if self
+                    .property_constructor_constraint(&construction.constructor)
+                    .is_none()
+                {
+                    return Err(InvalidObjectError::NotAPropertyConstructor {
+                        constructor: (*construction.constructor).clone(),
+                    });
+                }
+
+                Ok(())
             }
-            Object::Composite(composite) => composite.clone().into_iter().all(|property| {
-                self.object_has_valid_property(
-                    &AtomOrComposite::Composite(composite.clone()),
-                    &property,
-                )
-            }),
+            Object::Composite(composite) => {
+                for property in composite.clone() {
+                    self.object_has_valid_property(
+                        &AtomOrComposite::Composite(composite.clone()),
+                        &property,
+                    )
+                    .map_err(|source| {
+                        InvalidObjectError::InvalidCompositeProperty {
+                            composite: composite.clone(),
+                            property,
+                            source: Box::new(source),
+                        }
+                    })?;
+                }
+
+                Ok(())
+            }
         }
     }
 
-    /// Returns `true` iff `property` is a valid property of `object`.
+    /// Checks that `property` is a valid property of `object`.
     ///
     /// The property must be a valid object, must belong to the object, and the
     /// applicable constraint must evaluate to exactly `true` in this complete
     /// knowledge.
-    #[must_use]
-    pub fn object_has_valid_property(&self, object: &AtomOrComposite, property: &Object) -> bool {
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`InvalidPropertyError`] that names the offending property
+    /// and the reason why it is not a valid property of `object`.
+    pub fn object_has_valid_property(
+        &self,
+        object: &AtomOrComposite,
+        property: &Object,
+    ) -> Result<(), InvalidPropertyError> {
         self.object_is_valid(property)
-            && self.object_has_property(object, property)
-            && self.property_constraint_accepts(object, property)
+            .map_err(|source| InvalidPropertyError::InvalidObject {
+                property: property.clone(),
+                source: Box::new(source),
+            })?;
+
+        if !self.object_has_property(object, property) {
+            return Err(InvalidPropertyError::DoesNotBelong {
+                object: object.clone(),
+                property: property.clone(),
+            });
+        }
+
+        self.property_constraint_accepts(object, property)
     }
 
     /// Returns the unique constraint of a property constructor, if `object` is
@@ -309,27 +384,63 @@ impl Knowledge {
         values.next().is_none().then_some(value)
     }
 
-    /// Returns `true` iff the constraint applicable to the use of `property` on
+    /// Checks that the constraint applicable to the use of `property` on
     /// `object` evaluates to exactly `true`.
-    fn property_constraint_accepts(&self, object: &AtomOrComposite, property: &Object) -> bool {
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`InvalidPropertyError`] if no constraint applies or if the
+    /// applicable constraint does not evaluate to exactly `true`.
+    fn property_constraint_accepts(
+        &self,
+        object: &AtomOrComposite,
+        property: &Object,
+    ) -> Result<(), InvalidPropertyError> {
         match property {
             Object::Construction(Construction { constructor, value }) => {
                 let Some(constraint) = self.property_constructor_constraint(constructor) else {
-                    return false;
+                    return Err(InvalidPropertyError::InvalidObject {
+                        property: property.clone(),
+                        source: Box::new(InvalidObjectError::NotAPropertyConstructor {
+                            constructor: (**constructor).clone(),
+                        }),
+                    });
                 };
 
-                self.constraint_accepts_subject_and_value(&constraint, object, value)
+                if self.constraint_accepts_subject_and_value(&constraint, object, value) {
+                    Ok(())
+                } else {
+                    Err(InvalidPropertyError::RejectedByConstraint {
+                        object: object.clone(),
+                        property: property.clone(),
+                        constraint,
+                    })
+                }
             }
             Object::Atom(_) | Object::Composite(_) => {
-                let property = AtomOrComposite::try_from(property)
+                let non_constructed_property = AtomOrComposite::try_from(property)
                     .expect("an atom or composite has properties");
-                let Some(constraint) =
-                    self.unique_property_value(&property, &Atom::NON_CONSTRUCTED_PROPERTY.into())
-                else {
-                    return false;
+
+                let Some(constraint) = self.unique_property_value(
+                    &non_constructed_property,
+                    &Atom::NON_CONSTRUCTED_PROPERTY.into(),
+                ) else {
+                    return Err(
+                        InvalidPropertyError::MissingNonConstructedPropertyConstraint {
+                            property: non_constructed_property,
+                        },
+                    );
                 };
 
-                self.constraint_accepts_subject(&constraint, object)
+                if self.constraint_accepts_subject(&constraint, object) {
+                    Ok(())
+                } else {
+                    Err(InvalidPropertyError::RejectedByConstraint {
+                        object: object.clone(),
+                        property: property.clone(),
+                        constraint,
+                    })
+                }
             }
         }
     }
