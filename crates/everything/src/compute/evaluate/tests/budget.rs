@@ -37,8 +37,8 @@ fn run_in_steps(node: &Node, budget: u64) -> Object {
 
     loop {
         match evaluator.run(budget) {
-            Ok(result) => return result.into_object(&BASE),
-            Err(next) => evaluator = next,
+            RunOutcome::Finished(result) => return result.into_object(&BASE),
+            RunOutcome::Paused(next) => evaluator = next,
         }
     }
 }
@@ -47,7 +47,7 @@ fn run_in_steps(node: &Node, budget: u64) -> Object {
 fn a_large_budget_produces_the_ordinary_result() {
     let node = addition();
 
-    let Ok(result) = Evaluator::new(&node, &BASE).run(u64::MAX) else {
+    let RunOutcome::Finished(result) = Evaluator::new(&node, &BASE).run(u64::MAX) else {
         panic!("evaluation did not finish");
     };
 
@@ -81,7 +81,7 @@ fn shared_parameters_survive_a_pause() {
 fn a_zero_budget_pauses_without_running_a_step() {
     let node = addition();
 
-    let Err(evaluator) = Evaluator::new(&node, &BASE).run(0) else {
+    let RunOutcome::Paused(evaluator) = Evaluator::new(&node, &BASE).run(0) else {
         panic!("evaluation unexpectedly finished");
     };
 
@@ -98,17 +98,17 @@ fn the_budget_is_an_exact_step_limit() {
         steps += 1;
 
         match evaluator.run(1) {
-            Ok(_) => break,
-            Err(next) => evaluator = next,
+            RunOutcome::Finished(_) => break,
+            RunOutcome::Paused(next) => evaluator = next,
         }
     }
 
-    let Err(evaluator) = Evaluator::new(&addition(), &BASE).run(steps - 1) else {
+    let RunOutcome::Paused(evaluator) = Evaluator::new(&addition(), &BASE).run(steps - 1) else {
         panic!("evaluation unexpectedly finished");
     };
 
     assert_eq!(evaluator.steps(), steps - 1);
-    assert!(Evaluator::new(&addition(), &BASE).run(steps).is_ok());
+    assert!(Evaluator::new(&addition(), &BASE).run(steps).is_finished());
 }
 
 #[test]
@@ -118,8 +118,8 @@ fn a_diverging_evaluation_pauses_instead_of_hanging() {
 
     for expected_steps in [100, 200, 300] {
         evaluator = match evaluator.run(100) {
-            Ok(_) => panic!("diverging evaluation unexpectedly finished"),
-            Err(evaluator) => evaluator,
+            RunOutcome::Finished(_) => panic!("diverging evaluation unexpectedly finished"),
+            RunOutcome::Paused(evaluator) => evaluator,
         };
 
         assert_eq!(evaluator.steps(), expected_steps);

@@ -401,6 +401,28 @@ fn resolve_evaluate_node(
     }
 }
 
+/// The outcome of running an [`Evaluator`] for a bounded number of steps.
+///
+/// Evaluation does not fail; it either finishes or has more steps left. When
+/// the budget is exhausted, the evaluator is handed back so that the evaluation
+/// can be resumed later.
+#[derive(Debug)]
+#[must_use]
+pub enum RunOutcome {
+    /// The evaluation finished and produced this result.
+    Finished(LazyObject),
+    /// The budget was exhausted before the evaluation finished.
+    Paused(Evaluator),
+}
+
+impl RunOutcome {
+    /// Returns `true` iff the evaluation finished.
+    #[must_use]
+    pub fn is_finished(&self) -> bool {
+        matches!(self, Self::Finished(_))
+    }
+}
+
 /// A resumable evaluator.
 ///
 /// The evaluator is a stack machine. It can be run for a bounded number of
@@ -453,32 +475,27 @@ impl Evaluator {
     ///
     /// One step is one task popped from the evaluator's work stack.
     ///
-    /// If the evaluation finishes within the budget, the result is returned.
-    /// Otherwise, the evaluator is returned so that the evaluation can be
-    /// resumed with another call to [`Self::run`].
+    /// If the evaluation finishes within the budget, [`RunOutcome::Finished`]
+    /// is returned. Otherwise, [`RunOutcome::Paused`] carries the evaluator so
+    /// that the evaluation can be resumed with another call to [`Self::run`].
     ///
     /// The budget bounds only the strict evaluation. Deferred sets that are
     /// returned as [`LazyObject::Set`] are materialised and iterated later
     /// through fresh, unbudgeted evaluators, as are knowledge constraint
     /// checks.
-    ///
-    /// # Errors
-    ///
-    /// Returns the paused evaluator if the budget is exhausted before the
-    /// evaluation finishes.
-    pub fn run(mut self, budget: u64) -> Result<LazyObject, Self> {
+    pub fn run(mut self, budget: u64) -> RunOutcome {
         for _ in 0..budget {
             let Some(task) = self.tasks.pop() else {
-                return Ok(self.finish());
+                return RunOutcome::Finished(self.finish());
             };
 
             self.execute(task);
         }
 
         if self.is_complete() {
-            Ok(self.finish())
+            RunOutcome::Finished(self.finish())
         } else {
-            Err(self)
+            RunOutcome::Paused(self)
         }
     }
 
@@ -487,8 +504,8 @@ impl Evaluator {
     pub fn run_to_completion(mut self) -> LazyObject {
         loop {
             match self.run(u64::MAX) {
-                Ok(result) => return result,
-                Err(next) => self = next,
+                RunOutcome::Finished(result) => return result,
+                RunOutcome::Paused(next) => self = next,
             }
         }
     }

@@ -4,4 +4,4 @@ mod evaluator;
 mod tests;
 
 pub use context::{Argument, EvaluationContext, FunctionContext, Thunk};
-pub use evaluator::{Evaluator, evaluate};
+pub use evaluator::{Evaluator, RunOutcome, evaluate};
