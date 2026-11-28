@@ -4,8 +4,8 @@ use crate::{
     model::{Atom, Composite, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 #[test]
 fn query_atoms_with_property() {

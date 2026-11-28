@@ -3,7 +3,7 @@ use crate::{
     model::{Atom, Object},
 };
 
-use super::super::*;
+use crate::compute::*;
 
 fn equal(first: Object, second: Object) -> Object {
     evaluate(

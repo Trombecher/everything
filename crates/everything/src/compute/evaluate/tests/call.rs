@@ -7,8 +7,8 @@ use crate::{
     model::{Atom, Composite, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 fn evaluate_with_timeout(node: &Node) -> Object {
     let node = node.clone();

@@ -8,8 +8,8 @@ use crate::{
     model::{Atom, Composite, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 fn contains(item: Object) -> Object {
     Construction::new(Atom::CONTAINS.into(), item).into()

@@ -3,8 +3,8 @@ use crate::{
     model::{Atom, Composite, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 fn is_node(inner: Node) -> Object {
     evaluate(&Node::IsNode(inner.into()), &BASE).into_object(&BASE)

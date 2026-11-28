@@ -123,11 +123,6 @@ impl EvaluationContext {
     pub fn last(&self) -> Option<&FunctionContext> {
         self.stack.last()
     }
-
-    #[must_use]
-    pub fn length(&self) -> usize {
-        self.stack.len()
-    }
 }
 
 #[derive(Debug, Clone)]

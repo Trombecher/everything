@@ -1,11 +1,11 @@
 use crate::{
     base::BASE,
-    knowledge::Statement,
+    knowledge::{Knowledge, Statement},
     model::{Atom, Composite, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 fn contains(element: Node, set: Node, knowledge: &Knowledge) -> Object {
     evaluate(

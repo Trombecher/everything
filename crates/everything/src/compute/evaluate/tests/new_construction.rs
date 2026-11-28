@@ -3,8 +3,8 @@ use crate::{
     model::{Atom, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 fn construct(constructor: Node, value: Node) -> Object {
     evaluate(

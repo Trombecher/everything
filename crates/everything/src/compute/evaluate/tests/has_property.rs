@@ -1,11 +1,11 @@
 use crate::{
     base::BASE,
-    knowledge::Statement,
+    knowledge::{Knowledge, Statement},
     model::{Atom, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 fn has_property(subject: Node, property: Node, knowledge: &Knowledge) -> Object {
     evaluate(

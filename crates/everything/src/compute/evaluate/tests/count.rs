@@ -6,8 +6,8 @@ use crate::{
     model::{Atom, Composite, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 #[test]
 fn set_count_counts_items_of_the_open_set_view() {

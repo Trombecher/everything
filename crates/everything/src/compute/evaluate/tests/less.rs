@@ -4,8 +4,8 @@ use num_bigint::BigInt;
 
 use crate::base::BASE;
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 #[test]
 fn less() {

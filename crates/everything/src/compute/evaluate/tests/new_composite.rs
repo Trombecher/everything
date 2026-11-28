@@ -3,8 +3,8 @@ use crate::{
     model::{Atom, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 fn new_composite(properties: impl IntoIterator<Item = Node>) -> Node {
     Node::NewComposite {

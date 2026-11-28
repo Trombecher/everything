@@ -2,8 +2,8 @@ use num_bigint::BigInt;
 
 use crate::{base::BASE, model::Object};
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 /// The reference implementation of the Ackermann function.
 fn reference(m: u32, n: u32) -> u32 {

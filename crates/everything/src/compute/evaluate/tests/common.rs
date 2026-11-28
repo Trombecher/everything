@@ -6,7 +6,7 @@ use crate::{
     model::{Atom, Composite, Construction, Object},
 };
 
-use super::super::*;
+use crate::compute::*;
 
 /// Asserts that an evaluation result is a set and returns its typed set value.
 pub fn set(object: &LazyObject) -> SetValue {

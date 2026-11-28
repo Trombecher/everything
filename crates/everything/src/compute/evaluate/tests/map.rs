@@ -5,8 +5,8 @@ use crate::{
     model::{Atom, Composite, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 #[test]
 fn set_map() {

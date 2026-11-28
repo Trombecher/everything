@@ -3,8 +3,8 @@ use crate::{
     model::{Atom, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 fn new_set(items: impl IntoIterator<Item = Node>) -> Node {
     Node::NewSet {

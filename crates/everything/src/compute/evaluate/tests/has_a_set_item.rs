@@ -2,12 +2,12 @@ use num_bigint::BigInt;
 
 use crate::{
     base::BASE,
-    knowledge::Statement,
+    knowledge::{Knowledge, Statement},
     model::{Atom, Composite, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 #[test]
 fn has_a_set_item() {

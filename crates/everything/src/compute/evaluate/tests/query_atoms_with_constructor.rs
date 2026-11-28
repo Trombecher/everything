@@ -6,8 +6,8 @@ use crate::{
     model::{Atom, Construction, Object},
 };
 
-use super::super::*;
 use super::common::*;
+use crate::compute::*;
 
 #[test]
 fn query_atoms_with_constructor() {

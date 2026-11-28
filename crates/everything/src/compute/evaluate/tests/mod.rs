@@ -2,6 +2,7 @@ mod ackermann;
 mod add;
 mod and;
 mod any;
+mod budget;
 mod call;
 mod common;
 mod contains;
