@@ -442,7 +442,7 @@ impl std::fmt::Debug for Evaluator {
             .field("tasks", &self.tasks.len())
             .field("evaluated", &self.evaluated.len())
             .field("steps", &self.steps)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
