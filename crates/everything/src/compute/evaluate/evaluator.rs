@@ -406,15 +406,15 @@ fn resolve_evaluate_node(
 /// The evaluator is a stack machine. It can be run for a bounded number of
 /// steps, in which case its intermediate state is returned so that the
 /// evaluation can be resumed later.
-pub struct Evaluator<'k> {
-    knowledge: &'k Knowledge,
+pub struct Evaluator {
+    knowledge: Knowledge,
     context: EvaluationContext,
     tasks: Vec<Task>,
     evaluated: Vec<LazyObject>,
     steps: u64,
 }
 
-impl std::fmt::Debug for Evaluator<'_> {
+impl std::fmt::Debug for Evaluator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Evaluator")
             .field("tasks", &self.tasks.len())
@@ -424,12 +424,12 @@ impl std::fmt::Debug for Evaluator<'_> {
     }
 }
 
-impl<'k> Evaluator<'k> {
+impl Evaluator {
     /// Creates an evaluator for the given node and knowledge.
     #[must_use]
-    pub fn new(node: &Node, knowledge: &'k Knowledge) -> Self {
+    pub fn new(node: &Node, knowledge: &Knowledge) -> Self {
         Self {
-            knowledge,
+            knowledge: knowledge.clone(),
             context: EvaluationContext::default(),
             tasks: vec![Task::Evaluate(Arc::new(node.clone()))],
             evaluated: Vec::new(),
