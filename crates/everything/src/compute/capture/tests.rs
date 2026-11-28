@@ -216,6 +216,23 @@ fn capture_transforms_all_new_composite_properties() {
 }
 
 #[test]
+fn capture_transforms_the_composite_from_set_child() {
+    let mut context = EvaluationContext::default();
+    context.push(FunctionContext {
+        function: Node::function(Node::Literal(Atom(1).into())),
+        parameter: Argument::Value(LazyObject::Eager(Atom(2).into())),
+    });
+
+    let node = Node::CompositeFromSet(Node::Parameter { depth: 0 }.into());
+    let captured = capture(&node, 0, &context, &BASE);
+
+    assert_eq!(
+        captured,
+        Node::CompositeFromSet(Node::Literal(Atom(2).into()).into())
+    );
+}
+
+#[test]
 fn capture_argument_closes_free_parameters_to_undefined() {
     let captured = capture_argument(
         &Node::Parameter { depth: 0 },

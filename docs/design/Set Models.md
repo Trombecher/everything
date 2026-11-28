@@ -90,6 +90,12 @@ Set-taking nodes operate on sets, which may be atoms or composites. They do not 
 
 The earlier idea of using large angle brackets for object sets was adopted in the form of `⟨...⟩`. The hash-delimited metavariable notation that was proposed at the time was not adopted; metavariables use `%...%`. The `{...}` sugar preserves the old surface syntax for collections, but now it always denotes a composite of `contains` constructions rather than an arbitrary collection.
 
+### Composite operations
+
+Set operations act on items, so they do not directly cover the properties of a composite, which are not `contains` properties. Rather than adding a parallel union, intersection, map, and filter family for composites, the model reuses the set algebra through two conversion nodes: _properties of_ turns an object's properties into set items, and _composite from set_ rebuilds a composite from set items. A property-level operation is then a set operation followed by one conversion.
+
+The conversion node is also the validation boundary. Canonical set results are valid by construction; turning arbitrary set items back into members is the one place that may create a composite whose members do not satisfy its property constraints. Keeping that decision in one node avoids duplicating a future runtime validation rule across every composite operation.
+
 ## Implementation Notes
 
 The implementation problems recorded at the time were mostly about keeping structural collections and data collections apart while still sharing set operations. The open set model resolved them as follows:

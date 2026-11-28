@@ -101,6 +101,33 @@ fn non_node_properties_still_accept_arbitrary_values() {
 }
 
 #[test]
+fn composite_from_set_property_requires_a_node_value() {
+    let subject = AtomOrComposite::Atom(Atom(3006));
+
+    let non_node: Object = Construction::new(
+        Atom::NODE_COMPOSITE_FROM_SET.into(),
+        Object::new_integer(BigInt::ONE),
+    )
+    .into();
+    let knowledge = with_statement(Atom(3006), non_node.clone());
+
+    assert!(
+        knowledge
+            .object_has_valid_property(&subject, &non_node)
+            .is_err()
+    );
+
+    let node: Object = Construction::new(
+        Atom::NODE_COMPOSITE_FROM_SET.into(),
+        Node::Literal(Object::new_integer(BigInt::ONE)).into_object(),
+    )
+    .into();
+    let knowledge = with_statement(Atom(3006), node.clone());
+
+    assert!(knowledge.object_has_valid_property(&subject, &node).is_ok());
+}
+
+#[test]
 fn property_constructor_declarations_require_node_constraints() {
     let subject = AtomOrComposite::Atom(Atom(3002));
     let non_node: Object = Construction::new(

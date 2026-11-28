@@ -220,6 +220,9 @@ fn capture_with_mode(
         Node::PropertiesOf(inner) => Node::PropertiesOf(
             recurse!(inner, additional_depth, evaluation_context, knowledge).into(),
         ),
+        Node::CompositeFromSet(inner) => Node::CompositeFromSet(
+            recurse!(inner, additional_depth, evaluation_context, knowledge).into(),
+        ),
         Node::HasASetItem(inner) => Node::HasASetItem(
             recurse!(inner, additional_depth, evaluation_context, knowledge).into(),
         ),

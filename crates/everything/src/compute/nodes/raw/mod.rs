@@ -113,6 +113,7 @@ pub enum RawNode {
     },
     SetCount(Object),
     PropertiesOf(Object),
+    CompositeFromSet(Object),
     HasASetItem(Object),
     HasProperty {
         subject: Object,
@@ -287,6 +288,12 @@ impl RawNode {
             NodeKind::PropertiesOf,
             construction_value(object, knowledge, Atom::NODE_PROPERTIES_OF.into())
                 .map(Self::PropertiesOf)
+        );
+
+        xor_with!(
+            NodeKind::CompositeFromSet,
+            construction_value(object, knowledge, Atom::NODE_COMPOSITE_FROM_SET.into())
+                .map(Self::CompositeFromSet)
         );
 
         xor_with!(
@@ -690,6 +697,7 @@ impl RawNode {
             ),
             Self::SetCount(object) => unary_property(Atom::NODE_SET_COUNT, object),
             Self::PropertiesOf(object) => unary_property(Atom::NODE_PROPERTIES_OF, object),
+            Self::CompositeFromSet(object) => unary_property(Atom::NODE_COMPOSITE_FROM_SET, object),
             Self::HasASetItem(object) => unary_property(Atom::NODE_HAS_A_SET_ITEM, object),
             Self::HasProperty { subject, property } => binary_properties(
                 Atom::NODE_HAS_PROPERTY_SUBJECT,

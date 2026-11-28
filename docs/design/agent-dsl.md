@@ -178,6 +178,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `a in s`                     | Contains                                    |
 | `count(s)` / `unwrap(s)`     | Count / Unwrap                              |
 | `properties_of(x)`           | PropertiesOf                                |
+| `composite_from_set(s)`      | CompositeFromSet                            |
 | `has_a_set_item(x)`          | HasASetItem                                 |
 | `has_property(s, p)`         | HasProperty                                 |
 | `map(s, f)`                  | Map                                         |
@@ -194,7 +195,7 @@ This table must stay one-to-one with the `Node` enum. It is the spec.
 | `x.p`                        | `unwrap(values(x, p))`                      |
 | `true` / `false` / `undefined` | atoms                                      |
 
-Set-taking builtins (`count`, `unwrap`, `map`, `filter`, …) require a set. Use `properties_of(x)` to pass an object's properties as a set. `values(o, c)` is a query rather than a set operation: it accepts any object, resolving atoms through the knowledge and sets through their members.
+Set-taking builtins (`count`, `unwrap`, `map`, `filter`, …) require a set. Use `properties_of(x)` to pass an object's properties as a set, and `composite_from_set(s)` to turn such a set back into a composite. `values(o, c)` is a query rather than a set operation: it accepts any object, resolving atoms through the knowledge and sets through their members.
 
 ### Samples
 

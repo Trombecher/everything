@@ -28,6 +28,7 @@ enum Task {
     ForceToBoolean,
     SetCount,
     PropertiesOf,
+    CompositeFromSet,
     HasASetItem,
     /// Evaluates the subject and short-circuits the property child if the
     /// subject is a construction.
@@ -303,6 +304,10 @@ fn resolve_evaluate_node(
         }
         Node::PropertiesOf(object) => {
             tasks.push(Task::PropertiesOf);
+            tasks.push(Task::Evaluate(Arc::clone(object)));
+        }
+        Node::CompositeFromSet(object) => {
+            tasks.push(Task::CompositeFromSet);
             tasks.push(Task::Evaluate(Arc::clone(object)));
         }
         Node::HasASetItem(object) => {
@@ -597,6 +602,18 @@ impl Evaluator {
                     Some(target) => LazyObject::Set(LazySet::PropertiesOf {
                         target: Box::new(target),
                     }),
+                    None => UNDEFINED,
+                });
+            }
+            Task::CompositeFromSet => {
+                let object = evaluated.pop().unwrap();
+
+                evaluated.push(match object.into_set() {
+                    Some(target) => {
+                        let mut items = target.into_items(knowledge).collect::<Vec<_>>();
+
+                        LazyObject::Eager(Composite::from(items.as_mut_slice()).into())
+                    }
                     None => UNDEFINED,
                 });
             }

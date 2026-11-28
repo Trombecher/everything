@@ -164,6 +164,7 @@ pub static BASE: LazyLock<Knowledge> = LazyLock::new(|| {
         Atom::NODE_AND_SECOND,
         Atom::NODE_SET_COUNT,
         Atom::NODE_PROPERTIES_OF,
+        Atom::NODE_COMPOSITE_FROM_SET,
         Atom::NODE_HAS_A_SET_ITEM,
         Atom::NODE_HAS_PROPERTY_SUBJECT,
         Atom::NODE_HAS_PROPERTY_PROPERTY,

@@ -77,6 +77,14 @@ pub enum Node {
     /// properties in the knowledge, and constructions evaluate to undefined.
     PropertiesOf(Arc<Node>),
 
+    /// Builds a composite whose members are the set items of the inner result.
+    ///
+    /// The items are inserted as members directly, without wrapping them in
+    /// `contains` constructions. This is the inverse of [`Node::PropertiesOf`]:
+    /// it reconstructs a composite from the set of its members. A construction
+    /// is not a set, so it evaluates to undefined.
+    CompositeFromSet(Arc<Node>),
+
     /// Evaluates to `true` iff the inner result has at least one set item.
     /// Atoms and composites are tested through their set view, and
     /// constructions evaluate to undefined.
@@ -316,6 +324,9 @@ impl Node {
             RawNode::PropertiesOf(object) => {
                 Self::PropertiesOf(child!(NodeProperty::PropertiesOf, &object))
             }
+            RawNode::CompositeFromSet(object) => {
+                Self::CompositeFromSet(child!(NodeProperty::CompositeFromSet, &object))
+            }
             RawNode::HasASetItem(object) => {
                 Self::HasASetItem(child!(NodeProperty::HasASetItem, &object))
             }
@@ -532,6 +543,7 @@ impl Node {
             Self::Parameter { depth } => RawNode::Parameter { depth: *depth },
             Self::SetCount(object) => RawNode::SetCount(object.into_object()),
             Self::PropertiesOf(object) => RawNode::PropertiesOf(object.into_object()),
+            Self::CompositeFromSet(object) => RawNode::CompositeFromSet(object.into_object()),
             Self::HasASetItem(object) => RawNode::HasASetItem(object.into_object()),
             Self::HasProperty { subject, property } => RawNode::HasProperty {
                 subject: subject.into_object(),

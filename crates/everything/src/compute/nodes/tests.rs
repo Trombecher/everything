@@ -23,6 +23,7 @@ fn node_round_trip() {
         Node::Parameter { depth: 0 },
         Node::SetCount(Node::Literal(a.clone()).into()),
         Node::PropertiesOf(Node::Literal(a.clone()).into()),
+        Node::CompositeFromSet(Node::Literal(a.clone()).into()),
         Node::HasASetItem(Node::Literal(a.clone()).into()),
         Node::HasProperty {
             subject: Node::Literal(a.clone()).into(),
@@ -321,10 +322,15 @@ fn node_parse_reports_invalid_depth() {
 fn node_parse_error_display_uses_node_names() {
     assert_eq!(NodeKind::And.to_string(), "and");
     assert_eq!(NodeKind::HasProperty.to_string(), "has property");
+    assert_eq!(NodeKind::CompositeFromSet.to_string(), "composite from set");
     assert_eq!(NodeKind::NewComposite.to_string(), "new composite");
     assert_eq!(NodeKind::IsNode.to_string(), "is node");
     assert_eq!(NodeProperty::AndSecond.to_string(), "node_and_second");
     assert_eq!(NodeProperty::IsNode.to_string(), "node_is_node");
+    assert_eq!(
+        NodeProperty::CompositeFromSet.to_string(),
+        "node_composite_from_set"
+    );
     assert_eq!(
         NodeProperty::NewCompositeProperty.to_string(),
         "node_new_composite_property"

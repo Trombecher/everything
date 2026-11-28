@@ -5,6 +5,7 @@ mod any;
 mod budget;
 mod call;
 mod common;
+mod composite_from_set;
 mod contains;
 mod count;
 mod difference;

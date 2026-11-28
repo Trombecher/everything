@@ -55,6 +55,12 @@ impl RawNode {
         Self::PropertiesOf(child(object))
     }
 
+    /// Creates a composite-from-set node.
+    #[must_use]
+    pub fn composite_from_set(set: impl Into<Self>) -> Self {
+        Self::CompositeFromSet(child(set))
+    }
+
     /// Creates a has-a-set-item node.
     #[must_use]
     pub fn has_a_set_item(object: impl Into<Self>) -> Self {

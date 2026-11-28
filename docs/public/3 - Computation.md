@@ -197,7 +197,7 @@ As with addition, integers are arbitrary precision and cannot overflow.
 
 Several node kinds take or produce _sets_. The set model is open (see [Chapter 4](./4%20-%20Common%20Models.md#sets)): **every atom and every composite is a set.** The _items_ of a set are the objects `%item%` for which it has the property `contains ·· %item%`: the statements of an atom in the knowledge, or the members of a composite. A construction is not a set. `{...}` is syntactic sugar for the canonical composite whose members are the corresponding `contains` constructions, and `{}` is the empty composite.
 
-Whenever this chapter says that a node produces a set, the result is a canonical set composite built from the items. The other properties of an operand are not items of that operand and do not participate when it is used as a set; [Properties Of](#properties-of) makes the properties of an object explicit as items.
+Whenever this chapter says that a node produces a set, the result is a canonical set composite built from the items. The other properties of an operand are not items of that operand and do not participate when it is used as a set; [Properties Of](#properties-of) makes the properties of an object explicit as items, and [Composite From Set](#composite-from-set) turns such a set back into a composite.
 
 Because the constraint of `contains` accepts every value for every subject, the `contains` properties of a set place no demands on their items beyond their own validity. Collecting computed items into a canonical set therefore never runs the constraints of the collected objects.
 
@@ -217,6 +217,23 @@ An object is a _properties-of node_ iff it has the property `node_properties_of 
 - for a construction, `undefined`.
 
 Unlike [Set Count](#set-count), this makes the properties of an object explicit as items. In particular, the items of the result are the properties themselves, not the items of the original object. Counting the properties of an atom or composite is therefore written as `⟨node_set_count ·· ⟨node_properties_of ·· %object%⟩⟩`. An atom or composite without properties evaluates to the empty set.
+
+## Composite From Set
+
+An object is a _composite-from-set node_ iff it has the property `node_composite_from_set ·· %set%`.
+
+It evaluates `%set%`. If the result is a construction, the result is `undefined`. Otherwise the result is the canonical composite whose members are the items of the result. The items become members directly; unlike [New Set](#new-set) they are not wrapped in `contains` constructions. An item that is `undefined` becomes the atom `undefined` as an ordinary member.
+
+This node is the inverse of [Properties Of](#properties-of):
+
+- `⟨node_composite_from_set ·· ⟨node_properties_of ·· %object%⟩⟩` evaluates to `%object%` when `%object%` is a composite;
+- `⟨node_properties_of ·· ⟨node_composite_from_set ·· %set%⟩⟩` evaluates to the set `%set%`.
+
+An atom cannot be reconstructed from its properties, so converting an atom by way of `node_properties_of` produces a composite of its statements rather than the atom.
+
+The result is a structured composite, not the canonical set form: its own items are only those members of the form `contains ·· %item%`. Use [Properties Of](#properties-of) to make its members explicit as items again. Because `properties_of` lists the members of an atom or composite but the `contains` constructions of a deferred set, `from_set(properties_of(%deferred%))` rebuilds the canonical set rather than a composite of properties.
+
+Together with [Properties Of](#properties-of), this node lets the set operations work on the properties of a composite without a second family of composite-specific operations. For example, `⟨node_composite_from_set ·· ⟨node_set_union_first ·· ⟨node_properties_of ·· %a%⟩, node_set_union_second ·· ⟨node_properties_of ·· %b%⟩⟩⟩` constructs the composite whose properties are the properties of `%a%` and `%b%`.
 
 ## Has a Set Item
 
@@ -603,6 +620,16 @@ Constructing the composite `⟨1, 2⟩` from two child expressions:
 
 evaluates to the composite `⟨1, 2⟩`. Unlike the [new-set example](#new-set), the members are inserted directly and are not wrapped in `contains` constructions.
 
+### Composite From Set
+
+Reconstructing the composite `⟨1, 2⟩` from the set of its members:
+
+```
+⟨node_composite_from_set ·· ⟨node_literal ·· {1, 2}⟩⟩
+```
+
+evaluates to the composite `⟨1, 2⟩`.
+
 ### Conditional
 
 ```
@@ -628,6 +655,7 @@ The implementation is demand-driven:
 - [Has property](#has-property) evaluates the subject first. If the subject is a construction, the result is `undefined` and the property child is never evaluated.
 - A [new set](#new-set) evaluates all of its children and materialises the resulting set. Its items are therefore not represented lazily.
 - A [new composite](#new-composite) evaluates all of its children and materialises the resulting composite. The child results become its members directly; they are not wrapped as `contains` items.
+- A [composite from set](#composite-from-set) forces the items of its operand and materialises them as members of a new composite. It is eager, like [new set](#new-set) and [new composite](#new-composite).
 - Captured functions are cached as parsed nodes instead of being materialised as their object form. This avoids reparsing on call. Parsed nodes retain the object they were parsed from, so materialising a captured function reproduces its body exactly, including annotations and unknown properties. Atom-defined functions materialise into composites; see [Functions](#functions).
 - Capturing an unevaluated argument shares its thunk in the function body instead of evaluating it or copying its closed expression. A thunk contains a finite closed expression and an optional cached result, so function objects remain finite even when they capture divergent code. Capturing an argument that is already evaluated escapes its value into a literal.
 
@@ -656,6 +684,7 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 | Multiply                     | `node_multiply_first`, `node_multiply_second`                                      | implemented for integers             |
 | Set count                    | `node_set_count`                                                                   | implemented                          |
 | Properties of                | `node_properties_of`                                                               | implemented                          |
+| Composite from set           | `node_composite_from_set`                                                          | implemented                          |
 | Has a set item               | `node_has_a_set_item`                                                              | implemented                          |
 | Has property                 | `node_has_property_subject`, `node_has_property_property`                         | implemented                          |
 | Set union                    | `node_set_union_first`, `node_set_union_second`                                     | implemented                          |
@@ -687,4 +716,5 @@ The implementation uses a concrete iteration order internally; a well-formed pro
 
 - Well-formedness is not checked by the evaluator. Termination, independence from iteration order, and validity of the materialised objects are semantic preconditions, so a program that is not well-formed may appear to observe laziness, iteration order, or missing validation.
 - [New composite](#new-composite) inserts its child results without validating them as properties of the resulting composite. Object and property validation is a semantic precondition, as for other constructed values.
+- [Composite from set](#composite-from-set) inserts the evaluated items without validating them as properties of the resulting composite. It is the natural single validation point if runtime composite validation is added later; until then, validity is a semantic precondition.
 - Set-taking nodes accept every atom and every composite, as the set model is open. Constructions are rejected with `undefined`; use `node_properties_of` to pass an object's properties as a set.
